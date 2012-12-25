@@ -1,0 +1,7 @@
+.dirstamp
+.deps/
+.libs/
+*.la
+*.lo
+libzc.pc
+test-libzc

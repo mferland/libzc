@@ -1,0 +1,11 @@
+LIBZC_1 {
+global:
+        zc_ref;
+        zc_get_log_priority;
+        zc_set_log_fn;
+        zc_unref;
+        zc_set_log_priority;
+        zc_new;
+local:
+        *;
+};
