@@ -1,6 +1,6 @@
 #!/bin/sh
 
-autoreconf --install --symlinks
+autoreconf --install --symlink
 
 echo "Done!"
 
