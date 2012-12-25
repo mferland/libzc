@@ -4,7 +4,7 @@ libdir=@libdir@
 includedir=@includedir@
 
 Name: libzc
-Description: Library for crack zip file passwords
+Description: Library for cracking zip file passwords
 Version: @VERSION@
 Libs: -L${libdir} -lzc
 Libs.private:

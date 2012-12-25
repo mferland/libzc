@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [1],
+        [0.0.1],
         [marc.ferland@gmail.com],
         [zc],
         [http://nositeyet.com])
@@ -17,6 +17,8 @@ AC_PREFIX_DEFAULT([/usr])
 
 AC_PROG_SED
 AC_PROG_MKDIR_P
+
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 AC_ARG_ENABLE([logging],
         AS_HELP_STRING([--disable-logging], [disable system logging @<:@default=enabled@:>@]),

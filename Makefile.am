@@ -32,7 +32,7 @@ SED_PROCESS = \
 
 LIBZC_CURRENT=0
 LIBZC_REVISION=0
-LIBZC_AGE=1
+LIBZC_AGE=0
 
 pkginclude_HEADERS = src/libzc.h
 lib_LTLIBRARIES = src/libzc.la
@@ -53,8 +53,21 @@ pkgconfig_DATA = src/libzc.pc
 EXTRA_DIST += src/libzc.pc.in
 CLEANFILES += src/libzc.pc
 
-TESTS = src/test-libzc
+# TESTS = check_money
+# check_PROGRAMS = check_money
+# check_money_SOURCES = check_money.c $(top_builddir)/src/money.h
+# check_money_CFLAGS = @CHECK_CFLAGS@
+# check_money_LDADD = $(top_builddir)/src/libmoney.la @CHECK_LIBS@
 
+TESTS = src/test-libzc
 check_PROGRAMS = src/test-libzc
-src_test_libzc_SOURCES = src/test-libzc.c
-src_test_libzc_LDADD = src/libzc.la
+src_test_libzc_SOURCES = src/test-libz.c src/libzc.h
+src_test_libzc_CFLAGS = @CHECK_CFLAGS@
+src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@
+
+
+# TESTS = src/test-libzc
+
+# check_PROGRAMS = src/test-libzc
+# src_test_libzc_SOURCES = src/test-libzc.c
+# src_test_libzc_LDADD = src/libzc.la

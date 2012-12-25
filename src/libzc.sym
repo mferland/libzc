@@ -1,4 +1,4 @@
-LIBZC_1 {
+LIBZC_0 {
 global:
         zc_ref;
         zc_get_log_priority;

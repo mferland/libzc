@@ -1,7 +1,14 @@
 *~*
+*.o
 Makefile.in
+Makefile
 aclocal.m4
 config.h.in
+config.h
+config.log
+config.status
+libtool
+stamp-h1
 configure
 autom4te.cache
 build-aux

@@ -34,7 +34,7 @@ extern "C" {
 struct zc_ctx;
 struct zc_ctx *zc_ref(struct zc_ctx *ctx);
 struct zc_ctx *zc_unref(struct zc_ctx *ctx);
-int zc_new(struct zc_ctx **ctx);
+int zc_new(struct zc_ctx **inctx);
 void zc_set_log_fn(struct zc_ctx *ctx,
                   void (*log_fn)(struct zc_ctx *ctx,
                                  int priority, const char *file, int line, const char *fn,
