@@ -42,6 +42,19 @@ void zc_set_log_fn(struct zc_ctx *ctx,
 int zc_get_log_priority(struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
+/*
+ * zc_file
+ *
+ * contains information about the zip file
+ */
+struct zc_file;
+struct zc_file *zc_file_ref(struct zc_file *file);
+struct zc_file *zc_file_unref(struct zc_file *file);
+/* struct zc_ctx *zc_file_get_ctx(struct zc_file *file); */
+int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_file **file);
+const char *zc_file_get_filename(const struct zc_file *file);
+int zc_file_open(struct zc_file *file);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

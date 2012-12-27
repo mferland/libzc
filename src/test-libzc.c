@@ -22,29 +22,89 @@
 
 #include "libzc.h"
 
-START_TEST (test_zc_new)
+START_TEST(test_zc_new)
 {
-   
+   struct zc_ctx *ctx;
+   struct zc_ctx *freedctx;
+   int err;
+
+   err = zc_new(&ctx);
+   fail_unless(err == 0, NULL);
+
+   freedctx = zc_unref(ctx);
+   fail_unless(freedctx == NULL, NULL);
 }
 END_TEST
 
-int main(void)
+START_TEST(test_zc_file_new)
 {
-  return 0;
+   struct zc_ctx *ctx;
+   struct zc_file *file;
+
+   zc_new(&ctx);
+   zc_file_new_from_filename(ctx, "toto.zip", &file);
+   fail_if(strcmp(zc_file_get_filename(file), "toto.zip") != 0,
+           "Filename does not match.");
+
+   zc_file_unref(file);
+   zc_unref(ctx);
+}
+END_TEST
+
+START_TEST(test_zc_file_open_existant)
+{
+   struct zc_ctx *ctx;
+   struct zc_file *file;
+   int err;
+
+   zc_new(&ctx);
+   zc_file_new_from_filename(ctx, "test.zip", &file);
+   fail_if(zc_file_open(file) != 0,
+           "File could not be opened.");
+   
+   zc_file_unref(file);
+   zc_unref(ctx);
+}
+END_TEST
+
+START_TEST(test_zc_file_open_nonexistant)
+{
+   struct zc_ctx *ctx;
+   struct zc_file *file;
+   int err;
+
+   zc_new(&ctx);
+   zc_file_new_from_filename(ctx, "doesnotexists.zip", &file);
+   fail_if(zc_file_open(file) == 0,
+           "Non-existant file reported having been opened.");
+   
+   zc_file_unref(file);
+   zc_unref(ctx);
+}
+END_TEST
+
+Suite *libzc_suite()
+{
+   Suite *s = suite_create("");
+
+   /* Core test case */
+   TCase *tc_core = tcase_create("Core");
+   tcase_add_test(tc_core, test_zc_new);
+   tcase_add_test(tc_core, test_zc_file_new);
+   tcase_add_test(tc_core, test_zc_file_open_existant);
+   tcase_add_test(tc_core, test_zc_file_open_nonexistant);
+   suite_add_tcase(s, tc_core);
+
+   return s;
 }
 
-/* int main(int argc, char *argv[]) */
-/* { */
-/*    struct zc_ctx *ctx; */
-/*    int err; */
-
-/*    err = zc_new(&ctx); */
-/*    if (err < 0) */
-/*       exit(EXIT_FAILURE); */
-
-/*    printf("version %s\n", VERSION); */
-
-/*    zc_unref(ctx); */
-
-/*    return EXIT_SUCCESS; */
-/* } */
+int main()
+{
+   int number_failed;
+   Suite *s = libzc_suite();
+   SRunner *sr = srunner_create(s);
+   srunner_run_all(sr, CK_NORMAL);
+   number_failed = srunner_ntests_failed(sr);
+   srunner_free(sr);
+   return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}

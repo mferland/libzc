@@ -147,7 +147,7 @@ ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
    ctx->refcount--;
    if (ctx->refcount > 0)
       return ctx;
-   info(ctx, "context %p released\n", ctx);
+   info(ctx, "ctx %p released\n", ctx);
    free(ctx);
    return NULL;
 }
