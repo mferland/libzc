@@ -11,6 +11,10 @@ global:
         zc_file_new_from_filename;
         zc_file_get_filename;
         zc_file_open;
+        zc_file_close;
+        zc_file_isopened;
+        zc_file_read_validation_data;
+        zc_file_debug_print_headers;
 local:
         *;
 };

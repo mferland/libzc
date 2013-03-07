@@ -20,16 +20,17 @@
 #define _LIBZC_H_
 
 #include <stdarg.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*
- * zc_ctx
+/**
+ * zc_ctx:
  *
- * library user context - reads the config and system
- * environment, user variables, allows custom logging
+ * library user context - reads the config and system environment,
+ * user variables, allows custom logging
  */
 struct zc_ctx;
 struct zc_ctx *zc_ref(struct zc_ctx *ctx);
@@ -42,19 +43,45 @@ void zc_set_log_fn(struct zc_ctx *ctx,
 int zc_get_log_priority(struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
-/*
- * zc_file
+/**
+ * zc_file_validation_data:
+ *
+ * Encrypted file header and magic number used for testing password
+ * validity. The zip encryption header is always 12 bytes.
+ */
+struct zc_file_validation_data
+{
+   unsigned char encryption_header[12];
+   unsigned char magic;
+};
+
+/**
+ * zc_file:
  *
  * contains information about the zip file
  */
 struct zc_file;
 struct zc_file *zc_file_ref(struct zc_file *file);
 struct zc_file *zc_file_unref(struct zc_file *file);
-/* struct zc_ctx *zc_file_get_ctx(struct zc_file *file); */
 int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_file **file);
 const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
+int zc_file_close(struct zc_file *file);
+bool zc_file_isopened(struct zc_file *file);
+int zc_file_read_validation_data(struct zc_file *file, struct zc_file_validation_data *vdata, int vdata_size);
+#ifdef ENABLE_DEBUG
+void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
+#endif
 
+/**
+ * zc_pwgen:
+ *
+ * Generates passwords given different character sets.
+ */
+struct zc_pwgen;
+struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen);
+struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen);
+   
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

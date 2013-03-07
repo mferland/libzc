@@ -23,7 +23,7 @@
 #include <ctype.h>
 
 #include "libzc.h"
-#include "libzc-private.h"
+#include "libzc_private.h"
 
 /**
  * SECTION:libzc

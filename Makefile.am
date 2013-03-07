@@ -38,9 +38,10 @@ pkginclude_HEADERS = src/libzc.h
 lib_LTLIBRARIES = src/libzc.la
 
 src_libzc_la_SOURCES =\
-	src/libzc-private.h \
+	src/libzc_private.h \
 	src/libzc.c \
-	src/zc_file.c
+	src/zc_file.c \
+	src/zip.c
 
 EXTRA_DIST += src/libzc.sym
 
@@ -54,8 +55,8 @@ pkgconfig_DATA = src/libzc.pc
 EXTRA_DIST += src/libzc.pc.in
 CLEANFILES += src/libzc.pc
 
-TESTS = src/test-libzc
-check_PROGRAMS = src/test-libzc
-src_test_libzc_SOURCES = src/test-libzc.c src/libzc.h
+TESTS = src/test_libzc
+check_PROGRAMS = src/test_libzc
+src_test_libzc_SOURCES = src/test_libzc.c src/test_file.c src/libzc.h src/test_file.h
 src_test_libzc_CFLAGS = @CHECK_CFLAGS@
 src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@

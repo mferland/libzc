@@ -1,0 +1,2 @@
+* ajouter struct header
+* finir fonction read_header
