@@ -90,7 +90,7 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename
    newfile->refcount = 1;
    newfile->filename = strdup(filename);
    *file = newfile;
-   dbg(ctx, "file %p created for %s", newfile, filename);
+   dbg(ctx, "file %p created for %s\n", newfile, filename);
    return 0;
 }
 

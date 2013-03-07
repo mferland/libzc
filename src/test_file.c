@@ -109,8 +109,6 @@ START_TEST(test_zc_file_specify_large_validation_data)
    zc_file_open(file);
    int err = zc_file_read_validation_data(file, &vdata[0], 12);
 
-   zc_file_debug_print_headers(ctx, file);
-
    fail_unless(err == 4,
                "Reading validation data in large array failed.");
    
