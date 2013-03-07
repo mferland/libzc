@@ -88,7 +88,7 @@ END_TEST
 
 START_TEST(test_zc_file_can_read_validation_data)
 {
-   struct zc_file_validation_data vdata[3];
+   struct zc_validation_data vdata[3];
    
    zc_file_new_from_filename(ctx, "test.zip", &file);
    zc_file_open(file);
@@ -103,7 +103,7 @@ END_TEST
 
 START_TEST(test_zc_file_specify_large_validation_data)
 {
-   struct zc_file_validation_data vdata[12];
+   struct zc_validation_data vdata[12];
    
    zc_file_new_from_filename(ctx, "test.zip", &file);
    zc_file_open(file);
@@ -118,7 +118,7 @@ END_TEST
 
 START_TEST(test_zc_file_not_encrypted)
 {
-   struct zc_file_validation_data vdata[3];
+   struct zc_validation_data vdata[3];
    
    zc_file_new_from_filename(ctx, "test_non_encrypted.zip", &file);
    zc_file_open(file);

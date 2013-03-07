@@ -151,46 +151,45 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
  * zc_file_read_validation_data:
  *
  * Read the validation data from the file and store them in the vdata
- * array. At most vdata_size items will be stored in the array.
+ * array. At most nmemb elements will be stored in the array.
  *
  * The file must be opened before calling this function.
  *
- * @retval <0 There was an error reading the file.
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-ZC_EXPORT int zc_file_read_validation_data(struct zc_file *file, struct zc_file_validation_data *vdata, int vdata_size)
+ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
 {
    struct zip_header *zip_header;
-   int vdata_idx = 0;
+   size_t valid_files = 0;
 
    rewind(file->fd);
    
    if (zip_header_new(&zip_header))
-      return -1;
+      return 0;
 
-   while (zip_header_read(file->fd, zip_header) == 0 && vdata_idx < vdata_size)
+   while (zip_header_read(file->fd, zip_header) == 0 && valid_files < nmemb)
    {
       if (zip_header_has_encryption_bit(zip_header))
       {
-         vdata[vdata_idx].magic = zip_header_encryption_magic(zip_header);
-         if (zip_encryption_header_read(file->fd, vdata[vdata_idx].encryption_header))
+         vdata[valid_files].magic = zip_header_encryption_magic(zip_header);
+         if (zip_encryption_header_read(file->fd, vdata[valid_files].encryption_header))
          {
             zip_header_free(zip_header);
-            return -1;
+            return 0;
          }
-         ++vdata_idx;
+         ++valid_files;
       }
 
       if (zip_skip_to_next_header(file->fd, zip_header))
       {
          zip_header_free(zip_header);
-         return -1;
+         return 0;
       }
    }
 
    zip_header_free(zip_header);
-   return vdata_idx;
+   return valid_files;
 }
 
 #ifdef ENABLE_DEBUG
@@ -203,7 +202,7 @@ ZC_EXPORT int zc_file_read_validation_data(struct zc_file *file, struct zc_file_
 ZC_EXPORT void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file)
 {
    struct zip_header *zip_header;
-   struct zc_file_validation_data vdata;
+   struct zc_validation_data vdata;
    const int print_buffer_size = 512;
    char *print_buffer;
    int err;
@@ -218,7 +217,7 @@ ZC_EXPORT void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *f
    while (zip_header_read(file->fd, zip_header) == 0)
    {
       zip_debug_print_header(zip_header, print_buffer, print_buffer_size);
-      dbg(file->ctx, print_buffer);
+      dbg(file->ctx, "%s\n", print_buffer);
       
       if (zip_header_has_encryption_bit(zip_header))
       {

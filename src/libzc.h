@@ -44,12 +44,12 @@ int zc_get_log_priority(struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
 /**
- * zc_file_validation_data:
+ * zc_validation_data:
  *
  * Encrypted file header and magic number used for testing password
  * validity. The zip encryption header is always 12 bytes.
  */
-struct zc_file_validation_data
+struct zc_validation_data
 {
    unsigned char encryption_header[12];
    unsigned char magic;
@@ -68,7 +68,7 @@ const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
-int zc_file_read_validation_data(struct zc_file *file, struct zc_file_validation_data *vdata, int vdata_size);
+size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
 #ifdef ENABLE_DEBUG
 void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
 #endif

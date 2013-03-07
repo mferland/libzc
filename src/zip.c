@@ -231,7 +231,7 @@ int zip_debug_print_header(const struct zip_header *header, char *buffer, size_t
                    " uncomp. size: 0x%x (%d),"
                    " file name length: %d,"
                    " extra field length: %d,"
-                   " filename: %s\n",
+                   " filename: %s",
                    header->version_needed, header->version_needed,
                    header->gen_bit_flag,
                    header->comp_method,
