@@ -88,7 +88,6 @@ static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
 
 static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
 {
-   // use realloc here!!!
    header->filename = calloc(1, header->filename_length + 1);
    if (!header->filename)
       return -ENOMEM;
