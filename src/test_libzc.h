@@ -22,7 +22,7 @@
 #include <check.h>
 
 Suite *make_libzc_file_suite();
-Suite *make_libzc_password_generator_suite();
+Suite *make_libzc_pwgen_suite();
 
 #endif
 

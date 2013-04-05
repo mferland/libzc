@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -81,6 +82,9 @@ void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
 struct zc_pwgen;
 struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen);
 struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen);
+int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **gen);
+int zc_pwgen_init(struct zc_ctx *ctx, struct zc_pwgen *gen,
+                  const unsigned char *char_set, unsigned int max_pw_len);
    
 #ifdef __cplusplus
 } /* extern "C" */

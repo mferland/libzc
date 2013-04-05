@@ -24,13 +24,13 @@
 struct zc_ctx *ctx;
 struct zc_file *file;
 
-void setup()
+void setup_file()
 {
    zc_new(&ctx);
    file = NULL;
 }
 
-void teardown()
+void teardown_file()
 {
    zc_file_unref(file);
    zc_unref(ctx);
@@ -136,7 +136,7 @@ Suite *make_libzc_file_suite()
    Suite *s = suite_create("file");
 
    TCase *tc_core = tcase_create("Core");
-   tcase_add_checked_fixture(tc_core, setup, teardown);
+   tcase_add_checked_fixture(tc_core, setup_file, teardown_file);
    tcase_add_test(tc_core, test_zc_file_new);
    tcase_add_test(tc_core, test_zc_file_open_existant);
    tcase_add_test(tc_core, test_zc_file_open_nonexistant);

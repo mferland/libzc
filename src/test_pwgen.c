@@ -22,35 +22,46 @@
 #include "libzc.h"
 
 struct zc_ctx *ctx;
-struct zc_passw_generator *generator;
+struct zc_pwgen *pwgen;
 
-void setup()
+static unsigned char simple_char_set[] = {"a"};
+static unsigned int pw_max_len = 5;
+
+void setup_pwgen()
 {
    zc_new(&ctx);
-   generator = NULL;
+   pwgen = NULL;
 }
 
-void teardown()
+void teardown_pwgen()
 {
-   zc_pwgen_unref(generator);
+   zc_pwgen_unref(pwgen);
    zc_unref(ctx);
 }
 
-START_TEST(test_zc_generator_new)
+START_TEST(test_zc_pwgen_new)
 {
-   zc_pwgen_new(ctx, &generator);
-   fail_if(generator == NULL,
+   zc_pwgen_new(ctx, &pwgen);
+   fail_if(pwgen == NULL,
            "Creating new password generator failed.");
 }
 END_TEST
 
-Suite *make_libzc_password_generator_suite()
+START_TEST(test_zc_pwgen_init)
+{
+   zc_pwgen_new(ctx, &pwgen);
+   fail_unless(zc_pwgen_init(ctx, pwgen, simple_char_set, pw_max_len) == 0, NULL);
+}
+END_TEST
+
+Suite *make_libzc_pwgen_suite()
 {
    Suite *s = suite_create("password generator");
 
    TCase *tc_core = tcase_create("Core");
-   tcase_add_checked_fixture(tc_core, setup, teardown);
-   tcase_add_test(tc_core, test_zc_file_new);
+   tcase_add_checked_fixture(tc_core, setup_pwgen, teardown_pwgen);
+   tcase_add_test(tc_core, test_zc_pwgen_new);
+   tcase_add_test(tc_core, test_zc_pwgen_init);
    suite_add_tcase(s, tc_core);
 
    return s;
