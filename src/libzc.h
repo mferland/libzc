@@ -70,6 +70,7 @@ int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
+   // TODO: use the file->ctx to print info
 #ifdef ENABLE_DEBUG
 void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
 #endif
@@ -83,8 +84,10 @@ struct zc_pwgen;
 struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen);
 struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen);
 int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **gen);
-int zc_pwgen_init(struct zc_ctx *ctx, struct zc_pwgen *gen,
-                  const unsigned char *char_set, unsigned int max_pw_len);
+int zc_pwgen_init(struct zc_pwgen *gen, const unsigned char *char_set, unsigned int max_pw_len);
+int zc_pwgen_reset(struct zc_pwgen *gen, const unsigned char *pw);
+void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step);   
+const char *zc_pwgen_generate(struct zc_pwgen *gen);
    
 #ifdef __cplusplus
 } /* extern "C" */

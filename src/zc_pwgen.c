@@ -63,8 +63,21 @@ ZC_EXPORT int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **pwgen)
    return 0;
 }
 
-ZC_EXPORT int zc_pwgen_init(struct zc_ctx *ctx, struct zc_pwgen *gen,
-                            const unsigned char *char_set, unsigned int max_pw_len)
+ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const unsigned char *char_set, unsigned int max_pw_len)
 {
    return 0;
+}
+
+ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const unsigned char *pw)
+{
+   return 0;
+}
+
+ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)
+{
+}
+
+ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen)
+{
+   return NULL;
 }

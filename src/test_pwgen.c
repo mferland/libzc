@@ -26,6 +26,7 @@ struct zc_pwgen *pwgen;
 
 static unsigned char simple_char_set[] = {"a"};
 static unsigned int pw_max_len = 5;
+static unsigned int step = 1;
 
 void setup_pwgen()
 {
@@ -47,10 +48,28 @@ START_TEST(test_zc_pwgen_new)
 }
 END_TEST
 
-START_TEST(test_zc_pwgen_init)
+START_TEST(test_zc_pwgen_can_init)
 {
    zc_pwgen_new(ctx, &pwgen);
-   fail_unless(zc_pwgen_init(ctx, pwgen, simple_char_set, pw_max_len) == 0, NULL);
+   fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
+}
+END_TEST
+
+START_TEST(test_zc_pwgen_can_reset_to_valid_pw)
+{
+   zc_pwgen_new(ctx, &pwgen);
+   fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
+   fail_unless(zc_pwgen_reset(pwgen, "aa") == 0, NULL);
+}
+END_TEST
+
+START_TEST(test_zc_pwgen_can_generate_password)
+{
+   zc_pwgen_new(ctx, &pwgen);
+   fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
+   zc_pwgen_set_step(pwgen, step);
+   const char *pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
 }
 END_TEST
 
@@ -61,7 +80,9 @@ Suite *make_libzc_pwgen_suite()
    TCase *tc_core = tcase_create("Core");
    tcase_add_checked_fixture(tc_core, setup_pwgen, teardown_pwgen);
    tcase_add_test(tc_core, test_zc_pwgen_new);
-   tcase_add_test(tc_core, test_zc_pwgen_init);
+   tcase_add_test(tc_core, test_zc_pwgen_can_init);
+   tcase_add_test(tc_core, test_zc_pwgen_can_reset_to_valid_pw);
+   tcase_add_test(tc_core, test_zc_pwgen_can_generate_password);
    suite_add_tcase(s, tc_core);
 
    return s;

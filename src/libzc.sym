@@ -19,6 +19,9 @@ global:
         zc_pwgen_unref;
         zc_pwgen_new;
         zc_pwgen_init;
+        zc_pwgen_reset;
+        zc_pwgen_set_step;
+        zc_pwgen_generate;
 local:
         *;
 };
