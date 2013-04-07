@@ -24,7 +24,7 @@
 struct zc_ctx *ctx;
 struct zc_pwgen *pwgen;
 
-static unsigned char simple_char_set[] = {"a"};
+static unsigned char simple_char_set[] = {"abc"};
 static unsigned int pw_max_len = 5;
 static unsigned int step = 1;
 
@@ -65,11 +65,21 @@ END_TEST
 
 START_TEST(test_zc_pwgen_can_generate_password)
 {
+   const char *pw;
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
    zc_pwgen_set_step(pwgen, step);
-   const char *pw = zc_pwgen_generate(pwgen);
+   zc_pwgen_reset(pwgen, "a");
+   pw = zc_pwgen_pw(pwgen);
    fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "b", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "c", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "aa", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "ab", 1) == 0, "Password generation failed");
 }
 END_TEST
 

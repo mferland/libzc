@@ -25,16 +25,19 @@
 
 struct zc_pwgen
 {
+   char *pw;
+   char *char_lut;
+   char *char_ascii;
+   char *char_indexes;
+   size_t max_pw_len;
+   size_t char_lut_len;
+   int step;
    struct zc_ctx *ctx;
    int refcount;
-   char *char_set;
-   size_t max_pw_len;
-   int step;
-   char *pw;
-   char *pw_indexes;
 };
 
-static void init_indexes_from_pw(struct zc_pwgen *gen);
+static void init_char_indexes(struct zc_pwgen *gen, const char *pw, size_t len);
+static void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len);
 
 ZC_EXPORT struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen)
 {
@@ -52,9 +55,9 @@ ZC_EXPORT struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen)
    if (pwgen->refcount > 0)
       return pwgen;
    dbg(pwgen->ctx, "pwgen %p released\n", pwgen);
-   free(pwgen->char_set);
-   free(pwgen->pw);
-   free(pwgen->pw_indexes);
+   free(pwgen->char_lut);
+   free(pwgen->char_ascii);
+   free(pwgen->char_indexes);
    free(pwgen);
    return NULL;
 }
@@ -74,63 +77,78 @@ ZC_EXPORT int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **pwgen)
    return 0;
 }
 
-ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_set, size_t max_pw_len)
+ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t max_pw_len)
 {
-   char *char_set_tmp = NULL;
-   char *pw_tmp = NULL;
-   char *pw_indexes_tmp = NULL;
+   const size_t lut_len = strlen(char_lut);
+   char *char_lut_tmp = NULL;
+   char *char_ascii_tmp = NULL;
+   char *char_indexes_tmp = NULL;
    
-   if (strlen(char_set) == 0)
+   if (lut_len == 0)
       return EINVAL;
    
    if (max_pw_len == 0)
       return EINVAL;
 
-   char_set_tmp = strdup(char_set);
-   if (char_set_tmp == NULL)
+   char_lut_tmp = strdup(char_lut);
+   if (char_lut_tmp == NULL)
       return ENOMEM;
 
-   pw_tmp = calloc(1, max_pw_len + 1);
-   if (!pw_tmp)
+   char_ascii_tmp = calloc(1, max_pw_len + 1);
+   if (!char_ascii_tmp)
       goto cleanup_error;
 
-   pw_indexes_tmp = calloc(1, max_pw_len);
-   if (!pw_indexes_tmp)
+   char_indexes_tmp = calloc(1, max_pw_len);
+   if (!char_indexes_tmp)
       goto cleanup_error;
 
-   gen->char_set = char_set_tmp;
-   gen->pw = pw_tmp;
-   gen->pw_indexes = pw_indexes_tmp;
+   gen->char_lut = char_lut_tmp;
+   gen->char_lut_len = lut_len;
+   gen->char_ascii = char_ascii_tmp;
+   gen->char_indexes = char_indexes_tmp;
    gen->max_pw_len = max_pw_len;
    return 0;
 
 cleanup_error:
-   if (char_set_tmp)
-      free(char_set_tmp);
-   if (pw_tmp)
-      free(pw_tmp);
-   if (pw_indexes_tmp)
-      free(pw_indexes_tmp);
+   if (char_lut_tmp)
+      free(char_lut_tmp);
+   if (char_ascii_tmp)
+      free(char_ascii_tmp);
+   if (char_indexes_tmp)
+      free(char_indexes_tmp);
    return ENOMEM;
 }
 
 ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw)
 {
-   if (strlen(pw) > gen->max_pw_len)
+   const size_t len = strlen(pw);
+   
+   if (len > gen->max_pw_len)
       return EINVAL;
-   strcpy(gen->pw, pw);
-   init_indexes_from_pw(gen);
+
+   init_char_ascii(gen, pw, len);
+   init_char_indexes(gen, pw, len);
+
    dbg(gen->ctx, "password reset to: %s\n", pw);
    return 0;
 }
 
-static void init_indexes_from_pw(struct zc_pwgen *gen)
+static void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len)
 {
-   const size_t len = strlen(gen->pw);
+   gen->pw = gen->char_ascii + gen->max_pw_len - len;
+   strncpy(gen->pw, pw, len);
+}
+
+static void init_char_indexes(struct zc_pwgen *gen, const char *pw, size_t len)
+{
+   const size_t first_valid_index = gen->max_pw_len - len;
    size_t i;
 
-   for (i = 0; i < len; ++i)
-      gen->pw_indexes[i] = strchr(gen->char_set, gen->pw[i]) - gen->char_set;
+   for (i = 0; i < first_valid_index; ++i)
+      gen->char_indexes[i] = -1;
+      
+   for (i =  first_valid_index; i < len; ++i)
+      gen->char_indexes[i] = strchr(gen->char_lut, gen->pw[i]) - gen->char_lut;
 }
 
 ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)
@@ -140,30 +158,37 @@ ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)
 
 ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen)
 {
-   /* const size_t pw_char_index = strlen(gen->pw) - 1; */
-   /* int quotient = gen->step; */
-   
-   /* while (1) */
-   /* { */
-   /*    new_pw_char_index = (gen->pw_indexes[pw_char_index] + quotient) % gen->char_set_len; */
-   /*    quotient = (gen->pw_indexes[pw_char_index] + quotient) / gen->char_set_len; */
+   size_t pw_char_index = gen->max_pw_len - 1;
+   int quotient = gen->step;
 
-   /*    /\* update current character *\/ */
-   /*    gen->pw[pw_char_index] = gen->char_set[new_pw_char_index]; */
-   /*    gen->pw_indexes[pw_char_index] = new_pw_char_index; */
+   while (1)
+   {
+      gen->char_indexes[pw_char_index] += quotient;
+      quotient = gen->char_indexes[pw_char_index] / gen->char_lut_len;
+      gen->char_indexes[pw_char_index] %= gen->char_lut_len;
 
-   /*    if (pw_char_index == 0 && quotient > 0) */
-   /*    { */
-         
-   /*    } */
+      gen->char_ascii[pw_char_index] = gen->char_lut[(unsigned char)gen->char_indexes[pw_char_index]];
 
-   /*    if (quotient == 0) */
-   /*       break; */
+      if (pw_char_index == 0 && quotient > 0)
+         return NULL;           /* overflow */
 
-   /*    --pw_char_index; */
-      
-   /* } */
-   /* return NULL; */
-   /* TODO */
-   return NULL;
+      if (quotient == 0)
+         break;
+
+      --pw_char_index;
+
+      if (pw_char_index < (size_t)(gen->pw - gen->char_ascii))
+      {
+         gen->pw = &gen->char_ascii[pw_char_index];
+      }
+   }
+
+   dbg(gen->ctx, "generated password: %s\n", gen->pw);
+
+   return gen->pw;
+}
+
+ZC_EXPORT const char *zc_pwgen_pw(const struct zc_pwgen *gen)
+{
+   return gen->pw;
 }
