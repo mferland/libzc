@@ -74,7 +74,7 @@ size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_d
 #ifdef ENABLE_DEBUG
 void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
 #endif
-
+/* TODO: bool zc_file_test_password(struct zc_file *file); */
 /**
  * zc_pwgen:
  *
@@ -88,7 +88,14 @@ int zc_pwgen_init(struct zc_pwgen *gen, const char *char_set, size_t max_pw_len)
 int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw);
 void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step);   
 const char *zc_pwgen_generate(struct zc_pwgen *gen);
-const char *zc_pwgen_pw(const struct zc_pwgen *gen);   
+const char *zc_pwgen_pw(const struct zc_pwgen *gen);
+
+/**
+ * zc_crack:
+ *
+ * Tests if the provided password might be valid.
+ */
+bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb);   
    
 #ifdef __cplusplus
 } /* extern "C" */

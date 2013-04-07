@@ -23,6 +23,7 @@ global:
         zc_pwgen_set_step;
         zc_pwgen_generate;
         zc_pwgen_pw;
+        zc_crack;
 local:
         *;
 };

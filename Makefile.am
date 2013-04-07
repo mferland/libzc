@@ -42,7 +42,8 @@ src_libzc_la_SOURCES =\
 	src/libzc.c \
 	src/zc_file.c \
 	src/zip.c \
-	src/zc_pwgen.c
+	src/zc_pwgen.c \
+	src/zc_crack.c
 
 EXTRA_DIST += src/libzc.sym
 
@@ -58,6 +59,6 @@ CLEANFILES += src/libzc.pc
 
 TESTS = src/test_libzc
 check_PROGRAMS = src/test_libzc
-src_test_libzc_SOURCES = src/test_libzc.c src/test_file.c src/test_pwgen.c src/libzc.h
+src_test_libzc_SOURCES = src/test_libzc.c src/test_file.c src/test_pwgen.c src/test_crack.c src/libzc.h
 src_test_libzc_CFLAGS = @CHECK_CFLAGS@
 src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@
