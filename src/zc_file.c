@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2009  Marc Ferland
+ *  Copyright (C) 2013  Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
