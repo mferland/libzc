@@ -14,6 +14,7 @@ global:
         zc_file_close;
         zc_file_isopened;
         zc_file_read_validation_data;
+        zc_file_test_password;
         zc_file_debug_print_headers;
         zc_pwgen_ref;
         zc_pwgen_unref;

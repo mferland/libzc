@@ -192,6 +192,23 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
    return valid_files;
 }
 
+/**
+ * zc_file_test_password:
+ *
+ * Test the given password using the unzip command line tool. This
+ * should be used exclusively for discarding false positives returned
+ * by the cracker.
+ *
+ * @retval true The file was successfully decrypted (password found).
+ * @retval false The file can't be decrypted (false positive).
+ */
+ZC_EXPORT bool zc_file_test_password(struct zc_file *file, const char *pw)
+{
+   char cmd[128];
+   sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, file->filename);
+   return (system(cmd) == EXIT_SUCCESS);
+}
+
 #ifdef ENABLE_DEBUG
 /**
  * zc_file_debug_print_headers:

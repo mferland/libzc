@@ -131,6 +131,21 @@ START_TEST(test_zc_file_not_encrypted)
 }
 END_TEST
 
+START_TEST(test_zc_file_wrong_password)
+{
+   zc_file_new_from_filename(ctx, "test.zip", &file);
+   fail_unless(zc_file_test_password(file, "mfe") == false, NULL);
+}
+END_TEST
+
+START_TEST(test_zc_file_good_password)
+{
+   zc_file_new_from_filename(ctx, "test.zip", &file);
+   fail_unless(zc_file_test_password(file, "yamaha") == true, NULL);
+}
+
+END_TEST
+
 Suite *make_libzc_file_suite()
 {
    Suite *s = suite_create("file");
@@ -146,6 +161,8 @@ Suite *make_libzc_file_suite()
    tcase_add_test(tc_core, test_zc_file_can_read_validation_data);
    tcase_add_test(tc_core, test_zc_file_specify_large_validation_data);
    tcase_add_test(tc_core, test_zc_file_not_encrypted);
+   tcase_add_test(tc_core, test_zc_file_wrong_password);
+   tcase_add_test(tc_core, test_zc_file_good_password);
    suite_add_tcase(s, tc_core);
 
    return s;
