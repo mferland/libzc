@@ -66,7 +66,7 @@ src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@
 if BUILD_YAZC
 bin_PROGRAMS = yazc/yazc
 
-yazc_yazc_SOURCES = yazc/main.c
+yazc_yazc_SOURCES = yazc/yazc.c
 yazc_yazc_CPPFLAGS = $(AM_CPPFLAGS)
 yazc_yazc_CFLAGS = $(AM_CFLAGS)
 yazc_yazc_LDADD = src/libzc.la

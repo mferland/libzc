@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - Yet Another Zip Cracker
  *  Copyright (C) 2013  Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -16,13 +16,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libzc.h"
-#include "config.h"
+#ifndef _YAZC_H_
+#define _YAZC_H_
 
-#include <stdio.h>
+struct yazc_cmd {
+   const char *name;
+   int (*cmd)(int argc, char *argv[]);
+   const char *help;
+};
 
-int main(int argc, char *argv[])
-{
-   printf("yazc "PACKAGE_VERSION"\n");
-   return 0;
-}
+extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
+
+#endif /* _YAZC_H_ */

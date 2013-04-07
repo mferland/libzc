@@ -15,9 +15,14 @@ AM_SILENT_RULES([yes])
 LT_INIT([disable-static pic-only])
 AC_PREFIX_DEFAULT([/usr])
 
+AC_PROG_CC
+AC_PROG_CC_C99
+AM_PROG_CC_C_O
+
 AC_PROG_SED
 AC_PROG_MKDIR_P
 
+PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 AC_ARG_ENABLE([logging],
@@ -37,6 +42,11 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 AC_ARG_ENABLE([yazc],
         AS_HELP_STRING([--disable-tools], [disable building yazc command line tool @<:@default=enabled@:>@]),
         [], enable_yazc=yes)
+dnl AS_IF([test "x$enable_yazc" = "xyes"], [
+dnl             PKG_CHECK_MODULES(PTHREADSTUBS, pthread-stubs)
+dnl             AC_SUBST(PTHREADSTUBS_CFLAGS)
+dnl             AC_SUBST(PTHREADSTUBS_LIBS)
+dnl         ])
 AM_CONDITIONAL([BUILD_YAZC], [test "x$enable_yazc" = "xyes"])
 
 my_CFLAGS="-Wall \
