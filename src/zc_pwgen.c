@@ -83,10 +83,10 @@ ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t m
    char *char_lut_tmp = NULL;
    char *char_ascii_tmp = NULL;
    char *char_indexes_tmp = NULL;
-   
+
    if (lut_len == 0)
       return EINVAL;
-   
+
    if (max_pw_len == 0)
       return EINVAL;
 
@@ -122,7 +122,7 @@ cleanup_error:
 ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw)
 {
    const size_t len = strlen(pw);
-   
+
    if (len > gen->max_pw_len)
       return EINVAL;
 
@@ -146,7 +146,7 @@ static void init_char_indexes(struct zc_pwgen *gen, const char *pw, size_t len)
 
    for (i = 0; i < first_valid_index; ++i)
       gen->char_indexes[i] = -1;
-      
+
    for (i =  first_valid_index; i < len; ++i)
       gen->char_indexes[i] = strchr(gen->char_lut, gen->pw[i]) - gen->char_lut;
 }
@@ -184,7 +184,6 @@ ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen)
    }
 
    dbg(gen->ctx, "generated password: %s\n", gen->pw);
-
    return gen->pw;
 }
 
