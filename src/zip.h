@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#define ZIP_ENCRYPTION_HEADER_LENGTH 12
+   
 struct zip_header;
 int zip_header_new(struct zip_header **header);
 void zip_header_free(struct zip_header *header);
@@ -34,10 +36,6 @@ bool zip_header_has_encryption_bit(const struct zip_header *header);
 unsigned char zip_header_encryption_magic(const struct zip_header *header);
 int zip_encryption_header_read(FILE *fd, unsigned char *enc_header);
 int zip_skip_to_next_header(FILE *fd, const struct zip_header *header);
-
-#ifdef ENABLE_DEBUG
-int zip_debug_print_header(const struct zip_header *header, char *buffer, size_t size);
-#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -19,6 +19,7 @@
 #include <stdbool.h>
 
 #include "crc32.h"
+#include "zip.h"
 #include "libzc.h"
 #include "libzc_private.h"
 
@@ -68,7 +69,7 @@ static inline void decrypt_header(const unsigned char *encrypted_header,
    unsigned int i;
    unsigned char c;
 
-   for (i = 0; i < 12 ; ++i)    /* TODO */
+   for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH; ++i)
    {
       c = encrypted_header[i] ^ decrypt_byte(k->key2);
       update_keys(c, k);
@@ -80,18 +81,19 @@ static inline bool test_decrypted_header(const unsigned char *decrypted_header,
                                          unsigned char magic)
 {
    /*
-    * Note: The documentation states that we should sometimes check the last byte
-    * and sometimes the last 2 bytes... Since there isn't any way to differentiate
-    * the two cases, be conservatives and only check the last one.
+    * Note: The documentation states that we should sometime check the
+    * last byte and sometime the last 2 bytes... Since there isn't any
+    * way to differentiate the two cases, be conservative and only
+    * check the last one.
     */
-   return (decrypted_header[12 - 1] == magic);
+   return (decrypted_header[ZIP_ENCRYPTION_HEADER_LENGTH - 1] == magic);
 }
 
 ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb)
 {
    struct encryption_keys key;
    size_t i;
-   unsigned char header[12];
+   unsigned char header[ZIP_ENCRYPTION_HEADER_LENGTH];
 
    for (i = 0; i < nmemb; ++i)
    {

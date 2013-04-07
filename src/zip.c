@@ -26,7 +26,6 @@
 #define ZIP_FILE_HEADER_SIGNATURE 0x04034b50
 #define ZIP_DATA_DESCRIPTOR_SIGNATURE 0x08074b50
 #define ZIP_FILE_STATIC_HEADER_LENGTH 30
-#define ZIP_ENCRYPTION_HEADER_LENGTH 12
 #define GP_BIT_DATA_DESCRIPTOR_PRESENT 0x8
 #define GP_BIT_ENCRYPTION 0x1
 
@@ -214,33 +213,3 @@ int zip_skip_to_next_header(FILE *fd, const struct zip_header *header)
    }
    return 0;
 }
-
-#ifdef ENABLE_DEBUG
-int zip_debug_print_header(const struct zip_header *header, char *buffer, size_t size)
-{
-   return snprintf(buffer, size,
-                   "Zip header:"
-                   " version: 0x%x (%d),"
-                   " bit flag: 0x%x,"
-                   " comp. method: 0x%x,"
-                   " last mod time: 0x%x,"
-                   " last mod date: 0x%x,"
-                   " crc-32: 0x%x,"
-                   " comp. size: 0x%x (%d),"
-                   " uncomp. size: 0x%x (%d),"
-                   " file name length: %d,"
-                   " extra field length: %d,"
-                   " filename: %s",
-                   header->version_needed, header->version_needed,
-                   header->gen_bit_flag,
-                   header->comp_method,
-                   header->last_mod_time,
-                   header->last_mod_date,
-                   header->crc32,
-                   header->comp_size, header->comp_size,
-                   header->uncomp_size, header->uncomp_size,
-                   header->filename_length,
-                   header->extra_field_length,
-                   header->filename);
-}
-#endif
