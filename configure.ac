@@ -34,6 +34,11 @@ AS_IF([test "x$enable_debug" = "xyes"], [
         AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
 ])
 
+AC_ARG_ENABLE([yazc],
+        AS_HELP_STRING([--disable-tools], [disable building yazc command line tool @<:@default=enabled@:>@]),
+        [], enable_yazc=yes)
+AM_CONDITIONAL([BUILD_YAZC], [test "x$enable_yazc" = "xyes"])
+
 my_CFLAGS="-Wall \
 -Wmissing-declarations -Wmissing-prototypes \
 -Wnested-externs -Wpointer-arith \
@@ -63,4 +68,6 @@ AC_MSG_RESULT([
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
+
+        yazc:                   ${enable_yazc}
 ])

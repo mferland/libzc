@@ -62,3 +62,13 @@ check_PROGRAMS = src/test_libzc
 src_test_libzc_SOURCES = src/test_libzc.c src/test_file.c src/test_pwgen.c src/test_crack.c src/libzc.h
 src_test_libzc_CFLAGS = @CHECK_CFLAGS@
 src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@
+
+if BUILD_YAZC
+bin_PROGRAMS = yazc/yazc
+
+yazc_yazc_SOURCES = yazc/main.c
+yazc_yazc_CPPFLAGS = $(AM_CPPFLAGS)
+yazc_yazc_CFLAGS = $(AM_CFLAGS)
+yazc_yazc_LDADD = src/libzc.la
+
+endif
