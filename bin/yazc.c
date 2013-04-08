@@ -37,13 +37,9 @@ static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
    &yazc_cmd_help,
-};
-#define YAZC_CMD_COUNT 1
-
-static const struct yazc_cmd *yazc_compat_cmds[] = {
    &yazc_cmd_compat_bruteforce,
 };
-#define YAZC_COMPAT_CMD_COUNT 1
+#define YAZC_CMDS_COUNT 2
 
 static int yazc_help(int argc, char *argv[])
 {
@@ -57,7 +53,7 @@ static int yazc_help(int argc, char *argv[])
           "\t-h, --help        show this help\n\n"
           "Commands:\n", basename(argv[0]));
 
-   for (i = 0; i < YAZC_CMD_COUNT; ++i)
+   for (i = 0; i < YAZC_CMDS_COUNT; ++i)
    {
       if (yazc_cmds[i]->help != NULL)
          printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
@@ -110,7 +106,7 @@ static int handle_yazc_commands(int argc, char *argv[])
 
    cmd = argv[optind];
 
-   for (i = 0, err = -EINVAL; i < YAZC_CMD_COUNT; i++)
+   for (i = 0, err = -EINVAL; i < YAZC_CMDS_COUNT; i++)
    {
       if (strcmp(yazc_cmds[i]->name, cmd) != 0)
          continue;
@@ -131,20 +127,9 @@ fail:
    return EXIT_FAILURE;
 }
 
-static int handle_yazc_compat_commands(int argc, char *argv[])
-{
-   return 0;
-}
-
 int main(int argc, char *argv[])
 {
-   const char *binname = basename(argv[0]);
    int err;
-
-   if (strcmp(binname, "yazc") == 0)
-      err = handle_yazc_commands(argc, argv);
-   else
-      err = handle_yazc_compat_commands(argc, argv);
-
+   err = handle_yazc_commands(argc, argv);
    return err;
 }
