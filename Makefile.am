@@ -7,7 +7,7 @@ AM_CPPFLAGS = \
 	-include $(top_builddir)/config.h \
 	-DSYSCONFDIR=\""$(sysconfdir)"\" \
 	-DLIBEXECDIR=\""$(libexecdir)"\" \
-	-I${top_srcdir}/src
+	-I${top_srcdir}/lib
 
 AM_CFLAGS = ${my_CFLAGS} \
 	-fvisibility=hidden \
@@ -34,41 +34,41 @@ LIBZC_CURRENT=0
 LIBZC_REVISION=0
 LIBZC_AGE=0
 
-pkginclude_HEADERS = src/libzc.h
-lib_LTLIBRARIES = src/libzc.la
+pkginclude_HEADERS = lib/libzc.h
+lib_LTLIBRARIES = lib/libzc.la
 
-src_libzc_la_SOURCES =\
-	src/libzc_private.h \
-	src/libzc.c \
-	src/zc_file.c \
-	src/zip.c \
-	src/zc_pwgen.c \
-	src/zc_crack.c
+lib_libzc_la_SOURCES =\
+	lib/libzc_private.h \
+	lib/libzc.c \
+	lib/zc_file.c \
+	lib/zip.c \
+	lib/zc_pwgen.c \
+	lib/zc_crack.c
 
-EXTRA_DIST += src/libzc.sym
+EXTRA_DIST += lib/libzc.sym
 
-src_libzc_la_LDFLAGS = $(AM_LDFLAGS) \
+lib_libzc_la_LDFLAGS = $(AM_LDFLAGS) \
 	-version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE) \
-	-Wl,--version-script=$(top_srcdir)/src/libzc.sym
-src_libzc_la_DEPENDENCIES = ${top_srcdir}/src/libzc.sym
+	-Wl,--version-script=$(top_srcdir)/lib/libzc.sym
+lib_libzc_la_DEPENDENCIES = ${top_srcdir}/lib/libzc.sym
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = src/libzc.pc
-EXTRA_DIST += src/libzc.pc.in
-CLEANFILES += src/libzc.pc
+pkgconfig_DATA = lib/libzc.pc
+EXTRA_DIST += lib/libzc.pc.in
+CLEANFILES += lib/libzc.pc
 
-TESTS = src/test_libzc
-check_PROGRAMS = src/test_libzc
-src_test_libzc_SOURCES = src/test_libzc.c src/test_file.c src/test_pwgen.c src/test_crack.c src/libzc.h
-src_test_libzc_CFLAGS = @CHECK_CFLAGS@
-src_test_libzc_LDADD = src/libzc.la @CHECK_LIBS@
+TESTS = lib/test_libzc
+check_PROGRAMS = lib/test_libzc
+lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crack.c lib/libzc.h
+lib_test_libzc_CFLAGS = @CHECK_CFLAGS@
+lib_test_libzc_LDADD = lib/libzc.la @CHECK_LIBS@
 
 if BUILD_YAZC
-bin_PROGRAMS = yazc/yazc
+bin_PROGRAMS = bin/yazc
 
-yazc_yazc_SOURCES = yazc/yazc.c
-yazc_yazc_CPPFLAGS = $(AM_CPPFLAGS)
-yazc_yazc_CFLAGS = $(AM_CFLAGS)
-yazc_yazc_LDADD = src/libzc.la
+bin_yazc_SOURCES = bin/yazc.c
+bin_yazc_CPPFLAGS = $(AM_CPPFLAGS)
+bin_yazc_CFLAGS = $(AM_CFLAGS)
+bin_yazc_LDADD = lib/libzc.la
 
 endif

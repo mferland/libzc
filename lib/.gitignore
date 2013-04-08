@@ -4,4 +4,4 @@
 *.la
 *.lo
 libzc.pc
-test-libzc
+test_libzc

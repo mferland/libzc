@@ -12,3 +12,5 @@ stamp-h1
 configure
 autom4te.cache
 build-aux
+.dirstamp
+lib/test_libzc

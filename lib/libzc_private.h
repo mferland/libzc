@@ -22,7 +22,7 @@
 #include <stdbool.h>
 #include <syslog.h>
 
-#include <libzc.h>
+#include "libzc.h"
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
 zc_log_null(struct zc_ctx *ctx, const char *format, ...) {}

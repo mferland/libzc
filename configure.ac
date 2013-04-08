@@ -4,7 +4,7 @@ AC_INIT([zc],
         [marc.ferland@gmail.com],
         [zc],
         [http://nositeyet.com])
-AC_CONFIG_SRCDIR([src/libzc.c])
+AC_CONFIG_SRCDIR([lib/libzc.c])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([check-news foreign 1.11 -Wall -Wno-portability silent-rules tar-pax no-dist-gzip dist-xz subdir-objects])
 AC_PROG_CC_STDC
