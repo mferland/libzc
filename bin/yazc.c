@@ -41,7 +41,7 @@ static const struct yazc_cmd *yazc_cmds[] = {
 };
 #define YAZC_CMDS_COUNT 2
 
-static int yazc_help(int argc, char *argv[])
+static int help(int argc, char *argv[])
 {
    size_t i;
 
@@ -64,7 +64,7 @@ static int yazc_help(int argc, char *argv[])
 
 static const struct yazc_cmd yazc_cmd_help = {
    .name = "help",
-   .cmd = yazc_help,
+   .cmd = help,
    .help = "Show help message",
 };
 
@@ -85,7 +85,7 @@ static int handle_yazc_commands(int argc, char *argv[])
       switch (c)
       {
       case 'h':
-         yazc_help(argc, argv);
+         help(argc, argv);
          return EXIT_SUCCESS;
       case 'V':
          puts("yazc version " VERSION);
@@ -111,7 +111,7 @@ static int handle_yazc_commands(int argc, char *argv[])
       if (strcmp(yazc_cmds[i]->name, cmd) != 0)
          continue;
 
-      err = yazc_cmds[i]->cmd(--argc, ++argv);
+      err = yazc_cmds[i]->cmd(argc, argv);
    }
 
    if (err < 0)
@@ -123,7 +123,7 @@ static int handle_yazc_commands(int argc, char *argv[])
    return err;
 
 fail:
-   yazc_help(argc, argv);
+   help(argc, argv);
    return EXIT_FAILURE;
 }
 

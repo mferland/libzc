@@ -34,18 +34,18 @@ static const struct option long_opts[] = {
    {NULL, 0, 0, 0}
 };
 
-static void print_help(const char *cmdname)
+static void print_help(const char *cmdname, const char *subcmdname)
 {
    fprintf(stderr,
            "Usage:\n"
-           "\t%s [options] filename\n"
+           "\t%s %s [options] filename\n"
            "Options:\n"
            "\t-c, --charset=CHARSET   Use character set CHARSET\n"
            "\t-a, --alpha             Use characters [A-Za-z]\n"
            "\t-n, --numeric           Use characters [0-9]\n"
            "\t-s, --special           Use special characters TODO\n"
            "\t-t, --threads=NUM       Spawn NUM threads\n",
-           cmdname);
+           cmdname, subcmdname);
 }
 
 static int do_bruteforce(int argc, char *argv[])
@@ -57,7 +57,7 @@ static int do_bruteforce(int argc, char *argv[])
    /* { */
       
    /* } */
-   print_help(basename(argv[0]));
+   print_help(basename(argv[0]), basename(argv[1]));
    return EXIT_SUCCESS;
 }
 
