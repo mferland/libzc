@@ -83,6 +83,24 @@ START_TEST(test_zc_pwgen_can_generate_password)
 }
 END_TEST
 
+START_TEST(test_zc_pwgen_can_step)
+{
+   const char *pw;
+   zc_pwgen_new(ctx, &pwgen);
+   fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
+   zc_pwgen_set_step(pwgen, 3);
+   zc_pwgen_reset(pwgen, "a");
+   pw = zc_pwgen_pw(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "aa", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "ba", 1) == 0, "Password generation failed");
+   pw = zc_pwgen_generate(pwgen);
+   fail_unless(pw != NULL && strncmp(pw, "ca", 1) == 0, "Password generation failed");
+}
+END_TEST
+
 START_TEST(test_zc_pwgen_cannot_generate_zero_len_password)
 {
    zc_pwgen_new(ctx, &pwgen);
@@ -107,6 +125,7 @@ Suite *make_libzc_pwgen_suite()
    tcase_add_test(tc_core, test_zc_pwgen_can_init);
    tcase_add_test(tc_core, test_zc_pwgen_can_reset_to_valid_pw);
    tcase_add_test(tc_core, test_zc_pwgen_can_generate_password);
+   tcase_add_test(tc_core, test_zc_pwgen_can_step);
    tcase_add_test(tc_core, test_zc_pwgen_cannot_generate_zero_len_password);
    tcase_add_test(tc_core, test_zc_pwgen_cannot_set_empty_charset);
    suite_add_tcase(s, tc_core);
