@@ -111,7 +111,7 @@ static int handle_yazc_commands(int argc, char *argv[])
       if (strcmp(yazc_cmds[i]->name, cmd) != 0)
          continue;
 
-      err = yazc_cmds[i]->cmd(argc, argv);
+      err = yazc_cmds[i]->cmd(--argc, ++argv);
    }
 
    if (err < 0)

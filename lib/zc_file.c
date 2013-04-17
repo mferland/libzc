@@ -202,10 +202,10 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
  * @retval true The file was successfully decrypted (password found).
  * @retval false The file can't be decrypted (false positive).
  */
-ZC_EXPORT bool zc_file_test_password(struct zc_file *file, const char *pw)
+ZC_EXPORT bool zc_file_test_password(const char *filename, const char *pw)
 {
    char cmd[128];
-   sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, file->filename);
+   sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);
    return (system(cmd) == EXIT_SUCCESS);
 }
 

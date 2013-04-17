@@ -16,16 +16,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _YAZC_H_
-#define _YAZC_H_
+#ifndef _CLEANUPQUEUE_H_
+#define _CLEANUPQUEUE_H_
 
-struct yazc_cmd
-{
-   const char *name;
-   int (*cmd)(int argc, char *argv[]);
-   const char *help;
-};
+struct cleanup_queue;
+struct cleanup_node;
+int cleanup_node_new(struct cleanup_node **node, pthread_t tid);
+int cleanup_queue_new(struct cleanup_queue **cq);
+void cleanup_queue_destroy(struct cleanup_queue *cq);
+void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node);
+void cleanup_queue_wait(struct cleanup_queue *cq, size_t num);
 
-extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
-
-#endif /* _YAZC_H_ */
+#endif /* _CLEANUPQUEUE_H_ */
