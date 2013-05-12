@@ -65,9 +65,8 @@ static inline void reset_encryption_keys(const struct encryption_keys *base, str
 
 static inline unsigned char decrypt_byte(unsigned int key)
 {
-   unsigned short temp;
-   temp = key | 2;
-   return (unsigned char)((temp * (temp ^ 1)) >> 8);
+   key |= 2;
+   return (unsigned char)((key * (key ^ 1)) >> 8);
 }
 
 static inline void decrypt_header(const unsigned char *encrypted_header,
