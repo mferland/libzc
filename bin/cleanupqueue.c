@@ -22,12 +22,6 @@
 
 #include "cleanupqueue.h"
 
-struct cleanup_node
-{
-   struct cleanup_node *next;
-   pthread_t tid;
-};
-
 struct cleanup_queue
 {
    pthread_mutex_t mutex;
@@ -57,19 +51,6 @@ static struct cleanup_node *queue_get(struct cleanup_queue *root)
          root->tail = NULL;
    }
    return node;
-}
-
-int cleanup_node_new(struct cleanup_node **node, pthread_t tid)
-{
-   struct cleanup_node *n;
-
-   n = calloc(1, sizeof(struct cleanup_node));
-   if (n == NULL)
-      return ENOMEM;
-
-   n->tid = tid;
-   *node = n;
-   return 0;
 }
 
 int cleanup_queue_new(struct cleanup_queue **cq)
@@ -107,6 +88,7 @@ void cleanup_queue_destroy(struct cleanup_queue *cq)
 {
    pthread_cond_destroy(&cq->cond);
    pthread_mutex_destroy(&cq->mutex);
+   free(cq);
 }
 
 void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node)
@@ -117,19 +99,39 @@ void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node)
    pthread_mutex_unlock(&cq->mutex);
 }
 
-void cleanup_queue_wait(struct cleanup_queue *cq, size_t num)
+static void cancel_active_threads(struct cleanup_node *array, size_t size)
+{
+   size_t i;
+   
+   for (i = 0; i < size; ++i)
+   {
+      if (!array[i].active)
+         continue;
+      pthread_cancel(array[i].thread_id);
+   }
+}
+
+int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size)
 {
    struct cleanup_node *node;
+   int nodes_left = size;
 
-   while (num)
+   if (size == 0)
+      return EINVAL;
+
+   while (nodes_left)
    {
       pthread_mutex_lock(&cq->mutex);
       while (cq->head == NULL)
          pthread_cond_wait(&cq->cond, &cq->mutex);
       node = queue_get(cq);
+      node->active = false;
+      if (node->found)
+         cancel_active_threads(node_array, size);
       pthread_mutex_unlock(&cq->mutex);
-      pthread_join(node->tid, NULL);
-      free(node);
-      --num;
+      pthread_join(node->thread_id, NULL);
+      --nodes_left;
    }
+
+   return 0;
 }

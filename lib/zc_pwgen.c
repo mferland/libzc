@@ -36,8 +36,23 @@ struct zc_pwgen
    int refcount;
 };
 
-static void init_char_indexes(struct zc_pwgen *gen, const char *pw, size_t len);
-static void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len);
+static inline void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len)
+{
+   gen->pw = gen->char_ascii + gen->max_pw_len - len;
+   strncpy(gen->pw, pw, len);
+}
+
+static inline void init_char_indexes(struct zc_pwgen *gen, size_t len)
+{
+   const size_t first_valid_index = gen->max_pw_len - len;
+   size_t i, j;
+
+   for (i = 0; i < first_valid_index; ++i)
+      gen->char_indexes[i] = -1;
+
+   for (i = first_valid_index, j = 0; j < len; ++i, ++j)
+      gen->char_indexes[i] = index(gen->char_lut, gen->pw[j]) - gen->char_lut;
+}
 
 ZC_EXPORT struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen)
 {
@@ -122,33 +137,18 @@ cleanup_error:
 ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw)
 {
    const size_t len = strlen(pw);
+   char *tmp = strdup(pw);
 
    if (len > gen->max_pw_len)
       return EINVAL;
 
-   init_char_ascii(gen, pw, len);
-   init_char_indexes(gen, pw, len);
+   init_char_ascii(gen, tmp, len);
+   init_char_indexes(gen, len);
+
+   free(tmp);
 
    dbg(gen->ctx, "password reset to: %s\n", pw);
    return 0;
-}
-
-static void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len)
-{
-   gen->pw = gen->char_ascii + gen->max_pw_len - len;
-   strncpy(gen->pw, pw, len);
-}
-
-static void init_char_indexes(struct zc_pwgen *gen, const char *pw, size_t len)
-{
-   const size_t first_valid_index = gen->max_pw_len - len;
-   size_t i;
-
-   for (i = 0; i < first_valid_index; ++i)
-      gen->char_indexes[i] = -1;
-
-   for (i =  first_valid_index; i < len; ++i)
-      gen->char_indexes[i] = strchr(gen->char_lut, gen->pw[i]) - gen->char_lut;
 }
 
 ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)

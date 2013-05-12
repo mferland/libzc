@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdarg.h>
 
 #include "yazc.h"
 #include "config.h"
@@ -67,6 +68,17 @@ static const struct yazc_cmd yazc_cmd_help = {
    .cmd = help,
    .help = "Show help message",
 };
+
+void yazc_log(const char *file, int line, const char *fn,
+              const char *format, ...)
+{
+   va_list args;
+
+   va_start(args, format);
+   fprintf(stderr, "yazc: %s: ", fn);
+   vfprintf(stderr, format, args);
+   va_end(args);
+}
 
 static int handle_yazc_commands(int argc, char *argv[])
 {

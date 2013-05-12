@@ -95,9 +95,9 @@ ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t
    size_t i;
    unsigned char header[ZIP_ENCRYPTION_HEADER_LENGTH];
 
+   init_encryption_keys(pw, &key);
    for (i = 0; i < nmemb; ++i)
    {
-      init_encryption_keys(pw, &key);
       decrypt_header(vdata[i].encryption_header, header, &key);
       if (test_decrypted_header(header, vdata[i].magic))
          continue;

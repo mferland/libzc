@@ -19,12 +19,25 @@
 #ifndef _CLEANUPQUEUE_H_
 #define _CLEANUPQUEUE_H_
 
+#include <stdbool.h>
+
+#include "libzc.h"
+
 struct cleanup_queue;
-struct cleanup_node;
-int cleanup_node_new(struct cleanup_node **node, pthread_t tid);
+
+struct cleanup_node
+{
+   struct cleanup_node *next;
+   pthread_t thread_id;
+   int thread_num;
+   bool found;
+   bool active;
+   struct zc_pwgen *pwgen;
+};
+
 int cleanup_queue_new(struct cleanup_queue **cq);
 void cleanup_queue_destroy(struct cleanup_queue *cq);
 void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node);
-void cleanup_queue_wait(struct cleanup_queue *cq, size_t num);
+int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size);
 
 #endif /* _CLEANUPQUEUE_H_ */

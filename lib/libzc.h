@@ -72,10 +72,6 @@ bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
 bool zc_file_test_password(const char *filename, const char *pw);
 
-#ifdef ENABLE_DEBUG
-void zc_file_debug_print_headers(struct zc_ctx *ctx, struct zc_file *file);
-#endif
-
 /**
  * zc_pwgen:
  *

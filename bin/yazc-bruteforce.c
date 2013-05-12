@@ -22,11 +22,14 @@
 #include <libgen.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <errno.h>
 
 #include "yazc.h"
 #include "libzc.h"
+#include "cleanupqueue.h"
 
-#define VDATA_SIZE 5
+#define VDATA_ALLOC 5
 
 struct charset
 {
@@ -56,26 +59,27 @@ static const struct charset special_set = {
 
 struct arguments
 {
-   struct zc_validation_data vdata[VDATA_SIZE];
-   const char *charset;
+   struct zc_validation_data vdata[VDATA_ALLOC];
+   char *charset;
+   size_t vdata_size;
    const char *filename;
+   char *initial;
    size_t maxlength;
    struct zc_ctx *ctx;
-   size_t threads;
+   size_t workers;
 };
 
-struct thread_info
-{
-   pthread_t thread_id;
-   int thread_num;
-   const struct arguments *args;
-};
+static struct arguments args;
+static struct cleanup_node *cleanup_nodes = NULL;
+static struct cleanup_queue *cleanup_queue = NULL;
 
-static const char short_opts[] = "c:m:anst:h";
+static const char short_opts[] = "c:l:aAnst:h";
 static const struct option long_opts[] = {
    {"charset", required_argument, 0, 'c'},
-   {"max-length", required_argument, 0, 'm'},
+   {"initial", required_argument, 0, 'i'},
+   {"length", required_argument, 0, 'l'},
    {"alpha", no_argument, 0, 'a'},
+   {"alpha-caps", no_argument, 0, 'A'},
    {"numeric", no_argument, 0, 'n'},
    {"special", no_argument, 0, 's'},
    {"threads", required_argument, 0, 't'},
@@ -90,10 +94,12 @@ static void print_help(const char *cmdname)
            "\t%s [options] filename\n"
            "Options:\n"
            "\t-c, --charset=CHARSET   use character set CHARSET\n"
-           "\t-m, --max-length=NUM    maximum password length\n"
-           "\t-a, --alpha             use characters [A-Za-z]\n"
+           "\t-i, --initial=STRING    initial password\n"
+           "\t-l, --length=NUM        maximum password length\n"
+           "\t-a, --alpha             use characters [a-z]\n"
+           "\t-A, --alpha-caps        use characters [A-Z]\n"
            "\t-n, --numeric           use characters [0-9]\n"
-           "\t-s, --special           use special characters TODO\n"
+           "\t-s, --special           use special characters\n"
            "\t-t, --threads=NUM       spawn NUM threads\n"
            "\t-h, --help              show this help\n",
            cmdname);
@@ -133,12 +139,15 @@ static char *sanitize_charset(char *charset)
    return charset;
 }
 
-static const char *make_charset(bool alpha, bool num, bool special)
+static char *make_charset(bool alpha, bool alphacaps, bool num, bool special)
 {
    char *str;
    size_t len = 0;
+   
    if (alpha)
-      len += lowercase_set.len * 2;
+      len += lowercase_set.len;
+   if (alphacaps)
+      len += uppercase_set.len;
    if (num)
       len += number_set.len;
    if (special)
@@ -149,10 +158,9 @@ static const char *make_charset(bool alpha, bool num, bool special)
       return NULL;
 
    if (alpha)
-   {
       strncat(str, lowercase_set.set, lowercase_set.len);
+   if (alphacaps)
       strncat(str, uppercase_set.set, uppercase_set.len);
-   }
    if (num)
       strncat(str, number_set.set, number_set.len);
    if (special)
@@ -160,99 +168,224 @@ static const char *make_charset(bool alpha, bool num, bool special)
    return str;
 }
 
-static void *worker(void *args)
+static bool pw_in_charset(const char *pw, const char *set)
 {
-   struct thread_info *tinfo = (struct thread_info *)args;
-   printf("thread %d\n", tinfo->thread_num);
-   return 0;
+   int i = 0;
+   while (pw[i] != '\0')
+   {
+      if (index(set, pw[i]) == NULL)
+         return false;
+      ++i;
+   }
+   return true;
 }
 
-static int start_worker_threads(struct thread_info *tinfo, const struct arguments *args)
+static bool pw_len_valid(const char *pw, size_t max_len)
+{
+   return (strlen(pw) <= max_len);
+}
+
+static char *make_initial_pw(const char *set)
+{
+   char *str = calloc(1, 2);
+   if (str == NULL)
+      return NULL;
+   str[0] = set[0];
+   return str;
+}
+
+static void worker_cleanup_handler(void *t)
+{
+   struct cleanup_node *node = (struct cleanup_node *)t;
+   zc_pwgen_unref(node->pwgen);
+   cleanup_queue_put(cleanup_queue, node);
+}
+
+static void *worker(void *t)
+{
+   pthread_cleanup_push(worker_cleanup_handler, t);
+   
+   struct cleanup_node *node = (struct cleanup_node *)t;
+   const char *pw;
+
+   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
+   pw = zc_pwgen_pw(node->pwgen);
+   while (1)
+   {
+      if (zc_crack(pw, args.vdata, args.vdata_size))
+      {
+         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+         printf("Possible pasword: %s\n", pw);
+         if (zc_file_test_password(args.filename, pw))
+         {
+            printf("Password is: %s\n", pw);
+            node->found = true;
+            break;
+         }
+         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      }
+      pw = zc_pwgen_generate(node->pwgen);
+      if (pw == NULL)
+         break;
+   }
+   pthread_cleanup_pop(1);
+   return NULL;
+}
+
+static int init_worker_pwgen(struct cleanup_node *node)
+{
+   const char *worker_pw = NULL;
+   int err;
+   
+   err = zc_pwgen_new(args.ctx, &node->pwgen);
+   if (err)
+      return err;
+   
+   err = zc_pwgen_init(node->pwgen, args.charset, args.maxlength);
+   if (err)
+      goto error;
+   
+   zc_pwgen_reset(node->pwgen, args.initial);
+
+   if (node->thread_num > 1)
+   {
+      /* advance the pwgen to this thread's first pw */
+      zc_pwgen_set_step(node->pwgen, 1);
+      for (int i = 0; i < node->thread_num - 1 ; ++i)
+      {
+         worker_pw = zc_pwgen_generate(node->pwgen);
+         if (worker_pw == NULL)
+         {
+            fputs("Error: Too many threads for password range\n", stderr);
+            err = EINVAL;
+            goto error;
+         }
+      }
+      zc_pwgen_reset(node->pwgen, worker_pw);
+   }
+   
+   zc_pwgen_set_step(node->pwgen, args.workers);
+   return 0;
+
+error:
+   zc_pwgen_unref(node->pwgen);
+   node->pwgen = NULL;
+   return err;
+}
+
+static int start_worker_threads(void)
 {
    size_t i;
    int err;
-   for (i = 0; i < args->threads; ++i)
+   
+   for (i = 0; i < args.workers; ++i)
    {
-      tinfo[i].thread_num = i + 1;
-      tinfo[i].args = args;
-      err = pthread_create(&tinfo[i].thread_id, NULL, worker, &tinfo[i]);
+      cleanup_nodes[i].thread_num = i + 1;
+      cleanup_nodes[i].active = true;
+      cleanup_nodes[i].found = false;
+      err = init_worker_pwgen(&cleanup_nodes[i]);
+      if (err)
+         fatal("failed to initialise password generators");
+      err = pthread_create(&cleanup_nodes[i].thread_id, NULL, worker, &cleanup_nodes[i]);
       if (err != 0)
-      {
-         fprintf(stderr, "Error: pthread_create() failed");
-         return -1;
-      }
+         fatal("pthread_create() failed\n");
    }
    return 0;
 }
 
-static int wait_worker_threads(struct thread_info *tinfo, struct arguments *args)
+static int wait_worker_threads(void)
 {
-   // TODO: cleanup queue
-   return 0;
+   sleep(2);                    /* if we cancel too early
+                                 * cleanuphandlers are not called
+                                 * pthread/kernel/glibc BUG? */
+   return cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
 }
 
-static int read_validation_data(struct zc_ctx *ctx, struct arguments *args)
+static int read_validation_data(struct zc_ctx *ctx)
 {
    struct zc_file *file = NULL;
    int err;
 
-   zc_file_new_from_filename(ctx, args->filename, &file);
+   err = zc_file_new_from_filename(ctx, args.filename, &file);
    if (!file)
    {
       fputs("Error: zc_file_new_from_filename() failed!\n", stderr);
-      return -1;
+      return err;
    }
 
    err = zc_file_open(file);
    if (err)
    {
-      fprintf(stderr, "Error: cannot open %s\n", args->filename);
+      fprintf(stderr, "Error: cannot open %s\n", args.filename);
       zc_file_unref(file);
-      return -1;
+      return err;
    }
 
-   err = zc_file_read_validation_data(file, &args->vdata[0], VDATA_SIZE);
+   err = zc_file_read_validation_data(file, &args.vdata[0], VDATA_ALLOC);
    if (err < 1)
-      fprintf(stderr, "Error: file is not encrypted\n");
+      fputs("Error: file is not encrypted\n", stderr);
+   else
+      args.vdata_size = (size_t)err;
    
    zc_file_close(file);
    zc_file_unref(file);
    return err < 1 ? -1 : 0;
 }
 
-static int launch_crack(struct arguments *args)
+static int launch_crack(void)
 {
-   struct zc_ctx *ctx = NULL;
-   struct thread_info *tinfo = NULL;
+   int err;
    
-   zc_new(&ctx);
-   if (!ctx)
+   zc_new(&args.ctx);
+   if (!args.ctx)
    {
       fputs("Error: zc_new() failed!\n", stderr);
       return EXIT_FAILURE;
    }
 
-   if (read_validation_data(ctx, args) != 0)
-      return EXIT_FAILURE;
+   err = read_validation_data(args.ctx);
+   if (err)
+      goto cleanup;
 
-   tinfo = calloc(1, sizeof(struct thread_info) * args->threads);
-   start_worker_threads(tinfo, args);
-   //wait_worker_threads();
+   err = cleanup_queue_new(&cleanup_queue);
+   if (err)
+      goto cleanup;
 
-   zc_unref(ctx);
-   return EXIT_SUCCESS;
+   cleanup_nodes = calloc(args.workers, sizeof(struct cleanup_node));
+   if (cleanup_nodes == NULL)
+   {
+      cleanup_queue_destroy(cleanup_queue);
+      goto cleanup;
+   }
+   
+   err = start_worker_threads();
+   if (!err)
+      err = wait_worker_threads();
+
+   free(cleanup_nodes);
+   cleanup_nodes = NULL;
+   cleanup_queue_destroy(cleanup_queue);
+
+cleanup:
+   zc_unref(args.ctx);
+   return err;
 }
 
 static int do_bruteforce(int argc, char *argv[])
 {
    char *charset = NULL;
+   char *initial = NULL;
    const char *threads = NULL;
    const char *maxlength = NULL;
    bool alpha = false;
+   bool alphacaps = false;
    bool numeric = false;
    bool special = false;
-   struct arguments args;
    int err;
+
+   memset(&args, 0, sizeof(struct cleanup_node));
 
    for (;;)
    {
@@ -266,11 +399,17 @@ static int do_bruteforce(int argc, char *argv[])
       case 'c':
          charset = optarg;
          break;
-      case 'm':
+      case 'i':
+         initial = optarg;
+         break;
+      case 'l':
          maxlength = optarg;
          break;
       case 'a':
          alpha = true;
+         break;
+      case 'A':
+         alphacaps = true;
          break;
       case 'n':
          numeric = true;
@@ -292,7 +431,7 @@ static int do_bruteforce(int argc, char *argv[])
 
    if (optind >= argc)
    {
-      fprintf(stderr, "Error: missing filename\n");
+      fputs("Error: missing filename\n", stderr);
       return EXIT_FAILURE;
    }
 
@@ -304,7 +443,7 @@ static int do_bruteforce(int argc, char *argv[])
       args.maxlength = atoi(maxlength);
       if (args.maxlength < 1 || args.maxlength > 16)
       {
-         fprintf(stderr, "Error: maximum password length must be between 1 and 16\n");
+         fputs("Error: maximum password length must be between 1 and 16\n", stderr);
          return EXIT_FAILURE;
       }
    }
@@ -313,41 +452,74 @@ static int do_bruteforce(int argc, char *argv[])
 
    if (threads != NULL)
    {
-      args.threads = atoi(threads);
-      if (args.threads < 1)
+      args.workers = atoi(threads);
+      if (args.workers < 1)
       {
-         fprintf(stderr, "Error: number of threads can't be less than one\n");
+         fputs("Error: number of threads can't be less than one\n", stderr);
          return EXIT_FAILURE;
       }
    }
    else
-      args.threads = 1;
+      args.workers = 1;
 
    if (charset != NULL)
    {
       args.charset = sanitize_charset(charset);
       if (args.charset == NULL)
       {
-         fprintf(stderr, "Error: couldn't sanitize character set\n");
+         fputs("Error: couldn't sanitize character set\n", stderr);
          return EXIT_FAILURE;
       }
    }
    else
    {
-      if (!alpha && !numeric && !special)
+      if (!alpha && !alphacaps && !numeric && !special)
       {
-         fprintf(stderr, "Error: no character set provided or specified\n");
+         fputs("Error: no character set provided or specified\n", stderr);
          return EXIT_FAILURE;
       }
-      args.charset = make_charset(alpha, numeric, special); // free()
+      args.charset = make_charset(alpha, alphacaps, numeric, special);
+      if (args.charset == NULL)
+      {
+         fputs("Error: make_charset() failed\n", stderr);
+         return EXIT_FAILURE;
+      }
    }
 
-   printf("maxlen: %ld\n", args.maxlength);
-   printf("threads: %ld\n", args.threads);
-   printf("charset: %s\n", args.charset);
-   printf("filename: %s\n", args.filename);
+   if (initial != NULL)
+   {
+      if (!pw_in_charset(initial, args.charset) || !pw_len_valid(initial, args.maxlength))
+      {
+         fputs("Error: invalid initial password\n", stderr);
+         if (charset == NULL)
+            free(args.charset);
+         return EXIT_FAILURE;
+      }
+      args.initial = initial;
+   }
+   else
+   {
+      args.initial = make_initial_pw(args.charset);
+      if (args.initial == NULL)
+      {
+         if (charset == NULL)
+            free(args.charset);
+         return EXIT_FAILURE;
+      }
+   }
 
-   err = launch_crack(&args);
+   printf("Worker threads: %ld\n", args.workers);
+   printf("Maximum length: %ld\n", args.maxlength);
+   printf("Character set: %s\n", args.charset);
+   printf("Filename: %s\n", args.filename);
+   printf("Initial password: %s\n", args.initial);
+
+   err = launch_crack();
+
+   if (charset == NULL)
+      free(args.charset);
+   if (initial == NULL)
+      free(args.initial);
 
    return err;
 }

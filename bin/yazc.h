@@ -19,12 +19,24 @@
 #ifndef _YAZC_H_
 #define _YAZC_H_
 
+#include <stdlib.h>
+
 struct yazc_cmd
 {
    const char *name;
    int (*cmd)(int argc, char *argv[]);
    const char *help;
 };
+
+#define fatal(arg...)                                           \
+   do {                                                         \
+      yazc_log(__FILE__, __LINE__, __FUNCTION__, ## arg);       \
+      exit(EXIT_FAILURE);                                       \
+   } while (0)
+
+void yazc_log(const char *file, int line, const char *fn,
+              const char *format, ...)
+   __attribute__((format(printf, 4, 5)));
 
 extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
 
