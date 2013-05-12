@@ -4,8 +4,7 @@
 /* Taken from crc32.h fcrackzip project. */
 
 /* crc32 0xdebb20e3 table and supplementary functions.  */
-#include <stdint.h>
-static const uint32_t crc_32_tab[] =
+static const unsigned int crc_32_tab[] =
 {
     0x00000000UL, 0x77073096UL, 0xee0e612cUL, 0x990951baUL, 0x076dc419UL,
     0x706af48fUL, 0xe963a535UL, 0x9e6495a3UL, 0x0edb8832UL, 0x79dcb8a4UL,
@@ -61,6 +60,6 @@ static const uint32_t crc_32_tab[] =
     0x2d02ef8dUL
 };
 
-#define crc32(crc,byte) (crc_32_tab[(uint8_t)(crc) ^ (uint8_t)(byte)] ^ ((crc) >> 8))
+#define crc32(crc,byte) (crc_32_tab[(unsigned char)(crc) ^ (unsigned char)(byte)] ^ ((crc) >> 8))
 
 #endif
