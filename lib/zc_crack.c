@@ -88,10 +88,10 @@ static inline bool test_decrypted_header(const unsigned char *decrypted_header,
                                          unsigned char magic)
 {
    /*
-    * Note: The documentation states that we should sometime check the
-    * last byte and sometime the last 2 bytes... Since there isn't any
-    * way to differentiate the two cases, be conservative and only
-    * check the last one.
+    * Note: The documentation states that we should sometimes check
+    * the last byte and sometimes the last 2 bytes... Since there
+    * isn't any way to differentiate the two cases, be conservative
+    * and only check the last one.
     */
    return (decrypted_header[ZIP_ENCRYPTION_HEADER_LENGTH - 1] == magic);
 }
