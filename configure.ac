@@ -40,13 +40,8 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 ])
 
 AC_ARG_ENABLE([yazc],
-        AS_HELP_STRING([--disable-tools], [disable building yazc command line tool @<:@default=enabled@:>@]),
+        AS_HELP_STRING([--disable-yazc], [disable building yazc command line tool @<:@default=enabled@:>@]),
         [], enable_yazc=yes)
-dnl AS_IF([test "x$enable_yazc" = "xyes"], [
-dnl             PKG_CHECK_MODULES(PTHREADSTUBS, pthread-stubs)
-dnl             AC_SUBST(PTHREADSTUBS_CFLAGS)
-dnl             AC_SUBST(PTHREADSTUBS_LIBS)
-dnl         ])
 AM_CONDITIONAL([BUILD_YAZC], [test "x$enable_yazc" = "xyes"])
 
 my_CFLAGS="-Wall \
