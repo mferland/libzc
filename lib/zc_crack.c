@@ -56,6 +56,13 @@ static inline void init_encryption_keys(const char *pw, struct encryption_keys *
    }
 }
 
+static inline void reset_encryption_keys(const struct encryption_keys *base, struct encryption_keys *key)
+{
+   key->key0 = base->key0;
+   key->key1 = base->key1;
+   key->key2 = base->key2;
+}
+
 static inline unsigned char decrypt_byte(unsigned int key)
 {
    unsigned short temp;
@@ -92,12 +99,14 @@ static inline bool test_decrypted_header(const unsigned char *decrypted_header,
 ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb)
 {
    struct encryption_keys key;
+   struct encryption_keys base_key;
    size_t i;
    unsigned char header[ZIP_ENCRYPTION_HEADER_LENGTH];
 
-   init_encryption_keys(pw, &key);
+   init_encryption_keys(pw, &base_key);
    for (i = 0; i < nmemb; ++i)
    {
+      reset_encryption_keys(&base_key, &key);
       decrypt_header(vdata[i].encryption_header, header, &key);
       if (test_decrypted_header(header, vdata[i].magic))
          continue;
