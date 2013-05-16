@@ -92,7 +92,7 @@ const char *zc_pwgen_pw(const struct zc_pwgen *gen);
  *
  * Tests if the provided password might be valid.
  */
-bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb);   
+bool zc_crack(const char *pw, const struct zc_validation_data *vdata, size_t nmemb);   
    
 #ifdef __cplusplus
 } /* extern "C" */

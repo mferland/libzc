@@ -84,7 +84,7 @@ static inline unsigned char decrypt_header(const unsigned char *encrypted_header
    return c;
 }
 
-ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb)
+ZC_EXPORT bool zc_crack(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
 {
    struct encryption_keys key;
    struct encryption_keys base_key;
