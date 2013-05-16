@@ -69,30 +69,19 @@ static inline unsigned char decrypt_byte(unsigned int key)
    return (unsigned char)((key * (key ^ 1)) >> 8);
 }
 
-static inline void decrypt_header(const unsigned char *encrypted_header,
-                                  unsigned char* decrypted_header, struct encryption_keys *k)
+static inline unsigned char decrypt_header(const unsigned char *encrypted_header, struct encryption_keys *k)
 {
-   unsigned int i;
+   int i;
    unsigned char c;
 
    for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH; ++i)
    {
       c = encrypted_header[i] ^ decrypt_byte(k->key2);
       update_keys(c, k);
-      decrypted_header[i] = c;
    }
-}
 
-static inline bool test_decrypted_header(const unsigned char *decrypted_header,
-                                         unsigned char magic)
-{
-   /*
-    * Note: The documentation states that we should sometimes check
-    * the last byte and sometimes the last 2 bytes... Since there
-    * isn't any way to differentiate the two cases, be conservative
-    * and only check the last one.
-    */
-   return (decrypted_header[ZIP_ENCRYPTION_HEADER_LENGTH - 1] == magic);
+   /* Returns the last byte of the decrypted header */
+   return c;
 }
 
 ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t nmemb)
@@ -100,14 +89,12 @@ ZC_EXPORT bool zc_crack(const char *pw, struct zc_validation_data *vdata, size_t
    struct encryption_keys key;
    struct encryption_keys base_key;
    size_t i;
-   unsigned char header[ZIP_ENCRYPTION_HEADER_LENGTH];
 
    init_encryption_keys(pw, &base_key);
    for (i = 0; i < nmemb; ++i)
    {
       reset_encryption_keys(&base_key, &key);
-      decrypt_header(vdata[i].encryption_header, header, &key);
-      if (test_decrypted_header(header, vdata[i].magic))
+      if (decrypt_header(vdata[i].encryption_header, &key) == vdata[i].magic)
          continue;
       return false;
    }
