@@ -66,19 +66,20 @@ END_TEST
 START_TEST(test_zc_pwgen_can_generate_password)
 {
    const char *pw;
+   size_t count;
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
    zc_pwgen_set_step(pwgen, step);
    zc_pwgen_reset(pwgen, "a");
    pw = zc_pwgen_pw(pwgen);
    fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "b", 1) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "c", 1) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "aa", 1) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "ab", 1) == 0, "Password generation failed");
 }
 END_TEST
@@ -86,17 +87,18 @@ END_TEST
 START_TEST(test_zc_pwgen_can_step)
 {
    const char *pw;
+   size_t count;
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, simple_char_set, pw_max_len) == 0, NULL);
    zc_pwgen_set_step(pwgen, 3);
    zc_pwgen_reset(pwgen, "a");
    pw = zc_pwgen_pw(pwgen);
    fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "aa", 2) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "ba", 2) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "ca", 2) == 0, "Password generation failed");
 }
 END_TEST
@@ -104,18 +106,58 @@ END_TEST
 START_TEST(test_zc_pwgen_initial_pw)
 {
    const char *pw;
+   size_t count;
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, "abcdefghijklmnopqrstuvwxyz", 6) == 0, NULL);
    zc_pwgen_set_step(pwgen, 1);
    zc_pwgen_reset(pwgen, "yamah");
    pw = zc_pwgen_pw(pwgen);
    fail_unless(pw != NULL && strncmp(pw, "yamah", 5) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "yamai", 5) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "yamaj", 5) == 0, "Password generation failed");
-   pw = zc_pwgen_generate(pwgen);
+   pw = zc_pwgen_generate(pwgen, &count);
    fail_unless(pw != NULL && strncmp(pw, "yamak", 5) == 0, "Password generation failed");
+}
+END_TEST
+
+START_TEST(test_zc_pwgen_return_updated_char_count)
+{
+   size_t count;
+   zc_pwgen_new(ctx, &pwgen);
+   fail_unless(zc_pwgen_init(pwgen, "abcdefghijklmnopqrstuvwxyz", 6) == 0, NULL);
+   zc_pwgen_set_step(pwgen, 1);
+   
+   /* a --> b = 0 */
+   zc_pwgen_reset(pwgen, "a");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 0, "Identical characters should be 0");
+   
+   /* aa --> ab = 1 */
+   zc_pwgen_reset(pwgen, "aa");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 1, "Identical characters should be 1");
+
+   /* azzz --> baaa */
+   zc_pwgen_reset(pwgen, "azzz");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 0, "Identical characters should be 0");
+
+   /* aazz --> abaa */
+   zc_pwgen_reset(pwgen, "aazz");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 1, "Identical characters should be 1");
+
+   /* zzzzzz --> OVERFLOW */
+   zc_pwgen_reset(pwgen, "zzzzzz");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 0, "Identical characters should be 0");
+
+   /* baba --> babb */
+   zc_pwgen_reset(pwgen, "baba");
+   zc_pwgen_generate(pwgen, &count);
+   fail_unless(count == 3, "Identical characters should be 3");
 }
 END_TEST
    
@@ -147,6 +189,7 @@ Suite *make_libzc_pwgen_suite()
    tcase_add_test(tc_core, test_zc_pwgen_initial_pw);
    tcase_add_test(tc_core, test_zc_pwgen_cannot_generate_zero_len_password);
    tcase_add_test(tc_core, test_zc_pwgen_cannot_set_empty_charset);
+   tcase_add_test(tc_core, test_zc_pwgen_return_updated_char_count);
    suite_add_tcase(s, tc_core);
 
    return s;

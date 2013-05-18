@@ -207,6 +207,7 @@ static void *worker(void *t)
    
    struct cleanup_node *node = (struct cleanup_node *)t;
    const char *pw;
+   size_t count;
 
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -226,7 +227,7 @@ static void *worker(void *t)
          }
          pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
       }
-      pw = zc_pwgen_generate(node->pwgen);
+      pw = zc_pwgen_generate(node->pwgen, &count);
       if (pw == NULL)
          break;
    }
@@ -255,7 +256,8 @@ static int init_worker_pwgen(struct cleanup_node *node)
       zc_pwgen_set_step(node->pwgen, 1);
       for (int i = 0; i < node->thread_num - 1 ; ++i)
       {
-         worker_pw = zc_pwgen_generate(node->pwgen);
+         size_t count;
+         worker_pw = zc_pwgen_generate(node->pwgen, &count);
          if (worker_pw == NULL)
          {
             fputs("Error: Too many threads for password range\n", stderr);
