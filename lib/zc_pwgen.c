@@ -189,7 +189,8 @@ ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
       }
    }
 
-   /* return 0 if the pw len changed, the pw is only one char or the first char changed */
+   /* return 0 if the pw len changed, the pw is only one char or the
+    * first char changed */
    if (gen->pw != pw_orig ||
        gen->pw == &gen->char_ascii[gen->max_pw_len - 1] ||
        iteration == (&gen->char_ascii[gen->max_pw_len - 1] - gen->pw + 1))
@@ -204,4 +205,13 @@ ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
 ZC_EXPORT const char *zc_pwgen_pw(const struct zc_pwgen *gen)
 {
    return gen->pw;
+}
+
+ZC_EXPORT bool zc_pwgen_is_initialized(const struct zc_pwgen *gen)
+{
+   if (gen->step <= 0)
+      return false;
+   if (gen->pw == NULL)
+      return false;
+   return true;
 }

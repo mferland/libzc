@@ -32,7 +32,7 @@ struct cleanup_node
    int thread_num;
    bool found;
    bool active;
-   struct zc_pwgen *pwgen;
+   struct zc_cracker *crk;
 };
 
 int cleanup_queue_new(struct cleanup_queue **cq);

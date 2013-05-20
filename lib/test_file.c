@@ -49,6 +49,7 @@ START_TEST(test_zc_file_open_existant)
    zc_file_new_from_filename(ctx, "test.zip", &file);
    fail_if(zc_file_open(file) != 0,
            "File could not be opened.");
+   zc_file_close(file);
 }
 END_TEST
 
@@ -75,6 +76,7 @@ START_TEST(test_zc_file_isopened_true)
    zc_file_open(file);
    fail_unless(zc_file_isopened(file),
                "File should be open.");
+   zc_file_close(file);
 }
 END_TEST
 

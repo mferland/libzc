@@ -197,7 +197,7 @@ static char *make_initial_pw(const char *set)
 static void worker_cleanup_handler(void *t)
 {
    struct cleanup_node *node = (struct cleanup_node *)t;
-   zc_pwgen_unref(node->pwgen);
+   zc_cracker_unref(node->crk);
    cleanup_queue_put(cleanup_queue, node);
 }
 
@@ -206,58 +206,53 @@ static void *worker(void *t)
    pthread_cleanup_push(worker_cleanup_handler, t);
    
    struct cleanup_node *node = (struct cleanup_node *)t;
-   const char *pw;
-   size_t count;
+   char pw[12]; // TODO: alloc in init
+   int err;
 
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-
-   pw = zc_pwgen_pw(node->pwgen);
-   while (1)
+   err = zc_cracker_start(node->crk, pw, 12);
+   pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+   while (err == 0)
    {
-      if (zc_crack(pw, args.vdata, args.vdata_size))
+      pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+      if (zc_file_test_password(args.filename, pw))
       {
-         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-         printf("Possible pasword: %s\n", pw);
-         if (zc_file_test_password(args.filename, pw))
-         {
-            printf("Password is: %s\n", pw);
-            node->found = true;
-            break;
-         }
-         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-      }
-      pw = zc_pwgen_generate(node->pwgen, &count);
-      if (pw == NULL)
+         printf("Password is: %s\n", pw);
+         node->found = true;
          break;
+      }
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      err = zc_cracker_restart(node->crk, pw, 12);
    }
+   
    pthread_cleanup_pop(1);
    return NULL;
 }
 
-static int init_worker_pwgen(struct cleanup_node *node)
+static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
 {
    const char *worker_pw = NULL;
    int err;
    
-   err = zc_pwgen_new(args.ctx, &node->pwgen);
+   err = zc_pwgen_new(args.ctx, pwgen);
    if (err)
       return err;
    
-   err = zc_pwgen_init(node->pwgen, args.charset, args.maxlength);
+   err = zc_pwgen_init(*pwgen, args.charset, args.maxlength);
    if (err)
       goto error;
    
-   zc_pwgen_reset(node->pwgen, args.initial);
+   zc_pwgen_reset(*pwgen, args.initial);
 
-   if (node->thread_num > 1)
+   if (thread_num > 1)
    {
       /* advance the pwgen to this thread's first pw */
-      zc_pwgen_set_step(node->pwgen, 1);
-      for (int i = 0; i < node->thread_num - 1 ; ++i)
+      zc_pwgen_set_step(*pwgen, 1);
+      for (int i = 0; i < thread_num - 1 ; ++i)
       {
          size_t count;
-         worker_pw = zc_pwgen_generate(node->pwgen, &count);
+         worker_pw = zc_pwgen_generate(*pwgen, &count);
          if (worker_pw == NULL)
          {
             fputs("Error: Too many threads for password range\n", stderr);
@@ -265,16 +260,41 @@ static int init_worker_pwgen(struct cleanup_node *node)
             goto error;
          }
       }
-      zc_pwgen_reset(node->pwgen, worker_pw);
+      zc_pwgen_reset(*pwgen, worker_pw);
    }
    
-   zc_pwgen_set_step(node->pwgen, args.workers);
+   zc_pwgen_set_step(*pwgen, args.workers);
    return 0;
 
 error:
-   zc_pwgen_unref(node->pwgen);
-   node->pwgen = NULL;
+   zc_pwgen_unref(*pwgen);
+   *pwgen = NULL;
    return err;
+}
+
+static int init_worker_cracker(struct cleanup_node *node)
+{
+   struct zc_cracker *crk;
+   struct zc_pwgen *pwgen;
+   int err;
+
+   err = init_worker_pwgen(node->thread_num, &pwgen);
+   if (err)
+      return err;
+
+   err = zc_cracker_new(args.ctx, &crk);
+   if (err)
+   {
+      zc_pwgen_unref(pwgen);
+      return err;
+   }
+   zc_cracker_set_vdata(crk, args.vdata, args.vdata_size);
+   zc_cracker_set_pwgen(crk, pwgen);
+   zc_pwgen_unref(pwgen);
+
+   node->crk = crk;
+
+   return 0;
 }
 
 static int start_worker_threads(void)
@@ -287,9 +307,9 @@ static int start_worker_threads(void)
       cleanup_nodes[i].thread_num = i + 1;
       cleanup_nodes[i].active = true;
       cleanup_nodes[i].found = false;
-      err = init_worker_pwgen(&cleanup_nodes[i]);
+      err = init_worker_cracker(&cleanup_nodes[i]);
       if (err)
-         fatal("failed to initialise password generators");
+         fatal("failed to initialise password cracker");
       err = pthread_create(&cleanup_nodes[i].thread_id, NULL, worker, &cleanup_nodes[i]);
       if (err != 0)
          fatal("pthread_create() failed\n");

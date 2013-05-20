@@ -17,6 +17,9 @@
  */
 
 #include <stdbool.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 #include "crc32.h"
 #include "zip.h"
@@ -32,6 +35,16 @@ struct encryption_keys
    unsigned int key0;
    unsigned int key1;
    unsigned int key2;
+};
+
+struct zc_cracker
+{
+   struct zc_pwgen *gen;
+   struct encryption_keys key;
+   struct zc_validation_data *vdata;
+   size_t vdata_size;
+   struct zc_ctx *ctx;
+   int refcount;
 };
 
 static inline void update_keys(char c, struct encryption_keys *k)
@@ -84,7 +97,7 @@ static inline unsigned char decrypt_header(const unsigned char *encrypted_header
    return c;
 }
 
-ZC_EXPORT bool zc_crack(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
+ZC_EXPORT bool zc_cracker_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
 {
    struct encryption_keys key;
    struct encryption_keys base_key;
@@ -99,4 +112,116 @@ ZC_EXPORT bool zc_crack(const char *pw, const struct zc_validation_data *vdata, 
       return false;
    }
    return true;
+}
+
+ZC_EXPORT int zc_cracker_new(struct zc_ctx *ctx, struct zc_cracker **crk)
+{
+   struct zc_cracker *newcrk;
+
+   newcrk = calloc(1, sizeof(struct zc_cracker));
+   if (!newcrk)
+      return ENOMEM;
+
+   newcrk->ctx = ctx;
+   newcrk->refcount = 1;
+   *crk = newcrk;
+   dbg(ctx, "cracker %p created\n", newcrk);
+   return 0;
+}
+
+ZC_EXPORT struct zc_cracker *zc_cracker_ref(struct zc_cracker *crk)
+{
+   if (!crk)
+      return NULL;
+   crk->refcount++;
+   return crk;
+}
+
+ZC_EXPORT struct zc_cracker *zc_cracker_unref(struct zc_cracker *crk)
+{
+   if (!crk)
+      return NULL;
+   crk->refcount--;
+   if (crk->refcount > 0)
+      return crk;
+   dbg(crk->ctx, "cracker %p released\n", crk);
+   zc_pwgen_unref(crk->gen);
+   free(crk);
+   return NULL;
+}
+
+ZC_EXPORT int zc_cracker_set_pwgen(struct zc_cracker *crk, struct zc_pwgen *pwgen)
+{
+   if (pwgen == NULL)
+      return EINVAL;
+   crk->gen = zc_pwgen_ref(pwgen);
+   return 0;
+}
+
+ZC_EXPORT int zc_cracker_set_vdata(struct zc_cracker *crk, struct zc_validation_data *vdata, size_t nmemb)
+{
+   if (vdata == NULL)
+      return EINVAL;
+   if (nmemb == 0)
+      return EINVAL;
+   crk->vdata = vdata;
+   crk->vdata_size = nmemb;
+   return 0;
+}
+
+static bool is_valid_cracker(struct zc_cracker *crk)
+{
+   /* invalid arguments */
+   if (crk->gen == NULL || crk->vdata == NULL)
+      return false;
+
+   if (!zc_pwgen_is_initialized(crk->gen))
+      return false;
+   return true;
+}
+
+ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_pw_size)
+{
+   struct encryption_keys base_key;
+   const char *pw;
+   size_t idem_char;
+   bool found = false;
+   
+   if (out_pw == NULL || !is_valid_cracker(crk))
+      return EINVAL;
+
+   pw = zc_pwgen_pw(crk->gen);
+   do
+   {
+      init_encryption_keys(pw, &base_key);
+      found = true;
+      for (size_t i = 0; i < crk->vdata_size; ++i)
+      {
+         reset_encryption_keys(&base_key, &crk->key);
+         if (decrypt_header(crk->vdata[i].encryption_header, &crk->key) == crk->vdata[i].magic)
+            continue;
+         found = false;
+         break;
+      }
+
+      if (found)
+      {
+         memset(out_pw, 0, out_pw_size);
+         strncpy(out_pw, pw, out_pw_size - 1);
+         break;
+      }
+      
+      pw = zc_pwgen_generate(crk->gen, &idem_char);
+   } while (pw != NULL);
+
+   return found == true ? 0 : -1;
+}
+
+ZC_EXPORT int zc_cracker_restart(struct zc_cracker *crk, char *out_pw, size_t out_pw_size)
+{
+   size_t tmp;
+   if (!is_valid_cracker(crk))
+      return EINVAL;
+   zc_pwgen_generate(crk->gen, &tmp);
+   return zc_cracker_start(crk, out_pw, out_pw_size);
 }
