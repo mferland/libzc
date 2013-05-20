@@ -54,18 +54,42 @@ static inline void update_keys(char c, struct encryption_keys *k)
    k->key2 = crc32(k->key2, k->key1 >> 24);
 }
 
-static inline void init_encryption_keys(const char *pw, struct encryption_keys *k)
+static inline void set_default_encryption_keys(struct encryption_keys *k)
 {
-   int i = 0;
-
    k->key0 = KEY0;
    k->key1 = KEY1;
    k->key2 = KEY2;
+}
 
+static inline void init_encryption_keys(const char *pw, struct encryption_keys *k)
+{
+   int i = 0;
+   set_default_encryption_keys(k);
    while (pw[i] != '\0')
    {
       update_keys(pw[i], k);
       ++i;
+   }
+}
+
+static inline void init_encryption_keys_from_base(const char *pw, struct encryption_keys *key_table,
+                                                  struct encryption_keys *k, size_t idem_char)
+{
+   if (idem_char == 0)
+      set_default_encryption_keys(k);
+   else
+   {
+      k->key0 = key_table[idem_char - 1].key0;
+      k->key1 = key_table[idem_char - 1].key1;
+      k->key2 = key_table[idem_char - 1].key2;
+   }
+   while (pw[idem_char] != '\0')
+   {
+      update_keys(pw[idem_char], k);
+      key_table[idem_char].key0 = k->key0;
+      key_table[idem_char].key1 = k->key1;
+      key_table[idem_char].key2 = k->key2;
+      ++idem_char;
    }
 }
 
@@ -182,9 +206,10 @@ static bool is_valid_cracker(struct zc_cracker *crk)
 
 ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_pw_size)
 {
-   struct encryption_keys base_key;
+   struct encryption_keys base_key = { .key0 = 0, .key1 = 0, .key2 = 0};
+   struct encryption_keys key_table[8]; // TODO: use a big enough table here
    const char *pw;
-   size_t idem_char;
+   size_t idem_char = 0;
    bool found = false;
    
    if (out_pw == NULL || !is_valid_cracker(crk))
@@ -193,7 +218,7 @@ ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_
    pw = zc_pwgen_pw(crk->gen);
    do
    {
-      init_encryption_keys(pw, &base_key);
+      init_encryption_keys_from_base(pw, key_table, &base_key, idem_char);
       found = true;
       for (size_t i = 0; i < crk->vdata_size; ++i)
       {
