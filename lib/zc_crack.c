@@ -30,38 +30,32 @@
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 
-struct encryption_keys
-{
-   unsigned int key0;
-   unsigned int key1;
-   unsigned int key2;
-};
+typedef unsigned int encryption_key;
 
 struct zc_cracker
 {
    struct zc_pwgen *gen;
-   struct encryption_keys key;
    struct zc_validation_data *vdata;
    size_t vdata_size;
    struct zc_ctx *ctx;
    int refcount;
 };
 
-static inline void update_keys(char c, struct encryption_keys *k)
+static inline void update_keys(char c, encryption_key *k)
 {
-   k->key0 = crc32(k->key0, c);
-   k->key1 = (k->key1 + (k->key0 & 0x000000ff)) * 134775813 + 1;
-   k->key2 = crc32(k->key2, k->key1 >> 24);
+   k[0] = crc32(k[0], c);
+   k[1] = (k[1] + (k[0] & 0x000000ff)) * 134775813 + 1;
+   k[2] = crc32(k[2], k[1] >> 24);
 }
 
-static inline void set_default_encryption_keys(struct encryption_keys *k)
+static inline void set_default_encryption_keys(encryption_key *k)
 {
-   k->key0 = KEY0;
-   k->key1 = KEY1;
-   k->key2 = KEY2;
+   k[0] = KEY0;
+   k[1] = KEY1;
+   k[2] = KEY2;
 }
 
-static inline void init_encryption_keys(const char *pw, struct encryption_keys *k)
+static inline void init_encryption_keys(const char *pw, encryption_key *k)
 {
    int i = 0;
    set_default_encryption_keys(k);
@@ -72,48 +66,43 @@ static inline void init_encryption_keys(const char *pw, struct encryption_keys *
    }
 }
 
-static inline void init_encryption_keys_from_base(const char *pw, struct encryption_keys *key_table,
-                                                  struct encryption_keys *k, size_t idem_char)
+static void init_encryption_keys_from_base(const char *pw, encryption_key key_table[][3],
+                                           encryption_key *k, size_t idem_char)
 {
-   if (idem_char == 0)
-      set_default_encryption_keys(k);
-   else
-   {
-      k->key0 = key_table[idem_char - 1].key0;
-      k->key1 = key_table[idem_char - 1].key1;
-      k->key2 = key_table[idem_char - 1].key2;
-   }
-   while (pw[idem_char] != '\0')
+   for (int i = 0; i < 3; ++i)
+      k[i] = key_table[idem_char][i];
+
+   /* assume password is never empty */
+   /* TODO: could this be vectorized if we knew the string length ? */
+   do
    {
       update_keys(pw[idem_char], k);
-      key_table[idem_char].key0 = k->key0;
-      key_table[idem_char].key1 = k->key1;
-      key_table[idem_char].key2 = k->key2;
+      for (int i = 0; i < 3; ++i)
+         key_table[idem_char + 1][i] = k[i];
       ++idem_char;
-   }
+   } while (pw[idem_char] != '\0');
 }
 
-static inline void reset_encryption_keys(const struct encryption_keys *base, struct encryption_keys *key)
+static inline void reset_encryption_keys(const encryption_key *base, encryption_key *k)
 {
-   key->key0 = base->key0;
-   key->key1 = base->key1;
-   key->key2 = base->key2;
+   for (int i = 0; i < 3; ++i)
+      k[i] = base[i];
 }
 
-static inline unsigned char decrypt_byte(unsigned int key)
+static inline unsigned char decrypt_byte(encryption_key k)
 {
-   key |= 2;
-   return ((key * (key ^ 1)) >> 8);
+   k |= 2;
+   return ((k * (k ^ 1)) >> 8);
 }
 
-static inline unsigned char decrypt_header(const unsigned char *encrypted_header, struct encryption_keys *k)
+static inline unsigned char decrypt_header(const unsigned char *encrypted_header, encryption_key *k)
 {
    int i;
    unsigned char c;
 
    for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH; ++i)
    {
-      c = encrypted_header[i] ^ decrypt_byte(k->key2);
+      c = encrypted_header[i] ^ decrypt_byte(k[2]);
       update_keys(c, k);
    }
 
@@ -123,15 +112,15 @@ static inline unsigned char decrypt_header(const unsigned char *encrypted_header
 
 ZC_EXPORT bool zc_cracker_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
 {
-   struct encryption_keys key;
-   struct encryption_keys base_key;
+   encryption_key key[3];
+   encryption_key base_key[3];
    size_t i;
 
-   init_encryption_keys(pw, &base_key);
+   init_encryption_keys(pw, base_key);
    for (i = 0; i < nmemb; ++i)
    {
-      reset_encryption_keys(&base_key, &key);
-      if (decrypt_header(vdata[i].encryption_header, &key) == vdata[i].magic)
+      reset_encryption_keys(base_key, key);
+      if (decrypt_header(vdata[i].encryption_header, key) == vdata[i].magic)
          continue;
       return false;
    }
@@ -206,8 +195,10 @@ static bool is_valid_cracker(struct zc_cracker *crk)
 
 ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_pw_size)
 {
-   struct encryption_keys base_key = { .key0 = 0, .key1 = 0, .key2 = 0};
-   struct encryption_keys key_table[8]; // TODO: use a big enough table here
+   encryption_key key[3];
+   encryption_key base_key[3];
+   encryption_key key_table[out_pw_size][3];
+   struct zc_pwgen *gen = crk->gen;
    const char *pw;
    size_t idem_char = 0;
    bool found = false;
@@ -215,15 +206,19 @@ ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_
    if (out_pw == NULL || !is_valid_cracker(crk))
       return EINVAL;
 
-   pw = zc_pwgen_pw(crk->gen);
+   memset(key_table, 0, out_pw_size * 3 * sizeof(encryption_key));
+
+   set_default_encryption_keys(key_table[0]);
+
+   pw = zc_pwgen_pw(gen);
    do
    {
-      init_encryption_keys_from_base(pw, key_table, &base_key, idem_char);
+      init_encryption_keys_from_base(pw, key_table, base_key, idem_char);
       found = true;
       for (size_t i = 0; i < crk->vdata_size; ++i)
       {
-         reset_encryption_keys(&base_key, &crk->key);
-         if (decrypt_header(crk->vdata[i].encryption_header, &crk->key) == crk->vdata[i].magic)
+         reset_encryption_keys(base_key, key);
+         if (decrypt_header(crk->vdata[i].encryption_header, key) == crk->vdata[i].magic)
             continue;
          found = false;
          break;
@@ -236,7 +231,7 @@ ZC_EXPORT int zc_cracker_start(struct zc_cracker *crk, char *out_pw, size_t out_
          break;
       }
       
-      pw = zc_pwgen_generate(crk->gen, &idem_char);
+      pw = zc_pwgen_generate(gen, &idem_char);
    } while (pw != NULL);
 
    return found == true ? 0 : -1;
