@@ -72,8 +72,7 @@ static void init_encryption_keys_from_base(const char *pw, encryption_key key_ta
    for (int i = 0; i < 3; ++i)
       k[i] = key_table[idem_char][i];
 
-   /* assume password is never empty */
-   /* TODO: could this be vectorized if we knew the string length ? */
+   /* do {} while() assuming password is never empty */
    do
    {
       update_keys(pw[idem_char], k);
