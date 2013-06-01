@@ -276,7 +276,7 @@ error:
 
 static int init_worker_cracker(struct cleanup_node *node)
 {
-   struct zc_crk *crk;
+   struct zc_crk_bforce *crk;
    struct zc_pwgen *pwgen;
    int err;
 

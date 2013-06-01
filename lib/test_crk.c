@@ -55,7 +55,7 @@ END_TEST
 
 START_TEST(test_unref_cracker)
 {
-   struct zc_crk *cracker;
+   struct zc_crk_bforce *cracker;
    int ret;
    ret = zc_crk_bforce_new(ctx, &cracker);
    fail_unless(ret == 0, NULL);
@@ -65,7 +65,7 @@ END_TEST
 
 START_TEST(test_set_pwgen)
 {
-   struct zc_crk *cracker;
+   struct zc_crk_bforce *cracker;
    struct zc_pwgen *pwgen;
    
    zc_crk_bforce_new(ctx, &cracker);
@@ -78,7 +78,7 @@ END_TEST
 
 START_TEST(test_set_vdata)
 {
-   struct zc_crk *cracker;
+   struct zc_crk_bforce *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    
@@ -90,7 +90,7 @@ END_TEST
 
 START_TEST(test_start_crack)
 {
-   struct zc_crk *cracker;
+   struct zc_crk_bforce *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    struct zc_pwgen *pwgen;
@@ -123,7 +123,7 @@ END_TEST
 
 START_TEST(test_cannot_find_password)
 {
-   struct zc_crk *cracker;
+   struct zc_crk_bforce *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    struct zc_pwgen *pwgen;

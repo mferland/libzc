@@ -32,7 +32,7 @@
 
 typedef unsigned int encryption_key;
 
-struct zc_crk
+struct zc_crk_bforce
 {
    struct zc_pwgen *gen;
    struct zc_validation_data *vdata;
@@ -126,11 +126,11 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
    return true;
 }
 
-ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk **crk)
+ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 {
-   struct zc_crk *newcrk;
+   struct zc_crk_bforce *newcrk;
 
-   newcrk = calloc(1, sizeof(struct zc_crk));
+   newcrk = calloc(1, sizeof(struct zc_crk_bforce));
    if (!newcrk)
       return ENOMEM;
 
@@ -141,7 +141,7 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk **crk)
    return 0;
 }
 
-ZC_EXPORT struct zc_crk *zc_crk_bforce_ref(struct zc_crk *crk)
+ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
 {
    if (!crk)
       return NULL;
@@ -149,7 +149,7 @@ ZC_EXPORT struct zc_crk *zc_crk_bforce_ref(struct zc_crk *crk)
    return crk;
 }
 
-ZC_EXPORT struct zc_crk *zc_crk_bforce_unref(struct zc_crk *crk)
+ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 {
    if (!crk)
       return NULL;
@@ -162,7 +162,7 @@ ZC_EXPORT struct zc_crk *zc_crk_bforce_unref(struct zc_crk *crk)
    return NULL;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk *crk, struct zc_pwgen *pwgen)
+ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *crk, struct zc_pwgen *pwgen)
 {
    if (pwgen == NULL)
       return EINVAL;
@@ -170,7 +170,7 @@ ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk *crk, struct zc_pwgen *pwgen
    return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk *crk, struct zc_validation_data *vdata, size_t nmemb)
+ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, struct zc_validation_data *vdata, size_t nmemb)
 {
    if (vdata == NULL)
       return EINVAL;
@@ -181,7 +181,7 @@ ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk *crk, struct zc_validation_d
    return 0;
 }
 
-static bool is_valid_cracker(struct zc_crk *crk)
+static bool is_valid_cracker(struct zc_crk_bforce *crk)
 {
    /* invalid arguments */
    if (crk->gen == NULL || crk->vdata == NULL)
@@ -192,7 +192,7 @@ static bool is_valid_cracker(struct zc_crk *crk)
    return true;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk *crk, char *out_pw, size_t out_pw_size)
+ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
 {
    encryption_key key[3];
    encryption_key base_key[3];
@@ -236,7 +236,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk *crk, char *out_pw, size_t out_p
    return found == true ? 0 : -1;
 }
 
-ZC_EXPORT int zc_crk_bforce_restart(struct zc_crk *crk, char *out_pw, size_t out_pw_size)
+ZC_EXPORT int zc_crk_bforce_restart(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
 {
    size_t tmp;
    if (!is_valid_cracker(crk))
