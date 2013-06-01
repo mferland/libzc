@@ -274,7 +274,7 @@ error:
    return err;
 }
 
-static int init_worker_cracker(struct cleanup_node *node)
+static int init_worker(struct cleanup_node *node)
 {
    struct zc_crk_bforce *crk;
    struct zc_pwgen *pwgen;
@@ -309,7 +309,7 @@ static int start_worker_threads(void)
       cleanup_nodes[i].thread_num = i + 1;
       cleanup_nodes[i].active = true;
       cleanup_nodes[i].found = false;
-      err = init_worker_cracker(&cleanup_nodes[i]);
+      err = init_worker(&cleanup_nodes[i]);
       if (err)
          fatal("failed to initialise password cracker");
       err = pthread_create(&cleanup_nodes[i].thread_id, NULL, worker, &cleanup_nodes[i]);
