@@ -35,7 +35,7 @@ typedef unsigned int encryption_key;
 struct zc_crk_bforce
 {
    struct zc_pwgen *gen;
-   struct zc_validation_data *vdata;
+   const struct zc_validation_data *vdata;
    size_t vdata_size;
    struct zc_ctx *ctx;
    int refcount;
@@ -170,7 +170,7 @@ ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *crk, struct zc_pwgen
    return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, struct zc_validation_data *vdata, size_t nmemb)
+ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
 {
    if (vdata == NULL)
       return EINVAL;
