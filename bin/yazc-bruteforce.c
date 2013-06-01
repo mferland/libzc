@@ -232,27 +232,28 @@ static void *worker(void *t)
 
 static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
 {
+   struct zc_pwgen *tmp = NULL;
    const char *worker_pw = NULL;
    int err;
    
-   err = zc_pwgen_new(args.ctx, pwgen);
+   err = zc_pwgen_new(args.ctx, &tmp);
    if (err)
       return err;
    
-   err = zc_pwgen_init(*pwgen, args.charset, args.maxlength);
+   err = zc_pwgen_init(tmp, args.charset, args.maxlength);
    if (err)
       goto error;
    
-   zc_pwgen_reset(*pwgen, args.initial);
+   zc_pwgen_reset(tmp, args.initial);
 
    if (thread_num > 1)
    {
       /* advance the pwgen to this thread's first pw */
-      zc_pwgen_set_step(*pwgen, 1);
+      zc_pwgen_set_step(tmp, 1);
       for (int i = 0; i < thread_num - 1 ; ++i)
       {
          size_t count;
-         worker_pw = zc_pwgen_generate(*pwgen, &count);
+         worker_pw = zc_pwgen_generate(tmp, &count);
          if (worker_pw == NULL)
          {
             fputs("Error: Too many threads for password range\n", stderr);
@@ -260,14 +261,15 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
             goto error;
          }
       }
-      zc_pwgen_reset(*pwgen, worker_pw);
+      zc_pwgen_reset(tmp, worker_pw);
    }
    
-   zc_pwgen_set_step(*pwgen, args.workers);
+   zc_pwgen_set_step(tmp, args.workers);
+   *pwgen = tmp;
    return 0;
 
 error:
-   zc_pwgen_unref(*pwgen);
+   zc_pwgen_unref(tmp);
    *pwgen = NULL;
    return err;
 }
