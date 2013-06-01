@@ -197,7 +197,7 @@ static char *make_initial_pw(const char *set)
 static void worker_cleanup_handler(void *t)
 {
    struct cleanup_node *node = (struct cleanup_node *)t;
-   zc_cracker_unref(node->crk);
+   zc_crk_bforce_unref(node->crk);
    cleanup_queue_put(cleanup_queue, node);
 }
 
@@ -211,7 +211,7 @@ static void *worker(void *t)
 
    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-   err = zc_cracker_start(node->crk, pw, 12);
+   err = zc_crk_bforce_start(node->crk, pw, 12);
    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
    while (err == 0)
    {
@@ -223,7 +223,7 @@ static void *worker(void *t)
          break;
       }
       pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-      err = zc_cracker_restart(node->crk, pw, 12);
+      err = zc_crk_bforce_restart(node->crk, pw, 12);
    }
    
    pthread_cleanup_pop(1);
@@ -274,7 +274,7 @@ error:
 
 static int init_worker_cracker(struct cleanup_node *node)
 {
-   struct zc_cracker *crk;
+   struct zc_crk *crk;
    struct zc_pwgen *pwgen;
    int err;
 
@@ -282,14 +282,14 @@ static int init_worker_cracker(struct cleanup_node *node)
    if (err)
       return err;
 
-   err = zc_cracker_new(args.ctx, &crk);
+   err = zc_crk_bforce_new(args.ctx, &crk);
    if (err)
    {
       zc_pwgen_unref(pwgen);
       return err;
    }
-   zc_cracker_set_vdata(crk, args.vdata, args.vdata_size);
-   zc_cracker_set_pwgen(crk, pwgen);
+   zc_crk_bforce_set_vdata(crk, args.vdata, args.vdata_size);
+   zc_crk_bforce_set_pwgen(crk, pwgen);
    zc_pwgen_unref(pwgen);
 
    node->crk = crk;

@@ -43,54 +43,54 @@ void teardown_crack()
 
 START_TEST(test_wrong_password)
 {
-   fail_unless(zc_cracker_test_one_pw(wrong_password, vdata, 3) == false, NULL);
+   fail_unless(zc_crk_test_one_pw(wrong_password, vdata, 3) == false, NULL);
 }
 END_TEST
 
 START_TEST(test_good_password)
 {
-   fail_unless(zc_cracker_test_one_pw(good_password, vdata, 3) == true, NULL);
+   fail_unless(zc_crk_test_one_pw(good_password, vdata, 3) == true, NULL);
 }
 END_TEST
 
 START_TEST(test_unref_cracker)
 {
-   struct zc_cracker *cracker;
+   struct zc_crk *cracker;
    int ret;
-   ret = zc_cracker_new(ctx, &cracker);
+   ret = zc_crk_bforce_new(ctx, &cracker);
    fail_unless(ret == 0, NULL);
-   fail_unless(zc_cracker_unref(cracker) == NULL, NULL);
+   fail_unless(zc_crk_bforce_unref(cracker) == NULL, NULL);
 }
 END_TEST
 
 START_TEST(test_set_pwgen)
 {
-   struct zc_cracker *cracker;
+   struct zc_crk *cracker;
    struct zc_pwgen *pwgen;
    
-   zc_cracker_new(ctx, &cracker);
+   zc_crk_bforce_new(ctx, &cracker);
    zc_pwgen_new(ctx, &pwgen);
-   zc_cracker_set_pwgen(cracker, pwgen);
+   zc_crk_bforce_set_pwgen(cracker, pwgen);
    fail_unless(zc_pwgen_unref(pwgen) != NULL, NULL);
-   zc_cracker_unref(cracker);
+   zc_crk_bforce_unref(cracker);
 }
 END_TEST
 
 START_TEST(test_set_vdata)
 {
-   struct zc_cracker *cracker;
+   struct zc_crk *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    
-   zc_cracker_new(ctx, &cracker);
-   zc_cracker_set_vdata(cracker, vdata, vdata_size);
-   zc_cracker_unref(cracker);
+   zc_crk_bforce_new(ctx, &cracker);
+   zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
+   zc_crk_bforce_unref(cracker);
 }
 END_TEST
 
 START_TEST(test_start_crack)
 {
-   struct zc_cracker *cracker;
+   struct zc_crk *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    struct zc_pwgen *pwgen;
@@ -108,22 +108,22 @@ START_TEST(test_start_crack)
    zc_pwgen_reset(pwgen, "yamaga");
    zc_pwgen_set_step(pwgen, 1);
 
-   zc_cracker_new(ctx, &cracker);
-   zc_cracker_set_vdata(cracker, vdata, vdata_size);
-   zc_cracker_set_pwgen(cracker, pwgen);
+   zc_crk_bforce_new(ctx, &cracker);
+   zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
+   zc_crk_bforce_set_pwgen(cracker, pwgen);
 
-   int ret = zc_cracker_start(cracker, pw, 7);
+   int ret = zc_crk_bforce_start(cracker, pw, 7);
    fail_unless(ret == 0, NULL);
    fail_unless(strncmp(pw, "yamaha", 6) == 0, NULL);
 
-   zc_cracker_unref(cracker);
+   zc_crk_bforce_unref(cracker);
    zc_pwgen_unref(pwgen);
 }
 END_TEST
 
 START_TEST(test_cannot_find_password)
 {
-   struct zc_cracker *cracker;
+   struct zc_crk *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
    struct zc_pwgen *pwgen;
@@ -141,14 +141,14 @@ START_TEST(test_cannot_find_password)
    zc_pwgen_reset(pwgen, "aaa");
    zc_pwgen_set_step(pwgen, 1);
 
-   zc_cracker_new(ctx, &cracker);
-   zc_cracker_set_vdata(cracker, vdata, vdata_size);
-   zc_cracker_set_pwgen(cracker, pwgen);
+   zc_crk_bforce_new(ctx, &cracker);
+   zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
+   zc_crk_bforce_set_pwgen(cracker, pwgen);
 
-   int ret = zc_cracker_start(cracker, pw, 7);
+   int ret = zc_crk_bforce_start(cracker, pw, 7);
    fail_unless(ret == -1, NULL);
 
-   zc_cracker_unref(cracker);
+   zc_crk_bforce_unref(cracker);
    zc_pwgen_unref(pwgen);
 }
 END_TEST

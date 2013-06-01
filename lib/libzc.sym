@@ -24,14 +24,14 @@ global:
         zc_pwgen_generate;
         zc_pwgen_pw;
         zc_pwgen_is_initialized;
-        zc_cracker_test_one_pw;
-        zc_cracker_new;
-        zc_cracker_ref;
-        zc_cracker_unref;
-        zc_cracker_set_pwgen;
-        zc_cracker_set_vdata;
-        zc_cracker_start;
-        zc_cracker_restart;
+        zc_crk_test_one_pw;
+        zc_crk_bforce_new;
+        zc_crk_bforce_ref;
+        zc_crk_bforce_unref;
+        zc_crk_bforce_set_pwgen;
+        zc_crk_bforce_set_vdata;
+        zc_crk_bforce_start;
+        zc_crk_bforce_restart;
 local:
         *;
 };

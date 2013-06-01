@@ -43,7 +43,7 @@ lib_libzc_la_SOURCES =\
 	lib/zc_file.c \
 	lib/zip.c \
 	lib/zc_pwgen.c \
-	lib/zc_crack.c
+	lib/zc_crk.c
 
 EXTRA_DIST += lib/libzc.sym
 
@@ -59,7 +59,7 @@ CLEANFILES += lib/libzc.pc
 
 TESTS = lib/test_libzc
 check_PROGRAMS = lib/test_libzc
-lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crack.c lib/libzc.h
+lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crk.c lib/libzc.h
 lib_test_libzc_CFLAGS = @CHECK_CFLAGS@
 lib_test_libzc_LDADD = lib/libzc.la @CHECK_LIBS@
 

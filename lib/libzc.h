@@ -89,22 +89,23 @@ const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count);
 const char *zc_pwgen_pw(const struct zc_pwgen *gen);
 
 /**
- * zc_crack:
+ * zc_crk:
  *
  * Tests if the provided password might be valid.
  */
-struct zc_cracker;
-struct zc_cracker *zc_cracker_ref(struct zc_cracker *cracker);
-struct zc_cracker *zc_cracker_unref(struct zc_cracker *cracker);
-int zc_cracker_new(struct zc_ctx *ctx, struct zc_cracker **cracker);
-bool zc_cracker_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb);
-int zc_cracker_set_pwgen(struct zc_cracker *cracker, struct zc_pwgen *pwgen);
-int zc_cracker_set_vdata(struct zc_cracker *cracker, struct zc_validation_data *vdata, size_t nmemb);
-int zc_cracker_start(struct zc_cracker *cracker, char *out_pw, size_t out_pw_size);
-int zc_cracker_restart(struct zc_cracker *cracker, char *out_pw, size_t out_pw_size);
+struct zc_crk;
+struct zc_crk *zc_crk_bforce_ref(struct zc_crk *cracker);
+struct zc_crk *zc_crk_bforce_unref(struct zc_crk *cracker);
+int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk **cracker);
+bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb);
+int zc_crk_bforce_set_pwgen(struct zc_crk *cracker, struct zc_pwgen *pwgen);
+int zc_crk_bforce_set_vdata(struct zc_crk *cracker, struct zc_validation_data *vdata, size_t nmemb);
+int zc_crk_bforce_start(struct zc_crk *cracker, char *out_pw, size_t out_pw_size);
+int zc_crk_bforce_restart(struct zc_crk *cracker, char *out_pw, size_t out_pw_size);
    
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
 #endif
+ 
