@@ -31,7 +31,7 @@ void setup_crack()
    zc_new(&ctx);
    zc_file_new_from_filename(ctx, "test.zip", &file);
    zc_file_open(file);
-   zc_file_read_validation_data(file, &vdata[0], 3);
+   zc_file_read_validation_data(file, vdata, 3);
 }
 
 void teardown_crack()

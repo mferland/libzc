@@ -94,7 +94,7 @@ START_TEST(test_zc_file_can_read_validation_data)
    
    zc_file_new_from_filename(ctx, "test.zip", &file);
    zc_file_open(file);
-   int err = zc_file_read_validation_data(file, &vdata[0], 3);
+   int err = zc_file_read_validation_data(file, vdata, 3);
 
    fail_unless(err == 3,
                "Reading validation data failed.");
@@ -109,7 +109,7 @@ START_TEST(test_zc_file_specify_large_validation_data)
    
    zc_file_new_from_filename(ctx, "test.zip", &file);
    zc_file_open(file);
-   int err = zc_file_read_validation_data(file, &vdata[0], 12);
+   int err = zc_file_read_validation_data(file, vdata, 12);
 
    fail_unless(err == 4,
                "Reading validation data in large array failed.");
@@ -124,7 +124,7 @@ START_TEST(test_zc_file_not_encrypted)
    
    zc_file_new_from_filename(ctx, "test_non_encrypted.zip", &file);
    zc_file_open(file);
-   int err = zc_file_read_validation_data(file, &vdata[0], 3);
+   int err = zc_file_read_validation_data(file, vdata, 3);
 
    fail_unless(err == 0,
                "Reading non encrypted file failed.");

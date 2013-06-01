@@ -345,7 +345,7 @@ static int read_validation_data(struct zc_ctx *ctx)
       return err;
    }
 
-   err = zc_file_read_validation_data(file, &args.vdata[0], VDATA_ALLOC);
+   err = zc_file_read_validation_data(file, args.vdata, VDATA_ALLOC);
    if (err < 1)
       fputs("Error: file is not encrypted\n", stderr);
    else
