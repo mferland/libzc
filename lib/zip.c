@@ -191,7 +191,11 @@ bool zip_header_has_encryption_bit(const struct zip_header *header)
 
 unsigned char zip_header_encryption_magic(const struct zip_header *header)
 {
-   // TODO: Check magic...
+   /*
+     Nothing about this in the official APPNOTE.txt even though the
+     majority of unzippers check for both fields. This code was
+     inspired from funzip.
+   */
    if (zip_header_has_data_descriptor_bit(header))
       return (header->last_mod_time >> 8);
    return (header->crc32 >> 24);
