@@ -90,8 +90,8 @@ static inline void reset_encryption_keys(const encryption_key *base, encryption_
 
 static inline unsigned char decrypt_byte(encryption_key k)
 {
-   k |= 2;
-   return ((k * (k ^ 1)) >> 8);
+   unsigned short tmp =  k | 2;
+   return ((tmp * (tmp ^ 1)) >> 8);
 }
 
 static inline unsigned char decrypt_header(const unsigned char *encrypted_header, encryption_key *k)
