@@ -30,6 +30,9 @@
 #include "cleanupqueue.h"
 
 #define VDATA_ALLOC 5
+#define PW_LEN_MIN 1
+#define PW_LEN_MAX 16
+#define PW_LEN_DEFAULT 8
 
 struct charset
 {
@@ -53,8 +56,8 @@ static const struct charset number_set = {
 };
 
 static const struct charset special_set = {
-   .set = "!:$%&/()=?{[]}+-*~#",// TODO: add more!
-   .len = 19
+   .set = "!:$%&/()=?{[]}+-*~#@|;",
+   .len = 22
 };
 
 struct arguments
@@ -206,25 +209,28 @@ static void *worker(void *t)
    pthread_cleanup_push(worker_cleanup_handler, t);
    
    struct cleanup_node *node = (struct cleanup_node *)t;
-   char pw[12]; // TODO: alloc in init
+   char pw[PW_LEN_MAX + 1];
    int err;
 
-   pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-   pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-   err = zc_crk_bforce_start(node->crk, pw, 12);
-   pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-   while (err == 0)
+   do
    {
+      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+      pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+      err = zc_crk_bforce_start(node->crk, pw, sizeof(pw));
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+      
+      if (err)
+         break;
+
       if (zc_file_test_password(args.filename, pw))
       {
          printf("Password is: %s\n", pw);
          node->found = true;
          break;
       }
-      pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-      err = zc_crk_bforce_restart(node->crk, pw, 12);
-   }
+      
+      err = zc_crk_bforce_skip(node->crk, pw, sizeof(pw));
+   } while (err == 0);
    
    pthread_cleanup_pop(1);
    return NULL;
@@ -311,7 +317,7 @@ static int start_worker_threads(void)
       cleanup_nodes[i].found = false;
       err = init_worker(&cleanup_nodes[i]);
       if (err)
-         fatal("failed to initialise password cracker");
+         fatal("failed to initialise worker\n");
       err = pthread_create(&cleanup_nodes[i].thread_id, NULL, worker, &cleanup_nodes[i]);
       if (err != 0)
          fatal("pthread_create() failed\n");
@@ -321,8 +327,8 @@ static int start_worker_threads(void)
 
 static int wait_worker_threads(void)
 {
-   sleep(2);                    /* if we cancel too early
-                                 * cleanuphandlers are not called
+   sleep(2);                    /* if we cancel too early cleanup
+                                 * handlers are not called
                                  * pthread/kernel/glibc BUG? */
    return cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
 }
@@ -465,14 +471,14 @@ static int do_bruteforce(int argc, char *argv[])
    if (maxlength != NULL)
    {
       args.maxlength = atoi(maxlength);
-      if (args.maxlength < 1 || args.maxlength > 16)
+      if (args.maxlength < PW_LEN_MIN || args.maxlength > PW_LEN_MAX)
       {
-         fputs("Error: maximum password length must be between 1 and 16\n", stderr);
+         fprintf(stderr, "Error: maximum password length must be between %d and %d\n", PW_LEN_MIN, PW_LEN_MAX);
          return EXIT_FAILURE;
       }
    }
    else
-      args.maxlength = 8;
+      args.maxlength = PW_LEN_DEFAULT;
 
    if (threads != NULL)
    {

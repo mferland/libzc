@@ -31,7 +31,7 @@ global:
         zc_crk_bforce_set_pwgen;
         zc_crk_bforce_set_vdata;
         zc_crk_bforce_start;
-        zc_crk_bforce_restart;
+        zc_crk_bforce_skip;
 local:
         *;
 };

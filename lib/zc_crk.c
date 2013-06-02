@@ -236,11 +236,12 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
    return found == true ? 0 : -1;
 }
 
-ZC_EXPORT int zc_crk_bforce_restart(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
+ZC_EXPORT int zc_crk_bforce_skip(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
 {
    size_t tmp;
    if (!is_valid_cracker(crk))
       return EINVAL;
-   zc_pwgen_generate(crk->gen, &tmp);
-   return zc_crk_bforce_start(crk, out_pw, out_pw_size);
+   if (zc_pwgen_generate(crk->gen, &tmp) == NULL)
+      return -1;
+   return 0;
 }
