@@ -20,6 +20,7 @@
 #define _YAZC_H_
 
 #include <stdlib.h>
+#include "libzc.h"
 
 struct yazc_cmd
 {
@@ -39,5 +40,9 @@ void yazc_log(const char *file, int line, const char *fn,
    __attribute__((format(printf, 4, 5)));
 
 extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
+extern const struct yazc_cmd yazc_cmd_compat_dictionary;
+
+size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
+                            struct zc_validation_data *vdata, size_t nmemb);
 
 #endif /* _YAZC_H_ */

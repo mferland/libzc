@@ -39,8 +39,9 @@ static const struct yazc_cmd yazc_cmd_help;
 static const struct yazc_cmd *yazc_cmds[] = {
    &yazc_cmd_help,
    &yazc_cmd_compat_bruteforce,
+   &yazc_cmd_compat_dictionary,
 };
-#define YAZC_CMDS_COUNT 2
+#define YAZC_CMDS_COUNT 3
 
 static int help(int argc, char *argv[])
 {

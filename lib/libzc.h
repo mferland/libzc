@@ -75,7 +75,7 @@ bool zc_file_test_password(const char *filename, const char *pw);
 /**
  * zc_pwgen:
  *
- * Generates passwords given different character sets.
+ * Generates all possible password from a given character set.
  */
 struct zc_pwgen;
 struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen);
@@ -87,6 +87,19 @@ void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step);
 bool zc_pwgen_is_initialized(const struct zc_pwgen *gen);
 const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count);
 const char *zc_pwgen_pw(const struct zc_pwgen *gen);
+
+/**
+ * zc_pwdict:
+ *
+ * Password dictionnary.
+ */
+struct zc_pwdict;
+struct zc_pwdict *zc_pwdict_ref(struct zc_pwdict *dict);
+struct zc_pwdict *zc_pwdict_unref(struct zc_pwdict *dict);
+int zc_pwdict_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_pwdict **dict);
+int zc_pwdict_open(struct zc_pwdict *dict);
+int zc_pwdict_close(struct zc_pwdict *dict);
+int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t len);
 
 /**
  * zc_crk_test_one_pw:

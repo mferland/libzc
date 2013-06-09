@@ -32,6 +32,11 @@ global:
         zc_crk_bforce_set_vdata;
         zc_crk_bforce_start;
         zc_crk_bforce_skip;
+        zc_pwdict_new_from_filename;
+        zc_pwdict_unref;
+        zc_pwdict_open;
+        zc_pwdict_close;
+        zc_pwdict_read_one_pw;
 local:
         *;
 };

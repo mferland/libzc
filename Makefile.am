@@ -43,7 +43,8 @@ lib_libzc_la_SOURCES =\
 	lib/zc_file.c \
 	lib/zip.c \
 	lib/zc_pwgen.c \
-	lib/zc_crk.c
+	lib/zc_crk.c \
+	lib/zc_pwdict.c
 
 EXTRA_DIST += lib/libzc.sym
 
@@ -59,14 +60,14 @@ CLEANFILES += lib/libzc.pc
 
 TESTS = lib/test_libzc
 check_PROGRAMS = lib/test_libzc
-lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crk.c lib/libzc.h
+lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crk.c lib/test_pwdict.c lib/libzc.h
 lib_test_libzc_CFLAGS = @CHECK_CFLAGS@
 lib_test_libzc_LDADD = lib/libzc.la @CHECK_LIBS@
 
 if BUILD_YAZC
 bin_PROGRAMS = bin/yazc
 
-bin_yazc_SOURCES = bin/yazc.c bin/yazc-bruteforce.c bin/cleanupqueue.c
+bin_yazc_SOURCES = bin/yazc.c bin/yazc-bruteforce.c bin/yazc-dictionary.c bin/yazc-common.c bin/cleanupqueue.c
 bin_yazc_CPPFLAGS = $(AM_CPPFLAGS)
 bin_yazc_CFLAGS = $(AM_CFLAGS) -pthread
 bin_yazc_LDADD = lib/libzc.la

@@ -77,6 +77,7 @@ int main()
    srunner_add_suite(sr, make_libzc_file_suite());
    srunner_add_suite(sr, make_libzc_pwgen_suite());
    srunner_add_suite(sr, make_libzc_crack_suite());
+   srunner_add_suite(sr, make_libzc_pwdict_suite());
    srunner_run_all(sr, CK_NORMAL);
    number_failed = srunner_ntests_failed(sr);
    srunner_free(sr);

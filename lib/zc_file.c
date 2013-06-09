@@ -113,12 +113,14 @@ ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
  */
 ZC_EXPORT int zc_file_open(struct zc_file *file)
 {
+   int err = 0;
    FILE *fd = fopen(file->filename, "r");
-   dbg(file->ctx, "file %p open returned: %p\n", file, fd);
    if (fd == NULL)
-      return errno;
-   file->fd = fd;
-   return 0;
+      err = errno;
+   dbg(file->ctx, "file %p open returned: %p\n", file, fd);
+   if (err == 0)
+      file->fd = fd;
+   return err;
 }
 
 /**

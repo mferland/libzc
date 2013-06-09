@@ -333,37 +333,6 @@ static int wait_worker_threads(void)
    return cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
 }
 
-static int read_validation_data(struct zc_ctx *ctx)
-{
-   struct zc_file *file = NULL;
-   int err;
-
-   err = zc_file_new_from_filename(ctx, args.filename, &file);
-   if (!file)
-   {
-      fputs("Error: zc_file_new_from_filename() failed!\n", stderr);
-      return err;
-   }
-
-   err = zc_file_open(file);
-   if (err)
-   {
-      fprintf(stderr, "Error: cannot open %s\n", args.filename);
-      zc_file_unref(file);
-      return err;
-   }
-
-   err = zc_file_read_validation_data(file, args.vdata, VDATA_ALLOC);
-   if (err < 1)
-      fputs("Error: file is not encrypted\n", stderr);
-   else
-      args.vdata_size = (size_t)err;
-   
-   zc_file_close(file);
-   zc_file_unref(file);
-   return err < 1 ? -1 : 0;
-}
-
 static int launch_crack(void)
 {
    int err;
@@ -375,9 +344,13 @@ static int launch_crack(void)
       return EXIT_FAILURE;
    }
 
-   err = read_validation_data(args.ctx);
-   if (err)
+   args.vdata_size = fill_validation_data(args.ctx, args.filename,
+                                          args.vdata, VDATA_ALLOC);
+   if (args.vdata_size == 0)
+   {
+      err = -1;
       goto cleanup;
+   }
 
    err = cleanup_queue_new(&cleanup_queue);
    if (err)
