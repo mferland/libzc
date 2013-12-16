@@ -70,6 +70,7 @@ int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
+int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, void *buf, long offset, size_t count);
 bool zc_file_test_password(const char *filename, const char *pw);
 
 /**
@@ -121,7 +122,22 @@ int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *cracker, struct zc_pwgen *pwge
 int zc_crk_bforce_set_vdata(struct zc_crk_bforce *cracker, const struct zc_validation_data *vdata, size_t nmemb);
 int zc_crk_bforce_start(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
 int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
-   
+
+/**
+ * zc_crk_ptext:
+ *
+ * Plaintext cracker.
+ */
+struct zc_crk_ptext;
+struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
+struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
+int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext);
+int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
+                          const unsigned char *plaintext,
+                          const unsigned char *ciphertext,
+                          size_t size);
+int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

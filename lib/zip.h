@@ -36,6 +36,7 @@ bool zip_header_has_encryption_bit(const struct zip_header *header);
 unsigned char zip_header_encryption_magic(const struct zip_header *header);
 int zip_encryption_header_read(FILE *fd, unsigned char *enc_header);
 int zip_skip_to_next_header(FILE *fd, const struct zip_header *header);
+unsigned int zip_header_comp_size(const struct zip_header *header);
 
 #ifdef __cplusplus
 } /* extern "C" */

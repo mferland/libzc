@@ -143,7 +143,65 @@ START_TEST(test_zc_file_good_password)
 {
    fail_unless(zc_file_test_password("test.zip", "yamaha") == true, NULL);
 }
+END_TEST
 
+START_TEST(test_zc_file_read_cipher_bytes)
+{
+   char str[10];
+   memset(str, 0, 10);
+   zc_file_new_from_filename(ctx, "notcompressed.zip", &file);
+   zc_file_open(file);
+   int err = zc_file_read_cipher_bytes(file, 0, str, 0, 9);
+
+   fail_unless(err == 0,
+               "Reading cipher bytes failed.");
+   fail_unless(strncmp(str, "some text", 9) == 0,
+               "Reading cipher bytes failed.");
+
+   zc_file_close(file);
+}
+END_TEST
+
+START_TEST(test_zc_file_read_cipher_bytes_beyond_eof)
+{
+   char str[20];
+   memset(str, 0, 20);
+   zc_file_new_from_filename(ctx, "notcompressed.zip", &file);
+   zc_file_open(file);
+   int err = zc_file_read_cipher_bytes(file, 0, str, 0, 20);
+
+   fail_unless(err < 0, "Expected error!");
+
+   zc_file_close(file);
+}
+END_TEST
+
+START_TEST(test_zc_file_read_cipher_bytes_index_overflow)
+{
+   char str[10];
+   memset(str, 0, 10);
+   zc_file_new_from_filename(ctx, "notcompressed.zip", &file);
+   zc_file_open(file);
+   int err = zc_file_read_cipher_bytes(file, 1, str, 0, 10);
+
+   fail_unless(err < 0, "Expected error!");
+
+   zc_file_close(file);
+}
+END_TEST
+
+START_TEST(test_zc_file_read_cipher_bytes_encrypted)
+{
+   char str[10];
+   memset(str, 0, 10);
+   zc_file_new_from_filename(ctx, "notcompressed_en.zip", &file);
+   zc_file_open(file);
+   int err = zc_file_read_cipher_bytes(file, 0, str, 0, 9);
+
+   fail_unless(err == 0, "Error reading encrypted bytes!");
+
+   zc_file_close(file);
+}
 END_TEST
 
 Suite *make_libzc_file_suite()
@@ -163,6 +221,10 @@ Suite *make_libzc_file_suite()
    tcase_add_test(tc_core, test_zc_file_not_encrypted);
    tcase_add_test(tc_core, test_zc_file_wrong_password);
    tcase_add_test(tc_core, test_zc_file_good_password);
+   tcase_add_test(tc_core, test_zc_file_read_cipher_bytes);
+   tcase_add_test(tc_core, test_zc_file_read_cipher_bytes_beyond_eof);
+   tcase_add_test(tc_core, test_zc_file_read_cipher_bytes_index_overflow);
+   tcase_add_test(tc_core, test_zc_file_read_cipher_bytes_encrypted);
    suite_add_tcase(s, tc_core);
 
    return s;

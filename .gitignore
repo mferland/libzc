@@ -15,3 +15,5 @@ build-aux
 .dirstamp
 lib/test_libzc
 valgrind.supp
+*.log
+*.trs

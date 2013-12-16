@@ -131,7 +131,7 @@ static int zip_skip_data_descriptor(FILE *fd, const struct zip_header *header)
 {
    int sig;
    long offset;
-
+   /* TODO: do not use sizeof here, use static sizes */
    /*
      signature                       4 bytes (optional)
      crc-32                          4 bytes
@@ -187,6 +187,11 @@ int zip_header_read(FILE *fd, struct zip_header *header)
 bool zip_header_has_encryption_bit(const struct zip_header *header)
 {
    return ((header->gen_bit_flag & GP_BIT_ENCRYPTION) == GP_BIT_ENCRYPTION);
+}
+
+unsigned int zip_header_comp_size(const struct zip_header *header)
+{
+   return header->comp_size;
 }
 
 unsigned char zip_header_encryption_magic(const struct zip_header *header)
