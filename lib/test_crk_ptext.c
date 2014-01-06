@@ -168,16 +168,15 @@ START_TEST(test_zc_crk_ptext_key2_reduction)
 }
 END_TEST
 
-/* START_TEST(test_zc_crk_ptext_crack) */
-/* { */
-/*    struct zc_crk_ptext *ptext; */
-/*    fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL); */
-/*    fail_unless(zc_crk_ptext_set_text(ptext, plaintext, ciphertext, 500) == 0, NULL); */
-/*    fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL); */
-/*    fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL); */
-   
-/* } */
-/* END_TEST */
+START_TEST(test_zc_crk_ptext_crack)
+{
+   struct zc_crk_ptext *ptext;
+   fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_set_text(ptext, plaintext, ciphertext, 500) == 0, NULL);
+   fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+}
+END_TEST
 
 Suite *make_libzc_ptext_suite()
 {

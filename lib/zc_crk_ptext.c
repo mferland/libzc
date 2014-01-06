@@ -24,24 +24,7 @@
 #include "libzc.h"
 #include "libzc_private.h"
 #include "crc32.h"
-#include "qsort.h"
-
-static inline unsigned int pow2(unsigned int power)
-{
-   return (1 << power);
-}
-
-static void uint_qsort(unsigned int *arr, unsigned int n)
-{
-#define uint_lt(a,b) ((*a)<(*b))
-   QSORT(unsigned int, arr, n, uint_lt);
-}
-
-struct key_table
-{
-   unsigned int *array;
-   size_t size;
-};
+#include "key_table.h"
 
 struct zc_crk_ptext
 {
@@ -53,128 +36,24 @@ struct zc_crk_ptext
    struct key_table *key2;
 };
 
-#define KEY2(key2, index)                      \
-   key2->array[index]
-
-static void free_key_table(struct key_table *table)
+static inline unsigned int pow2(unsigned int power)
 {
-   free(table->array);
-   free(table);
+   return (1 << power);
 }
 
-static void free_key_tables(struct key_table *table, size_t count)
-{
-   for (size_t i = 0; i < count; ++i)
-   {
-      if (table[i].array == NULL)
-         continue;
-      free(table[i].array);
-   }
-   free(table);
-}
-
-static int new_key_table(struct key_table **table, size_t size)
-{
-   struct key_table *tmp;
-
-   tmp = calloc(1, sizeof(struct key_table));
-   if (tmp == NULL)
-      return ENOMEM;
-   
-   tmp->array = calloc(1, size * sizeof(unsigned int));
-   if (tmp->array == NULL)
-   {
-      free(tmp);
-      return ENOMEM;
-   }
-   
-   tmp->size = size;
-   *table = tmp;
-   
-   return 0;
-}
-
-static int new_key_tables(struct key_table **table, size_t size, size_t count)
-{
-   struct key_table *tmp;
-
-   tmp = calloc(1, sizeof(struct key_table) * count);
-   if (tmp == NULL)
-      return ENOMEM;
-
-   for (size_t i = 0; i < count; ++i)
-   {
-      tmp[i].array = calloc(1, size * sizeof(unsigned int));
-      if (tmp[i].array == NULL)
-      {
-         free_key_tables(tmp, count);
-         return ENOMEM;
-      }
-   
-      tmp[i].size = size;
-   }
-
-   *table = tmp;
-   return 0;
-}
-
-static void print_key_table(const struct key_table *table)
-{
-   for (unsigned int i = 0; i < table->size; ++i)
-   {
-      fprintf(stderr, "0x%x\n", table->array[i]);
-   }
-}
-
-static inline void swap_key_table(struct key_table **table1, struct key_table **table2)
+static void swap_key_table(struct key_table **table1, struct key_table **table2)
 {
    struct key_table *tmp = *table1;
    *table1 = *table2;
    *table2 = tmp;
 }
 
-static inline void sort_key_table(struct key_table *table)
-{
-   uint_qsort(table->array, table->size);
-}
-
-static inline void resize_key_table(struct key_table *table, size_t new_size)
-{
-   if (new_size == table->size)
-      return;
-   table->array = realloc(table->array, new_size * sizeof(unsigned int));
-   table->size = new_size;
-}
-
-static inline void reduce_key_table(struct key_table *table)
-{
-   size_t i = 0;
-   size_t j;
-   
-   if (table->size <= 1)
-      return;
-
-   /* reduce by removing duplicates */
-   for (j = 1; j < table->size; ++j)
-   {
-      if (table->array[j] != table->array[i])
-         table->array[++i] = table->array[j];
-   }
-
-   resize_key_table(table, i + 1);
-}
-
-static inline unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
+static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
 {
    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
 }
 
-static inline unsigned int key2at(const struct key_table *table, unsigned int i)
-{
-   return table->array[i];
-}
-
-static void generate_all_key2_bits_15_2(unsigned short *value, unsigned char key3)
+static void generate_key2_bits_15_2(unsigned short *value, unsigned char key3)
 {
    unsigned char key3tmp;
    unsigned int i = pow2(16);
@@ -189,6 +68,19 @@ static void generate_all_key2_bits_15_2(unsigned short *value, unsigned char key
    } while (i -= 4);
 }
 
+static unsigned short *generate_all_key2_bits_15_2(void)
+{
+   unsigned int key3;
+   unsigned short *table;
+
+   table = malloc(256 * 64 * sizeof(unsigned short));
+   
+   for (key3 = 0; key3 < 256; ++key3)
+      generate_key2_bits_15_2(&table[key3 * 64], key3);
+
+   return table;
+}
+
 static void generate_all_key2_bits_31_2(unsigned int *key2, const unsigned short *key2_bits_15_2)
 {
    unsigned int i, j;
@@ -197,78 +89,114 @@ static void generate_all_key2_bits_31_2(unsigned int *key2, const unsigned short
          key2[i * 64 + j] = (i << 16) | key2_bits_15_2[j];
 }
 
-static struct key_table *generate_first_gen_key2(unsigned char key3)
+static unsigned int bits_1_0_key2i(unsigned int key2i_minus_1, unsigned int key2i)
 {
-   unsigned short key2_bits_15_2[64];
+   unsigned char key2i_msb = key2i >> 24;
+   unsigned int tmp = key2i_minus_1 ^ crc_32_invtab[key2i_msb];
+   tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
+   return tmp;
+}
+
+static void generate_all_key2i_bits_1_0(unsigned int key2ip1, const unsigned short *key2i_bits_15_2,
+                                        unsigned int result[6])
+{
+   /* receive key2ip1 bits [31..2] and calculate every possible
+    * key2ip1[31..0]. result is returned in 'result'. */
+   const unsigned int key2i_bits31_10 = (key2ip1 << 8) ^ crc_32_invtab[key2ip1 >> 24];
+   const unsigned int key2i_bits15_10_rhs = key2i_bits31_10 & 0xfc00;
+   
+   result[0] = 0;               /* count == 0 */
+   
+   for (int j = 0; j < 64; ++j)
+   {
+      unsigned int key2i_bits15_10_lhs = (unsigned int)key2i_bits_15_2[j] & 0xfc00;
+
+      /* the left and right hand side share 6 bits in position
+         [15..10]. See biham & kocher 3.1. */
+      if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
+      {
+         unsigned int key2i;
+         key2i = key2i_bits31_10 & 0xfffffc00;
+         key2i |= key2i_bits_15_2[j];
+
+         result[result[0] + 1] = key2ip1 | bits_1_0_key2i(key2i, key2ip1);
+         
+         ++result[0];           /* increment result count */
+
+         if (result[0] > 5)
+            abort();            /* should not happen... */
+      }
+   }
+}
+
+static struct key_table *generate_first_gen_key2(const unsigned short *key2_bits_15_2)
+{
    struct key_table *table;
    int err;
 
-   err = new_key_table(&table, pow2(22));
+   err = key_table_new(&table, pow2(22));
    if (err)
       return NULL;
 
-   generate_all_key2_bits_15_2(key2_bits_15_2, key3);
    generate_all_key2_bits_31_2(table->array, key2_bits_15_2);
-
    return table;
-}
-
-static unsigned int bits_1_0_key2i_plus_1(unsigned int key2i, unsigned int key2i_plus_1)
-{
-   unsigned char key2i_plus_1_msb = key2i_plus_1 >> 24;
-   unsigned int tmp = key2i ^ crc_32_invtab[key2i_plus_1_msb];
-   tmp = (tmp >> 8) & 0x3;   /* keep only bit 9 and 8 */
-   return tmp;
 }
 
 static void generate_key2i_table(struct key_table *key2i_plus_1,
                                  struct key_table *key2i,
-                                 unsigned char key3)
+                                 const unsigned short *key2i_bits_15_2,
+                                 const unsigned short *key2im1_bits_15_2)
 {
-   unsigned int key2i_index = 0;
-   unsigned short key2i_bits_15_2[64];
    const unsigned int key2i_plus_1_size = key2i_plus_1->size;
-   int resize_count = 0;
+   unsigned int key2i_new[6];
 
-   generate_all_key2_bits_15_2(key2i_bits_15_2, key3);
+   key_table_empty(key2i);
 
-   /* for each ~2^22 possible values of bits [31..2] of key2i+1 */
+   //generate_all_key2_bits_15_2(key2i_bits_15_2, key3i);
+
    for (unsigned int i = 0; i < key2i_plus_1_size; ++i)
    {
-      const unsigned int key2ip1_tmp = key2at(key2i_plus_1, i);
-      const unsigned int key2i_tmp = (key2ip1_tmp << 8) ^ crc_32_invtab[key2ip1_tmp >> 24];
-      const unsigned int key2i_bits10_15_rhs = key2i_tmp & 0xfc00;
+      const unsigned int key2ip1_tmp = key_table_at(key2i_plus_1, i);
+      const unsigned int key2i_bits31_8 = (key2ip1_tmp << 8) ^ crc_32_invtab[key2ip1_tmp >> 24];
+      /* TEST: bit 15_8 au lieu de 15_10? */
+      unsigned int key2i_bits15_10_rhs;
+      if (key2i_plus_1_size == pow2(22))
+         key2i_bits15_10_rhs = key2i_bits31_8 & 0xfc00; /* first iteration, use 6 bits */
+      else
+         key2i_bits15_10_rhs = key2i_bits31_8 & 0xff00; /* subsequent iterations, use 8 bits */
+
       for (int j = 0; j < 64; ++j)
       {
-         unsigned int key2i_bits10_15_lhs = (unsigned int)key2i_bits_15_2[j] & 0xfc00;
+         unsigned int key2i_bits15_10_lhs;
+         if (key2i_plus_1_size == pow2(22))
+            key2i_bits15_10_lhs = (unsigned int)key2i_bits_15_2[j] & 0xfc00; /* TEST: bit 15_8 au lieu de 15_10? */
+         else
+            key2i_bits15_10_lhs = (unsigned int)key2i_bits_15_2[j] & 0xff00; /* TEST: bit 15_8 au lieu de 15_10? */
 
          /* the left and right hand side share the same 6 bits in
             position [15..10]. See biham & kocher 3.1. */
-         if (key2i_bits10_15_rhs == key2i_bits10_15_lhs)
+         if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
          {
-            if (key2i_index >= key2i->size)
-            {
-               resize_key_table(key2i, key2i->size + 1); /* TODO: SLOWWWW */
-               ++resize_count;
-            }
+            unsigned int key2i_tmp;
             
             /* save bits [31..8] */
-            key2i->array[key2i_index] = key2i_tmp & 0xffffff00;
+            key2i_tmp = key2i_bits31_8 & 0xffffff00;
 
             /* save bits [7..2] */
-            key2i->array[key2i_index] |= key2i_bits_15_2[j];
+            key2i_tmp |= key2i_bits_15_2[j];
 
-            /* save bits [1..0] of key2i_plus_1 */
-            key2i_plus_1->array[i] |= bits_1_0_key2i_plus_1(key2i->array[key2i_index],
-                                                            key2i_plus_1->array[i]);
+            /* save bits [1..0] */
+            generate_all_key2i_bits_1_0(key2i_tmp, key2im1_bits_15_2, key2i_new);
 
-            ++key2i_index;
+            if (key2i_new[0] == 0)
+               /* impossible to generate key2i[1..0] */
+               continue;
+
+            for (unsigned int k = 0; k < key2i_new[0]; ++k)
+               key_table_append(key2i, key2i_new[k+1]);
          }
       }
    }
-
-   /* remove unused values from the end of the table */
-   resize_key_table(key2i, key2i_index + 1);
 }
 
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
@@ -289,7 +217,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
    dbg(ptext->ctx, "ptext %p released\n", ptext);
    free(ptext->plaintext);
    free(ptext->ciphertext);
-   free(ptext->key2);
+   key_table_free(ptext->key2);
    free(ptext);
    return NULL;
 }
@@ -351,7 +279,6 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 /*
   TODO:
   * only reduce every so often to save on overhead
-  * use a real dynamic array (do not abuse realloc)
   * remember the _best_ offset key2i only (not necessarely key2_13)
   * check minimal byte count for reduction
  */
@@ -359,73 +286,79 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
    struct key_table *key2i_plus_1;
    struct key_table *key2i;
-   unsigned char key3;
-
+   unsigned short *key2_bits_15_2;
+   unsigned char key3i;
+   unsigned char key3im1;
    int err;
 
-   key2i_plus_1 = generate_first_gen_key2(generate_key3(ptext, ptext->size - 1));
-   if (key2i_plus_1 == NULL)
-      return -1;
+   key2_bits_15_2 = generate_all_key2_bits_15_2();
 
-   err = new_key_table(&key2i, pow2(22));
+   key3i = generate_key3(ptext, ptext->size - 1);
+   key2i_plus_1 = generate_first_gen_key2(&key2_bits_15_2[key3i * 64]);
+   if (key2i_plus_1 == NULL)
+   {
+      free(key2_bits_15_2);
+      return -1;
+   }
+
+   err = key_table_new(&key2i, pow2(22));
    if (err != 0)
    {
-      free_key_table(key2i_plus_1);
+      key_table_free(key2i_plus_1);
+      free(key2_bits_15_2);
       return err;
    }
 
-   /* generate key2i from key2i+1 but do not reduce key2i since we do
-    * not yet have bits [1..0]. */
-   key3 = generate_key3(ptext, ptext->size - 2);
-   generate_key2i_table(key2i_plus_1, key2i, key3);
-   swap_key_table(&key2i, &key2i_plus_1);
-   
    /* reduce the number of key2 using extra plaintext bytes. */
-   for (int i = ptext->size - 3; i >= 12; --i)
+   for (int i = ptext->size - 2; i >= 13; --i)
    {
-      /* generate key2i partially (missing bits [1..0]) and complete
-       * key2i+1 table. */
-      key3 = generate_key3(ptext, i);
-      generate_key2i_table(key2i_plus_1, key2i, key3);
-
-      /* key2i+1 table is now complete (full 32 bits have been found),
-       * sort and reduce key2i+1 */
-      sort_key_table(key2i_plus_1);
-      reduce_key_table(key2i_plus_1);
-      printf("reducing to: %zu\n", key2i_plus_1->size);
-
-      /* regenerate key2i based on the reduced key2i+1, this gives us
-       * a partial key2i (missing bits 0 and 1 ) but this time it
-       * should contain less values. */
-      generate_key2i_table(key2i_plus_1, key2i, key3);
-      
+      key3i = generate_key3(ptext, i);
+      key3im1 = generate_key3(ptext, i - 1);
+      generate_key2i_table(key2i_plus_1, key2i, &key2_bits_15_2[key3i * 64], &key2_bits_15_2[key3im1 * 64]);
+      key_table_uniq(key2i);
+      printf("reducing to: %zu\n", key2i->size);
       swap_key_table(&key2i, &key2i_plus_1);
    }
 
-   ptext->key2 = key2i;         /* here, key2i, is the table at index
-                                 * 13 (n=14) this leaves 13 bytes for
-                                 * the actual attack */
-   free_key_table(key2i_plus_1);
+   key_table_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
+
+   ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the table at
+                                 * index 13 (n=14) this leaves 13
+                                 * bytes for the actual attack */
+   key_table_free(key2i);
+   free(key2_bits_15_2);
    return 0;
 }
 
-/* ZC_EXPORT int zc_crk_ptext_crack(struct zc_crk_ptext *ptext) */
-/* { */
-/*    struct key_table *key2i_table; */
-/*    unsigned char key3; */
+ZC_EXPORT int zc_crk_ptext_crack(struct zc_crk_ptext *ptext)
+{
+   /* struct key_table *key2i_table; */
+   /* struct key_table *key1i_table; */
+   /* unsigned char key3; */
+   /* int err; */
 
-/*    /\* ptext contains the key2 table at index 13 (n=14) *\/ */
+   /* /\* ptext contains the key2 table at index 13 (n=14) *\/ */
 
-/*    err = new_key_tables(&key2i_table, ptext->size, 12); /\* 12 tables of size ptext->size *\/ */
-/*    if (err != 0) */
-/*       return -1; */
+   /* err = new_key_tables(&key2i_table, ptext->size, 13); /\* 13 tables of size ptext->size *\/ */
+   /* if (err != 0) */
+   /*    return -1; */
 
-/*    /\* generate key2[13..2] *\/ */
-/*    key3 = generate_key3(ptext, 12); */
-/*    generate_key2i_table(ptext->key2, &key2i_table[11], key3); */
-   
-/*    for (int i = 10; i >= 1; ++i) */
-/*    { */
-/*       generate_key2i_table(&key2i_table[i + 1], &key2i_table[i]); */
+   /* /\* generate key2[13..2]. Note: we cannot fully generate key2_1, see */
+   /*  * eq. 1 from biham & kocher *\/ */
+   /* key3 = generate_key3(ptext, 12); */
+   /* generate_key2i_table(ptext->key2, &key2i_table[12], key3); */
+   /* for (int i = 11; i >= 0; ++i) */
+   /* { */
+   /*    key3 = generate_key3(ptext, i); */
+   /*    generate_key2i_table(&key2i_table[i + 1], &key2i_table[i], key3); */
+   /* } */
 
-/* } */
+   /* /\* calculate the MSB of key1[13..3] using key2[13..2] *\/ */
+   /* err = new_key_tables(&key1i_table, ptext->size, 11); */
+   /* for (int i = 12; i >= 1; ++i) */
+   /* { */
+   /*    //generate_key1_msb(&key2i_table[i]); */
+   /* } */
+
+   return 0;
+}

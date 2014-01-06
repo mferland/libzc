@@ -137,6 +137,8 @@ int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                           const unsigned char *ciphertext,
                           size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
+int zc_crk_ptext_crack(struct zc_crk_ptext *ptext);
+int zc_crk_ptext_gen_tables(struct zc_crk_ptext *ptext);
 
 #ifdef __cplusplus
 } /* extern "C" */
