@@ -37,7 +37,7 @@ void key_table_empty(struct key_table *table);
 void key_table_print(struct key_table *table);
 
 static inline
-unsigned int key_table_at(struct key_table *table, unsigned int index)
+unsigned int key_table_at(const struct key_table *table, unsigned int index)
 {
    return table->array[index];
 }

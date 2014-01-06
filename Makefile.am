@@ -45,7 +45,8 @@ lib_libzc_la_SOURCES =\
 	lib/zc_pwgen.c \
 	lib/zc_crk.c \
 	lib/zc_pwdict.c \
-	lib/zc_crk_ptext.c
+	lib/zc_crk_ptext.c \
+	lib/key_table.c
 
 EXTRA_DIST += lib/libzc.sym
 

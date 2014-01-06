@@ -109,6 +109,7 @@ void key_table_squeeze(struct key_table *table)
    if (table->size == table->capacity)
       return;
    table->array = realloc(table->array, table->size * sizeof(unsigned int));
+   table->capacity = table->size;
 }
 
 void key_table_empty(struct key_table *table)
