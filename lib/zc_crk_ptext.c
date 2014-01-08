@@ -138,31 +138,26 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
 static void generate_key2i_table(const struct key_table *key2i_plus_1,
                                  struct key_table *key2i,
                                  const unsigned short *key2i_bits_15_2,
-                                 const unsigned short *key2im1_bits_15_2)
+                                 const unsigned short *key2im1_bits_15_2,
+                                 unsigned int iteration)
 {
-   const unsigned int key2i_plus_1_size = key2i_plus_1->size;
+   /* On the first iteration, use 6 common bits since the first table
+    * is missing the last 2 bits. The subsequent calls use 8 common
+    * bits for comparaison. */
+   const unsigned int common_bits_mask = iteration == 0 ? 0xfc00 : 0xff00;
 
    key_table_empty(key2i);
    
-   for (unsigned int i = 0; i < key2i_plus_1_size; ++i)
+   for (unsigned int i = 0; i < key2i_plus_1->size; ++i)
    {
       const unsigned int key2ip1_tmp = key_table_at(key2i_plus_1, i);
       const unsigned int key2i_bits31_8 = (key2ip1_tmp << 8) ^ crc_32_invtab[key2ip1_tmp >> 24];
-      /* TEST: bit 15_8 au lieu de 15_10? */
-      unsigned int key2i_bits15_10_rhs;
-      if (key2i_plus_1_size == pow2(22))
-         key2i_bits15_10_rhs = key2i_bits31_8 & 0xfc00; /* first iteration, use 6 bits */
-      else
-         key2i_bits15_10_rhs = key2i_bits31_8 & 0xff00; /* subsequent iterations, use 8 bits */
+      const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 
-      for (int j = 0; j < 64; ++j)
+      for (unsigned int j = 0; j < 64; ++j)
       {
-         unsigned int key2i_bits15_10_lhs;
-         if (key2i_plus_1_size == pow2(22))
-            key2i_bits15_10_lhs = (unsigned int)key2i_bits_15_2[j] & 0xfc00; /* TEST: bit 15_8 au lieu de 15_10? */
-         else
-            key2i_bits15_10_lhs = (unsigned int)key2i_bits_15_2[j] & 0xff00; /* TEST: bit 15_8 au lieu de 15_10? */
-
+         const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[j] & common_bits_mask;
+         
          /* the left and right hand side share the same 6 bits in
             position [15..10]. See biham & kocher 3.1. */
          if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
@@ -261,7 +256,6 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 
 /*
   TODO:
-  * only reduce every so often to save on overhead
   * remember the _best_ offset key2i only (not necessarely key2_13)
   * check minimal byte count for reduction
  */
@@ -272,6 +266,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    unsigned short *key2_bits_15_2;
    unsigned char key3i;
    unsigned char key3im1;
+   unsigned int iter = 0;
    int err;
 
    key2_bits_15_2 = generate_all_key2_bits_15_2();
@@ -297,7 +292,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    {
       key3i = generate_key3(ptext, i);
       key3im1 = generate_key3(ptext, i - 1);
-      generate_key2i_table(key2i_plus_1, key2i, &key2_bits_15_2[key3i * 64], &key2_bits_15_2[key3im1 * 64]);
+      generate_key2i_table(key2i_plus_1, key2i, &key2_bits_15_2[key3i * 64], &key2_bits_15_2[key3im1 * 64], iter++);
       key_table_uniq(key2i);
       printf("reducing to: %zu\n", key2i->size);
       swap_key_table(&key2i, &key2i_plus_1);
