@@ -53,6 +53,11 @@ static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned in
    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
 }
 
+static unsigned short *key2_bits_15_2_from_key3(unsigned short *key2_bits_15_2, unsigned char key3)
+{
+   return &key2_bits_15_2[key3 * 64];
+}
+
 static void generate_key2_bits_15_2(unsigned short *value, unsigned char key3)
 {
    unsigned char key3tmp;
@@ -76,7 +81,7 @@ static unsigned short *generate_all_key2_bits_15_2(void)
    table = malloc(256 * 64 * sizeof(unsigned short));
    
    for (key3 = 0; key3 < 256; ++key3)
-      generate_key2_bits_15_2(&table[key3 * 64], key3);
+      generate_key2_bits_15_2(key2_bits_15_2_from_key3(table, key3), key3);
 
    return table;
 }
@@ -272,7 +277,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    key2_bits_15_2 = generate_all_key2_bits_15_2();
 
    key3i = generate_key3(ptext, ptext->size - 1);
-   key2i_plus_1 = generate_first_gen_key2(&key2_bits_15_2[key3i * 64]);
+   key2i_plus_1 = generate_first_gen_key2(key2_bits_15_2_from_key3(key2_bits_15_2, key3i));
    if (key2i_plus_1 == NULL)
    {
       free(key2_bits_15_2);
@@ -292,7 +297,11 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    {
       key3i = generate_key3(ptext, i);
       key3im1 = generate_key3(ptext, i - 1);
-      generate_key2i_table(key2i_plus_1, key2i, &key2_bits_15_2[key3i * 64], &key2_bits_15_2[key3im1 * 64], iter++);
+      generate_key2i_table(key2i_plus_1,
+                           key2i,
+                           key2_bits_15_2_from_key3(key2_bits_15_2, key3i),
+                           key2_bits_15_2_from_key3(key2_bits_15_2, key3im1),
+                           iter++);
       key_table_uniq(key2i);
       printf("reducing to: %zu\n", key2i->size);
       swap_key_table(&key2i, &key2i_plus_1);
