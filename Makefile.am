@@ -60,8 +60,8 @@ pkgconfig_DATA = lib/libzc.pc
 EXTRA_DIST += lib/libzc.pc.in
 CLEANFILES += lib/libzc.pc
 
-TESTS = lib/test_libzc
-check_PROGRAMS = lib/test_libzc
+TESTS = lib/test_libzc lib/test_keytable
+check_PROGRAMS = lib/test_libzc lib/test_keytable
 lib_test_libzc_SOURCES = lib/test_libzc.c \
 	lib/test_file.c \
 	lib/test_pwgen.c \
@@ -71,6 +71,10 @@ lib_test_libzc_SOURCES = lib/test_libzc.c \
 	lib/libzc.h
 lib_test_libzc_CFLAGS = @CHECK_CFLAGS@
 lib_test_libzc_LDADD = lib/libzc.la @CHECK_LIBS@
+
+lib_test_keytable_SOURCES = lib/test_key_table.c lib/key_table.c lib/key_table.h
+lib_test_keytable_CFLAGS = @CHECK_CFLAGS@
+lib_test_keytable_LDADD = @CHECK_LIBS@
 
 if BUILD_YAZC
 bin_PROGRAMS = bin/yazc
