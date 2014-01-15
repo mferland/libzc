@@ -119,8 +119,6 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
                                              const unsigned short *key2im1_bits_15_2)
                                              
 {
-   /* receive key2ip1 bits [31..2] and calculate every possible
-    * key2ip1[31..0]. result is returned in 'result'. */
    const unsigned int key2im1_bits_31_10 = (key2i << 8) ^ crc_32_invtab[key2i >> 24];
    const unsigned int key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
    
