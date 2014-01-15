@@ -24,8 +24,14 @@
 
 #include "libzc.h"
 
+#ifdef __GNUC__
+#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#else
+#  define UNUSED(x) UNUSED_ ## x
+#endif
+
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
-zc_log_null(struct zc_ctx *ctx, const char *format, ...) {}
+zc_log_null(struct zc_ctx * UNUSED(ctx), const char * UNUSED(format), ...) {}
 
 #define zc_log_cond(ctx, prio, arg...)                                  \
    do {                                                                 \

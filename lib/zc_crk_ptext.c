@@ -124,7 +124,7 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
    
    for (int j = 0; j < 64; ++j)
    {
-      unsigned int key2im1_bits_15_10_lhs = (unsigned int)key2im1_bits_15_2[j] & 0xfc00;
+      const unsigned int key2im1_bits_15_10_lhs = (unsigned int)key2im1_bits_15_2[j] & 0xfc00;
 
       /* the left and right hand side share 6 bits in position
          [15..10]. See biham & kocher 3.1. */

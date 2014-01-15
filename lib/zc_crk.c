@@ -236,7 +236,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
    return found == true ? 0 : -1;
 }
 
-ZC_EXPORT int zc_crk_bforce_skip(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
+ZC_EXPORT int zc_crk_bforce_skip(struct zc_crk_bforce *crk, char * UNUSED(out_pw), size_t UNUSED(out_pw_size))
 {
    size_t tmp;
    if (!is_valid_cracker(crk))

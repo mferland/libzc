@@ -44,12 +44,7 @@ AC_ARG_ENABLE([yazc],
         [], enable_yazc=yes)
 AM_CONDITIONAL([BUILD_YAZC], [test "x$enable_yazc" = "xyes"])
 
-my_CFLAGS="-Wall \
--Wmissing-declarations -Wmissing-prototypes \
--Wnested-externs -Wpointer-arith \
--Wpointer-arith -Wsign-compare -Wchar-subscripts \
--Wstrict-prototypes -Wshadow \
--Wformat-security -Wtype-limits"
+my_CFLAGS="-Wall -Wextra"
 AC_SUBST([my_CFLAGS])
 
 AC_CONFIG_HEADERS(config.h)

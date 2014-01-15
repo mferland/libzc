@@ -127,7 +127,7 @@ static int zip_skip_data(FILE *fd, const struct zip_header *header)
    return 0;
 }
 
-static int zip_skip_data_descriptor(FILE *fd, const struct zip_header *header)
+static int zip_skip_data_descriptor(FILE *fd)
 {
    int sig;
    long offset;
@@ -220,7 +220,7 @@ int zip_skip_to_next_header(FILE *fd, const struct zip_header *header)
    
    if (zip_header_has_data_descriptor_bit(header))
    {
-      if (zip_skip_data_descriptor(fd, header))
+      if (zip_skip_data_descriptor(fd))
          return -1;
    }
    return 0;
