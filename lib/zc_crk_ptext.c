@@ -79,7 +79,7 @@ static unsigned short *generate_all_key2_bits_15_2(void)
    unsigned short *table;
 
    table = malloc(256 * 64 * sizeof(unsigned short));
-   
+
    for (key3 = 0; key3 < 256; ++key3)
       generate_key2_bits_15_2(key2_bits_15_2_from_key3(table, key3), key3);
 
@@ -117,11 +117,11 @@ static unsigned int bits_1_0_key2i(unsigned int key2im1, unsigned int key2i)
 
 static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsigned int key2i,
                                              const unsigned short *key2im1_bits_15_2)
-                                             
+
 {
    const unsigned int key2im1_bits_31_10 = (key2i << 8) ^ crc_32_invtab[key2i >> 24];
    const unsigned int key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
-   
+
    for (int j = 0; j < 64; ++j)
    {
       const unsigned int key2im1_bits_15_10_lhs = (unsigned int)key2im1_bits_15_2[j] & 0xfc00;
@@ -150,7 +150,7 @@ static void generate_key2i_table(const struct key_table *key2i_plus_1,
    const unsigned int common_bits_mask = iteration == 0 ? 0xfc00 : 0xff00;
 
    key_table_empty(key2i);
-   
+
    for (unsigned int i = 0; i < key2i_plus_1->size; ++i)
    {
       const unsigned int key2ip1_tmp = key_table_at(key2i_plus_1, i);
@@ -160,13 +160,13 @@ static void generate_key2i_table(const struct key_table *key2i_plus_1,
       for (unsigned int j = 0; j < 64; ++j)
       {
          const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[j] & common_bits_mask;
-         
+
          /* the left and right hand side share the same 6 bits in
             position [15..10]. See biham & kocher 3.1. */
          if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
          {
             unsigned int key2i_tmp;
-            
+
             /* save bits [31..8] */
             key2i_tmp = key2i_bits31_8 & 0xffffff00;
 
@@ -249,11 +249,11 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
       ptext->plaintext = NULL;
       return ENOMEM;
    }
-   
+
    memcpy(ptext->plaintext, plaintext, size);
    memcpy(ptext->ciphertext, ciphertext, size);
    ptext->size = size;
-   
+
    return 0;
 }
 
@@ -317,33 +317,10 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 
 ZC_EXPORT int zc_crk_ptext_crack(struct zc_crk_ptext *ptext)
 {
-   /* struct key_table *key2i_table; */
-   /* struct key_table *key1i_table; */
-   /* unsigned char key3; */
-   /* int err; */
+   for (unsigned int i = 0; i < ptext->key2->size; ++i)
+   {
 
-   /* /\* ptext contains the key2 table at index 13 (n=14) *\/ */
-
-   /* err = new_key_tables(&key2i_table, ptext->size, 13); /\* 13 tables of size ptext->size *\/ */
-   /* if (err != 0) */
-   /*    return -1; */
-
-   /* /\* generate key2[13..2]. Note: we cannot fully generate key2_1, see */
-   /*  * eq. 1 from biham & kocher *\/ */
-   /* key3 = generate_key3(ptext, 12); */
-   /* generate_key2i_table(ptext->key2, &key2i_table[12], key3); */
-   /* for (int i = 11; i >= 0; ++i) */
-   /* { */
-   /*    key3 = generate_key3(ptext, i); */
-   /*    generate_key2i_table(&key2i_table[i + 1], &key2i_table[i], key3); */
-   /* } */
-
-   /* /\* calculate the MSB of key1[13..3] using key2[13..2] *\/ */
-   /* err = new_key_tables(&key1i_table, ptext->size, 11); */
-   /* for (int i = 12; i >= 1; ++i) */
-   /* { */
-   /*    //generate_key1_msb(&key2i_table[i]); */
-   /* } */
+   }
 
    return 0;
 }
