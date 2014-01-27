@@ -18,3 +18,4 @@ lib/test_keytable
 valgrind.supp
 *.log
 *.trs
+lib/test_key2reduce
