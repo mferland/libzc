@@ -190,6 +190,7 @@ int main()
 {
    int number_failed;
    SRunner *sr = srunner_create(make_libzc_keytable_suite());
+   srunner_set_log(sr, "test_key_table.log");
    srunner_run_all(sr, CK_NORMAL);
    number_failed = srunner_ntests_failed(sr);
    srunner_free(sr);
