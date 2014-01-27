@@ -36,18 +36,6 @@ struct zc_crk_ptext
    struct key_table *key2;
 };
 
-static inline unsigned int pow2(unsigned int power)
-{
-   return (1 << power);
-}
-
-static void swap_key_table(struct key_table **table1, struct key_table **table2)
-{
-   struct key_table *tmp = *table1;
-   *table1 = *table2;
-   *table2 = tmp;
-}
-
 static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
 {
    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
@@ -138,6 +126,37 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
    }
 }
 
+static void generate_key2i_single(unsigned int key2i_plus_1,
+                                  struct key_table *key2i,
+                                  const unsigned short *key2i_bits_15_2,
+                                  const unsigned short *key2im1_bits_15_2,
+                                  unsigned int common_bits_mask)
+{
+   const unsigned int key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
+   const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
+
+   for (unsigned int j = 0; j < 64; ++j)
+   {
+      const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[j] & common_bits_mask;
+
+      /* the left and right hand side share the same 6 bits in
+         position [15..10]. See biham & kocher 3.1. */
+      if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
+      {
+         unsigned int key2i_tmp;
+
+         /* save bits [31..8] */
+         key2i_tmp = key2i_bits31_8 & 0xffffff00;
+
+         /* save bits [7..2] */
+         key2i_tmp |= key2i_bits_15_2[j];
+
+         /* save bits [1..0] */
+         generate_all_key2i_with_bits_1_0(key2i, key2i_tmp, key2im1_bits_15_2);
+      }
+   }
+}
+
 static void generate_key2i_table(const struct key_table *key2i_plus_1,
                                  struct key_table *key2i,
                                  const unsigned short *key2i_bits_15_2,
@@ -153,30 +172,11 @@ static void generate_key2i_table(const struct key_table *key2i_plus_1,
 
    for (unsigned int i = 0; i < key2i_plus_1->size; ++i)
    {
-      const unsigned int key2ip1_tmp = key_table_at(key2i_plus_1, i);
-      const unsigned int key2i_bits31_8 = (key2ip1_tmp << 8) ^ crc_32_invtab[key2ip1_tmp >> 24];
-      const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
-
-      for (unsigned int j = 0; j < 64; ++j)
-      {
-         const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[j] & common_bits_mask;
-
-         /* the left and right hand side share the same 6 bits in
-            position [15..10]. See biham & kocher 3.1. */
-         if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
-         {
-            unsigned int key2i_tmp;
-
-            /* save bits [31..8] */
-            key2i_tmp = key2i_bits31_8 & 0xffffff00;
-
-            /* save bits [7..2] */
-            key2i_tmp |= key2i_bits_15_2[j];
-
-            /* save bits [1..0] */
-            generate_all_key2i_with_bits_1_0(key2i, key2i_tmp, key2im1_bits_15_2);
-         }
-      }
+      generate_key2i_single(key_table_at(key2i_plus_1, i),
+                            key2i,
+                            key2i_bits_15_2,
+                            key2im1_bits_15_2,
+                            common_bits_mask);
    }
 }
 
@@ -299,10 +299,10 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                            key2i,
                            key2_bits_15_2_from_key3(key2_bits_15_2, key3i),
                            key2_bits_15_2_from_key3(key2_bits_15_2, key3im1),
-                           iter++);
+                           iter++); // TODO: use a define MASK_8BITS, MASK_6BITS
       key_table_uniq(key2i);
       printf("reducing to: %zu\n", key2i->size);
-      swap_key_table(&key2i, &key2i_plus_1);
+      key_table_swap(&key2i, &key2i_plus_1);
    }
 
    key_table_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
@@ -312,15 +312,5 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                  * bytes for the actual attack */
    key_table_free(key2i);
    free(key2_bits_15_2);
-   return 0;
-}
-
-ZC_EXPORT int zc_crk_ptext_crack(struct zc_crk_ptext *ptext)
-{
-   for (unsigned int i = 0; i < ptext->key2->size; ++i)
-   {
-
-   }
-
    return 0;
 }
