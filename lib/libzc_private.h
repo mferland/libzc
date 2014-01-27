@@ -60,4 +60,9 @@ void zc_log(struct zc_ctx *ctx,
             const char *format, ...)
    __attribute__((format(printf, 6, 7)));
 
+static inline unsigned int pow2(unsigned int power)
+{
+   return (1 << power);
+}
+
 #endif

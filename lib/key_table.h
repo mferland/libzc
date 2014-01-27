@@ -42,4 +42,12 @@ unsigned int key_table_at(const struct key_table *table, unsigned int index)
    return table->array[index];
 }
 
+static inline
+void key_table_swap(struct key_table **table1, struct key_table **table2)
+{
+   struct key_table *tmp = *table1;
+   *table1 = *table2;
+   *table2 = tmp;
+}
+
 #endif
