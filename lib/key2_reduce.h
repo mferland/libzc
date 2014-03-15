@@ -32,5 +32,10 @@ void key2r_compute_next_table(struct key_table *key2i_plus_1,
                               const unsigned short *key2i_bits_15_2,
                               const unsigned short *key2im1_bits_15_2,
                               unsigned int common_bits_mask);
+void key2r_compute_single(unsigned int key2i_plus_1,
+                          struct key_table *key2i,
+                          const unsigned short *key2i_bits_15_2,
+                          const unsigned short *key2im1_bits_15_2,
+                          unsigned int common_bits_mask);
 
 #endif

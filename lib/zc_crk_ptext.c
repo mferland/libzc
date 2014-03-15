@@ -35,6 +35,8 @@ struct zc_crk_ptext
    unsigned char *ciphertext;
    size_t size;
    struct key_table *key2;
+   struct key2r *k2r;
+   unsigned int key2_final[13];
 };
 
 static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
@@ -61,6 +63,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
    free(ptext->plaintext);
    free(ptext->ciphertext);
    key_table_free(ptext->key2);
+   key2r_free(ptext->k2r);
    free(ptext);
    return NULL;
 }
@@ -72,6 +75,13 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
    new = calloc(1, sizeof(struct zc_crk_ptext));
    if (!new)
       return ENOMEM;
+
+   err = key2r_new(&new->k2r);
+   if (err)
+   {
+      free(new);
+      return ENOMEM;
+   }
 
    new->ctx = ctx;
    new->refcount = 1;
@@ -126,30 +136,23 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
  */
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
-   struct key2r *k2r;
    struct key_table *key2i_plus_1;
    struct key_table *key2i;
    unsigned char key3i;
    unsigned char key3im1;
    int err;
 
-   key2r_new(&k2r);
-
    /* first gen key2 */
    key3i = generate_key3(ptext, ptext->size - 1);
-   key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
+   key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(ptext->k2r, key3i));
    if (key2i_plus_1 == NULL)
-   {
-      key2r_free(k2r);
       return ENOMEM;
-   }
 
    /* allocate space for second table */
    err = key_table_new(&key2i, pow2(22));
    if (err)
    {
       key_table_free(key2i_plus_1);
-      key2r_free(k2r);
       return ENOMEM;
    }
 
@@ -160,8 +163,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
       key3im1 = generate_key3(ptext, i - 1);
       key2r_compute_next_table(key2i_plus_1,
                                key2i,
-                               key2r_get_bits_15_2(k2r, key3i),
-                               key2r_get_bits_15_2(k2r, key3im1),
+                               key2r_get_bits_15_2(ptext->k2r, key3i),
+                               key2r_get_bits_15_2(ptext->k2r, key3im1),
                                i == ptext->size - 2 ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
       key_table_uniq(key2i);
       printf("reducing to: %zu\n", key2i->size);
@@ -174,6 +177,91 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                  * index 13 (n=14) this leaves 13
                                  * bytes for the actual attack */
    key_table_free(key2i);
-   key2r_free(k2r);
+   return 0;
+}
+
+static int ptext_final_init(struct key_table **key2)
+{
+   for (unsigned int i = 0; i < 12; ++i)
+   {
+      err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
+      if (err)
+      {
+         ptext_final_deinit(struct key_table **key2);
+         return ENOMEM;
+      }
+   }
+   return 0;
+}
+
+static void ptext_final_deinit(struct key_table **key2)
+{
+   for (unsigned int i = 0; i < 12; ++i)
+   {
+      if (key2[i] != NULL)
+      {
+         key_table_free(key2[i]);
+         key2[i] = NULL;
+      }
+   }
+}
+
+static int compute_key1(struct zc_crk_ptext *ptext)
+{
+   // RENDU CICIIC
+   /*
+     - calculer le tableau de key1_12 .. key1_1 (MSB seulement)
+     - calculer le reste de bits (24)
+     - appeler recurse_key1
+    */
+}
+
+static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int index)
+{
+   unsigned char key3i;
+   unsigned char key3im1;
+
+   if (index == 1)
+   {
+      compute_key1(ptext);      /* FIXME: return ? */
+      return 0;
+   }
+
+   key3i = generate_key3(ptext, index);
+   key3im1 = generate_key3(ptext, index - 1);
+
+   /* empty table before appending new keys */
+   key_table_empty(table[index - 1]);
+   
+   key2r_compute_single(ptext->key2_final[index],
+                        table[index - 1],
+                        key2r_get_bits_15_2(ptext->k2r, key3i),
+                        key2r_get_bits_15_2(ptext->k2r, key3im1),
+                        KEY2_MASK_8BITS);
+
+   for (unsigned int i = 0; i < table[index - 1]->size; ++i)
+   {
+      ptext->key2_final[index - 1] = key_table_at(table[index - 1], i);
+      recurse_key2(ptext, table, index - 1); /* FIXME: return ? */
+   }
+}
+
+ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
+{
+   struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+   int err;
+   
+   err = ptext_final_init(&key2);
+   if (err)
+      return -1;
+   
+   for (unsigned int i = 0; i < ptext->size; ++i)
+   {
+      ptext->key2_final[12] = ptext->key2[i];
+      recurse_key2(ptext->key2_final, table, 12);
+   }
+
+   ptext_final_deinit(&key2);
+   
    return 0;
 }

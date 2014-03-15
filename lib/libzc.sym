@@ -38,8 +38,7 @@ global:
         zc_crk_ptext_new;
         zc_crk_ptext_set_text;
         zc_crk_ptext_key2_reduction;
-        zc_crk_ptext_crack;
-        zc_crk_ptext_gen_tables;
+        zc_crk_ptext_final;
         zc_pwdict_new_from_filename;
         zc_pwdict_unref;
         zc_pwdict_open;

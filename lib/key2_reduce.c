@@ -143,11 +143,11 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
    }
 }
 
-static void generate_key2i_single(unsigned int key2i_plus_1,
-                                  struct key_table *key2i,
-                                  const unsigned short *key2i_bits_15_2,
-                                  const unsigned short *key2im1_bits_15_2,
-                                  unsigned int common_bits_mask)
+void k2r_compute_single(unsigned int key2i_plus_1,
+                        struct key_table *key2i,
+                        const unsigned short *key2i_bits_15_2,
+                        const unsigned short *key2im1_bits_15_2,
+                        unsigned int common_bits_mask)
 {
    const unsigned int key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
    const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
