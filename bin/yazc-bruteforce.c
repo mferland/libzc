@@ -75,6 +75,7 @@ struct arguments
 static struct arguments args;
 static struct cleanup_node *cleanup_nodes = NULL;
 static struct cleanup_queue *cleanup_queue = NULL;
+static pthread_barrier_t barrier;
 
 static const char short_opts[] = "c:l:aAnst:h";
 static const struct option long_opts[] = {
@@ -206,6 +207,7 @@ static void worker_cleanup_handler(void *t)
 
 static void *worker(void *t)
 {
+   pthread_barrier_wait(&barrier);
    pthread_cleanup_push(worker_cleanup_handler, t);
    
    struct cleanup_node *node = (struct cleanup_node *)t;
@@ -309,6 +311,10 @@ static int start_worker_threads(void)
 {
    size_t i;
    int err;
+
+   err = pthread_barrier_init(&barrier, NULL, args.workers);
+   if (err)
+      fatal("failed to initialise barrier\n");
    
    for (i = 0; i < args.workers; ++i)
    {
@@ -327,10 +333,11 @@ static int start_worker_threads(void)
 
 static int wait_worker_threads(void)
 {
-   sleep(2);                    /* if we cancel too early cleanup
-                                 * handlers are not called
-                                 * pthread/kernel/glibc BUG? */
-   return cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
+   int err;
+
+   err = cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
+   pthread_barrier_destroy(&barrier);
+   return err;
 }
 
 static int launch_crack(void)
