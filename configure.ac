@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [0.0.1],
+        [1.0.0],
         [marc.ferland@gmail.com],
         [zc],
         [http://nositeyet.com])

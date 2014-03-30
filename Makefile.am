@@ -30,7 +30,11 @@ SED_PROCESS = \
 %.pc: %.pc.in Makefile
 	$(SED_PROCESS)
 
-LIBZC_CURRENT=0
+# The rules of thumb, when dealing with these values are:
+#  Always increase the revision value.
+#  Increase the current value whenever an interface has been added, removed or changed.
+#  Increase the age value only if the changes made to the ABI are backward compatible. 
+LIBZC_CURRENT=1
 LIBZC_REVISION=0
 LIBZC_AGE=0
 
