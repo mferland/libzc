@@ -157,7 +157,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    }
 
    /* perform reduction */
-   for (unsigned int i = ptext->size - 2; i >= 13; --i)
+   const unsigned int start_index = ptext->size - 2;
+   for (unsigned int i = start_index; i >= 13; --i)
    {
       key3i = generate_key3(ptext, i);
       key3im1 = generate_key3(ptext, i - 1);
@@ -165,7 +166,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                key2i,
                                key2r_get_bits_15_2(ptext->k2r, key3i),
                                key2r_get_bits_15_2(ptext->k2r, key3im1),
-                               i == ptext->size - 2 ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
+                               i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
       key_table_uniq(key2i);
       printf("reducing to: %zu\n", key2i->size);
       key_table_swap(&key2i, &key2i_plus_1);
