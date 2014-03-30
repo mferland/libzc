@@ -217,33 +217,34 @@ static int compute_key1(struct zc_crk_ptext *ptext)
     */
 }
 
-static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int index)
+static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int current_idx)
 {
+   const unsigned int next_idx = current_idx - 1;
    unsigned char key3i;
    unsigned char key3im1;
 
-   if (index == 1)
+   if (current_idx == 1)
    {
       compute_key1(ptext);      /* FIXME: return ? */
       return 0;
    }
 
-   key3i = generate_key3(ptext, index);
-   key3im1 = generate_key3(ptext, index - 1);
+   key3i = generate_key3(ptext, current_idx);
+   key3im1 = generate_key3(ptext, next_idx);
 
    /* empty table before appending new keys */
-   key_table_empty(table[index - 1]);
+   key_table_empty(table[next_idx]);
    
-   key2r_compute_single(ptext->key2_final[index],
-                        table[index - 1],
+   key2r_compute_single(ptext->key2_final[current_idx],
+                        table[next_idx],
                         key2r_get_bits_15_2(ptext->k2r, key3i),
                         key2r_get_bits_15_2(ptext->k2r, key3im1),
                         KEY2_MASK_8BITS);
 
-   for (unsigned int i = 0; i < table[index - 1]->size; ++i)
+   for (unsigned int i = 0; i < table[next_idx]->size; ++i)
    {
-      ptext->key2_final[index - 1] = key_table_at(table[index - 1], i);
-      recurse_key2(ptext, table, index - 1); /* FIXME: return ? */
+      ptext->key2_final[next_idx] = key_table_at(table[next_idx], i);
+      recurse_key2(ptext, table, next_idx); /* FIXME: return ? */
    }
 }
 
@@ -252,17 +253,17 @@ ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
    int err;
    
-   err = ptext_final_init(&key2);
+   err = ptext_final_init(&table);
    if (err)
       return -1;
    
-   for (unsigned int i = 0; i < ptext->size; ++i)
+   for (unsigned int i = 0; i < ptext->key2->size; ++i)
    {
       ptext->key2_final[12] = ptext->key2[i];
-      recurse_key2(ptext->key2_final, table, 12);
+      recurse_key2(ptext, table, 12);
    }
 
-   ptext_final_deinit(&key2);
+   ptext_final_deinit(&table);
    
    return 0;
 }
