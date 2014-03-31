@@ -71,6 +71,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 {
    struct zc_crk_ptext *new;
+   int err;
 
    new = calloc(1, sizeof(struct zc_crk_ptext));
    if (!new)
@@ -181,20 +182,6 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    return 0;
 }
 
-static int ptext_final_init(struct key_table **key2)
-{
-   for (unsigned int i = 0; i < 12; ++i)
-   {
-      err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
-      if (err)
-      {
-         ptext_final_deinit(struct key_table **key2);
-         return ENOMEM;
-      }
-   }
-   return 0;
-}
-
 static void ptext_final_deinit(struct key_table **key2)
 {
    for (unsigned int i = 0; i < 12; ++i)
@@ -207,6 +194,22 @@ static void ptext_final_deinit(struct key_table **key2)
    }
 }
 
+static int ptext_final_init(struct key_table **key2)
+{
+   int err;
+   
+   for (unsigned int i = 0; i < 12; ++i)
+   {
+      err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
+      if (err)
+      {
+         ptext_final_deinit(key2);
+         return ENOMEM;
+      }
+   }
+   return 0;
+}
+
 static int compute_key1(struct zc_crk_ptext *ptext)
 {
    // RENDU CICIIC
@@ -215,6 +218,7 @@ static int compute_key1(struct zc_crk_ptext *ptext)
      - calculer le reste de bits (24)
      - appeler recurse_key1
     */
+   return 0;
 }
 
 static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int current_idx)
@@ -246,6 +250,8 @@ static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, un
       ptext->key2_final[next_idx] = key_table_at(table[next_idx], i);
       recurse_key2(ptext, table, next_idx); /* FIXME: return ? */
    }
+
+   return 0;                    /* FIXME: return something */
 }
 
 ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
@@ -253,17 +259,17 @@ ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
    int err;
    
-   err = ptext_final_init(&table);
+   err = ptext_final_init(table);
    if (err)
       return -1;
    
    for (unsigned int i = 0; i < ptext->key2->size; ++i)
    {
-      ptext->key2_final[12] = ptext->key2[i];
+      ptext->key2_final[12] = ptext->key2->array[i];
       recurse_key2(ptext, table, 12);
    }
 
-   ptext_final_deinit(&table);
+   ptext_final_deinit(table);
    
    return 0;
 }
