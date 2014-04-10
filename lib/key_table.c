@@ -118,8 +118,8 @@ void key_table_empty(struct key_table *table)
    table->size = 0;
 }
 
-void key_table_print(struct key_table *table)
+void key_table_print(struct key_table *table, FILE *stream)
 {
    for (unsigned int i = 0; i < table->size; ++i)
-      printf("0x%x\n", table->array[i]);
+      fprintf(stream, "0x%0x\n", table->array[i]);
 }

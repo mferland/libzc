@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEY2_REDUCE_H_
-#define KEY2_REDUCE_H_
+#ifndef _KEY2_REDUCE_H_
+#define _KEY2_REDUCE_H_
 
 #define KEY2_MASK_6BITS 0xfc00
 #define KEY2_MASK_8BITS 0xff00
@@ -38,4 +38,4 @@ void key2r_compute_single(unsigned int key2i_plus_1,
                           const unsigned short *key2im1_bits_15_2,
                           unsigned int common_bits_mask);
 
-#endif
+#endif /* _KEY2_REDUCE_H_ */

@@ -20,6 +20,7 @@
 #define _KEY_TABLE_H_
 
 #include <stdlib.h>             /* size_t */
+#include <stdio.h>
 
 struct key_table
 {
@@ -34,7 +35,7 @@ void key_table_append(struct key_table *table, unsigned int key);
 void key_table_uniq(struct key_table *table);
 void key_table_squeeze(struct key_table *table);
 void key_table_empty(struct key_table *table);
-void key_table_print(struct key_table *table);
+void key_table_print(struct key_table *table, FILE *stream);
 
 static inline
 unsigned int key_table_at(const struct key_table *table, unsigned int index)
@@ -50,4 +51,4 @@ void key_table_swap(struct key_table **table1, struct key_table **table2)
    *table2 = tmp;
 }
 
-#endif
+#endif /* _KEY_TABLE_H_ */
