@@ -37,6 +37,7 @@ struct zc_crk_ptext
    struct key_table *key2;
    struct key2r *k2r;
    unsigned int key2_final[13];
+   unsigned int key1_final[13];
 };
 
 static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
@@ -134,7 +135,7 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
   TODO:
   * remember the _best_ offset key2i only (not necessarely key2_13)
   * check minimal byte count for reduction
- */
+  */
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
    struct key_table *key2i_plus_1;
@@ -210,14 +211,21 @@ static int ptext_final_init(struct key_table **key2)
    return 0;
 }
 
+static unsigned int compute_key1_msb(struct zc_crk_ptext *ptext, unsigned int current_idx)
+{
+   const unsigned int key2i = ptext->key2_final[current_idx];
+   const unsigned int key2im1 = ptext->key2_final[current_idx - 1];
+   return ((key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1) & 0xff000000;
+}
+
 static int compute_key1(struct zc_crk_ptext *ptext)
 {
-   // RENDU CICIIC
-   /*
-     - calculer le tableau de key1_12 .. key1_1 (MSB seulement)
-     - calculer le reste de bits (24)
-     - appeler recurse_key1
-    */
+   for (unsigned int i = 0; i < pow2(24); ++i)
+   {
+      const unsigned int key1i = ((ptext->key1_final[/*TODO*/] | i) - 1) / 134775813;
+      /* find matchnig msb, section 3.3 */
+   }
+   
    return 0;
 }
 
@@ -248,6 +256,7 @@ static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, un
    for (unsigned int i = 0; i < table[next_idx]->size; ++i)
    {
       ptext->key2_final[next_idx] = key_table_at(table[next_idx], i);
+      ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx);
       recurse_key2(ptext, table, next_idx); /* FIXME: return ? */
    }
 
