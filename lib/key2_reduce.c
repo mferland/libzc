@@ -152,9 +152,9 @@ void key2r_compute_single(unsigned int key2i_plus_1,
    const unsigned int key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
    const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 
-   for (unsigned int j = 0; j < 64; ++j)
+   for (unsigned int i = 0; i < 64; ++i)
    {
-      const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[j] & common_bits_mask;
+      const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[i] & common_bits_mask;
 
       /* the left and right hand side share the same 6 bits in
          position [15..10]. See biham & kocher 3.1. */
@@ -166,7 +166,7 @@ void key2r_compute_single(unsigned int key2i_plus_1,
          key2i_tmp = key2i_bits31_8 & 0xffffff00;
 
          /* save bits [7..2] */
-         key2i_tmp |= key2i_bits_15_2[j];
+         key2i_tmp |= key2i_bits_15_2[i];
 
          /* save bits [1..0] */
          generate_all_key2i_with_bits_1_0(key2i, key2i_tmp, key2im1_bits_15_2);
