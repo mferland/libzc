@@ -218,14 +218,54 @@ static unsigned int compute_key1_msb(struct zc_crk_ptext *ptext, unsigned int cu
    return ((key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1) & 0xff000000;
 }
 
+static int recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
+{
+   const unsigned int key1i = ptext->key1_final[current_idx];
+   const unsigned int key1im1_msb = msb(ptext->key1_final[current_idx - 1]);
+   const unsigned int key1im2_msb = msb(ptext->key1_final[current_idx - 2]);
+   const unsigned int key1im1_lsbkey0i = (key1i - 1) / 134775813;
+
+   if (current_idx == 3)
+   {
+      compute_key0(ptext);
+      return 0;
+   }
+
+   for (unsigned int lsbkey0i = 0; lsbkey0i < 256; ++lsbkey0i)
+   {
+      const unsigned int key1im1 = key1im1_lsbkey0i - lsbkey0i;
+      if (msb(key1im1) == key1im1_msb)
+      {
+         if (msb((key1im1 - 1) / 134775813) == key1im2_msb)
+         {
+            /* found a lsbkey0i that produces a matching key1im2_msb */
+            ptext->key1_final[current_idx - 1] = key1im1;
+            ptext->key0_final[current_idx] = lsbkey0i;
+            recurse_key1(ptext, current_idx - 1);
+         }
+      }
+   }
+}
+
 static int compute_key1(struct zc_crk_ptext *ptext)
 {
+   /* find matching msb, section 3.3 from Biham & Kocher */
+   const unsigned int key1_11_msb = ptext->key1_final[11];
+   const unsigned int key1_12_msb = ptext->key1_final[12];
+
    for (unsigned int i = 0; i < pow2(24); ++i)
    {
-      const unsigned int key1i = ((ptext->key1_final[/*TODO*/] | i) - 1) / 134775813;
-      /* find matchnig msb, section 3.3 */
+      const unsigned int key1_12_tmp = key1_12_msb | i;
+      const unsigned int key1_11_tmp = (key1_12_tmp - 1) / 134775813;
+      const unsigned int key1_11_tmp_msb = key1_11_tmp & 0xff000000;
+      if (key1_11_msb_tmp == key1_11_msb)
+      {
+         /* found matching key1_11 msb */
+         ptext->key1_final[12] = key1_12_tmp;
+         recurse_key1(ptext, 12);
+      }
    }
-   
+
    return 0;
 }
 
