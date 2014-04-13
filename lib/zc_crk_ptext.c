@@ -211,19 +211,39 @@ static int ptext_final_init(struct key_table **key2)
    return 0;
 }
 
+static inline unsigned int key2_at(const struct zc_crk_ptext *ptext, unsigned int index)
+{
+   return ptext->key2_final[index];
+}
+
+static inline unsigned int key1_at(const struct zc_crk_ptext *ptext, unsigned int index)
+{
+   return ptext->key1_final[index];
+}
+
+inline static unsigned int msb_mask(unsigned int value)
+{
+   return value & 0xff000000;
+}
+
+inline static unsigned int compute_key1im1_plus_lsbkey0i(unsigned int key1i)
+{
+   return (key1i - 1) / 134775813;
+}
+
 static unsigned int compute_key1_msb(struct zc_crk_ptext *ptext, unsigned int current_idx)
 {
-   const unsigned int key2i = ptext->key2_final[current_idx];
-   const unsigned int key2im1 = ptext->key2_final[current_idx - 1];
-   return ((key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1) & 0xff000000;
+   const unsigned int key2i = key2_at(ptext, current_idx);
+   const unsigned int key2im1 = key2_at(ptext, current_idx - 1);
+   return msb_mask((key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1);
 }
 
 static int recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
 {
-   const unsigned int key1i = ptext->key1_final[current_idx];
-   const unsigned int key1im1_msb = msb(ptext->key1_final[current_idx - 1]);
-   const unsigned int key1im2_msb = msb(ptext->key1_final[current_idx - 2]);
-   const unsigned int key1im1_lsbkey0i = (key1i - 1) / 134775813;
+   const unsigned int key1i = key1_at(ptext, current_idx);
+   const unsigned int key1im1_msb = msb_mask(key1_at(ptext, current_idx - 1));
+   const unsigned int key1im2_msb = msb_mask(key1_at(ptext, current_idx - 2));
+   const unsigned int key1im1_lsbkey0i = compute_key1im1_plus_lsbkey0i(key1i);
 
    if (current_idx == 3)
    {
@@ -234,9 +254,9 @@ static int recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
    for (unsigned int lsbkey0i = 0; lsbkey0i < 256; ++lsbkey0i)
    {
       const unsigned int key1im1 = key1im1_lsbkey0i - lsbkey0i;
-      if (msb(key1im1) == key1im1_msb)
+      if (msb_mask(key1im1) == key1im1_msb)
       {
-         if (msb((key1im1 - 1) / 134775813) == key1im2_msb)
+         if (msb_mask(compute_key1im1_plus_lsbkey0i(key1im1)) == key1im2_msb)
          {
             /* found a lsbkey0i that produces a matching key1im2_msb */
             ptext->key1_final[current_idx - 1] = key1im1;
