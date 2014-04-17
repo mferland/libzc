@@ -125,39 +125,46 @@ END_TEST
 START_TEST(test_zc_pwgen_return_updated_char_count)
 {
    size_t count;
+   const char *ret;
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, "abcdefghijklmnopqrstuvwxyz", 6) == 0, NULL);
    zc_pwgen_set_step(pwgen, 1);
    
    /* a --> b = 0 */
    zc_pwgen_reset(pwgen, "a");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
+   fail_unless(ret != NULL && strncmp(ret, "b", 1) == 0, "Password generation failed");
    
    /* aa --> ab = 1 */
    zc_pwgen_reset(pwgen, "aa");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 1, "Identical characters should be 1");
+   fail_unless(ret != NULL && strncmp(ret, "ab", 2) == 0, "Password generation failed");
 
    /* azzz --> baaa */
    zc_pwgen_reset(pwgen, "azzz");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
+   fail_unless(ret != NULL && strncmp(ret, "baaa", 4) == 0, "Password generation failed");
 
    /* aazz --> abaa */
    zc_pwgen_reset(pwgen, "aazz");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 1, "Identical characters should be 1");
+   fail_unless(ret != NULL && strncmp(ret, "abaa", 4) == 0, "Password generation failed");
 
    /* zzzzzz --> OVERFLOW */
    zc_pwgen_reset(pwgen, "zzzzzz");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
+   fail_unless(ret == NULL, "Should return NULL");
 
    /* baba --> babb */
    zc_pwgen_reset(pwgen, "baba");
-   zc_pwgen_generate(pwgen, &count);
+   ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 3, "Identical characters should be 3");
+   fail_unless(ret != NULL && strncmp(ret, "babb", 4) == 0, "Password generation failed");
 }
 END_TEST
    

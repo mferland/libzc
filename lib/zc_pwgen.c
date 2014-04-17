@@ -158,20 +158,21 @@ ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)
 
 ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
 {
-   size_t pw_char_index = gen->max_pw_len - 1;
    int quotient = gen->step;
    const char *pw_orig = gen->pw;
+   char *char_idx = &gen->char_indexes[gen->max_pw_len - 1];
+   char *char_ascii = &gen->char_ascii[gen->max_pw_len - 1];
    int iteration = 0;
 
    while (1)
    {
-      gen->char_indexes[pw_char_index] += quotient;
-      quotient = gen->char_indexes[pw_char_index] / gen->char_lut_len;
-      gen->char_indexes[pw_char_index] %= gen->char_lut_len;
+      *char_idx += quotient;
+      quotient = *char_idx / gen->char_lut_len;
+      *char_idx = *char_idx - quotient * gen->char_lut_len;
 
-      gen->char_ascii[pw_char_index] = gen->char_lut[(unsigned char)gen->char_indexes[pw_char_index]];
+      *char_ascii = gen->char_lut[(unsigned char)*char_idx];
 
-      if (pw_char_index == 0 && quotient > 0)
+      if (quotient > 0 && char_ascii == gen->char_ascii)
       {
          *count = 0;
          return NULL;           /* overflow */
@@ -181,12 +182,11 @@ ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
       if (quotient == 0)
          break;
 
-      --pw_char_index;
+      --char_idx;
+      --char_ascii;
 
-      if (pw_char_index < (size_t)(gen->pw - gen->char_ascii))
-      {
-         gen->pw = &gen->char_ascii[pw_char_index];
-      }
+      if (char_ascii < gen->pw)
+         gen->pw = char_ascii;
    }
 
    /* return 0 if the pw len changed, the pw is only one char or the
@@ -196,7 +196,7 @@ ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
        iteration == (&gen->char_ascii[gen->max_pw_len - 1] - gen->pw + 1))
       *count = 0;
    else
-      *count = &gen->char_ascii[pw_char_index] - gen->pw;
+      *count = char_ascii - gen->pw;
 
    dbg(gen->ctx, "generated password: %s\n", gen->pw);
    return gen->pw;
