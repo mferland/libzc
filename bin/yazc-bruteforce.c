@@ -77,7 +77,7 @@ static struct cleanup_node *cleanup_nodes = NULL;
 static struct cleanup_queue *cleanup_queue = NULL;
 static pthread_barrier_t barrier;
 
-static const char short_opts[] = "c:l:aAnst:h";
+static const char short_opts[] = "c:i:l:aAnst:h";
 static const struct option long_opts[] = {
    {"charset", required_argument, 0, 'c'},
    {"initial", required_argument, 0, 'i'},
@@ -355,7 +355,7 @@ static int launch_crack(void)
                                           args.vdata, VDATA_ALLOC);
    if (args.vdata_size == 0)
    {
-      err = -1;
+      err = EXIT_FAILURE;
       goto cleanup;
    }
 

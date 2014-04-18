@@ -85,6 +85,7 @@ static int handle_yazc_commands(int argc, char *argv[])
 {
    const char *cmd;
    int err = 0;
+   bool found = false;
    size_t i;
 
    for (;;)
@@ -113,25 +114,27 @@ static int handle_yazc_commands(int argc, char *argv[])
 
    if (optind >= argc)
    {
-      fputs("missing command\n", stderr);
+      fputs("Error: missing command\n", stderr);
       goto fail;
    }
 
    cmd = argv[optind];
 
-   for (i = 0, err = -EINVAL; i < YAZC_CMDS_COUNT; i++)
+   for (i = 0; i < YAZC_CMDS_COUNT; i++)
    {
       if (strcmp(yazc_cmds[i]->name, cmd) != 0)
          continue;
-
-      err = yazc_cmds[i]->cmd(--argc, ++argv);
+      found = true;
+      break;
    }
 
-   if (err < 0)
+   if (!found)
    {
-      fprintf(stderr, "invalid command '%s'\n", cmd);
+      fprintf(stderr, "Error: invalid command '%s'\n", cmd);
       goto fail;
    }
+
+   err = yazc_cmds[i]->cmd(--argc, ++argv);
 
    return err;
 
