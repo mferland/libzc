@@ -110,12 +110,12 @@ ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t m
       return ENOMEM;
 
    char_ascii_tmp = calloc(1, max_pw_len + 1);
-   if (!char_ascii_tmp)
-      goto cleanup_error;
+   if (char_ascii_tmp == NULL)
+      goto error1;
 
    char_indexes_tmp = calloc(1, max_pw_len);
-   if (!char_indexes_tmp)
-      goto cleanup_error;
+   if (char_indexes_tmp == NULL)
+      goto error2;
 
    gen->char_lut = char_lut_tmp;
    gen->char_lut_len = lut_len;
@@ -124,13 +124,10 @@ ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t m
    gen->max_pw_len = max_pw_len;
    return 0;
 
-cleanup_error:
-   if (char_lut_tmp)
-      free(char_lut_tmp);
-   if (char_ascii_tmp)
-      free(char_ascii_tmp);
-   if (char_indexes_tmp)
-      free(char_indexes_tmp);
+error2:
+   free(char_ascii_tmp);
+error1:
+   free(char_lut_tmp);
    return ENOMEM;
 }
 
