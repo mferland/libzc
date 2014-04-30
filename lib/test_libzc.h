@@ -27,4 +27,3 @@ Suite *make_libzc_crack_suite();
 Suite *make_libzc_pwdict_suite();
 
 #endif
-

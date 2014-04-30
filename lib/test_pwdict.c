@@ -74,7 +74,7 @@ START_TEST(test_zc_pwdict_can_read_one_line)
    int err;
    zc_pwdict_new_from_filename(ctx, "pw.txt", &pwdict);
    zc_pwdict_open(pwdict);
-   
+
    err = zc_pwdict_read_one_pw(pwdict, str, 64);
    fail_if(err != 0 || strcmp("ab", str) != 0,
            "Reading first password failed.");

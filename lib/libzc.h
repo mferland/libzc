@@ -121,10 +121,9 @@ int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *cracker, struct zc_pwgen *pwge
 int zc_crk_bforce_set_vdata(struct zc_crk_bforce *cracker, const struct zc_validation_data *vdata, size_t nmemb);
 int zc_crk_bforce_start(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
 int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
-   
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
 #endif
- 

@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 #define ZIP_ENCRYPTION_HEADER_LENGTH 12
-   
+
 struct zip_header;
 int zip_header_new(struct zip_header **header);
 void zip_header_free(struct zip_header *header);

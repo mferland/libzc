@@ -201,7 +201,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
    const char *pw;
    size_t idem_char = 0;
    bool found = false;
-   
+
    if (out_pw == NULL || !is_valid_cracker(crk))
       return EINVAL;
 
@@ -229,7 +229,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
          strncpy(out_pw, pw, out_pw_size - 1);
          break;
       }
-      
+
       pw = zc_pwgen_generate(gen, &idem_char);
    } while (pw != NULL);
 

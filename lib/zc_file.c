@@ -166,7 +166,7 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
    size_t valid_files = 0;
 
    rewind(file->fd);
-   
+
    if (zip_header_new(&zip_header))
       return 0;
 

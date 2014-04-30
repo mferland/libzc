@@ -129,13 +129,13 @@ START_TEST(test_zc_pwgen_return_updated_char_count)
    zc_pwgen_new(ctx, &pwgen);
    fail_unless(zc_pwgen_init(pwgen, "abcdefghijklmnopqrstuvwxyz", 6) == 0, NULL);
    zc_pwgen_set_step(pwgen, 1);
-   
+
    /* a --> b = 0 */
    zc_pwgen_reset(pwgen, "a");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
    fail_unless(ret != NULL && strncmp(ret, "b", 1) == 0, "Password generation failed");
-   
+
    /* aa --> ab = 1 */
    zc_pwgen_reset(pwgen, "aa");
    ret = zc_pwgen_generate(pwgen, &count);
@@ -167,7 +167,7 @@ START_TEST(test_zc_pwgen_return_updated_char_count)
    fail_unless(ret != NULL && strncmp(ret, "babb", 4) == 0, "Password generation failed");
 }
 END_TEST
-   
+
 START_TEST(test_zc_pwgen_cannot_generate_zero_len_password)
 {
    zc_pwgen_new(ctx, &pwgen);

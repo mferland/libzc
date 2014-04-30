@@ -67,7 +67,7 @@ START_TEST(test_set_pwgen)
 {
    struct zc_crk_bforce *cracker;
    struct zc_pwgen *pwgen;
-   
+
    zc_crk_bforce_new(ctx, &cracker);
    zc_pwgen_new(ctx, &pwgen);
    zc_crk_bforce_set_pwgen(cracker, pwgen);
@@ -81,7 +81,7 @@ START_TEST(test_set_vdata)
    struct zc_crk_bforce *cracker;
    struct zc_validation_data vdata[5];
    size_t vdata_size = 5;
-   
+
    zc_crk_bforce_new(ctx, &cracker);
    zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
    zc_crk_bforce_unref(cracker);

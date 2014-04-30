@@ -86,7 +86,7 @@ ZC_EXPORT int zc_pwdict_open(struct zc_pwdict *dict)
       dict->fd = stdin;
       return 0;
    }
-   
+
    FILE *fd = fopen(dict->filename, "r");
    if (fd == NULL)
       err = errno;
@@ -103,7 +103,7 @@ ZC_EXPORT int zc_pwdict_close(struct zc_pwdict *dict)
       dict->fd = NULL;
       return 0;
    }
-   
+
    int err = fclose(dict->fd);
    dbg(dict->ctx, "dict %p close returned: %d\n", dict, err);
    if (err == 0)
@@ -114,10 +114,10 @@ ZC_EXPORT int zc_pwdict_close(struct zc_pwdict *dict)
 ZC_EXPORT int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t len)
 {
    char *str_ret;
-   
+
    if (dict->fd == 0 || len == 0)
       return EINVAL;
-   
+
    str_ret = fgets(str, len, dict->fd);
    if (str_ret == NULL)
       return -1;

@@ -57,12 +57,12 @@ static int check_header_signature(FILE *fd)
 static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
 {
    unsigned char *readbuf;
-   
+
    // Read non-variable part (26 bytes without the 4 bytes signature)
    readbuf = calloc(1, ZIP_FILE_STATIC_HEADER_LENGTH - 4);
    if (!readbuf)
       return -ENOMEM;
-   
+
    if (fread(readbuf, ZIP_FILE_STATIC_HEADER_LENGTH - 4, 1, fd) != 1)
    {
       free(readbuf);
@@ -79,7 +79,7 @@ static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
    header->uncomp_size = le32toh(*(uint32_t*)&readbuf[18]);
    header->filename_length = le16toh(*(uint16_t*)&readbuf[22]);
    header->extra_field_length = le16toh(*(uint16_t*)&readbuf[24]);
-   
+
    free(readbuf);
 
    return 0;
@@ -88,7 +88,7 @@ static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
 static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
 {
    const size_t filename_size = header->filename_length + 1;
-   
+
    header->filename = realloc(header->filename, filename_size);
    if (!header->filename)
       return -ENOMEM;
@@ -102,7 +102,7 @@ static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
 
    // Skip the extra field since we do not use it
    fseek(fd, header->extra_field_length, SEEK_CUR);
-   
+
    return 0;
 }
 
@@ -171,13 +171,13 @@ void zip_header_free(struct zip_header *header)
 int zip_header_read(FILE *fd, struct zip_header *header)
 {
    int err;
-   
+
    if ((err = check_header_signature(fd)) != 0)
       return err;
 
    if ((err = zip_header_read_static_part(fd, header)) != 0)
       return err;
-   
+
    if ((err = zip_header_read_variable_part(fd, header)) != 0)
       return err;
 
@@ -212,7 +212,7 @@ int zip_skip_to_next_header(FILE *fd, const struct zip_header *header)
 {
    if (zip_skip_data(fd, header))
       return -1;
-   
+
    if (zip_header_has_data_descriptor_bit(header))
    {
       if (zip_skip_data_descriptor(fd, header))

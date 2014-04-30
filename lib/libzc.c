@@ -112,7 +112,7 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
    info(ctx, "ctx %p created\n", ctx);
    dbg(ctx, "log_priority=%d\n", ctx->log_priority);
    *inctx = ctx;
-   
+
    return 0;
 }
 
