@@ -166,7 +166,7 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
    size_t valid_files = 0;
 
    rewind(file->fd);
-   
+
    if (zip_header_new(&zip_header))
       return 0;
 
@@ -206,7 +206,7 @@ ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, vo
 
    if (offset < 0)
       return -EINVAL;
-   
+
    rewind(file->fd);
 
    err = zip_header_new(&zip_header);
@@ -232,7 +232,7 @@ ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, vo
             err = -1;
             goto error;
          }
-         
+
          lastpos = ftell(file->fd);
          if (lastpos == -1)
          {
@@ -243,25 +243,25 @@ ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, vo
          err = fseek(file->fd, offset, SEEK_CUR);
          if (err != 0)
             goto error;
-         
+
          readitems = fread(buf, count, 1, file->fd);
          if (readitems != 1)
          {
             err = -1;
             goto error;
          }
-         
+
          err = fseek(file->fd, lastpos, SEEK_SET);
          if (err != 0)
             goto error;
 
          break;
       }
-         
+
       err = zip_skip_to_next_header(file->fd, zip_header);
       if (err)
          goto error;
-      
+
       ++current_index;
    }
 
