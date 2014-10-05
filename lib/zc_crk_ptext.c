@@ -37,6 +37,8 @@
 #define k2(index) ptext->key2_final[index]
 #define k1(index) ptext->key1_final[index]
 #define k0(index) ptext->key0_final[index]
+#define cipher(index) ptext->ciphertext[index]
+#define plaintext(index) ptext->plaintext[index]
 
 struct zc_crk_ptext
 {
@@ -59,7 +61,7 @@ struct zc_crk_ptext
 
 static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
 {
-   return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
+   return (plaintext(i) ^ cipher(i));
 }
 
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
@@ -244,22 +246,22 @@ static void compute_key0(struct zc_crk_ptext *ptext)
    uint32_t key0;
 
    /* calculate key0_6{0..15} */
-   key0 = (k0(7) ^ crc_32_tab[k0(6) ^ ptext->plaintext[6]]) << 8;
+   key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;
    key0 = (key0 | k0(6)) & 0x0000ffff;
 
    /* calculate key0_5{0..23} */
-   key0 = (key0 ^ crc_32_tab[k0(5) ^ ptext->plaintext[5]]) << 8;
+   key0 = (key0 ^ crc_32_tab[k0(5) ^ plaintext(5)]) << 8;
    key0 = (key0 | k0(5)) & 0x00ffffff;
 
    /* calculate key0_4{0..31} */
-   key0 = (key0 ^ crc_32_tab[k0(4) ^ ptext->plaintext[4]]) << 8;
+   key0 = (key0 ^ crc_32_tab[k0(4) ^ plaintext(4)]) << 8;
    key0 = (key0 | k0(4));
 
    /* verify against known bytes */
    uint32_t tmp = key0;
    for (uint32_t i = 4; i < 12; ++i)
    {
-      tmp = crc32(tmp, ptext->plaintext[i]);
+      tmp = crc32(tmp, plaintext(i));
       if ((tmp & 0xff) != k0(i + 1))
          return;
    }
