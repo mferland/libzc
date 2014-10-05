@@ -58,8 +58,8 @@ void zc_log(struct zc_ctx *ctx,
    va_end(args);
 }
 
-static void log_stderr(struct zc_ctx *ctx,
-                       int priority, const char *file, int line, const char *fn,
+static void log_stderr(struct zc_ctx * UNUSED(ctx),
+                       int UNUSED(priority), const char * UNUSED(file), int UNUSED(line), const char *fn,
                        const char *format, va_list args)
 {
    fprintf(stderr, "libzc: %s: ", fn);

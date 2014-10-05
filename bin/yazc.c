@@ -29,9 +29,9 @@
 
 static const char options_s[] = "+hV";
 static const struct option options[] = {
-   { "help", no_argument, NULL, 'h' },
-   { "version", no_argument, NULL, 'V' },
-   {}
+   {"help", no_argument, NULL, 'h' },
+   {"version", no_argument, NULL, 'V' },
+   {NULL, 0, 0, 0}
 };
 
 static const struct yazc_cmd yazc_cmd_help;
@@ -40,8 +40,9 @@ static const struct yazc_cmd *yazc_cmds[] = {
    &yazc_cmd_help,
    &yazc_cmd_compat_bruteforce,
    &yazc_cmd_compat_dictionary,
+   &yazc_cmd_compat_plaintext,
 };
-#define YAZC_CMDS_COUNT 3
+#define YAZC_CMDS_COUNT 4
 
 static int help(int argc, char *argv[])
 {

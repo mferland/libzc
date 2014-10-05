@@ -194,6 +194,82 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
    return valid_files;
 }
 
+ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, void *buf, long offset, size_t count)
+{
+   unsigned char encryption_header[12];
+   struct zip_header *zip_header;
+   int current_index = 0;
+   int err;
+
+   if (count < 1)
+      return -EINVAL;
+
+   if (offset < 0)
+      return -EINVAL;
+
+   rewind(file->fd);
+
+   err = zip_header_new(&zip_header);
+   if (err != 0)
+      return -1;
+
+   while ((err = zip_header_read(file->fd, zip_header)) == 0)
+   {
+      if (zip_header_has_encryption_bit(zip_header))
+      {
+         err = zip_encryption_header_read(file->fd, encryption_header);
+         if (err)
+            goto error;
+      }
+
+      if (current_index == file_index)
+      {
+         long lastpos;
+         size_t readitems;
+
+         if (offset + count > zip_header_comp_size(zip_header))
+         {
+            err = -1;
+            goto error;
+         }
+
+         lastpos = ftell(file->fd);
+         if (lastpos == -1)
+         {
+            err = -1;
+            goto error;
+         }
+
+         err = fseek(file->fd, offset, SEEK_CUR);
+         if (err != 0)
+            goto error;
+
+         readitems = fread(buf, count, 1, file->fd);
+         if (readitems != 1)
+         {
+            err = -1;
+            goto error;
+         }
+
+         err = fseek(file->fd, lastpos, SEEK_SET);
+         if (err != 0)
+            goto error;
+
+         break;
+      }
+
+      err = zip_skip_to_next_header(file->fd, zip_header);
+      if (err)
+         goto error;
+
+      ++current_index;
+   }
+
+error:
+   zip_header_free(zip_header);
+   return err == 0 ? 0 : -1;
+}
+
 /**
  * zc_file_test_password:
  *

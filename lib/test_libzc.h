@@ -25,5 +25,6 @@ Suite *make_libzc_file_suite();
 Suite *make_libzc_pwgen_suite();
 Suite *make_libzc_crack_suite();
 Suite *make_libzc_pwdict_suite();
+Suite *make_libzc_ptext_suite();
 
 #endif

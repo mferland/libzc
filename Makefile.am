@@ -48,7 +48,10 @@ lib_libzc_la_SOURCES =\
 	lib/zip.c \
 	lib/zc_pwgen.c \
 	lib/zc_crk.c \
-	lib/zc_pwdict.c
+	lib/zc_pwdict.c \
+	lib/zc_crk_ptext.c \
+	lib/key_table.c \
+	lib/key2_reduce.c
 
 EXTRA_DIST += lib/libzc.sym
 
@@ -62,16 +65,35 @@ pkgconfig_DATA = lib/libzc.pc
 EXTRA_DIST += lib/libzc.pc.in
 CLEANFILES += lib/libzc.pc
 
-TESTS = lib/test_libzc
-check_PROGRAMS = lib/test_libzc
-lib_test_libzc_SOURCES = lib/test_libzc.c lib/test_file.c lib/test_pwgen.c lib/test_crk.c lib/test_pwdict.c lib/libzc.h
+TESTS = lib/test_libzc lib/test_keytable lib/test_key2reduce
+check_PROGRAMS = lib/test_libzc lib/test_keytable lib/test_key2reduce
+lib_test_libzc_SOURCES = lib/test_libzc.c \
+	lib/test_file.c \
+	lib/test_pwgen.c \
+	lib/test_crk.c \
+	lib/test_pwdict.c \
+	lib/test_crk_ptext.c \
+	lib/libzc.h
 lib_test_libzc_CFLAGS = @CHECK_CFLAGS@
 lib_test_libzc_LDADD = lib/libzc.la @CHECK_LIBS@
+
+lib_test_keytable_SOURCES = lib/test_key_table.c lib/key_table.c lib/key_table.h
+lib_test_keytable_CFLAGS = @CHECK_CFLAGS@
+lib_test_keytable_LDADD = @CHECK_LIBS@
+
+lib_test_key2reduce_SOURCES = lib/test_key2_reduce.c lib/key2_reduce.c lib/key2_reduce.h lib/key_table.c
+lib_test_key2reduce_CFLAGS = @CHECK_CFLAGS@
+lib_test_key2reduce_LDADD = @CHECK_LIBS@
 
 if BUILD_YAZC
 bin_PROGRAMS = bin/yazc
 
-bin_yazc_SOURCES = bin/yazc.c bin/yazc-bruteforce.c bin/yazc-dictionary.c bin/yazc-common.c bin/cleanupqueue.c
+bin_yazc_SOURCES = bin/yazc.c \
+	bin/yazc-bruteforce.c \
+	bin/yazc-dictionary.c \
+	bin/yazc-common.c \
+	bin/cleanupqueue.c \
+	bin/yazc-plaintext.c
 bin_yazc_CPPFLAGS = $(AM_CPPFLAGS)
 bin_yazc_CFLAGS = $(AM_CFLAGS) -pthread
 bin_yazc_LDADD = lib/libzc.la

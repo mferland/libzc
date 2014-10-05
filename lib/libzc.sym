@@ -15,6 +15,7 @@ global:
         zc_file_isopened;
         zc_file_read_validation_data;
         zc_file_test_password;
+        zc_file_read_cipher_bytes;
         zc_pwgen_ref;
         zc_pwgen_unref;
         zc_pwgen_new;
@@ -32,6 +33,12 @@ global:
         zc_crk_bforce_set_vdata;
         zc_crk_bforce_start;
         zc_crk_bforce_skip;
+        zc_crk_ptext_ref;
+        zc_crk_ptext_unref;
+        zc_crk_ptext_new;
+        zc_crk_ptext_set_text;
+        zc_crk_ptext_key2_reduction;
+        zc_crk_ptext_final;
         zc_pwdict_new_from_filename;
         zc_pwdict_unref;
         zc_pwdict_open;

@@ -41,6 +41,7 @@ void yazc_log(const char *file, int line, const char *fn,
 
 extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
 extern const struct yazc_cmd yazc_cmd_compat_dictionary;
+extern const struct yazc_cmd yazc_cmd_compat_plaintext;
 
 size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
                             struct zc_validation_data *vdata, size_t nmemb);
