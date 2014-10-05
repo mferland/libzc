@@ -51,6 +51,17 @@ START_TEST(test_zc_ptext_set_cipher_and_plaintext)
 }
 END_TEST
 
+START_TEST(test_zc_crk_ptext_final)
+{
+   struct zc_crk_ptext *ptext;
+   fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, 500) == 0, NULL);
+   fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_final(ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+}
+END_TEST
+
 Suite *make_libzc_ptext_suite()
 {
    Suite *s = suite_create("plaintext");
@@ -59,6 +70,7 @@ Suite *make_libzc_ptext_suite()
    tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
    tcase_add_test(tc_core, test_zc_ptext_new);
    tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
+   tcase_add_test(tc_core, test_zc_crk_ptext_final);
    suite_add_tcase(s, tc_core);
 
    return s;

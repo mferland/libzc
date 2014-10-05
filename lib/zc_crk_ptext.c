@@ -16,6 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ * References:
+ * http://en.wikipedia.org/wiki/Modular_multiplicative_inverse
+ * http://ca.wiley.com/WileyCDA/WileyTitle/productCd-047011486X.html
+ */
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,6 +44,12 @@ struct zc_crk_ptext
    struct key2r *k2r;
    unsigned int key2_final[13];
    unsigned int key1_final[13];
+   unsigned int key0_final[13];
+   unsigned int *key1_lookup;
+   unsigned int key1_lookup_size;
+   unsigned char lsbk0_lookup[256][2];
+   unsigned int lsbk0_count[256];
+   bool key_found;
 };
 
 static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
@@ -87,6 +99,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 
    new->ctx = ctx;
    new->refcount = 1;
+   new->key_found = false;
    *ptext = new;
    dbg(ctx, "ptext %p created\n", new);
    return 0;
@@ -131,11 +144,6 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
    return 0;
 }
 
-/*
-  TODO:
-  * remember the _best_ offset key2i only (not necessarely key2_13)
-  * check minimal byte count for reduction
-  */
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
    struct key_table *key2i_plus_1;
@@ -160,7 +168,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 
    /* perform reduction */
    const unsigned int start_index = ptext->size - 2;
-   for (unsigned int i = start_index; i >= 13; --i)
+   for (unsigned int i = start_index; i >= 12; --i)
    {
       key3i = generate_key3(ptext, i);
       key3im1 = generate_key3(ptext, i - 1);
@@ -208,6 +216,7 @@ static int ptext_final_init(struct key_table **key2)
          return ENOMEM;
       }
    }
+   
    return 0;
 }
 
@@ -228,38 +237,67 @@ inline static unsigned int msb_mask(unsigned int value)
 
 inline static unsigned int compute_key1im1_plus_lsbkey0i(unsigned int key1i)
 {
-   return (key1i - 1) / 134775813;
+   return (key1i - 1) * 3645876429u; /* modular multiplicative inverse mod2^32 */
 }
 
 static unsigned int compute_key1_msb(struct zc_crk_ptext *ptext, unsigned int current_idx)
 {
    const unsigned int key2i = key2_at(ptext, current_idx);
    const unsigned int key2im1 = key2_at(ptext, current_idx - 1);
-   return msb_mask((key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1);
+   return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
+static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   const unsigned int key1i = key1_at(ptext, current_idx);
-   const unsigned int key1im1_msb = msb_mask(key1_at(ptext, current_idx - 1));
-   const unsigned int key1im2_msb = msb_mask(key1_at(ptext, current_idx - 2));
-   const unsigned int key1im1_lsbkey0i = compute_key1im1_plus_lsbkey0i(key1i);
+   unsigned int key0;
 
+   /* calculate key0_6{0..15} */
+   key0 = (ptext->key0_final[7] ^ crc_32_tab[ptext->key0_final[6] ^ ptext->plaintext[6]]) << 8;
+   key0 = (key0 | ptext->key0_final[6]) & 0x0000ffff;
+
+   /* calculate key0_5{0..23} */
+   key0 = (key0 ^ crc_32_tab[ptext->key0_final[5] ^ ptext->plaintext[5]]) << 8;
+   key0 = (key0 | ptext->key0_final[5]) & 0x00ffffff;
+
+   /* calculate key0_4{0..31} */
+   key0 = (key0 ^ crc_32_tab[ptext->key0_final[4] ^ ptext->plaintext[4]]) << 8;
+   key0 = (key0 | ptext->key0_final[4]);
+
+   /* verify against known bytes */
+   unsigned int tmp = key0;
+   for (unsigned int i = 4; i < 12; ++i)
+   {
+      tmp = crc32(tmp, ptext->plaintext[i]);
+      if ((tmp & 0xff) != ptext->key0_final[i + 1])
+         return;
+   }
+
+   printf("FOUND!\n");
+
+   ptext->key_found = true;
+}
+
+static void recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
+{
    if (current_idx == 3)
    {
       compute_key0(ptext);
-      return 0;
+      return;
    }
 
-   for (unsigned int lsbkey0i = 0; lsbkey0i < 256; ++lsbkey0i)
+   unsigned int key1i = key1_at(ptext, current_idx);
+   unsigned int rhs_step1 = (key1i - 1) * 3645876429u;
+   unsigned int rhs_step2 = (rhs_step1 - 1) * 3645876429u;
+   unsigned char diff = (rhs_step2 - (key1_at(ptext, current_idx - 2)&0xff000000)) >> 24;
+
+   for (unsigned int c = 2; c != 0; --c, --diff)
    {
-      const unsigned int key1im1 = key1im1_lsbkey0i - lsbkey0i;
-      if (msb_mask(key1im1) == key1im1_msb)
+      for (unsigned int i = 0; i < ptext->lsbk0_count[diff]; ++i)
       {
-         if (msb_mask(compute_key1im1_plus_lsbkey0i(key1im1)) == key1im2_msb)
+         unsigned int lsbkey0i = ptext->lsbk0_lookup[diff][i];
+         if (((rhs_step1 - lsbkey0i) & 0xff000000) == msb_mask(key1_at(ptext, current_idx - 1)))
          {
-            /* found a lsbkey0i that produces a matching key1im2_msb */
-            ptext->key1_final[current_idx - 1] = key1im1;
+            ptext->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
             ptext->key0_final[current_idx] = lsbkey0i;
             recurse_key1(ptext, current_idx - 1);
          }
@@ -267,60 +305,65 @@ static int recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
    }
 }
 
-static int compute_key1(struct zc_crk_ptext *ptext)
+static void compute_key1(struct zc_crk_ptext *ptext)
 {
-   /* find matching msb, section 3.3 from Biham & Kocher */
-   const unsigned int key1_11_msb = ptext->key1_final[11];
-   const unsigned int key1_12_msb = ptext->key1_final[12];
-
-   for (unsigned int i = 0; i < pow2(24); ++i)
+   for (unsigned int i = 0; i < ptext->key1_lookup_size; ++i)
    {
-      const unsigned int key1_12_tmp = key1_12_msb | i;
-      const unsigned int key1_11_tmp = (key1_12_tmp - 1) / 134775813;
-      const unsigned int key1_11_tmp_msb = key1_11_tmp & 0xff000000;
-      if (key1_11_msb_tmp == key1_11_msb)
-      {
-         /* found matching key1_11 msb */
-         ptext->key1_final[12] = key1_12_tmp;
-         recurse_key1(ptext, 12);
-      }
+      ptext->key1_final[12] = ptext->key1_lookup[i];
+      recurse_key1(ptext, 12);
    }
-
-   return 0;
 }
 
-static int recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int current_idx)
+static void generate_key1_lookup(struct zc_crk_ptext *ptext,
+                                 unsigned int key1_11_msb, unsigned int key1_12_msb)
 {
-   const unsigned int next_idx = current_idx - 1;
-   unsigned char key3i;
+   unsigned int key1idx = 0;
+
+   /* find matching msb, section 3.3 from Biham & Kocher */
+   for (unsigned int i = 0; i < pow2(24); ++i)
+   {
+      const unsigned int key1_12_tmp = (key1_12_msb & 0xff000000) | i;
+      const unsigned int key1_11_tmp = (key1_12_tmp - 1) * 3645876429u; /* modular multiplicative inverse mod2^32 */
+      if ((key1_11_tmp & 0xff000000) == (key1_11_msb & 0xff000000))
+         ptext->key1_lookup[key1idx++] = key1_12_tmp;
+   }
+
+   ptext->key1_lookup_size = key1idx;
+}
+
+static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int current_idx)
+{
    unsigned char key3im1;
+   unsigned char key3im2;
 
    if (current_idx == 1)
    {
-      compute_key1(ptext);      /* FIXME: return ? */
-      return 0;
+      compute_key1(ptext);
+      return;
    }
 
-   key3i = generate_key3(ptext, current_idx);
-   key3im1 = generate_key3(ptext, next_idx);
+   key3im1 = generate_key3(ptext, current_idx - 1);
+   key3im2 = generate_key3(ptext, current_idx - 2);
 
    /* empty table before appending new keys */
-   key_table_empty(table[next_idx]);
+   key_table_empty(table[current_idx - 1]);
    
    key2r_compute_single(ptext->key2_final[current_idx],
-                        table[next_idx],
-                        key2r_get_bits_15_2(ptext->k2r, key3i),
+                        table[current_idx - 1],
                         key2r_get_bits_15_2(ptext->k2r, key3im1),
+                        key2r_get_bits_15_2(ptext->k2r, key3im2),
                         KEY2_MASK_8BITS);
 
-   for (unsigned int i = 0; i < table[next_idx]->size; ++i)
-   {
-      ptext->key2_final[next_idx] = key_table_at(table[next_idx], i);
-      ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx);
-      recurse_key2(ptext, table, next_idx); /* FIXME: return ? */
-   }
+   key_table_uniq(table[current_idx - 1]);
 
-   return 0;                    /* FIXME: return something */
+   for (unsigned int i = 0; i < table[current_idx - 1]->size; ++i)
+   {
+      ptext->key2_final[current_idx - 1] = key_table_at(table[current_idx - 1], i);
+      ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
+      if (current_idx == 11)
+         generate_key1_lookup(ptext, ptext->key1_final[11], ptext->key1_final[12]);
+      recurse_key2(ptext, table, current_idx - 1);
+   }
 }
 
 ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
@@ -331,14 +374,33 @@ ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
    err = ptext_final_init(table);
    if (err)
       return -1;
-   
-   for (unsigned int i = 0; i < ptext->key2->size; ++i)
+
+   ptext->key1_lookup = malloc(65538 * sizeof(unsigned int)); /* ~64 KB, 65538 found by exhaustive tests */
+   if (ptext->key1_lookup == NULL)
    {
-      ptext->key2_final[12] = ptext->key2->array[i];
-      recurse_key2(ptext, table, 12);
+      ptext_final_deinit(table);
+      return -1;
    }
 
+   /* generate lsb(k0{n}) lookup table */
+   memset(ptext->lsbk0_count, 0, 256*sizeof(unsigned int));
+   for (unsigned int i = 0, p = 0; i < 256; ++i, p+=3645876429u)
+   {
+      unsigned char msb = p >> 24;
+      ptext->lsbk0_lookup[msb][ptext->lsbk0_count[msb]++] = i;
+   }
+
+   for (unsigned int i = 0; i < ptext->key2->size; ++i)
+   {
+      printf("Processing key2 no: %d\n", i + 1);
+      ptext->key2_final[12] = ptext->key2->array[i];
+      recurse_key2(ptext, table, 12);
+      if (ptext->key_found)
+         break;
+   }
+
+   free(ptext->key1_lookup);
    ptext_final_deinit(table);
    
-   return 0;
+   return (ptext->key_found == true ? 0 : -1);
 }

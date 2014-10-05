@@ -76,7 +76,7 @@ START_TEST(test_can_generate_next_table_from_plaintext)
                             KEY2_MASK_6BITS);
    key_table_uniq(key2_next_gen);
 
-   fail_if(key2_next_gen->size != 3172832);
+   fail_if(key2_next_gen->size != 2256896);
 
    key_table_free(key2_next_gen);
    key_table_free(key2_first_gen);

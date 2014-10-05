@@ -32,16 +32,16 @@ struct key2r
 static void generate_key2_bits_15_2(unsigned short *value, unsigned char key3)
 {
    unsigned char key3tmp;
-   unsigned int i = pow2(16);
    unsigned int valuei = 0;
-   do {
-      key3tmp = ((i | 2) * ((i | 3))) >> 8;
+   for (unsigned int i = 0; i < pow2(16); i += 4)
+   {
+      key3tmp = ((i | 2) * (i | 3)) >> 8;
       if (key3 == key3tmp)
       {
          value[valuei] = i;
          ++valuei;
       }
-   } while (i -= 4);
+   }
 }
 
 static unsigned short *generate_bits_15_2(void)
@@ -162,10 +162,10 @@ void key2r_compute_single(unsigned int key2i_plus_1,
       {
          unsigned int key2i_tmp;
 
-         /* save bits [31..8] */
-         key2i_tmp = key2i_bits31_8 & 0xffffff00;
+         /* save 22 most significant bits [31..10] */
+         key2i_tmp = key2i_bits31_8 & 0xfffffc00;
 
-         /* save bits [7..2] */
+         /* save bits [15..2] with common 6 bits*/
          key2i_tmp |= key2i_bits_15_2[i];
 
          /* save bits [1..0] */
