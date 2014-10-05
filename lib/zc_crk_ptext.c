@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
@@ -33,26 +34,29 @@
 #include "key_table.h"
 #include "key2_reduce.h"
 
+#define k2(index) ptext->key2_final[index]
+#define k1(index) ptext->key1_final[index]
+
 struct zc_crk_ptext
 {
    struct zc_ctx *ctx;
    int refcount;
-   unsigned char *plaintext;
-   unsigned char *ciphertext;
+   uint8_t *plaintext;
+   uint8_t *ciphertext;
    size_t size;
    struct key_table *key2;
    struct key2r *k2r;
-   unsigned int key2_final[13];
-   unsigned int key1_final[13];
-   unsigned int key0_final[13];
-   unsigned int *key1_lookup;
-   unsigned int key1_lookup_size;
-   unsigned char lsbk0_lookup[256][2];
-   unsigned int lsbk0_count[256];
+   uint32_t key2_final[13];
+   uint32_t key1_final[13];
+   uint32_t key0_final[13];
+   uint32_t key1_lookup[65538];
+   uint32_t key1_lookup_size;
+   uint8_t lsbk0_lookup[256][2];
+   uint32_t lsbk0_count[256];
    bool key_found;
 };
 
-static unsigned char generate_key3(const struct zc_crk_ptext *ptext, unsigned int i)
+static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
 {
    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
 }
@@ -101,13 +105,15 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
    new->refcount = 1;
    new->key_found = false;
    *ptext = new;
+   
    dbg(ctx, "ptext %p created\n", new);
+   
    return 0;
 }
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
-                                    const unsigned char *plaintext,
-                                    const unsigned char *ciphertext,
+                                    const uint8_t *plaintext,
+                                    const uint8_t *ciphertext,
                                     size_t size)
 {
    if (size < 13)
@@ -148,8 +154,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
    struct key_table *key2i_plus_1;
    struct key_table *key2i;
-   unsigned char key3i;
-   unsigned char key3im1;
+   uint8_t key3i;
+   uint8_t key3im1;
    int err;
 
    /* first gen key2 */
@@ -167,8 +173,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    }
 
    /* perform reduction */
-   const unsigned int start_index = ptext->size - 2;
-   for (unsigned int i = start_index; i >= 12; --i)
+   const uint32_t start_index = ptext->size - 2;
+   for (uint32_t i = start_index; i >= 12; --i)
    {
       key3i = generate_key3(ptext, i);
       key3im1 = generate_key3(ptext, i - 1);
@@ -193,7 +199,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 
 static void ptext_final_deinit(struct key_table **key2)
 {
-   for (unsigned int i = 0; i < 12; ++i)
+   for (uint32_t i = 0; i < 12; ++i)
    {
       if (key2[i] != NULL)
       {
@@ -207,7 +213,7 @@ static int ptext_final_init(struct key_table **key2)
 {
    int err;
    
-   for (unsigned int i = 0; i < 12; ++i)
+   for (uint32_t i = 0; i < 12; ++i)
    {
       err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
       if (err)
@@ -220,36 +226,21 @@ static int ptext_final_init(struct key_table **key2)
    return 0;
 }
 
-static inline unsigned int key2_at(const struct zc_crk_ptext *ptext, unsigned int index)
+inline static uint32_t compute_key1im1_plus_lsbkey0i(uint32_t key1i)
 {
-   return ptext->key2_final[index];
+   return (key1i - 1) * MULTINV;
 }
 
-static inline unsigned int key1_at(const struct zc_crk_ptext *ptext, unsigned int index)
+static uint32_t compute_key1_msb(struct zc_crk_ptext *ptext, uint32_t current_idx)
 {
-   return ptext->key1_final[index];
-}
-
-inline static unsigned int msb_mask(unsigned int value)
-{
-   return value & 0xff000000;
-}
-
-inline static unsigned int compute_key1im1_plus_lsbkey0i(unsigned int key1i)
-{
-   return (key1i - 1) * 3645876429u; /* modular multiplicative inverse mod2^32 */
-}
-
-static unsigned int compute_key1_msb(struct zc_crk_ptext *ptext, unsigned int current_idx)
-{
-   const unsigned int key2i = key2_at(ptext, current_idx);
-   const unsigned int key2im1 = key2_at(ptext, current_idx - 1);
+   const uint32_t key2i = k2(current_idx);
+   const uint32_t key2im1 = k2(current_idx - 1);
    return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   unsigned int key0;
+   uint32_t key0;
 
    /* calculate key0_6{0..15} */
    key0 = (ptext->key0_final[7] ^ crc_32_tab[ptext->key0_final[6] ^ ptext->plaintext[6]]) << 8;
@@ -264,8 +255,8 @@ static void compute_key0(struct zc_crk_ptext *ptext)
    key0 = (key0 | ptext->key0_final[4]);
 
    /* verify against known bytes */
-   unsigned int tmp = key0;
-   for (unsigned int i = 4; i < 12; ++i)
+   uint32_t tmp = key0;
+   for (uint32_t i = 4; i < 12; ++i)
    {
       tmp = crc32(tmp, ptext->plaintext[i]);
       if ((tmp & 0xff) != ptext->key0_final[i + 1])
@@ -277,7 +268,7 @@ static void compute_key0(struct zc_crk_ptext *ptext)
    ptext->key_found = true;
 }
 
-static void recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
+static void recurse_key1(struct zc_crk_ptext *ptext, uint32_t current_idx)
 {
    if (current_idx == 3)
    {
@@ -285,17 +276,17 @@ static void recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
       return;
    }
 
-   unsigned int key1i = key1_at(ptext, current_idx);
-   unsigned int rhs_step1 = (key1i - 1) * 3645876429u;
-   unsigned int rhs_step2 = (rhs_step1 - 1) * 3645876429u;
-   unsigned char diff = (rhs_step2 - (key1_at(ptext, current_idx - 2)&0xff000000)) >> 24;
+   uint32_t key1i = k1(current_idx);
+   uint32_t rhs_step1 = (key1i - 1) * MULTINV;
+   uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
+   uint8_t diff = msb(rhs_step2 - (mask_msb(k1(current_idx - 2))));
 
-   for (unsigned int c = 2; c != 0; --c, --diff)
+   for (uint32_t c = 2; c != 0; --c, --diff)
    {
-      for (unsigned int i = 0; i < ptext->lsbk0_count[diff]; ++i)
+      for (uint32_t i = 0; i < ptext->lsbk0_count[diff]; ++i)
       {
-         unsigned int lsbkey0i = ptext->lsbk0_lookup[diff][i];
-         if (((rhs_step1 - lsbkey0i) & 0xff000000) == msb_mask(key1_at(ptext, current_idx - 1)))
+         uint32_t lsbkey0i = ptext->lsbk0_lookup[diff][i];
+         if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1)))
          {
             ptext->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
             ptext->key0_final[current_idx] = lsbkey0i;
@@ -307,7 +298,7 @@ static void recurse_key1(struct zc_crk_ptext *ptext, unsigned int current_idx)
 
 static void compute_key1(struct zc_crk_ptext *ptext)
 {
-   for (unsigned int i = 0; i < ptext->key1_lookup_size; ++i)
+   for (uint32_t i = 0; i < ptext->key1_lookup_size; ++i)
    {
       ptext->key1_final[12] = ptext->key1_lookup[i];
       recurse_key1(ptext, 12);
@@ -315,26 +306,26 @@ static void compute_key1(struct zc_crk_ptext *ptext)
 }
 
 static void generate_key1_lookup(struct zc_crk_ptext *ptext,
-                                 unsigned int key1_11_msb, unsigned int key1_12_msb)
+                                 uint32_t key1_11_msb, uint32_t key1_12_msb)
 {
-   unsigned int key1idx = 0;
+   uint32_t key1idx = 0;
 
    /* find matching msb, section 3.3 from Biham & Kocher */
-   for (unsigned int i = 0; i < pow2(24); ++i)
+   for (uint32_t i = 0; i < pow2(24); ++i)
    {
-      const unsigned int key1_12_tmp = (key1_12_msb & 0xff000000) | i;
-      const unsigned int key1_11_tmp = (key1_12_tmp - 1) * 3645876429u; /* modular multiplicative inverse mod2^32 */
-      if ((key1_11_tmp & 0xff000000) == (key1_11_msb & 0xff000000))
+      const uint32_t key1_12_tmp = mask_msb(key1_12_msb) | i;
+      const uint32_t key1_11_tmp = (key1_12_tmp - 1) * MULTINV;
+      if (mask_msb(key1_11_tmp) == mask_msb(key1_11_msb))
          ptext->key1_lookup[key1idx++] = key1_12_tmp;
    }
 
    ptext->key1_lookup_size = key1idx;
 }
 
-static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, unsigned int current_idx)
+static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, uint32_t current_idx)
 {
-   unsigned char key3im1;
-   unsigned char key3im2;
+   uint8_t key3im1;
+   uint8_t key3im2;
 
    if (current_idx == 1)
    {
@@ -348,7 +339,7 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, u
    /* empty table before appending new keys */
    key_table_empty(table[current_idx - 1]);
    
-   key2r_compute_single(ptext->key2_final[current_idx],
+   key2r_compute_single(k2(current_idx),
                         table[current_idx - 1],
                         key2r_get_bits_15_2(ptext->k2r, key3im1),
                         key2r_get_bits_15_2(ptext->k2r, key3im2),
@@ -356,13 +347,25 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, u
 
    key_table_uniq(table[current_idx - 1]);
 
-   for (unsigned int i = 0; i < table[current_idx - 1]->size; ++i)
+   for (uint32_t i = 0; i < table[current_idx - 1]->size; ++i)
    {
       ptext->key2_final[current_idx - 1] = key_table_at(table[current_idx - 1], i);
       ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
       if (current_idx == 11)
          generate_key1_lookup(ptext, ptext->key1_final[11], ptext->key1_final[12]);
       recurse_key2(ptext, table, current_idx - 1);
+   }
+}
+
+static void generate_key0lsb(struct zc_crk_ptext *ptext)
+{
+   /* reset lsb counters to 0 */
+   memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
+   
+   for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV)
+   {
+      uint8_t msbp = msb(p);
+      ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
    }
 }
 
@@ -375,22 +378,9 @@ ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
    if (err)
       return -1;
 
-   ptext->key1_lookup = malloc(65538 * sizeof(unsigned int)); /* ~64 KB, 65538 found by exhaustive tests */
-   if (ptext->key1_lookup == NULL)
-   {
-      ptext_final_deinit(table);
-      return -1;
-   }
+   generate_key0lsb(ptext);
 
-   /* generate lsb(k0{n}) lookup table */
-   memset(ptext->lsbk0_count, 0, 256*sizeof(unsigned int));
-   for (unsigned int i = 0, p = 0; i < 256; ++i, p+=3645876429u)
-   {
-      unsigned char msb = p >> 24;
-      ptext->lsbk0_lookup[msb][ptext->lsbk0_count[msb]++] = i;
-   }
-
-   for (unsigned int i = 0; i < ptext->key2->size; ++i)
+   for (uint32_t i = 0; i < ptext->key2->size; ++i)
    {
       printf("Processing key2 no: %d\n", i + 1);
       ptext->key2_final[12] = ptext->key2->array[i];
@@ -399,7 +389,6 @@ ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
          break;
    }
 
-   free(ptext->key1_lookup);
    ptext_final_deinit(table);
    
    return (ptext->key_found == true ? 0 : -1);
