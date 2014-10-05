@@ -44,7 +44,7 @@ struct zc_crk_bforce
 static inline void update_keys(char c, encryption_key *k)
 {
    k[0] = crc32(k[0], c);
-   k[1] = (k[1] + (k[0] & 0x000000ff)) * 134775813 + 1;
+   k[1] = (k[1] + (k[0] & 0x000000ff)) * MULT + 1;
    k[2] = crc32(k[2], k[1] >> 24);
 }
 

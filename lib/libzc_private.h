@@ -21,6 +21,7 @@
 
 #include <stdbool.h>
 #include <syslog.h>
+#include <stdint.h>
 
 #include "libzc.h"
 
@@ -60,9 +61,27 @@ void zc_log(struct zc_ctx *ctx,
             const char *format, ...)
    __attribute__((format(printf, 6, 7)));
 
-static inline unsigned int pow2(unsigned int power)
+static inline uint32_t pow2(uint32_t p)
 {
-   return (1 << power);
+   return (1 << p);
 }
+
+static inline uint32_t mask_msb(uint32_t v)
+{
+   return (v & 0xff000000);
+}
+
+static inline uint32_t mask_lsb(uint32_t v)
+{
+   return (v & 0x000000ff);
+}
+
+static inline uint8_t msb(uint32_t v)
+{
+   return (v >> 24);
+}
+
+#define MULT 134775813u
+#define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
 
 #endif
