@@ -241,6 +241,18 @@ static uint32_t compute_key1_msb(struct zc_crk_ptext *ptext, uint32_t current_id
    return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
+static bool verify_key0(struct zc_crk_ptext *ptext, uint32_t key0,
+                        uint32_t start, uint32_t stop)
+{
+   for (uint32_t i = start; i < stop; ++i)
+   {
+      key0 = crc32(key0, plaintext(i));
+      if (mask_lsb(key0) != k0(i + 1))
+         return false;
+   }
+   return true;
+}
+
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
    uint32_t key0;
@@ -258,15 +270,8 @@ static void compute_key0(struct zc_crk_ptext *ptext)
    key0 = (key0 | k0(4));
 
    /* verify against known bytes */
-   uint32_t tmp = key0;
-   for (uint32_t i = 4; i < 12; ++i)
-   {
-      tmp = crc32(tmp, plaintext(i));
-      if ((tmp & 0xff) != k0(i + 1))
-         return;
-   }
-
-   printf("FOUND!\n");
+   if (!verify_key0(ptext, key0, 4, 12))
+      return;
 
    ptext->key_found = true;
 }
