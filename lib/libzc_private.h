@@ -81,6 +81,11 @@ static inline uint8_t msb(uint32_t v)
    return (v >> 24);
 }
 
+static inline uint8_t lsb(uint32_t v)
+{
+   return (v & 0xff);
+}
+
 #define MULT 134775813u
 #define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
 

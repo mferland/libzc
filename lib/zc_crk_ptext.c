@@ -253,9 +253,37 @@ static bool verify_key0(struct zc_crk_ptext *ptext, uint32_t key0,
    return true;
 }
 
+static void compute_internal_rep(struct zc_crk_ptext *ptext,
+                                 uint32_t *key0, uint32_t *key1, uint32_t *key2)
+{
+   uint32_t i = 4, key3 = 0;
+
+   *key2 = k2(i);
+   *key1 = k1(i);
+   /* key0 is already set */
+   
+   do
+   {
+      *key2 = crc32inv(*key2, msb(*key1));
+      *key1 = ((*key1 - 1) * MULTINV) - lsb(*key0);
+      uint32_t tmp = *key2 | 3;
+      key3 = lsb((tmp * (tmp ^ 1)) >> 8);
+      uint8_t p = cipher(i - 1) ^ key3;
+      *key0 = crc32inv(*key0, p);
+      if (p != plaintext(i - 1))
+         break;
+      --i;
+   } while (i > 0);
+
+   if (i == 0)
+      printf("Key at i==0: key0:%8x, key1:%8x, key2:%8x\n", *key0, *key1, *key2);
+   else
+      printf("False hit!\n");
+}
+
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   uint32_t key0;
+   uint32_t key0, key1, key2;
 
    /* calculate key0_6{0..15} */
    key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;
@@ -273,6 +301,8 @@ static void compute_key0(struct zc_crk_ptext *ptext)
    if (!verify_key0(ptext, key0, 4, 12))
       return;
 
+   compute_internal_rep(ptext, &key0, &key1, &key2);
+   
    ptext->key_found = true;
 }
 
