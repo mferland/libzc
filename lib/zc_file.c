@@ -194,7 +194,14 @@ ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_va
    return valid_files;
 }
 
-ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, void *buf, long offset, size_t count)
+static bool filename_matches(const char *in_name, const struct zip_header *h)
+{
+   const char *name = zip_header_filename(h);
+   size_t len = zip_header_filename_len(h);
+   return strncmp(name, in_name, len) == 0;
+}
+
+ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_name, void *buf, long offset, size_t count)
 {
    unsigned char encryption_header[12];
    struct zip_header *zip_header;
@@ -222,7 +229,7 @@ ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, vo
             goto error;
       }
 
-      if (current_index == file_index)
+      if (filename_matches(in_name, zip_header))
       {
          long lastpos;
          size_t readitems;

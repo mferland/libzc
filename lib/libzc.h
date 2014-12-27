@@ -70,7 +70,7 @@ int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
-int zc_file_read_cipher_bytes(struct zc_file *file, int file_index, void *buf, long offset, size_t count);
+int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_name, void *buf, long offset, size_t count);
 bool zc_file_test_password(const char *filename, const char *pw);
 
 /**
@@ -137,7 +137,11 @@ int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                           const unsigned char *ciphertext,
                           size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_final(struct zc_crk_ptext *ptext);
+int zc_crk_ptext_attack(struct zc_crk_ptext *ptext);
+/* int zc_crk_ptext_set_file(); */
+/* int zc_crk_ptext_find_key(struct zc_crk_ptext *ptext, const char *filename, size_t start_offset, struct zc_key *key); */
+/* try to find the textual (ASCII) password */
+/* int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext, ); */
 
 #ifdef __cplusplus
 } /* extern "C" */

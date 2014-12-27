@@ -225,3 +225,13 @@ int zip_skip_to_next_header(FILE *fd, const struct zip_header *header)
    }
    return 0;
 }
+
+const char *zip_header_filename(const struct zip_header *header)
+{
+   return header->filename;
+}
+
+size_t zip_header_filename_len(const struct zip_header *header)
+{
+   return header->filename_length;
+}

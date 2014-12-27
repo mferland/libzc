@@ -52,7 +52,7 @@ struct zc_crk_ptext
    uint32_t key2_final[13];
    uint32_t key1_final[13];
    uint32_t key0_final[13];
-   uint32_t key1_lookup[65538];
+   uint32_t key1_lookup[65538]; /* TODO: remove this */
    uint32_t key1_lookup_size;
    uint8_t lsbk0_lookup[256][2];
    uint32_t lsbk0_count[256];
@@ -407,7 +407,7 @@ static void generate_key0lsb(struct zc_crk_ptext *ptext)
    }
 }
 
-ZC_EXPORT int zc_crk_ptext_final(struct zc_crk_ptext *ptext)
+ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext)
 {
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
    int err;
