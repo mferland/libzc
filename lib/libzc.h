@@ -22,6 +22,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -126,8 +127,20 @@ int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_p
 /**
  * zc_crk_ptext:
  *
- * Plaintext cracker.
+ * Plaintext cracker. Typically you would call:
+ * 1- zc_crk_ptext_new();
+ * 2- zc_crk_ptext_set_text();
+ * 3- zc_crk_ptext_key2_reduction();
+ * 4- zc_crk_ptext_attack();
+ * 5- zc_crk_ptext_find_internal_rep();
+ * 6- zc_crk_ptext_unref();
  */
+struct zc_key
+{
+   uint32_t key0;
+   uint32_t key1;
+   uint32_t key2;
+};
 struct zc_crk_ptext;
 struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
 struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
@@ -137,12 +150,12 @@ int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                           const unsigned char *ciphertext,
                           size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_attack(struct zc_crk_ptext *ptext);
-/* int zc_crk_ptext_set_file(); */
-/* int zc_crk_ptext_find_key(struct zc_crk_ptext *ptext, const char *filename, size_t start_offset, struct zc_key *key); */
-/* try to find the textual (ASCII) password */
-/* int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext, ); */
-
+int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);
+int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
+                                   const unsigned char *ciphertext,
+                                   size_t size,
+                                   struct zc_key *internal_rep);
+int zc_crk_ptext_find_password(const struct zc_key *internal_rep);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

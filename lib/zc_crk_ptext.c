@@ -57,6 +57,7 @@ struct zc_crk_ptext
    uint8_t lsbk0_lookup[256][2];
    uint32_t lsbk0_count[256];
    bool key_found;
+   struct zc_key inter_rep;     /* intermediate representation of the key */
 };
 
 static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
@@ -253,57 +254,63 @@ static bool verify_key0(struct zc_crk_ptext *ptext, uint32_t key0,
    return true;
 }
 
-static void compute_internal_rep(struct zc_crk_ptext *ptext,
-                                 uint32_t *key0, uint32_t *key1, uint32_t *key2)
+static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext, struct zc_key *k)
 {
-   uint32_t i = 4, key3 = 0;
+   k->key2 = crc32inv(k->key2, msb(k->key1));
+   k->key1 = ((k->key1 - 1) * MULTINV) - lsb(k->key0);
+   uint32_t tmp = k->key2 | 3;
+   uint32_t key3 = lsb((tmp * (tmp ^ 1)) >> 8);
+   *plaintext = cipher ^ key3;
+   k->key0 = crc32inv(k->key0, *plaintext);
+}
 
-   *key2 = k2(i);
-   *key1 = k1(i);
+static int compute_intermediate_internal_rep(struct zc_crk_ptext *ptext, struct zc_key *k)
+{
+   uint32_t i = 4;
+
+   k->key2 = k2(i);
+   k->key1 = k1(i);
    /* key0 is already set */
    
    do
    {
-      *key2 = crc32inv(*key2, msb(*key1));
-      *key1 = ((*key1 - 1) * MULTINV) - lsb(*key0);
-      uint32_t tmp = *key2 | 3;
-      key3 = lsb((tmp * (tmp ^ 1)) >> 8);
-      uint8_t p = cipher(i - 1) ^ key3;
-      *key0 = crc32inv(*key0, p);
+      uint8_t p;
+      compute_one_intermediate_int_rep(cipher(i - 1), &p, k);
       if (p != plaintext(i - 1))
          break;
       --i;
    } while (i > 0);
 
    if (i == 0)
-      printf("Key at i==0: key0:%8x, key1:%8x, key2:%8x\n", *key0, *key1, *key2);
-   else
-      printf("False hit!\n");
+   {
+      ptext->inter_rep = *k;
+      return 0;
+   }
+   return -1;
 }
 
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   uint32_t key0, key1, key2;
+   struct zc_key k;
 
    /* calculate key0_6{0..15} */
-   key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;
-   key0 = (key0 | k0(6)) & 0x0000ffff;
+   k.key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;
+   k.key0 = (k.key0 | k0(6)) & 0x0000ffff;
 
    /* calculate key0_5{0..23} */
-   key0 = (key0 ^ crc_32_tab[k0(5) ^ plaintext(5)]) << 8;
-   key0 = (key0 | k0(5)) & 0x00ffffff;
+   k.key0 = (k.key0 ^ crc_32_tab[k0(5) ^ plaintext(5)]) << 8;
+   k.key0 = (k.key0 | k0(5)) & 0x00ffffff;
 
    /* calculate key0_4{0..31} */
-   key0 = (key0 ^ crc_32_tab[k0(4) ^ plaintext(4)]) << 8;
-   key0 = (key0 | k0(4));
+   k.key0 = (k.key0 ^ crc_32_tab[k0(4) ^ plaintext(4)]) << 8;
+   k.key0 = (k.key0 | k0(4));
 
    /* verify against known bytes */
-   if (!verify_key0(ptext, key0, 4, 12))
+   if (!verify_key0(ptext, k.key0, 4, 12))
       return;
 
-   compute_internal_rep(ptext, &key0, &key1, &key2);
-   
-   ptext->key_found = true;
+   if (compute_intermediate_internal_rep(ptext, &k) == 0)
+      ptext->key_found = true;
 }
 
 static void recurse_key1(struct zc_crk_ptext *ptext, uint32_t current_idx)
@@ -407,7 +414,7 @@ static void generate_key0lsb(struct zc_crk_ptext *ptext)
    }
 }
 
-ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext)
+ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key)
 {
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
    int err;
@@ -418,16 +425,50 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext)
 
    generate_key0lsb(ptext);
 
+   ptext->key_found = false;
    for (uint32_t i = 0; i < ptext->key2->size; ++i)
    {
       printf("Processing key2 no: %d\n", i + 1);
       ptext->key2_final[12] = ptext->key2->array[i];
       recurse_key2(ptext, table, 12);
       if (ptext->key_found)
+      {
+         out_key->key0 = ptext->inter_rep.key0;
+         out_key->key1 = ptext->inter_rep.key1;
+         out_key->key2 = ptext->inter_rep.key2;
          break;
+      }
    }
 
    ptext_final_deinit(table);
-   
    return (ptext->key_found == true ? 0 : -1);
+}
+
+ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
+                                             const unsigned char *ciphertext, size_t size,
+                                             struct zc_key *internal_rep)
+{
+   struct zc_key k;
+   uint32_t i;
+   
+   /* the cipher text also includes the 12 prepreded bytes */
+   if (size < 12)
+      return -1;
+
+   i = size - 1;
+   k = *start_key;
+   do
+   {
+      uint8_t p;
+      compute_one_intermediate_int_rep(ciphertext[i], &p, &k);
+   } while (i--);
+   
+   *internal_rep = k;
+   return 0;
+}
+
+ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep)
+{
+   /* TODO */
+   return 0;
 }

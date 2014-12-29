@@ -39,6 +39,8 @@ global:
         zc_crk_ptext_set_text;
         zc_crk_ptext_key2_reduction;
         zc_crk_ptext_attack;
+        zc_crk_ptext_find_internal_rep;
+        zc_crk_ptext_find_password;
         zc_pwdict_new_from_filename;
         zc_pwdict_unref;
         zc_pwdict_open;

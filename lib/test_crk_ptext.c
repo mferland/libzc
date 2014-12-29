@@ -46,7 +46,7 @@ START_TEST(test_zc_ptext_set_cipher_and_plaintext)
 {
    struct zc_crk_ptext *ptext;
    fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
-   fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, 500) == 0, NULL);
+   fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, TEST_PLAINTEXT_SIZE) == 0, NULL);
    fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
 }
 END_TEST
@@ -54,11 +54,32 @@ END_TEST
 START_TEST(test_zc_crk_ptext_attack)
 {
    struct zc_crk_ptext *ptext;
+   struct zc_key out_key;
    fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
-   fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, 500) == 0, NULL);
+   fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, TEST_PLAINTEXT_SIZE) == 0, NULL);
    fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL);
-   fail_unless(zc_crk_ptext_attack(ptext) == 0, NULL);
+   fail_unless(zc_crk_ptext_attack(ptext, &out_key) == 0, NULL);
    fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_internal_rep)
+{
+   struct zc_key out_key = { .key0 = 0x6b1e4593, .key1 = 0xd81e41ed, .key2 = 0x9a616e02 };
+   struct zc_key internal_rep;
+   fail_unless(zc_crk_ptext_find_internal_rep(&out_key, test_encrypted_header, 12, &internal_rep) == 0, NULL);
+   fail_unless(internal_rep.key0 == 0x9ccebdf4 &&
+               internal_rep.key1 == 0x758c65be &&
+               internal_rep.key2 == 0xc661eb70, NULL);
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password)
+{
+   struct zc_key internal_rep = { .key0 = 0x9ccebdf4,
+                                  .key1 = 0x758c65be,
+                                  .key2 = 0xc661eb70 };
+   fail_unless(zc_crk_ptext_find_password(&internal_rep) == 0, NULL);
 }
 END_TEST
 
@@ -70,7 +91,9 @@ Suite *make_libzc_ptext_suite()
    tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
    tcase_add_test(tc_core, test_zc_ptext_new);
    tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
-   tcase_add_test(tc_core, test_zc_crk_ptext_attack);
+   // tcase_add_test(tc_core, test_zc_crk_ptext_attack);
+   tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
+   tcase_add_test(tc_core, test_zc_crk_ptext_find_password);
    suite_add_tcase(s, tc_core);
 
    return s;
