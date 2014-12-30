@@ -59,6 +59,9 @@ START_TEST(test_zc_crk_ptext_attack)
    fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext, TEST_PLAINTEXT_SIZE) == 0, NULL);
    fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL);
    fail_unless(zc_crk_ptext_attack(ptext, &out_key) == 0, NULL);
+   fail_unless(out_key.key0 == 0x6b1e4593 &&
+               out_key.key1 == 0xd81e41ed &&
+               out_key.key2 == 0x9a616e02, NULL);
    fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
 }
 END_TEST
@@ -91,7 +94,7 @@ Suite *make_libzc_ptext_suite()
    tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
    tcase_add_test(tc_core, test_zc_ptext_new);
    tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
-   // tcase_add_test(tc_core, test_zc_crk_ptext_attack);
+   tcase_add_test(tc_core, test_zc_crk_ptext_attack);
    tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
    tcase_add_test(tc_core, test_zc_crk_ptext_find_password);
    suite_add_tcase(s, tc_core);

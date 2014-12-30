@@ -52,8 +52,6 @@ struct zc_crk_ptext
    uint32_t key2_final[13];
    uint32_t key1_final[13];
    uint32_t key0_final[13];
-   uint32_t key1_lookup[65538]; /* TODO: remove this */
-   uint32_t key1_lookup_size;
    uint8_t lsbk0_lookup[256][2];
    uint32_t lsbk0_count[256];
    bool key_found;
@@ -343,28 +341,17 @@ static void recurse_key1(struct zc_crk_ptext *ptext, uint32_t current_idx)
 
 static void compute_key1(struct zc_crk_ptext *ptext)
 {
-   for (uint32_t i = 0; i < ptext->key1_lookup_size; ++i)
-   {
-      ptext->key1_final[12] = ptext->key1_lookup[i];
-      recurse_key1(ptext, 12);
-   }
-}
-
-static void generate_key1_lookup(struct zc_crk_ptext *ptext,
-                                 uint32_t key1_11_msb, uint32_t key1_12_msb)
-{
-   uint32_t key1idx = 0;
-
    /* find matching msb, section 3.3 from Biham & Kocher */
    for (uint32_t i = 0; i < pow2(24); ++i)
    {
-      const uint32_t key1_12_tmp = mask_msb(key1_12_msb) | i;
+      const uint32_t key1_12_tmp = mask_msb(k1(12)) | i;
       const uint32_t key1_11_tmp = (key1_12_tmp - 1) * MULTINV;
-      if (mask_msb(key1_11_tmp) == mask_msb(key1_11_msb))
-         ptext->key1_lookup[key1idx++] = key1_12_tmp;
+      if (mask_msb(key1_11_tmp) == mask_msb(k1(11)))
+      {
+         ptext->key1_final[12] = key1_12_tmp;
+         recurse_key1(ptext, 12);
+      }
    }
-
-   ptext->key1_lookup_size = key1idx;
 }
 
 static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, uint32_t current_idx)
@@ -396,8 +383,6 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, u
    {
       ptext->key2_final[current_idx - 1] = key_table_at(table[current_idx - 1], i);
       ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
-      if (current_idx == 11)
-         generate_key1_lookup(ptext, ptext->key1_final[11], ptext->key1_final[12]);
       recurse_key2(ptext, table, current_idx - 1);
    }
 }
