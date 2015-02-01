@@ -91,11 +91,14 @@ static const struct option long_opts[] = {
    {NULL, 0, 0, 0}
 };
 
-static void print_help(const char *cmdname)
+static void print_help(const char *name)
 {
    fprintf(stderr,
            "Usage:\n"
            "\t%s [options] filename\n"
+           "\n"
+           "The '%s' subcommand tests every password combination until the\n"
+           "right one is found.\n"
            "Options:\n"
            "\t-c, --charset=CHARSET   use character set CHARSET\n"
            "\t-i, --initial=STRING    initial password\n"
@@ -106,7 +109,7 @@ static void print_help(const char *cmdname)
            "\t-s, --special           use special characters\n"
            "\t-t, --threads=NUM       spawn NUM threads\n"
            "\t-h, --help              show this help\n",
-           cmdname);
+           name, name);
 }
 
 static int compare_char(const void *a, const void *b)
@@ -147,7 +150,7 @@ static char *make_charset(bool alpha, bool alphacaps, bool num, bool special)
 {
    char *str;
    size_t len = 0;
-   
+
    if (alpha)
       len += lowercase_set.len;
    if (alphacaps)
@@ -209,7 +212,7 @@ static void *worker(void *t)
 {
    pthread_barrier_wait(&barrier);
    pthread_cleanup_push(worker_cleanup_handler, t);
-   
+
    struct cleanup_node *node = (struct cleanup_node *)t;
    char pw[PW_LEN_MAX + 1];
    int err;
@@ -220,7 +223,7 @@ static void *worker(void *t)
       pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
       err = zc_crk_bforce_start(node->crk, pw, sizeof(pw));
       pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-      
+
       if (err)
          break;
 
@@ -230,10 +233,10 @@ static void *worker(void *t)
          node->found = true;
          break;
       }
-      
+
       err = zc_crk_bforce_skip(node->crk, pw, sizeof(pw));
    } while (err == 0);
-   
+
    pthread_cleanup_pop(1);
    return NULL;
 }
@@ -243,15 +246,15 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
    struct zc_pwgen *tmp = NULL;
    const char *worker_pw = NULL;
    int err;
-   
+
    err = zc_pwgen_new(args.ctx, &tmp);
    if (err)
       return err;
-   
+
    err = zc_pwgen_init(tmp, args.charset, args.maxlength);
    if (err)
       goto error;
-   
+
    zc_pwgen_reset(tmp, args.initial);
 
    if (thread_num > 1)
@@ -271,7 +274,7 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
       }
       zc_pwgen_reset(tmp, worker_pw);
    }
-   
+
    zc_pwgen_set_step(tmp, args.workers);
    *pwgen = tmp;
    return 0;
@@ -315,7 +318,7 @@ static int start_worker_threads(void)
    err = pthread_barrier_init(&barrier, NULL, args.workers);
    if (err)
       fatal("failed to initialise barrier\n");
-   
+
    for (i = 0; i < args.workers; ++i)
    {
       cleanup_nodes[i].thread_num = i + 1;
@@ -343,7 +346,7 @@ static int wait_worker_threads(void)
 static int launch_crack(void)
 {
    int err;
-   
+
    zc_new(&args.ctx);
    if (!args.ctx)
    {
@@ -369,7 +372,7 @@ static int launch_crack(void)
       cleanup_queue_destroy(cleanup_queue);
       goto cleanup;
    }
-   
+
    err = start_worker_threads();
    if (!err)
       err = wait_worker_threads();

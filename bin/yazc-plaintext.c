@@ -55,20 +55,28 @@ struct filed
 static struct filed cipher = { NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = { NULL, 0, 0, 0, -1, NULL};
 
-static void print_help(const char *cmdname)
+static void print_help(const char *name)
 {
    fprintf(stderr,
            "Usage:\n"
-           "\t%s plain:begin:end cipher:begin:end:upto \n"
+           "\t%s PLAIN:OFF1:OFF2 CIPHER:OFF1:OFF2:BEGIN\n"
+           "\n"
+           "The plaintext subcommand uses a known vulnerability in the pkzip\n"
+           "stream cipher to find the internal representation of the encryption\n"
+           "key. To use this attack type you need at least 13 known plaintext\n"
+           "bytes from any file in the archive.\n"
            "\n"
            "Example:\n"
-           "cleartext.bin contains 250 cleartext bytes from offset 100 to\n"
-           "350. These are mapped to archive.zip from 340 to 590. The encrypted\n"
-           "stream in archive.zip is followed up to offset 300.\n"
-           "   yazc plaintext cleartext.bin:100:350 archive.zip:340:590:300\n"
+           "\t %s plain.bin:100:650 archive.zip:112:662:64\n"
+           "\n"
+           "Use plaintext bytes [100:650] and map then to ciphertext bytes\n"
+           "[112:662]. Use these bytes to reduce the number of keys and perform\n"
+           "the attack. Once the intermediate key is found, decrypt the rest of\n"
+           "the cipher (begins at offset 64) to get the internal representation.\n"
+           "\n"
            "Options:\n"
            "\t-h, --help              show this help\n",
-           cmdname);
+           name, name);
 }
 
 static int parse_offset(const char *tok, off_t *offset)
