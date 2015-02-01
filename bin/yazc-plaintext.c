@@ -23,6 +23,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "yazc.h"
 #include "libzc.h"
@@ -35,13 +40,20 @@ static const struct option long_opts[] =
 };
 
 static struct zc_ctx *ctx;
-static const char *file_ptext = NULL;
-static const char *file_cipher = NULL;
-static size_t plain_begin = 0;
-static size_t plain_end = 0;
-static size_t cipher_begin = 0;
-static size_t cipher_end = 0;
-static size_t cipher_remain = 0;
+struct filed
+{
+   const char *name;           /* file name */
+   int fd;                     /* file descriptor */
+   off_t txt_begin;            /* begin offset of the plain or cipher text */
+   off_t txt_end;              /* end offset of the plain or cipher text */
+   off_t file_begin;           /* offset of the first byte for the
+                                  file we are using in the encrypted
+                                  archive */
+   void *map;
+};
+
+static struct filed cipher = { NULL, 0, 0, 0, -1, NULL};
+static struct filed plain = { NULL, 0, 0, 0, -1, NULL};
 
 static void print_help(const char *cmdname)
 {
@@ -59,7 +71,7 @@ static void print_help(const char *cmdname)
            cmdname);
 }
 
-static int parse_offset(const char *tok, size_t *offset)
+static int parse_offset(const char *tok, off_t *offset)
 {
    char *endptr;
    long int val = strtol(tok, &endptr, 0);
@@ -74,7 +86,7 @@ static int parse_offset(const char *tok, size_t *offset)
    return 0;
 }
 
-static int parse_opt(char *opt, int count, const char **filename, size_t *off1, size_t *off2, size_t *off3)
+static int parse_opt(char *opt, int count, const char **filename, off_t *off1, off_t *off2, off_t *off3)
 {
    char *saveptr, *token;
    int err;
@@ -99,18 +111,90 @@ static int parse_opt(char *opt, int count, const char **filename, size_t *off1, 
          return -1;
    }
 
-   /* TODO: remove */
-   printf("filename: %s\n", *filename);
-   printf("off1: %d\n", off1 != NULL ? *off1 : 0);
-   printf("off2: %d\n", off2 != NULL ? *off2 : 0);
-   printf("off3: %d\n", off3 != NULL ? *off3 : 0);
+   return 0;
+}
 
+static bool validate_offsets()
+{
+   if (plain.txt_begin >= plain.txt_end ||
+       cipher.txt_begin >= cipher.txt_end)
+      return false;
+   if (plain.txt_end - plain.txt_begin < 13 ||
+       cipher.txt_end - cipher.txt_begin < 13)
+      return false;
+   if (plain.txt_end - plain.txt_begin != cipher.txt_end - cipher.txt_begin)
+      return false;
+   if (cipher.file_begin > cipher.txt_begin)
+      return false;
+   if (cipher.txt_begin - cipher.file_begin < 12)
+      return false;
+   return true;
+}
+
+static off_t offset_in_file(const struct filed *file)
+{
+   return file->file_begin == -1 ? file->txt_begin : file->file_begin;
+}
+
+static size_t size_of_map(const struct filed *file)
+{
+   return file->txt_end - offset_in_file(file) + 1;
+}
+
+static int mmap_text_buf(struct filed *file)
+{
+   int fd;
+   void *map;
+   struct stat filestat;
+
+   fd = open(file->name, O_RDONLY);
+   if (fd < 0)
+   {
+      yazc_err("open() failed: %s.\n", strerror(errno));
+      return -1;
+   }
+
+   if (fstat(fd, &filestat) < 0)
+   {
+      yazc_err("fstat() failed: %s.\n", strerror(errno));
+      goto error;
+   }
+
+   if (filestat.st_size == 0)
+   {
+      yazc_err("file is empty.\n");
+      goto error;
+   }
+
+   map = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+   if (map == MAP_FAILED)
+   {
+      yazc_err("mmap() failed: %s.\n", strerror(errno));
+      goto error;
+   }
+
+   file->fd = fd;
+   file->map = map;
+
+   return 0;
+
+ error:
+   close(fd);
+   return -1;
+}
+
+static int unmap_text_buf(struct filed *file)
+{
+   if (munmap(file->map, size_of_map(file)) < 0)
+      yazc_err("munmap() failed: %s.\n", strerror(errno));
+   close(file->fd);
    return 0;
 }
 
 static int do_plaintext(int argc, char *argv[])
 {
    int err = 0;
+   struct zc_crk_ptext *ptext;
 
    for (;;)
    {
@@ -125,48 +209,117 @@ static int do_plaintext(int argc, char *argv[])
          print_help(basename(argv[0]));
          return EXIT_SUCCESS;
       default:
-         fprintf(stderr, "Error: unexpected getopt_long() value '%c'.\n", c);
+         yazc_err("unexpected getopt_long() value '%c'.\n", c);
          return EXIT_FAILURE;
       }
    }
 
    if (optind + 1 >= argc)
    {
-      fputs("Error: incorrect arguments\n", stderr);
+      yazc_err("invalid arguments.\n");
       print_help(basename(argv[0]));
       return EXIT_FAILURE;
    }
 
-   /* parse plaintext source */
-   /* TODO: remove */
-   printf("Plaintext: %s\n", argv[optind]);
-   printf("Cipher: %s\n", argv[optind + 1]);
-
-   err = parse_opt(argv[optind], 2, &file_ptext,
-                   &plain_begin, &plain_end, NULL);
-   if (err < 0)
+   if (parse_opt(argv[optind], 2, &plain.name,
+                 &plain.txt_begin, &plain.txt_end, NULL) < 0)
    {
-      fprintf(stderr, "Error parsing plaintext file offsets.\n");
+      yazc_err("parsing plaintext file offsets failed.\n");
       return EXIT_FAILURE;
    }
 
-   err = parse_opt(argv[optind + 1], 3, &file_cipher,
-                   &cipher_begin, &cipher_end, &cipher_remain);
-   if (err < 0)
+   if (parse_opt(argv[optind + 1], 3, &cipher.name,
+                 &cipher.txt_begin, &cipher.txt_end, &cipher.file_begin) < 0)
    {
-      fprintf(stderr, "Error parsing cipher file offsets.\n");
+      yazc_err("parsing cipher file offsets failed.\n");
       return EXIT_FAILURE;
+   }
+
+   if (!validate_offsets())
+   {
+      yazc_err("offsets validation failed.\n");
+      return EXIT_FAILURE;
+   }
+
+   if (mmap_text_buf(&plain) < 0)
+   {
+      yazc_err("mapping plaintext data failed.\n");
+      return EXIT_FAILURE;
+   }
+
+   if (mmap_text_buf(&cipher) < 0)
+   {
+      yazc_err("mapping ciphertext data failed.\n");
+      goto error1;
    }
 
    zc_new(&ctx);
    if (ctx == NULL)
    {
-      fputs("Error: zc_new() failed!\n", stderr);
-      return EXIT_FAILURE;
+      yazc_err("zc_new() failed!\n");
+      goto error2;
    }
 
-   zc_unref(ctx);
+   err = zc_crk_ptext_new(ctx, &ptext);
+   if (err < 0)
+   {
+      yazc_err("zc_crk_ptext_new() failed!\n");
+      goto error3;
+   }
 
+   err = zc_crk_ptext_set_text(ptext,
+                               &((const uint8_t*)plain.map)[plain.txt_begin],
+                               &((const uint8_t*)cipher.map)[cipher.txt_begin],
+                               size_of_map(&plain));
+
+   printf("Key2 reduction...");
+   fflush(stdout);
+   err = zc_crk_ptext_key2_reduction(ptext);
+   if (err < 0)
+   {
+      printf("\n");
+      yazc_err("reducing key2 candidates failed.\n");
+      goto error4;
+   }
+   printf(" done!\n");
+
+   printf("Attack running...");
+   fflush(stdout);
+   struct zc_key out_key;
+   err = zc_crk_ptext_attack(ptext, &out_key);
+   if (err < 0)
+   {
+      printf("\n");
+      yazc_err("attack failed! Wrong plaintext?\n");
+      goto error4;
+   }
+   printf(" done!\n");
+
+   printf("Intermediate key: 0x%x 0x%x 0x%x\n",
+          out_key.key0, out_key.key1, out_key.key2);
+
+   struct zc_key int_rep;
+   err = zc_crk_ptext_find_internal_rep(&out_key,
+                                        &((const uint8_t*)cipher.map)[cipher.file_begin],
+                                        cipher.txt_begin - cipher.file_begin,
+                                        &int_rep);
+   if (err < 0)
+   {
+      yazc_err("finding internal representation failed.\n");
+      goto error4;
+   }
+
+   printf("Internal key representation: 0x%x 0x%x 0x%x\n",
+          int_rep.key0, int_rep.key1, int_rep.key2);
+
+ error4:
+   zc_crk_ptext_unref(ptext);
+ error3:
+   zc_unref(ctx);
+ error2:
+   unmap_text_buf(&cipher);
+ error1:
+   unmap_text_buf(&plain);
    return err;
 }
 

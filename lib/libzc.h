@@ -146,13 +146,13 @@ struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
 struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
 int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext);
 int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
-                          const unsigned char *plaintext,
-                          const unsigned char *ciphertext,
+                          const uint8_t *plaintext,
+                          const uint8_t *ciphertext,
                           size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
 int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);
 int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
-                                   const unsigned char *ciphertext,
+                                   const uint8_t *ciphertext,
                                    size_t size,
                                    struct zc_key *internal_rep);
 int zc_crk_ptext_find_password(const struct zc_key *internal_rep);

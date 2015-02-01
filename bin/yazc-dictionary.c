@@ -82,7 +82,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
          }
       }
    } while (err == 0);
-   
+
    zc_pwdict_close(pwdict);
    zc_pwdict_unref(pwdict);
 
@@ -111,14 +111,14 @@ static int do_dictionary(int argc, char *argv[])
          print_help(basename(argv[0]));
          return EXIT_SUCCESS;
       default:
-         fprintf(stderr, "Error: unexpected getopt_long() value '%c'.\n", c);
+         yazc_err("unexpected getopt_long() value '%c'.\n", c);
          return EXIT_FAILURE;
       }
    }
 
    if (optind >= argc)
    {
-      fputs("Error: missing filename\n", stderr);
+      yazc_err("missing filename.\n");
       return EXIT_FAILURE;
    }
 
@@ -130,12 +130,12 @@ static int do_dictionary(int argc, char *argv[])
    zc_new(&ctx);
    if (ctx == NULL)
    {
-      fputs("Error: zc_new() failed!\n", stderr);
+      yazc_err("zc_new() failed!\n");
       return EXIT_FAILURE;
    }
 
    err = launch_crack(dict_filename, zip_filename);
-   
+
    zc_unref(ctx);
 
    return err;

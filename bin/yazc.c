@@ -44,7 +44,7 @@ static const struct yazc_cmd *yazc_cmds[] = {
 };
 #define YAZC_CMDS_COUNT 4
 
-static int help(int argc, char *argv[])
+static int help(int UNUSED(argc), char *argv[])
 {
    size_t i;
 
@@ -71,13 +71,23 @@ static const struct yazc_cmd yazc_cmd_help = {
    .help = "Show help message",
 };
 
-void yazc_log(const char *file, int line, const char *fn,
+void yazc_log(const char * UNUSED(file), int UNUSED(line), const char *fn,
               const char *format, ...)
 {
    va_list args;
 
    va_start(args, format);
    fprintf(stderr, "yazc: %s: ", fn);
+   vfprintf(stderr, format, args);
+   va_end(args);
+}
+
+void yazc_err(const char *format, ...)
+{
+   va_list args;
+
+   va_start(args, format);
+   fprintf(stderr, "Error: ");
    vfprintf(stderr, format, args);
    va_end(args);
 }
@@ -108,14 +118,14 @@ static int handle_yazc_commands(int argc, char *argv[])
       case '?':
          return EXIT_FAILURE;
       default:
-         fprintf(stderr, "Error: unexpected getopt_long() value '%c'.\n", c);
+         yazc_err("unexpected getopt_long() value '%c'.\n", c);
          return EXIT_FAILURE;
       }
    }
 
    if (optind >= argc)
    {
-      fputs("Error: missing command\n", stderr);
+      yazc_err("missing command.\n");
       goto fail;
    }
 
@@ -131,7 +141,7 @@ static int handle_yazc_commands(int argc, char *argv[])
 
    if (!found)
    {
-      fprintf(stderr, "Error: invalid command '%s'\n", cmd);
+      yazc_err("invalid command '%s'.\n", cmd);
       goto fail;
    }
 

@@ -44,8 +44,8 @@ struct zc_crk_ptext
 {
    struct zc_ctx *ctx;
    int refcount;
-   uint8_t *plaintext;
-   uint8_t *ciphertext;
+   const uint8_t *plaintext;
+   const uint8_t *ciphertext;
    size_t size;
    struct key_table *key2;
    struct key2r *k2r;
@@ -79,8 +79,8 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
    if (ptext->refcount > 0)
       return ptext;
    dbg(ptext->ctx, "ptext %p released\n", ptext);
-   free(ptext->plaintext);
-   free(ptext->ciphertext);
+   /* free(ptext->plaintext); */
+   /* free(ptext->ciphertext); */
    key_table_free(ptext->key2);
    key2r_free(ptext->k2r);
    free(ptext);
@@ -107,9 +107,9 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
    new->refcount = 1;
    new->key_found = false;
    *ptext = new;
-   
+
    dbg(ctx, "ptext %p created\n", new);
-   
+
    return 0;
 }
 
@@ -119,34 +119,10 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                                     size_t size)
 {
    if (size < 13)
-      return EINVAL;
+      return -EINVAL;
 
-   if (ptext->plaintext)
-   {
-      free(ptext->plaintext);
-      ptext->plaintext = NULL;
-   }
-
-   if (ptext->ciphertext)
-   {
-      free(ptext->ciphertext);
-      ptext->plaintext = NULL;
-   }
-
-   ptext->plaintext = malloc(size);
-   if (ptext->plaintext == NULL)
-      return ENOMEM;
-
-   ptext->ciphertext = malloc(size);
-   if (ptext->ciphertext == NULL)
-   {
-      free(ptext->plaintext);
-      ptext->plaintext = NULL;
-      return ENOMEM;
-   }
-
-   memcpy(ptext->plaintext, plaintext, size);
-   memcpy(ptext->ciphertext, ciphertext, size);
+   ptext->plaintext = plaintext;
+   ptext->ciphertext = ciphertext;
    ptext->size = size;
 
    return 0;
@@ -164,14 +140,14 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    key3i = generate_key3(ptext, ptext->size - 1);
    key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(ptext->k2r, key3i));
    if (key2i_plus_1 == NULL)
-      return ENOMEM;
+      return -ENOMEM;
 
    /* allocate space for second table */
    err = key_table_new(&key2i, pow2(22));
    if (err)
    {
       key_table_free(key2i_plus_1);
-      return ENOMEM;
+      return -ENOMEM;
    }
 
    /* perform reduction */
@@ -186,7 +162,6 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                key2r_get_bits_15_2(ptext->k2r, key3im1),
                                i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
       key_table_uniq(key2i);
-      printf("reducing to: %zu\n", key2i->size);
       key_table_swap(&key2i, &key2i_plus_1);
    }
 
@@ -214,17 +189,17 @@ static void ptext_final_deinit(struct key_table **key2)
 static int ptext_final_init(struct key_table **key2)
 {
    int err;
-   
+
    for (uint32_t i = 0; i < 12; ++i)
    {
       err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
       if (err)
       {
          ptext_final_deinit(key2);
-         return ENOMEM;
+         return -ENOMEM;
       }
    }
-   
+
    return 0;
 }
 
@@ -269,7 +244,7 @@ static int compute_intermediate_internal_rep(struct zc_crk_ptext *ptext, struct 
    k->key2 = k2(i);
    k->key1 = k1(i);
    /* key0 is already set */
-   
+
    do
    {
       uint8_t p;
@@ -370,7 +345,7 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, u
 
    /* empty table before appending new keys */
    key_table_empty(table[current_idx - 1]);
-   
+
    key2r_compute_single(k2(current_idx),
                         table[current_idx - 1],
                         key2r_get_bits_15_2(ptext->k2r, key3im1),
@@ -391,7 +366,7 @@ static void generate_key0lsb(struct zc_crk_ptext *ptext)
 {
    /* reset lsb counters to 0 */
    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
-   
+
    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV)
    {
       uint8_t msbp = msb(p);
@@ -403,17 +378,16 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 {
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
    int err;
-   
+
    err = ptext_final_init(table);
-   if (err)
-      return -1;
+   if (err < 0)
+      return err;
 
    generate_key0lsb(ptext);
 
    ptext->key_found = false;
    for (uint32_t i = 0; i < ptext->key2->size; ++i)
    {
-      printf("Processing key2 no: %d\n", i + 1);
       ptext->key2_final[12] = ptext->key2->array[i];
       recurse_key2(ptext, table, 12);
       if (ptext->key_found)
@@ -435,7 +409,7 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
 {
    struct zc_key k;
    uint32_t i;
-   
+
    /* the cipher text also includes the 12 prepreded bytes */
    if (size < 12)
       return -1;
@@ -447,12 +421,12 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
       uint8_t p;
       compute_one_intermediate_int_rep(ciphertext[i], &p, &k);
    } while (i--);
-   
+
    *internal_rep = k;
    return 0;
 }
 
-ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep)
+ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key * UNUSED(internal_rep))
 {
    /* TODO */
    return 0;

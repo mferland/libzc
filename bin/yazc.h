@@ -35,9 +35,16 @@ struct yazc_cmd
       exit(EXIT_FAILURE);                                       \
    } while (0)
 
-void yazc_log(const char *file, int line, const char *fn,
-              const char *format, ...)
+#ifdef __GNUC__
+#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+#else
+#  define UNUSED(x) UNUSED_ ## x
+#endif
+
+void yazc_log(const char *file, int line, const char *fn, const char *format, ...)
    __attribute__((format(printf, 4, 5)));
+void yazc_err(const char *format, ...)
+   __attribute__((format(printf, 1, 2)));
 
 extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
 extern const struct yazc_cmd yazc_cmd_compat_dictionary;

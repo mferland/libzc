@@ -264,7 +264,7 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
          worker_pw = zc_pwgen_generate(tmp, &count);
          if (worker_pw == NULL)
          {
-            fputs("Error: Too many threads for password range\n", stderr);
+            yazc_err("too many threads for password range.\n");
             err = EINVAL;
             goto error;
          }
@@ -347,7 +347,7 @@ static int launch_crack(void)
    zc_new(&args.ctx);
    if (!args.ctx)
    {
-      fputs("Error: zc_new() failed!\n", stderr);
+      yazc_err("zc_new() failed!\n");
       return EXIT_FAILURE;
    }
 
@@ -434,14 +434,14 @@ static int do_bruteforce(int argc, char *argv[])
          print_help(basename(argv[0]));
          return EXIT_SUCCESS;
       default:
-         fprintf(stderr, "Error: unexpected getopt_long() value '%c'.\n", c);
+         yazc_err("unexpected getopt_long() value '%c'.\n", c);
          return EXIT_FAILURE;
       }
    }
 
    if (optind >= argc)
    {
-      fputs("Error: missing filename\n", stderr);
+      yazc_err("missing filename.\n");
       return EXIT_FAILURE;
    }
 
@@ -453,7 +453,7 @@ static int do_bruteforce(int argc, char *argv[])
       args.maxlength = atoi(maxlength);
       if (args.maxlength < PW_LEN_MIN || args.maxlength > PW_LEN_MAX)
       {
-         fprintf(stderr, "Error: maximum password length must be between %d and %d\n", PW_LEN_MIN, PW_LEN_MAX);
+         yazc_err("maximum password length must be between %d and %d.\n", PW_LEN_MIN, PW_LEN_MAX);
          return EXIT_FAILURE;
       }
    }
@@ -465,7 +465,7 @@ static int do_bruteforce(int argc, char *argv[])
       args.workers = atoi(threads);
       if (args.workers < 1)
       {
-         fputs("Error: number of threads can't be less than one\n", stderr);
+         yazc_err("number of threads can't be less than one.\n");
          return EXIT_FAILURE;
       }
    }
@@ -477,7 +477,7 @@ static int do_bruteforce(int argc, char *argv[])
       args.charset = sanitize_charset(charset);
       if (args.charset == NULL)
       {
-         fputs("Error: couldn't sanitize character set\n", stderr);
+         yazc_err("couldn't sanitize character set.\n");
          return EXIT_FAILURE;
       }
    }
@@ -485,13 +485,13 @@ static int do_bruteforce(int argc, char *argv[])
    {
       if (!alpha && !alphacaps && !numeric && !special)
       {
-         fputs("Error: no character set provided or specified\n", stderr);
+         yazc_err("no character set provided or specified.\n");
          return EXIT_FAILURE;
       }
       args.charset = make_charset(alpha, alphacaps, numeric, special);
       if (args.charset == NULL)
       {
-         fputs("Error: make_charset() failed\n", stderr);
+         yazc_err("make_charset() failed.\n");
          return EXIT_FAILURE;
       }
    }
@@ -500,7 +500,7 @@ static int do_bruteforce(int argc, char *argv[])
    {
       if (!pw_in_charset(initial, args.charset) || !pw_len_valid(initial, args.maxlength))
       {
-         fputs("Error: invalid initial password\n", stderr);
+         yazc_err("invalid initial password.\n");
          if (charset == NULL)
             free(args.charset);
          return EXIT_FAILURE;
