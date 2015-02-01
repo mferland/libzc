@@ -51,10 +51,10 @@ int key_table_new(struct key_table **table, size_t initial_size)
       free(tmp);
       return ENOMEM;
    }
-   
+
    tmp->capacity = tmp->size = initial_size;
    *table = tmp;
-   
+
    return 0;
 }
 
@@ -88,7 +88,7 @@ void key_table_uniq(struct key_table *table)
 {
    size_t i = 0;
    size_t j;
-   
+
    if (table->size <= 1)
       return;
 

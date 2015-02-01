@@ -99,6 +99,7 @@ static void print_help(const char *name)
            "\n"
            "The '%s' subcommand tests every password combination until the\n"
            "right one is found.\n"
+           "\n"
            "Options:\n"
            "\t-c, --charset=CHARSET   use character set CHARSET\n"
            "\t-i, --initial=STRING    initial password\n"

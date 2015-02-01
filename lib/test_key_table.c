@@ -182,7 +182,7 @@ Suite *make_libzc_keytable_suite()
    tcase_add_test(tc_core, test_keytable_empty3);
    tcase_add_test(tc_core, test_keytable_empty4);
    suite_add_tcase(s, tc_core);
-   
+
    return s;
 }
 

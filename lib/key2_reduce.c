@@ -81,7 +81,7 @@ int key2r_new(struct key2r **k2r)
       free(tmp);
       return ENOMEM;
    }
-   
+
    tmp->bits_15_2_cache = bits_15_2_tmp;
    *k2r = tmp;
 

@@ -80,7 +80,7 @@ int cleanup_queue_new(struct cleanup_queue **cq)
    new_cq->head = NULL;
    new_cq->tail = NULL;
    *cq = new_cq;
-   
+
    return 0;
 }
 
@@ -102,7 +102,7 @@ void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node)
 static void cancel_active_threads(struct cleanup_node *array, size_t size)
 {
    size_t i;
-   
+
    for (i = 0; i < size; ++i)
    {
       if (!array[i].active)

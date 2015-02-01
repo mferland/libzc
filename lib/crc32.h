@@ -88,7 +88,7 @@ static const unsigned int crc_32_tab[] =
    0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static const unsigned int crc_32_invtab[] = 
+static const unsigned int crc_32_invtab[] =
 {
    0x00000000, 0xdb710641, 0x6d930ac3, 0xb6e20c82,
    0xdb261586, 0x005713c7, 0xb6b51f45, 0x6dc41904,
@@ -153,7 +153,7 @@ static const unsigned int crc_32_invtab[] =
    0x0f934490, 0xd4e242d1, 0x62004e53, 0xb9714812,
    0xd4b55116, 0x0fc45757, 0xb9265bd5, 0x62575d94,
    0x62ae69dd, 0xb9df6f9c, 0x0f3d631e, 0xd44c655f,
-   0xb9887c5b, 0x62f97a1a, 0xd41b7698, 0x0f6a70d9,   
+   0xb9887c5b, 0x62f97a1a, 0xd41b7698, 0x0f6a70d9,
 };
 
 #define crc32(crc,byte) (crc_32_tab[(unsigned char)(crc) ^ (unsigned char)(byte)] ^ ((crc) >> 8))

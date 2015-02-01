@@ -49,7 +49,7 @@ START_TEST(test_can_generate_first_gen_key2)
 {
    struct key_table *key2_first_gen;
    unsigned short *bits15_2;
-   
+
    bits15_2 = key2r_get_bits_15_2(k2r, 0);
    key2_first_gen = key2r_compute_first_gen(bits15_2);
    fail_if(key_table_at(key2_first_gen, 0) != 0);
@@ -65,10 +65,10 @@ START_TEST(test_can_generate_next_table_from_plaintext)
    unsigned char key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
    unsigned char key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
    unsigned char key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
-   
+
    key2_first_gen = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
    key_table_new(&key2_next_gen, pow2(22));
-   
+
    key2r_compute_next_table(key2_first_gen,
                             key2_next_gen,
                             key2r_get_bits_15_2(k2r, key3im1),
@@ -93,7 +93,7 @@ Suite *make_key2_reduce_suite()
    tcase_add_test(tc_core, test_can_generate_first_gen_key2);
    tcase_add_test(tc_core, test_can_generate_next_table_from_plaintext);
    suite_add_tcase(s, tc_core);
-   
+
    return s;
 }
 
