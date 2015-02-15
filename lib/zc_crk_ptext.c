@@ -392,7 +392,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 }
 
 ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
-                                             const unsigned char *ciphertext, size_t size,
+                                             const uint8_t *ciphertext, size_t size,
                                              struct zc_key *internal_rep)
 {
    struct zc_key k;

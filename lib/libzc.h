@@ -53,8 +53,8 @@ void zc_set_log_priority(struct zc_ctx *ctx, int priority);
  */
 struct zc_validation_data
 {
-   unsigned char encryption_header[12];
-   unsigned char magic;
+   uint8_t encryption_header[12];
+   uint8_t magic;
 };
 
 /**

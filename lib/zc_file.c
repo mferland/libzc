@@ -207,7 +207,7 @@ static bool filename_matches(const char *in_name, const struct zip_header *h)
 
 ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_name, void *buf, long offset, size_t count)
 {
-   unsigned char encryption_header[12];
+   uint8_t encryption_header[12];
    struct zip_header *zip_header;
    int current_index = 0;
    int err;

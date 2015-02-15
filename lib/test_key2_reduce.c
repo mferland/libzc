@@ -62,9 +62,9 @@ START_TEST(test_can_generate_next_table_from_plaintext)
    struct key_table *key2_first_gen;
    struct key_table *key2_next_gen;
 
-   unsigned char key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
-   unsigned char key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
-   unsigned char key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
+   uint8_t key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
+   uint8_t key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
+   uint8_t key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
 
    key2_first_gen = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
    key_table_new(&key2_next_gen, pow2(22));

@@ -88,16 +88,16 @@ static inline void reset_encryption_keys(const encryption_key *base, encryption_
       k[i] = base[i];
 }
 
-static inline unsigned char decrypt_byte(encryption_key k)
+static inline uint8_t decrypt_byte(encryption_key k)
 {
    uint16_t tmp =  k | 2;
    return ((tmp * (tmp ^ 1)) >> 8);
 }
 
-static inline unsigned char decrypt_header(const unsigned char *encrypted_header, encryption_key *k)
+static inline uint8_t decrypt_header(const uint8_t *encrypted_header, encryption_key *k)
 {
    int i;
-   unsigned char c;
+   uint8_t c;
 
    for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH; ++i)
    {

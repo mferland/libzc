@@ -56,7 +56,7 @@ static int check_header_signature(FILE *fd)
 
 static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
 {
-   unsigned char *readbuf;
+   uint8_t *readbuf;
 
    // Read non-variable part (26 bytes without the 4 bytes signature)
    readbuf = calloc(1, ZIP_FILE_STATIC_HEADER_LENGTH - 4);
@@ -194,7 +194,7 @@ uint32_t zip_header_comp_size(const struct zip_header *header)
    return header->comp_size;
 }
 
-unsigned char zip_header_encryption_magic(const struct zip_header *header)
+uint8_t zip_header_encryption_magic(const struct zip_header *header)
 {
    /*
      Nothing about this in the official APPNOTE.txt even though the
@@ -206,7 +206,7 @@ unsigned char zip_header_encryption_magic(const struct zip_header *header)
    return (header->crc32 >> 24);
 }
 
-int zip_encryption_header_read(FILE *fd, unsigned char *enc_header)
+int zip_encryption_header_read(FILE *fd, uint8_t *enc_header)
 {
    if (fread(enc_header, ZIP_ENCRYPTION_HEADER_LENGTH, 1, fd) != 1)
       return -1;

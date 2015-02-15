@@ -158,7 +158,7 @@ static const uint32_t crc_32_invtab[] =
    0xb9887c5b, 0x62f97a1a, 0xd41b7698, 0x0f6a70d9,
 };
 
-#define crc32(crc,byte) (crc_32_tab[(unsigned char)(crc) ^ (unsigned char)(byte)] ^ ((crc) >> 8))
-#define crc32inv(crc,byte) (((crc) << 8) ^ crc_32_invtab[(unsigned char)((crc) >> 24)] ^ (byte))
+#define crc32(crc,byte) (crc_32_tab[(uint8_t)(crc) ^ (uint8_t)(byte)] ^ ((crc) >> 8))
+#define crc32inv(crc,byte) (((crc) << 8) ^ crc_32_invtab[(uint8_t)((crc) >> 24)] ^ (byte))
 
 #endif

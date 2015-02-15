@@ -27,7 +27,7 @@
 struct key2r;
 int key2r_new(struct key2r **key2r);
 void key2r_free(struct key2r *key2r);
-uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, unsigned char key3);
+uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, uint8_t key3);
 struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
 void key2r_compute_next_table(struct key_table *key2i_plus_1,
                               struct key_table *key2i,

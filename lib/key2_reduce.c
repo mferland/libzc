@@ -29,9 +29,9 @@ struct key2r
    uint16_t *bits_15_2_cache;
 };
 
-static void generate_key2_bits_15_2(uint16_t *value, unsigned char key3)
+static void generate_key2_bits_15_2(uint16_t *value, uint8_t key3)
 {
-   unsigned char key3tmp;
+   uint8_t key3tmp;
    uint32_t valuei = 0;
    for (uint32_t i = 0; i < pow2(16); i += 4)
    {
@@ -94,7 +94,7 @@ void key2r_free(struct key2r *k2r)
    free(k2r);
 }
 
-uint16_t *key2r_get_bits_15_2(const struct key2r *k2r, unsigned char key3)
+uint16_t *key2r_get_bits_15_2(const struct key2r *k2r, uint8_t key3)
 {
    return &k2r->bits_15_2_cache[key3 * 64];
 }
@@ -112,7 +112,7 @@ struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
 
 static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
 {
-   unsigned char key2i_msb = key2i >> 24;
+   uint8_t key2i_msb = key2i >> 24;
    uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_msb];
    tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
    return tmp;

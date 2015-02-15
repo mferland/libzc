@@ -20,11 +20,11 @@
 
 #include "libzc.h"
 
-struct zc_ctx *ctx;
-struct zc_file *file;
-const char wrong_password[] = "mfe";
-const char good_password[] = "yamaha";
-struct zc_validation_data vdata[3];
+static struct zc_ctx *ctx;
+static struct zc_file *file;
+static const char const wrong_password[] = "mfe";
+static const char const good_password[] = "yamaha";
+static struct zc_validation_data vdata[3];
 
 void setup_crack()
 {
