@@ -19,23 +19,25 @@
 #ifndef _KEY2_REDUCE_H_
 #define _KEY2_REDUCE_H_
 
+#include <stdint.h>
+
 #define KEY2_MASK_6BITS 0xfc00
 #define KEY2_MASK_8BITS 0xff00
 
 struct key2r;
 int key2r_new(struct key2r **key2r);
 void key2r_free(struct key2r *key2r);
-unsigned short *key2r_get_bits_15_2(const struct key2r *key2r, unsigned char key3);
-struct key_table *key2r_compute_first_gen(const unsigned short *key2_bits_15_2);
+uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, unsigned char key3);
+struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
 void key2r_compute_next_table(struct key_table *key2i_plus_1,
                               struct key_table *key2i,
-                              const unsigned short *key2i_bits_15_2,
-                              const unsigned short *key2im1_bits_15_2,
-                              unsigned int common_bits_mask);
-void key2r_compute_single(unsigned int key2i_plus_1,
+                              const uint16_t *key2i_bits_15_2,
+                              const uint16_t *key2im1_bits_15_2,
+                              uint32_t common_bits_mask);
+void key2r_compute_single(uint32_t key2i_plus_1,
                           struct key_table *key2i,
-                          const unsigned short *key2i_bits_15_2,
-                          const unsigned short *key2im1_bits_15_2,
-                          unsigned int common_bits_mask);
+                          const uint16_t *key2i_bits_15_2,
+                          const uint16_t *key2im1_bits_15_2,
+                          uint32_t common_bits_mask);
 
 #endif /* _KEY2_REDUCE_H_ */

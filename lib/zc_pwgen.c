@@ -148,7 +148,7 @@ ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw)
    return 0;
 }
 
-ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step)
+ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, uint32_t step)
 {
    gen->step = step;
 }

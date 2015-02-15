@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define ZIP_ENCRYPTION_HEADER_LENGTH 12
 
@@ -32,7 +33,7 @@ bool zip_header_has_encryption_bit(const struct zip_header *header);
 unsigned char zip_header_encryption_magic(const struct zip_header *header);
 int zip_encryption_header_read(FILE *fd, unsigned char *enc_header);
 int zip_skip_to_next_header(FILE *fd, const struct zip_header *header);
-unsigned int zip_header_comp_size(const struct zip_header *header);
+uint32_t zip_header_comp_size(const struct zip_header *header);
 const char *zip_header_filename(const struct zip_header *header);
 size_t zip_header_filename_len(const struct zip_header *header);
 

@@ -23,10 +23,10 @@
 #include <errno.h>
 #include <stdio.h>
 
-static void uint_qsort(unsigned int *arr, unsigned int n)
+static void uint_qsort(uint32_t *arr, uint32_t n)
 {
 #define uint_lt(a,b) ((*a)<(*b))
-   QSORT(unsigned int, arr, n, uint_lt);
+   QSORT(uint32_t, arr, n, uint_lt);
 }
 
 static void sort(struct key_table *table)
@@ -45,7 +45,7 @@ int key_table_new(struct key_table **table, size_t initial_size)
    if (!tmp)
       return -ENOMEM;
 
-   tmp->array = calloc(1, initial_size * sizeof(unsigned int));
+   tmp->array = calloc(1, initial_size * sizeof(uint32_t));
    if (!tmp->array)
    {
       free(tmp);
@@ -66,7 +66,7 @@ void key_table_free(struct key_table *table)
    free(table);
 }
 
-void key_table_append(struct key_table *table, unsigned int key)
+void key_table_append(struct key_table *table, uint32_t key)
 {
    if (table->size < table->capacity)
    {
@@ -76,7 +76,7 @@ void key_table_append(struct key_table *table, unsigned int key)
    }
 
    table->capacity += 1024;
-   table->array = realloc(table->array, table->capacity * sizeof(unsigned int));
+   table->array = realloc(table->array, table->capacity * sizeof(uint32_t));
    if (!table->array)
       abort();
 
@@ -108,7 +108,7 @@ void key_table_squeeze(struct key_table *table)
 {
    if (table->size == table->capacity)
       return;
-   table->array = realloc(table->array, table->size * sizeof(unsigned int));
+   table->array = realloc(table->array, table->size * sizeof(uint32_t));
    table->capacity = table->size;
 }
 
@@ -120,6 +120,6 @@ void key_table_empty(struct key_table *table)
 
 void key_table_print(struct key_table *table, FILE *stream)
 {
-   for (unsigned int i = 0; i < table->size; ++i)
+   for (uint32_t i = 0; i < table->size; ++i)
       fprintf(stream, "0x%0x\n", table->array[i]);
 }

@@ -19,8 +19,10 @@
 #ifndef CRC32_H_
 #define CRC32_H_
 
+#include <stdint.h>
+
 /* crc32 0xdebb20e3 table and supplementary functions.  */
-static const unsigned int crc_32_tab[] =
+static const uint32_t crc_32_tab[] =
 {
    0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
    0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
@@ -88,7 +90,7 @@ static const unsigned int crc_32_tab[] =
    0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
 };
 
-static const unsigned int crc_32_invtab[] =
+static const uint32_t crc_32_invtab[] =
 {
    0x00000000, 0xdb710641, 0x6d930ac3, 0xb6e20c82,
    0xdb261586, 0x005713c7, 0xb6b51f45, 0x6dc41904,

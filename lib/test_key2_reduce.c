@@ -39,7 +39,7 @@ void teardown_key2r()
 
 START_TEST(test_can_get_bits_15_2)
 {
-   unsigned short *bits15_2;
+   uint16_t *bits15_2;
    bits15_2 = key2r_get_bits_15_2(k2r, 0);
    fail_if(bits15_2[0] != 0);
 }
@@ -48,7 +48,7 @@ END_TEST
 START_TEST(test_can_generate_first_gen_key2)
 {
    struct key_table *key2_first_gen;
-   unsigned short *bits15_2;
+   uint16_t *bits15_2;
 
    bits15_2 = key2r_get_bits_15_2(k2r, 0);
    key2_first_gen = key2r_compute_first_gen(bits15_2);

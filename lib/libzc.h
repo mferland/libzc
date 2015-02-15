@@ -85,7 +85,7 @@ struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen);
 int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **gen);
 int zc_pwgen_init(struct zc_pwgen *gen, const char *char_set, size_t max_pw_len);
 int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw);
-void zc_pwgen_set_step(struct zc_pwgen *gen, unsigned int step);
+void zc_pwgen_set_step(struct zc_pwgen *gen, uint32_t step);
 bool zc_pwgen_is_initialized(const struct zc_pwgen *gen);
 const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count);
 const char *zc_pwgen_pw(const struct zc_pwgen *gen);

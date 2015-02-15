@@ -30,7 +30,7 @@
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 
-typedef unsigned int encryption_key;
+typedef uint32_t encryption_key;
 
 struct zc_crk_bforce
 {
@@ -90,7 +90,7 @@ static inline void reset_encryption_keys(const encryption_key *base, encryption_
 
 static inline unsigned char decrypt_byte(encryption_key k)
 {
-   unsigned short tmp =  k | 2;
+   uint16_t tmp =  k | 2;
    return ((tmp * (tmp ^ 1)) >> 8);
 }
 

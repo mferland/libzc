@@ -25,8 +25,8 @@ struct zc_ctx *ctx;
 struct zc_pwgen *pwgen;
 
 static unsigned char simple_char_set[] = {"abc"};
-static unsigned int pw_max_len = 5;
-static unsigned int step = 1;
+static uint32_t pw_max_len = 5;
+static uint32_t step = 1;
 
 void setup_pwgen()
 {

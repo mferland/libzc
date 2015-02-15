@@ -21,24 +21,25 @@
 
 #include <stdlib.h>             /* size_t */
 #include <stdio.h>
+#include <stdint.h>
 
 struct key_table
 {
-   unsigned int *array;
+   uint32_t *array;
    size_t size;
    size_t capacity;
 };
 
 int key_table_new(struct key_table **table, size_t initial_size);
 void key_table_free(struct key_table *table);
-void key_table_append(struct key_table *table, unsigned int key);
+void key_table_append(struct key_table *table, uint32_t key);
 void key_table_uniq(struct key_table *table);
 void key_table_squeeze(struct key_table *table);
 void key_table_empty(struct key_table *table);
 void key_table_print(struct key_table *table, FILE *stream);
 
 static inline
-unsigned int key_table_at(const struct key_table *table, unsigned int index)
+uint32_t key_table_at(const struct key_table *table, uint32_t index)
 {
    return table->array[index];
 }

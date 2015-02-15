@@ -189,7 +189,7 @@ bool zip_header_has_encryption_bit(const struct zip_header *header)
    return ((header->gen_bit_flag & GP_BIT_ENCRYPTION) == GP_BIT_ENCRYPTION);
 }
 
-unsigned int zip_header_comp_size(const struct zip_header *header)
+uint32_t zip_header_comp_size(const struct zip_header *header)
 {
    return header->comp_size;
 }

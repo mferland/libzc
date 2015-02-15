@@ -26,14 +26,14 @@
 
 struct key2r
 {
-   unsigned short *bits_15_2_cache;
+   uint16_t *bits_15_2_cache;
 };
 
-static void generate_key2_bits_15_2(unsigned short *value, unsigned char key3)
+static void generate_key2_bits_15_2(uint16_t *value, unsigned char key3)
 {
    unsigned char key3tmp;
-   unsigned int valuei = 0;
-   for (unsigned int i = 0; i < pow2(16); i += 4)
+   uint32_t valuei = 0;
+   for (uint32_t i = 0; i < pow2(16); i += 4)
    {
       key3tmp = ((i | 2) * (i | 3)) >> 8;
       if (key3 == key3tmp)
@@ -44,23 +44,23 @@ static void generate_key2_bits_15_2(unsigned short *value, unsigned char key3)
    }
 }
 
-static unsigned short *generate_bits_15_2(void)
+static uint16_t *generate_bits_15_2(void)
 {
-   unsigned short *tmp;
+   uint16_t *tmp;
 
-   tmp = malloc(256 * 64 * sizeof(unsigned short));
+   tmp = malloc(256 * 64 * sizeof(uint16_t));
    if (!tmp)
       return NULL;
 
-   for (unsigned int key3 = 0; key3 < 256; ++key3)
+   for (uint32_t key3 = 0; key3 < 256; ++key3)
       generate_key2_bits_15_2(&tmp[key3 * 64], key3);
 
    return tmp;
 }
 
-static void generate_all_key2_bits_31_2(unsigned int *key2, const unsigned short *key2_bits_15_2)
+static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bits_15_2)
 {
-   unsigned int i, j;
+   uint32_t i, j;
    for (i = 0; i < pow2(16); ++i)
       for (j = 0; j < 64; ++j)
          key2[i * 64 + j] = (i << 16) | key2_bits_15_2[j];
@@ -69,7 +69,7 @@ static void generate_all_key2_bits_31_2(unsigned int *key2, const unsigned short
 int key2r_new(struct key2r **k2r)
 {
    struct key2r *tmp;
-   unsigned short *bits_15_2_tmp;
+   uint16_t *bits_15_2_tmp;
 
    tmp = calloc(1, sizeof(struct key2r));
    if (!tmp)
@@ -94,12 +94,12 @@ void key2r_free(struct key2r *k2r)
    free(k2r);
 }
 
-unsigned short *key2r_get_bits_15_2(const struct key2r *k2r, unsigned char key3)
+uint16_t *key2r_get_bits_15_2(const struct key2r *k2r, unsigned char key3)
 {
    return &k2r->bits_15_2_cache[key3 * 64];
 }
 
-struct key_table *key2r_compute_first_gen(const unsigned short *key2_bits_15_2)
+struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
 {
    struct key_table *table;
 
@@ -110,30 +110,30 @@ struct key_table *key2r_compute_first_gen(const unsigned short *key2_bits_15_2)
    return table;
 }
 
-static unsigned int bits_1_0_key2i(unsigned int key2im1, unsigned int key2i)
+static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
 {
    unsigned char key2i_msb = key2i >> 24;
-   unsigned int tmp = key2im1 ^ crc_32_invtab[key2i_msb];
+   uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_msb];
    tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
    return tmp;
 }
 
-static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsigned int key2i,
-                                             const unsigned short *key2im1_bits_15_2)
+static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, uint32_t key2i,
+                                             const uint16_t *key2im1_bits_15_2)
 
 {
-   const unsigned int key2im1_bits_31_10 = (key2i << 8) ^ crc_32_invtab[key2i >> 24];
-   const unsigned int key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
+   const uint32_t key2im1_bits_31_10 = (key2i << 8) ^ crc_32_invtab[key2i >> 24];
+   const uint32_t key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
 
    for (int j = 0; j < 64; ++j)
    {
-      const unsigned int key2im1_bits_15_10_lhs = key2im1_bits_15_2[j] & 0xfc00;
+      const uint32_t key2im1_bits_15_10_lhs = key2im1_bits_15_2[j] & 0xfc00;
 
       /* the left and right hand side share 6 bits in position
          [15..10]. See biham & kocher 3.1. */
       if (key2im1_bits_15_10_rhs == key2im1_bits_15_10_lhs)
       {
-         unsigned int key2im1;
+         uint32_t key2im1;
          key2im1 = key2im1_bits_31_10 & 0xfffffc00;
          key2im1 |= key2im1_bits_15_2[j];
          key_table_append(key2i_table, key2i | bits_1_0_key2i(key2im1, key2i));
@@ -141,24 +141,24 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, unsi
    }
 }
 
-void key2r_compute_single(unsigned int key2i_plus_1,
+void key2r_compute_single(uint32_t key2i_plus_1,
                           struct key_table *key2i,
-                          const unsigned short *key2i_bits_15_2,
-                          const unsigned short *key2im1_bits_15_2,
-                          unsigned int common_bits_mask)
+                          const uint16_t *key2i_bits_15_2,
+                          const uint16_t *key2im1_bits_15_2,
+                          uint32_t common_bits_mask)
 {
-   const unsigned int key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
-   const unsigned int key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
+   const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
+   const uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 
-   for (unsigned int i = 0; i < 64; ++i)
+   for (uint32_t i = 0; i < 64; ++i)
    {
-      const unsigned int key2i_bits15_10_lhs = key2i_bits_15_2[i] & common_bits_mask;
+      const uint32_t key2i_bits15_10_lhs = key2i_bits_15_2[i] & common_bits_mask;
 
       /* the left and right hand side share the same 6 bits in
          position [15..10]. See biham & kocher 3.1. */
       if (key2i_bits15_10_rhs == key2i_bits15_10_lhs)
       {
-         unsigned int key2i_tmp;
+         uint32_t key2i_tmp;
 
          /* save 22 most significant bits [31..10] */
          key2i_tmp = key2i_bits31_8 & 0xfffffc00;
@@ -174,13 +174,13 @@ void key2r_compute_single(unsigned int key2i_plus_1,
 
 void key2r_compute_next_table(struct key_table *key2i_plus_1,
                               struct key_table *key2i,
-                              const unsigned short *key2i_bits_15_2,
-                              const unsigned short *key2im1_bits_15_2,
-                              unsigned int common_bits_mask)
+                              const uint16_t *key2i_bits_15_2,
+                              const uint16_t *key2im1_bits_15_2,
+                              uint32_t common_bits_mask)
 {
    key_table_empty(key2i);
 
-   for (unsigned int i = 0; i < key2i_plus_1->size; ++i)
+   for (uint32_t i = 0; i < key2i_plus_1->size; ++i)
    {
       key2r_compute_single(key_table_at(key2i_plus_1, i),
                            key2i,
