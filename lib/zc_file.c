@@ -84,7 +84,7 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename
 
    newfile = calloc(1, sizeof(struct zc_file));
    if (!newfile)
-      return ENOMEM;
+      return -ENOMEM;
 
    newfile->ctx = ctx;
    newfile->refcount = 1;
@@ -113,14 +113,15 @@ ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
  */
 ZC_EXPORT int zc_file_open(struct zc_file *file)
 {
-   int err = 0;
    FILE *fd = fopen(file->filename, "r");
-   if (fd == NULL)
-      err = errno;
+   if (!fd)
+   {
+      err(file->ctx, "open() failed: %s.\n", strerror(errno));
+      return -1;
+   }
    dbg(file->ctx, "file %p open returned: %p\n", file, fd);
-   if (err == 0)
-      file->fd = fd;
-   return err;
+   file->fd = fd;
+   return 0;
 }
 
 /**
@@ -132,11 +133,14 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
  */
 ZC_EXPORT int zc_file_close(struct zc_file *file)
 {
-   int err = fclose(file->fd);
-   dbg(file->ctx, "file %p close returned: %d\n", file, err);
-   if (!err)
-      file->fd = NULL;
-   return err;
+   if (fclose(file->fd))
+   {
+      err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
+      return -1;
+   }
+   dbg(file->ctx, "file %p closed\n", file);
+   file->fd = NULL;
+   return 0;
 }
 
 /**
@@ -216,9 +220,8 @@ ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_nam
 
    rewind(file->fd);
 
-   err = zip_header_new(&zip_header);
-   if (err != 0)
-      return -1;
+   if (zip_header_new(&zip_header))
+      return -ENOMEM;
 
    while ((err = zip_header_read(file->fd, zip_header)) == 0)
    {

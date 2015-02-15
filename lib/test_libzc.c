@@ -36,9 +36,9 @@ START_TEST(test_zc_addremove_ref)
    struct zc_ctx *ctx;
    zc_new(&ctx);
    zc_ref(ctx);
-   fail_if(zc_unref(ctx) == NULL,
+   fail_if(!zc_unref(ctx),
            "Ref. count decrement failed.");
-   fail_unless(zc_unref(ctx) == NULL,
+   fail_unless(!zc_unref(ctx),
                "Ref. count decrement and free failed.");
 }
 END_TEST
@@ -46,14 +46,14 @@ END_TEST
 START_TEST(test_zc_ref_with_null_ptr)
 {
    struct zc_ctx *ctx = NULL;
-   fail_unless(zc_ref(ctx) == NULL, NULL);
+   fail_unless(!zc_ref(ctx), NULL);
 }
 END_TEST
 
 START_TEST(test_zc_unref_with_null_ptr)
 {
    struct zc_ctx *ctx = NULL;
-   fail_unless(zc_unref(ctx) == NULL, NULL);
+   fail_unless(!zc_unref(ctx), NULL);
 }
 END_TEST
 

@@ -58,7 +58,7 @@ static int help(int UNUSED(argc), char *argv[])
 
    for (i = 0; i < YAZC_CMDS_COUNT; ++i)
    {
-      if (yazc_cmds[i]->help != NULL)
+      if (yazc_cmds[i]->help)
          printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
    }
 

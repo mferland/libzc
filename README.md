@@ -41,3 +41,7 @@ Try all password from words.dict:
 Use John The Ripper to generate more passwords:
 
     john --wordlist=words.dict --rules --stdout | yazc dictionary archive.zip
+
+Plaintext
+---------
+TODO

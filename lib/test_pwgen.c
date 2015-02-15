@@ -43,7 +43,7 @@ void teardown_pwgen()
 START_TEST(test_zc_pwgen_new)
 {
    zc_pwgen_new(ctx, &pwgen);
-   fail_if(pwgen == NULL,
+   fail_if(!pwgen,
            "Creating new password generator failed.");
 }
 END_TEST
@@ -72,15 +72,15 @@ START_TEST(test_zc_pwgen_can_generate_password)
    zc_pwgen_set_step(pwgen, step);
    zc_pwgen_reset(pwgen, "a");
    pw = zc_pwgen_pw(pwgen);
-   fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "a", 1) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "b", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "b", 1) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "c", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "c", 1) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "aa", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "aa", 1) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "ab", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "ab", 1) == 0, "Password generation failed");
 }
 END_TEST
 
@@ -93,13 +93,13 @@ START_TEST(test_zc_pwgen_can_step)
    zc_pwgen_set_step(pwgen, 3);
    zc_pwgen_reset(pwgen, "a");
    pw = zc_pwgen_pw(pwgen);
-   fail_unless(pw != NULL && strncmp(pw, "a", 1) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "a", 1) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "aa", 2) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "aa", 2) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "ba", 2) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "ba", 2) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "ca", 2) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "ca", 2) == 0, "Password generation failed");
 }
 END_TEST
 
@@ -112,13 +112,13 @@ START_TEST(test_zc_pwgen_initial_pw)
    zc_pwgen_set_step(pwgen, 1);
    zc_pwgen_reset(pwgen, "yamah");
    pw = zc_pwgen_pw(pwgen);
-   fail_unless(pw != NULL && strncmp(pw, "yamah", 5) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "yamah", 5) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "yamai", 5) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "yamai", 5) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "yamaj", 5) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "yamaj", 5) == 0, "Password generation failed");
    pw = zc_pwgen_generate(pwgen, &count);
-   fail_unless(pw != NULL && strncmp(pw, "yamak", 5) == 0, "Password generation failed");
+   fail_unless(pw && strncmp(pw, "yamak", 5) == 0, "Password generation failed");
 }
 END_TEST
 
@@ -134,37 +134,37 @@ START_TEST(test_zc_pwgen_return_updated_char_count)
    zc_pwgen_reset(pwgen, "a");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
-   fail_unless(ret != NULL && strncmp(ret, "b", 1) == 0, "Password generation failed");
+   fail_unless(ret && strncmp(ret, "b", 1) == 0, "Password generation failed");
 
    /* aa --> ab = 1 */
    zc_pwgen_reset(pwgen, "aa");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 1, "Identical characters should be 1");
-   fail_unless(ret != NULL && strncmp(ret, "ab", 2) == 0, "Password generation failed");
+   fail_unless(ret && strncmp(ret, "ab", 2) == 0, "Password generation failed");
 
    /* azzz --> baaa */
    zc_pwgen_reset(pwgen, "azzz");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
-   fail_unless(ret != NULL && strncmp(ret, "baaa", 4) == 0, "Password generation failed");
+   fail_unless(ret && strncmp(ret, "baaa", 4) == 0, "Password generation failed");
 
    /* aazz --> abaa */
    zc_pwgen_reset(pwgen, "aazz");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 1, "Identical characters should be 1");
-   fail_unless(ret != NULL && strncmp(ret, "abaa", 4) == 0, "Password generation failed");
+   fail_unless(ret && strncmp(ret, "abaa", 4) == 0, "Password generation failed");
 
    /* zzzzzz --> OVERFLOW */
    zc_pwgen_reset(pwgen, "zzzzzz");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 0, "Identical characters should be 0");
-   fail_unless(ret == NULL, "Should return NULL");
+   fail_unless(!ret, "Should return NULL");
 
    /* baba --> babb */
    zc_pwgen_reset(pwgen, "baba");
    ret = zc_pwgen_generate(pwgen, &count);
    fail_unless(count == 3, "Identical characters should be 3");
-   fail_unless(ret != NULL && strncmp(ret, "babb", 4) == 0, "Password generation failed");
+   fail_unless(ret && strncmp(ret, "babb", 4) == 0, "Password generation failed");
 }
 END_TEST
 

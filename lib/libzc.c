@@ -106,7 +106,7 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
 
    /* environment overwrites config */
    env = getenv("ZC_LOG");
-   if (env != NULL)
+   if (env)
       zc_set_log_priority(ctx, log_priority(env));
 
    info(ctx, "ctx %p created\n", ctx);
@@ -126,7 +126,7 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
  **/
 ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
 {
-   if (ctx == NULL)
+   if (!ctx)
       return NULL;
    ctx->refcount++;
    return ctx;
@@ -142,7 +142,7 @@ ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
  **/
 ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
 {
-   if (ctx == NULL)
+   if (!ctx)
       return NULL;
    ctx->refcount--;
    if (ctx->refcount > 0)

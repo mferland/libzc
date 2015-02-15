@@ -40,7 +40,7 @@ void teardown_pwdict()
 START_TEST(test_zc_pwdict_new)
 {
    zc_pwdict_new_from_filename(ctx, "pw.txt", &pwdict);
-   fail_if(pwdict == NULL,
+   fail_if(!pwdict,
            "Creating new password dictionary failed.");
 }
 END_TEST

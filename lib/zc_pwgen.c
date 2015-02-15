@@ -83,7 +83,7 @@ ZC_EXPORT int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **pwgen)
 
    newpwgen = calloc(1, sizeof(struct zc_pwgen));
    if (!newpwgen)
-      return ENOMEM;
+      return -ENOMEM;
 
    newpwgen->ctx = ctx;
    newpwgen->refcount = 1;
@@ -106,15 +106,15 @@ ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t m
       return EINVAL;
 
    char_lut_tmp = strdup(char_lut);
-   if (char_lut_tmp == NULL)
+   if (!char_lut_tmp)
       return ENOMEM;
 
    char_ascii_tmp = calloc(1, max_pw_len + 1);
-   if (char_ascii_tmp == NULL)
+   if (!char_ascii_tmp)
       goto error1;
 
    char_indexes_tmp = calloc(1, max_pw_len);
-   if (char_indexes_tmp == NULL)
+   if (!char_indexes_tmp)
       goto error2;
 
    gen->char_lut = char_lut_tmp;
@@ -208,7 +208,7 @@ ZC_EXPORT bool zc_pwgen_is_initialized(const struct zc_pwgen *gen)
 {
    if (gen->step <= 0)
       return false;
-   if (gen->pw == NULL)
+   if (!gen->pw)
       return false;
    return true;
 }

@@ -33,10 +33,10 @@ struct cleanup_queue
 static void queue_put(struct cleanup_queue *root, struct cleanup_node *node)
 {
    node->next = NULL;
-   if (root->tail != NULL)
+   if (root->tail)
       root->tail->next = node;
    root->tail = node;
-   if (root->head == NULL)
+   if (!root->head)
       root->head = node;
 }
 
@@ -44,10 +44,10 @@ static struct cleanup_node *queue_get(struct cleanup_queue *root)
 {
    struct cleanup_node* node;
    node = root->head;
-   if (root->head != NULL)
+   if (root->head)
    {
       root->head = root->head->next;
-      if (root->head == NULL)
+      if (!root->head)
          root->tail = NULL;
    }
    return node;
@@ -122,7 +122,7 @@ int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array
    while (nodes_left)
    {
       pthread_mutex_lock(&cq->mutex);
-      while (cq->head == NULL)
+      while (!cq->head)
          pthread_cond_wait(&cq->cond, &cq->mutex);
       node = queue_get(cq);
       node->active = false;

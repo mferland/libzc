@@ -79,8 +79,6 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
    if (ptext->refcount > 0)
       return ptext;
    dbg(ptext->ctx, "ptext %p released\n", ptext);
-   /* free(ptext->plaintext); */
-   /* free(ptext->ciphertext); */
    key_table_free(ptext->key2);
    key2r_free(ptext->k2r);
    free(ptext);
@@ -90,17 +88,15 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 {
    struct zc_crk_ptext *new;
-   int err;
 
    new = calloc(1, sizeof(struct zc_crk_ptext));
    if (!new)
-      return ENOMEM;
+      return -ENOMEM;
 
-   err = key2r_new(&new->k2r);
-   if (err)
+   if (key2r_new(&new->k2r))
    {
       free(new);
-      return ENOMEM;
+      return -ENOMEM;
    }
 
    new->ctx = ctx;
@@ -134,17 +130,15 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
    struct key_table *key2i;
    uint8_t key3i;
    uint8_t key3im1;
-   int err;
 
    /* first gen key2 */
    key3i = generate_key3(ptext, ptext->size - 1);
    key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(ptext->k2r, key3i));
-   if (key2i_plus_1 == NULL)
+   if (!key2i_plus_1)
       return -ENOMEM;
 
    /* allocate space for second table */
-   err = key_table_new(&key2i, pow2(22));
-   if (err)
+   if (key_table_new(&key2i, pow2(22)))
    {
       key_table_free(key2i_plus_1);
       return -ENOMEM;
@@ -178,7 +172,7 @@ static void ptext_final_deinit(struct key_table **key2)
 {
    for (uint32_t i = 0; i < 12; ++i)
    {
-      if (key2[i] != NULL)
+      if (key2[i])
       {
          key_table_free(key2[i]);
          key2[i] = NULL;
@@ -188,18 +182,14 @@ static void ptext_final_deinit(struct key_table **key2)
 
 static int ptext_final_init(struct key_table **key2)
 {
-   int err;
-
    for (uint32_t i = 0; i < 12; ++i)
    {
-      err = key_table_new(&key2[i], 64); /* FIXME: 64 ? */
-      if (err)
+      if (key_table_new(&key2[i], 64)) /* FIXME: 64 ? */
       {
          ptext_final_deinit(key2);
          return -ENOMEM;
       }
    }
-
    return 0;
 }
 
@@ -377,11 +367,9 @@ static void generate_key0lsb(struct zc_crk_ptext *ptext)
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key)
 {
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-   int err;
 
-   err = ptext_final_init(table);
-   if (err < 0)
-      return err;
+   if (ptext_final_init(table))
+      return -ENOMEM;
 
    generate_key0lsb(ptext);
 

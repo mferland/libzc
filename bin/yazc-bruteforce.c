@@ -162,7 +162,7 @@ static char *make_charset(bool alpha, bool alphacaps, bool num, bool special)
       len += special_set.len;
 
    str = calloc(1, len + 1);
-   if (str == NULL)
+   if (!str)
       return NULL;
 
    if (alpha)
@@ -181,7 +181,7 @@ static bool pw_in_charset(const char *pw, const char *set)
    int i = 0;
    while (pw[i] != '\0')
    {
-      if (index(set, pw[i]) == NULL)
+      if (!index(set, pw[i]))
          return false;
       ++i;
    }
@@ -196,7 +196,7 @@ static bool pw_len_valid(const char *pw, size_t max_len)
 static char *make_initial_pw(const char *set)
 {
    char *str = calloc(1, 2);
-   if (str == NULL)
+   if (!str)
       return NULL;
    str[0] = set[0];
    return str;
@@ -246,14 +246,11 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
 {
    struct zc_pwgen *tmp = NULL;
    const char *worker_pw = NULL;
-   int err;
 
-   err = zc_pwgen_new(args.ctx, &tmp);
-   if (err)
-      return err;
+   if (zc_pwgen_new(args.ctx, &tmp))
+      return -ENOMEM;
 
-   err = zc_pwgen_init(tmp, args.charset, args.maxlength);
-   if (err)
+   if (zc_pwgen_init(tmp, args.charset, args.maxlength))
       goto error;
 
    zc_pwgen_reset(tmp, args.initial);
@@ -266,10 +263,9 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
       {
          size_t count;
          worker_pw = zc_pwgen_generate(tmp, &count);
-         if (worker_pw == NULL)
+         if (!worker_pw)
          {
             yazc_err("too many threads for password range.\n");
-            err = EINVAL;
             goto error;
          }
       }
@@ -283,24 +279,21 @@ static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
 error:
    zc_pwgen_unref(tmp);
    *pwgen = NULL;
-   return err;
+   return -1;
 }
 
 static int init_worker(struct cleanup_node *node)
 {
    struct zc_crk_bforce *crk;
    struct zc_pwgen *pwgen;
-   int err;
 
-   err = init_worker_pwgen(node->thread_num, &pwgen);
-   if (err)
-      return err;
+   if (init_worker_pwgen(node->thread_num, &pwgen))
+      return -1;
 
-   err = zc_crk_bforce_new(args.ctx, &crk);
-   if (err)
+   if (zc_crk_bforce_new(args.ctx, &crk))
    {
       zc_pwgen_unref(pwgen);
-      return err;
+      return -1;
    }
    zc_crk_bforce_set_vdata(crk, args.vdata, args.vdata_size);
    zc_crk_bforce_set_pwgen(crk, pwgen);
@@ -346,10 +339,9 @@ static int wait_worker_threads(void)
 
 static int launch_crack(void)
 {
-   int err;
+   int err = EXIT_SUCCESS;
 
-   zc_new(&args.ctx);
-   if (!args.ctx)
+   if (zc_new(&args.ctx))
    {
       yazc_err("zc_new() failed!\n");
       return EXIT_FAILURE;
@@ -358,31 +350,34 @@ static int launch_crack(void)
    args.vdata_size = fill_validation_data(args.ctx, args.filename,
                                           args.vdata, VDATA_ALLOC);
    if (args.vdata_size == 0)
+      goto err1;
+
+   if (cleanup_queue_new(&cleanup_queue))
    {
       err = EXIT_FAILURE;
-      goto cleanup;
+      goto err2;
    }
-
-   err = cleanup_queue_new(&cleanup_queue);
-   if (err)
-      goto cleanup;
 
    cleanup_nodes = calloc(args.workers, sizeof(struct cleanup_node));
-   if (cleanup_nodes == NULL)
+   if (!cleanup_nodes)
+      goto err3;
+
+   if (start_worker_threads())
+      err = EXIT_FAILURE;
+   else
    {
-      cleanup_queue_destroy(cleanup_queue);
-      goto cleanup;
+      if (wait_worker_threads())
+         err = EXIT_FAILURE;
    }
 
-   err = start_worker_threads();
-   if (!err)
-      err = wait_worker_threads();
-
+err3:
    free(cleanup_nodes);
    cleanup_nodes = NULL;
+
+err2:
    cleanup_queue_destroy(cleanup_queue);
 
-cleanup:
+err1:
    zc_unref(args.ctx);
    return err;
 }
@@ -452,7 +447,7 @@ static int do_bruteforce(int argc, char *argv[])
    // TODO: support multiple zip
    args.filename = argv[optind];
 
-   if (maxlength != NULL)
+   if (maxlength)
    {
       args.maxlength = atoi(maxlength);
       if (args.maxlength < PW_LEN_MIN || args.maxlength > PW_LEN_MAX)
@@ -464,7 +459,7 @@ static int do_bruteforce(int argc, char *argv[])
    else
       args.maxlength = PW_LEN_DEFAULT;
 
-   if (threads != NULL)
+   if (threads)
    {
       args.workers = atoi(threads);
       if (args.workers < 1)
@@ -476,10 +471,10 @@ static int do_bruteforce(int argc, char *argv[])
    else
       args.workers = 1;
 
-   if (charset != NULL)
+   if (charset)
    {
       args.charset = sanitize_charset(charset);
-      if (args.charset == NULL)
+      if (!args.charset)
       {
          yazc_err("couldn't sanitize character set.\n");
          return EXIT_FAILURE;
@@ -493,19 +488,19 @@ static int do_bruteforce(int argc, char *argv[])
          return EXIT_FAILURE;
       }
       args.charset = make_charset(alpha, alphacaps, numeric, special);
-      if (args.charset == NULL)
+      if (!args.charset)
       {
          yazc_err("make_charset() failed.\n");
          return EXIT_FAILURE;
       }
    }
 
-   if (initial != NULL)
+   if (initial)
    {
       if (!pw_in_charset(initial, args.charset) || !pw_len_valid(initial, args.maxlength))
       {
          yazc_err("invalid initial password.\n");
-         if (charset == NULL)
+         if (!charset)
             free(args.charset);
          return EXIT_FAILURE;
       }
@@ -514,9 +509,9 @@ static int do_bruteforce(int argc, char *argv[])
    else
    {
       args.initial = make_initial_pw(args.charset);
-      if (args.initial == NULL)
+      if (!args.initial)
       {
-         if (charset == NULL)
+         if (!charset)
             free(args.charset);
          return EXIT_FAILURE;
       }
@@ -530,9 +525,9 @@ static int do_bruteforce(int argc, char *argv[])
 
    err = launch_crack();
 
-   if (charset == NULL)
+   if (!charset)
       free(args.charset);
-   if (initial == NULL)
+   if (!initial)
       free(args.initial);
 
    return err;

@@ -100,14 +100,14 @@ static int parse_opt(char *opt, int count, const char **filename, off_t *off1, o
    int err;
 
    token = strtok_r(opt, ":", &saveptr);
-   if (token == NULL)
+   if (!token)
       return -1;
    *filename = token;
 
    for (int i = 0; i < count; ++i)
    {
       token = strtok_r(NULL, ":", &saveptr);
-      if (token == NULL)
+      if (!token)
          return -1;
       switch (i)
       {
@@ -262,7 +262,7 @@ static int do_plaintext(int argc, char *argv[])
    }
 
    zc_new(&ctx);
-   if (ctx == NULL)
+   if (!ctx)
    {
       yazc_err("zc_new() failed!\n");
       goto error2;

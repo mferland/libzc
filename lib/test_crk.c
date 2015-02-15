@@ -59,7 +59,7 @@ START_TEST(test_unref_cracker)
    int ret;
    ret = zc_crk_bforce_new(ctx, &cracker);
    fail_unless(ret == 0, NULL);
-   fail_unless(zc_crk_bforce_unref(cracker) == NULL, NULL);
+   fail_unless(!zc_crk_bforce_unref(cracker), NULL);
 }
 END_TEST
 

@@ -124,11 +124,10 @@ static int do_dictionary(int argc, char *argv[])
 
    zip_filename = argv[optind];
 
-   printf("Dictionary file: %s\n", dict_filename == NULL ? "stdin" : dict_filename);
+   printf("Dictionary file: %s\n", !dict_filename ? "stdin" : dict_filename);
    printf("Filename: %s\n", zip_filename);
 
-   zc_new(&ctx);
-   if (ctx == NULL)
+   if (zc_new(&ctx))
    {
       yazc_err("zc_new() failed!\n");
       return EXIT_FAILURE;

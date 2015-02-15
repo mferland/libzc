@@ -52,11 +52,11 @@ ZC_EXPORT int zc_pwdict_new_from_filename(struct zc_ctx *ctx, const char *filena
 
    newpwdict = calloc(1, sizeof(struct zc_pwdict));
    if (!newpwdict)
-      return ENOMEM;
+      return -ENOMEM;
 
    newpwdict->ctx = ctx;
    newpwdict->refcount = 1;
-   if (filename != NULL)
+   if (filename)
       newpwdict->filename = strdup(filename);
    *dict = newpwdict;
    dbg(ctx, "pwdict %p created\n", newpwdict);
@@ -79,36 +79,43 @@ ZC_EXPORT struct zc_pwdict *zc_pwdict_unref(struct zc_pwdict *dict)
 
 ZC_EXPORT int zc_pwdict_open(struct zc_pwdict *dict)
 {
-   int err = 0;
-
-   if (dict->filename == NULL)
+   if (!dict->filename)
    {
       dict->fd = stdin;
       return 0;
    }
 
    FILE *fd = fopen(dict->filename, "r");
-   if (fd == NULL)
-      err = errno;
-   dbg(dict->ctx, "dict %p open returned: %p\n", dict, fd);
-   if (err == 0)
-      dict->fd = fd;
-   return err;
+   if (!fd)
+   {
+      err(dict->ctx, "fopen() failed: %s\n", strerror(errno));
+      return -1;
+   }
+
+   dbg(dict->ctx, "dict %p fopen() returned: %p\n", dict, fd);
+
+   dict->fd = fd;
+   return 0;
 }
 
 ZC_EXPORT int zc_pwdict_close(struct zc_pwdict *dict)
 {
-   if (dict->filename == NULL)
+   if (!dict->filename)
    {
       dict->fd = NULL;
       return 0;
    }
 
-   int err = fclose(dict->fd);
-   dbg(dict->ctx, "dict %p close returned: %d\n", dict, err);
-   if (err == 0)
-      dict->fd = NULL;
-   return err;
+   if (fclose(dict->fd))
+   {
+      err(dict->ctx, "fclose() failed: %s\n", strerror(errno));
+      return -1;
+   }
+
+   dbg(dict->ctx, "dict %p fclose() successfull\n", dict);
+
+   dict->fd = NULL;
+   return 0;
 }
 
 ZC_EXPORT int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t len)
@@ -116,10 +123,10 @@ ZC_EXPORT int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t le
    char *str_ret;
 
    if (dict->fd == 0 || len == 0)
-      return EINVAL;
+      return -EINVAL;
 
    str_ret = fgets(str, len, dict->fd);
-   if (str_ret == NULL)
+   if (!str_ret)
       return -1;
 
    remove_trailing_newline(str_ret);

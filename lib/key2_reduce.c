@@ -49,7 +49,7 @@ static unsigned short *generate_bits_15_2(void)
    unsigned short *tmp;
 
    tmp = malloc(256 * 64 * sizeof(unsigned short));
-   if (tmp == NULL)
+   if (!tmp)
       return NULL;
 
    for (unsigned int key3 = 0; key3 < 256; ++key3)
@@ -72,14 +72,14 @@ int key2r_new(struct key2r **k2r)
    unsigned short *bits_15_2_tmp;
 
    tmp = calloc(1, sizeof(struct key2r));
-   if (tmp == NULL)
-      return ENOMEM;
+   if (!tmp)
+      return -ENOMEM;
 
    bits_15_2_tmp = generate_bits_15_2();
-   if (bits_15_2_tmp == NULL)
+   if (!bits_15_2_tmp)
    {
       free(tmp);
-      return ENOMEM;
+      return -ENOMEM;
    }
 
    tmp->bits_15_2_cache = bits_15_2_tmp;
@@ -102,10 +102,8 @@ unsigned short *key2r_get_bits_15_2(const struct key2r *k2r, unsigned char key3)
 struct key_table *key2r_compute_first_gen(const unsigned short *key2_bits_15_2)
 {
    struct key_table *table;
-   int err;
 
-   err = key_table_new(&table, pow2(22));
-   if (err)
+   if (key_table_new(&table, pow2(22)))
       return NULL;
 
    generate_all_key2_bits_31_2(table->array, key2_bits_15_2);

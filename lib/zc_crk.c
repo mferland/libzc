@@ -132,7 +132,7 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 
    newcrk = calloc(1, sizeof(struct zc_crk_bforce));
    if (!newcrk)
-      return ENOMEM;
+      return -ENOMEM;
 
    newcrk->ctx = ctx;
    newcrk->refcount = 1;
@@ -164,18 +164,18 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 
 ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *crk, struct zc_pwgen *pwgen)
 {
-   if (pwgen == NULL)
-      return EINVAL;
+   if (!pwgen)
+      return -EINVAL;
    crk->gen = zc_pwgen_ref(pwgen);
    return 0;
 }
 
 ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
 {
-   if (vdata == NULL)
-      return EINVAL;
+   if (!vdata)
+      return -EINVAL;
    if (nmemb == 0)
-      return EINVAL;
+      return -EINVAL;
    crk->vdata = vdata;
    crk->vdata_size = nmemb;
    return 0;
@@ -184,7 +184,7 @@ ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc
 static bool is_valid_cracker(struct zc_crk_bforce *crk)
 {
    /* invalid arguments */
-   if (crk->gen == NULL || crk->vdata == NULL)
+   if (!crk->gen || !crk->vdata)
       return false;
 
    if (!zc_pwgen_is_initialized(crk->gen))
@@ -202,8 +202,8 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
    size_t idem_char = 0;
    bool found = false;
 
-   if (out_pw == NULL || !is_valid_cracker(crk))
-      return EINVAL;
+   if (!out_pw || !is_valid_cracker(crk))
+      return -EINVAL;
 
    memset(key_table, 0, out_pw_size * 3 * sizeof(encryption_key));
 
@@ -231,7 +231,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
       }
 
       pw = zc_pwgen_generate(gen, &idem_char);
-   } while (pw != NULL);
+   } while (pw);
 
    return found == true ? 0 : -1;
 }
@@ -240,8 +240,8 @@ ZC_EXPORT int zc_crk_bforce_skip(struct zc_crk_bforce *crk, char * UNUSED(out_pw
 {
    size_t tmp;
    if (!is_valid_cracker(crk))
-      return EINVAL;
-   if (zc_pwgen_generate(crk->gen, &tmp) == NULL)
+      return -EINVAL;
+   if (!zc_pwgen_generate(crk->gen, &tmp))
       return -1;
    return 0;
 }

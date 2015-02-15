@@ -39,17 +39,17 @@ int key_table_new(struct key_table **table, size_t initial_size)
    struct key_table *tmp;
 
    if (initial_size == 0)
-      return EINVAL;
+      return -EINVAL;
 
    tmp = calloc(1, sizeof(struct key_table));
-   if (tmp == NULL)
-      return ENOMEM;
+   if (!tmp)
+      return -ENOMEM;
 
    tmp->array = calloc(1, initial_size * sizeof(unsigned int));
-   if (tmp->array == NULL)
+   if (!tmp->array)
    {
       free(tmp);
-      return ENOMEM;
+      return -ENOMEM;
    }
 
    tmp->capacity = tmp->size = initial_size;
@@ -60,7 +60,7 @@ int key_table_new(struct key_table **table, size_t initial_size)
 
 void key_table_free(struct key_table *table)
 {
-   if (table == NULL)
+   if (!table)
       return;
    free(table->array);
    free(table);
@@ -77,7 +77,7 @@ void key_table_append(struct key_table *table, unsigned int key)
 
    table->capacity += 1024;
    table->array = realloc(table->array, table->capacity * sizeof(unsigned int));
-   if (table->array == NULL)
+   if (!table->array)
       abort();
 
    table->array[table->size] = key;
