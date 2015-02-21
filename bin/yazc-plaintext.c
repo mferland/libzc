@@ -69,8 +69,8 @@ static void print_help(const char *name)
            "Example:\n"
            "\t %s plain.bin:100:650 archive.zip:112:662:64\n"
            "\n"
-           "Use plaintext bytes [100:650] and map then to ciphertext bytes\n"
-           "[112:662]. Use these bytes to reduce the number of keys and perform\n"
+           "Use plaintext bytes 100 to 650 and map them to ciphertext bytes\n"
+           "112 to 662. Use these bytes to reduce the number of keys and perform\n"
            "the attack. Once the intermediate key is found, decrypt the rest of\n"
            "the cipher (begins at offset 64) to get the internal representation.\n"
            "\n"
@@ -170,7 +170,7 @@ static int mmap_text_buf(struct filed *file)
 
    if (filestat.st_size == 0)
    {
-      yazc_err("file is empty.\n");
+      yazc_err("file %s is empty.\n", file->name);
       goto error;
    }
 
