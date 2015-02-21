@@ -364,6 +364,13 @@ static void generate_key0lsb(struct zc_crk_ptext *ptext)
    }
 }
 
+ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
+{
+   if (ptext->key2)
+      return ptext->key2->size;
+   return 0;
+}
+
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key)
 {
    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

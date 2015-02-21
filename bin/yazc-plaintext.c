@@ -289,7 +289,7 @@ static int do_plaintext(int argc, char *argv[])
       yazc_err("reducing key2 candidates failed.\n");
       goto error4;
    }
-   printf(" done!\n");
+   printf(" done! %zu keys found.\n", zc_crk_ptext_key2_count(ptext));
 
    printf("Attack running...");
    fflush(stdout);

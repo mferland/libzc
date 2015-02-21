@@ -150,6 +150,7 @@ int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                           const uint8_t *ciphertext,
                           size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
+size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext);
 int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);
 int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
                                    const uint8_t *ciphertext,
