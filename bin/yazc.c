@@ -27,6 +27,8 @@
 #include "yazc.h"
 #include "config.h"
 
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
 static const char options_s[] = "+hV";
 static const struct option options[] = {
    {"help", no_argument, NULL, 'h' },
@@ -42,7 +44,6 @@ static const struct yazc_cmd *yazc_cmds[] = {
    &yazc_cmd_compat_dictionary,
    &yazc_cmd_compat_plaintext,
 };
-#define YAZC_CMDS_COUNT 4
 
 static int help(int UNUSED(argc), char *argv[])
 {
@@ -56,7 +57,7 @@ static int help(int UNUSED(argc), char *argv[])
           "\t-h, --help        show this help\n\n"
           "Commands:\n", basename(argv[0]));
 
-   for (i = 0; i < YAZC_CMDS_COUNT; ++i)
+   for (i = 0; i < ARRAY_SIZE(yazc_cmds); ++i)
    {
       if (yazc_cmds[i]->help)
          printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
@@ -131,7 +132,7 @@ static int handle_yazc_commands(int argc, char *argv[])
 
    cmd = argv[optind];
 
-   for (i = 0; i < YAZC_CMDS_COUNT; i++)
+   for (i = 0; i < ARRAY_SIZE(yazc_cmds); i++)
    {
       if (strcmp(yazc_cmds[i]->name, cmd) != 0)
          continue;
