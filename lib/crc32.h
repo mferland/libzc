@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef CRC32_H_
-#define CRC32_H_
+#ifndef _CRC32_H_
+#define _CRC32_H_
 
 #include <stdint.h>
 
@@ -161,4 +161,4 @@ static const uint32_t crc_32_invtab[] =
 #define crc32(crc,byte) (crc_32_tab[(uint8_t)(crc) ^ (uint8_t)(byte)] ^ ((crc) >> 8))
 #define crc32inv(crc,byte) (((crc) << 8) ^ crc_32_invtab[(uint8_t)((crc) >> 24)] ^ (byte))
 
-#endif
+#endif /* _CRC32_H_ */
