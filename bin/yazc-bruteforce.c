@@ -311,7 +311,7 @@ static int start_worker_threads(void)
 
    err = pthread_barrier_init(&barrier, NULL, args.workers);
    if (err)
-      fatal("failed to initialise barrier\n");
+      fatal("pthread_barrier_init() failed: %s\n", strerror(err));
 
    for (i = 0; i < args.workers; ++i)
    {
@@ -322,19 +322,16 @@ static int start_worker_threads(void)
       if (err)
          fatal("failed to initialise worker\n");
       err = pthread_create(&cleanup_nodes[i].thread_id, NULL, worker, &cleanup_nodes[i]);
-      if (err != 0)
-         fatal("pthread_create() failed\n");
+      if (err)
+         fatal("pthread_create() failed: %s\n", strerror(err));
    }
    return 0;
 }
 
-static int wait_worker_threads(void)
+static void wait_worker_threads(void)
 {
-   int err;
-
-   err = cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
+   cleanup_queue_wait(cleanup_queue, cleanup_nodes, args.workers);
    pthread_barrier_destroy(&barrier);
-   return err;
 }
 
 static int launch_crack(void)
@@ -365,10 +362,7 @@ static int launch_crack(void)
    if (start_worker_threads())
       err = EXIT_FAILURE;
    else
-   {
-      if (wait_worker_threads())
-         err = EXIT_FAILURE;
-   }
+      wait_worker_threads();
 
 err3:
    free(cleanup_nodes);

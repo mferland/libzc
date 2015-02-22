@@ -38,6 +38,6 @@ struct cleanup_node
 int cleanup_queue_new(struct cleanup_queue **cq);
 void cleanup_queue_destroy(struct cleanup_queue *cq);
 void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node);
-int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size);
+void cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size);
 
 #endif /* _CLEANUPQUEUE_H_ */

@@ -111,13 +111,13 @@ static void cancel_active_threads(struct cleanup_node *array, size_t size)
    }
 }
 
-int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size)
+void cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size)
 {
    struct cleanup_node *node;
    int nodes_left = size;
 
    if (size == 0)
-      return EINVAL;
+      return;                   /* nothing to do */
 
    while (nodes_left)
    {
@@ -132,6 +132,4 @@ int cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array
       pthread_join(node->thread_id, NULL);
       --nodes_left;
    }
-
-   return 0;
 }
