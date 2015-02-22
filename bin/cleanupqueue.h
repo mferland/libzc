@@ -25,14 +25,13 @@
 
 struct cleanup_queue;
 
-struct cleanup_node
-{
-   struct cleanup_node *next;
-   pthread_t thread_id;
-   int thread_num;
-   bool found;
-   bool active;
-   struct zc_crk_bforce *crk;
+struct cleanup_node {
+    struct cleanup_node *next;
+    pthread_t thread_id;
+    int thread_num;
+    bool found;
+    bool active;
+    struct zc_crk_bforce *crk;
 };
 
 int cleanup_queue_new(struct cleanup_queue **cq);

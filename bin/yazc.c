@@ -31,133 +31,127 @@
 
 static const char options_s[] = "+hV";
 static const struct option options[] = {
-   {"help", no_argument, NULL, 'h' },
-   {"version", no_argument, NULL, 'V' },
-   {NULL, 0, 0, 0}
+    {"help", no_argument, NULL, 'h' },
+    {"version", no_argument, NULL, 'V' },
+    {NULL, 0, 0, 0}
 };
 
 static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
-   &yazc_cmd_help,
-   &yazc_cmd_compat_bruteforce,
-   &yazc_cmd_compat_dictionary,
-   &yazc_cmd_compat_plaintext,
+    &yazc_cmd_help,
+    &yazc_cmd_compat_bruteforce,
+    &yazc_cmd_compat_dictionary,
+    &yazc_cmd_compat_plaintext,
 };
 
 static int help(int UNUSED(argc), char *argv[])
 {
-   size_t i;
+    size_t i;
 
-   printf("yazc - Crack password protected zip files\n"
-          "Usage:\n"
-          "\t%s command [command_options]\n\n"
-          "Options:\n"
-          "\t-V, --version     show version\n"
-          "\t-h, --help        show this help\n\n"
-          "Commands:\n", basename(argv[0]));
+    printf("yazc - Crack password protected zip files\n"
+           "Usage:\n"
+           "\t%s command [command_options]\n\n"
+           "Options:\n"
+           "\t-V, --version     show version\n"
+           "\t-h, --help        show this help\n\n"
+           "Commands:\n", basename(argv[0]));
 
-   for (i = 0; i < ARRAY_SIZE(yazc_cmds); ++i)
-   {
-      if (yazc_cmds[i]->help)
-         printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
-   }
+    for (i = 0; i < ARRAY_SIZE(yazc_cmds); ++i) {
+        if (yazc_cmds[i]->help)
+            printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
+    }
 
-   return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
 
 static const struct yazc_cmd yazc_cmd_help = {
-   .name = "help",
-   .cmd = help,
-   .help = "Show help message",
+    .name = "help",
+    .cmd = help,
+    .help = "Show help message",
 };
 
-void yazc_log(const char * UNUSED(file), int UNUSED(line), const char *fn,
+void yazc_log(const char *UNUSED(file), int UNUSED(line), const char *fn,
               const char *format, ...)
 {
-   va_list args;
+    va_list args;
 
-   va_start(args, format);
-   fprintf(stderr, "yazc: %s: ", fn);
-   vfprintf(stderr, format, args);
-   va_end(args);
+    va_start(args, format);
+    fprintf(stderr, "yazc: %s: ", fn);
+    vfprintf(stderr, format, args);
+    va_end(args);
 }
 
 void yazc_err(const char *format, ...)
 {
-   va_list args;
+    va_list args;
 
-   va_start(args, format);
-   fprintf(stderr, "Error: ");
-   vfprintf(stderr, format, args);
-   va_end(args);
+    va_start(args, format);
+    fprintf(stderr, "Error: ");
+    vfprintf(stderr, format, args);
+    va_end(args);
 }
 
 static int handle_yazc_commands(int argc, char *argv[])
 {
-   const char *cmd;
-   int err = 0;
-   bool found = false;
-   size_t i;
+    const char *cmd;
+    int err = 0;
+    bool found = false;
+    size_t i;
 
-   for (;;)
-   {
-      int c;
+    for (;;) {
+        int c;
 
-      c = getopt_long(argc, argv, options_s, options, NULL);
-      if (c == -1)
-         break;
+        c = getopt_long(argc, argv, options_s, options, NULL);
+        if (c == -1)
+            break;
 
-      switch (c)
-      {
-      case 'h':
-         help(argc, argv);
-         return EXIT_SUCCESS;
-      case 'V':
-         puts("yazc version " VERSION);
-         return EXIT_SUCCESS;
-      case '?':
-         return EXIT_FAILURE;
-      default:
-         yazc_err("unexpected getopt_long() value '%c'.\n", c);
-         return EXIT_FAILURE;
-      }
-   }
+        switch (c) {
+        case 'h':
+            help(argc, argv);
+            return EXIT_SUCCESS;
+        case 'V':
+            puts("yazc version " VERSION);
+            return EXIT_SUCCESS;
+        case '?':
+            return EXIT_FAILURE;
+        default:
+            yazc_err("unexpected getopt_long() value '%c'.\n", c);
+            return EXIT_FAILURE;
+        }
+    }
 
-   if (optind >= argc)
-   {
-      yazc_err("missing command.\n");
-      goto fail;
-   }
+    if (optind >= argc) {
+        yazc_err("missing command.\n");
+        goto fail;
+    }
 
-   cmd = argv[optind];
+    cmd = argv[optind];
 
-   for (i = 0; i < ARRAY_SIZE(yazc_cmds); i++)
-   {
-      if (strcmp(yazc_cmds[i]->name, cmd) != 0)
-         continue;
-      found = true;
-      break;
-   }
+    for (i = 0; i < ARRAY_SIZE(yazc_cmds); i++) {
+        if (strcmp(yazc_cmds[i]->name, cmd) != 0)
+            continue;
+        found = true;
+        break;
+    }
 
-   if (!found)
-   {
-      yazc_err("invalid command '%s'.\n", cmd);
-      goto fail;
-   }
+    if (!found) {
+        yazc_err("invalid command '%s'.\n", cmd);
+        goto fail;
+    }
 
-   err = yazc_cmds[i]->cmd(--argc, ++argv);
+    err = yazc_cmds[i]->cmd(--argc, ++argv);
 
-   return err;
+    return err;
 
 fail:
-   help(argc, argv);
-   return EXIT_FAILURE;
+    help(argc, argv);
+    return EXIT_FAILURE;
 }
 
 int main(int argc, char *argv[])
 {
-   int err;
-   err = handle_yazc_commands(argc, argv);
-   return err;
+    int err;
+    err = handle_yazc_commands(argc, argv);
+    return err;
 }

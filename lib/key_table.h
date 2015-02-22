@@ -23,11 +23,10 @@
 #include <stdio.h>
 #include <stdint.h>
 
-struct key_table
-{
-   uint32_t *array;
-   size_t size;
-   size_t capacity;
+struct key_table {
+    uint32_t *array;
+    size_t size;
+    size_t capacity;
 };
 
 int key_table_new(struct key_table **table, size_t initial_size);
@@ -41,15 +40,15 @@ void key_table_print(struct key_table *table, FILE *stream);
 static inline
 uint32_t key_table_at(const struct key_table *table, uint32_t index)
 {
-   return table->array[index];
+    return table->array[index];
 }
 
 static inline
 void key_table_swap(struct key_table **table1, struct key_table **table2)
 {
-   struct key_table *tmp = *table1;
-   *table1 = *table2;
-   *table2 = tmp;
+    struct key_table *tmp = *table1;
+    *table1 = *table2;
+    *table2 = tmp;
 }
 
 #endif /* _KEY_TABLE_H_ */

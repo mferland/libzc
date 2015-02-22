@@ -32,7 +32,7 @@
 #endif
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
-zc_log_null(struct zc_ctx * UNUSED(ctx), const char * UNUSED(format), ...) {}
+zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
 
 #define zc_log_cond(ctx, prio, arg...)                                  \
    do {                                                                 \
@@ -59,31 +59,31 @@ zc_log_null(struct zc_ctx * UNUSED(ctx), const char * UNUSED(format), ...) {}
 void zc_log(struct zc_ctx *ctx,
             int priority, const char *file, int line, const char *fn,
             const char *format, ...)
-   __attribute__((format(printf, 6, 7)));
+__attribute__((format(printf, 6, 7)));
 
 static inline uint32_t pow2(uint32_t p)
 {
-   return (1 << p);
+    return (1 << p);
 }
 
 static inline uint32_t mask_msb(uint32_t v)
 {
-   return (v & 0xff000000);
+    return (v & 0xff000000);
 }
 
 static inline uint32_t mask_lsb(uint32_t v)
 {
-   return (v & 0x000000ff);
+    return (v & 0x000000ff);
 }
 
 static inline uint8_t msb(uint32_t v)
 {
-   return (v >> 24);
+    return (v >> 24);
 }
 
 static inline uint8_t lsb(uint32_t v)
 {
-   return (v & 0xff);
+    return (v & 0xff);
 }
 
 #define MULT 134775813u

@@ -38,49 +38,48 @@
  *
  * Opaque object representing the library context.
  */
-struct zc_ctx
-{
-   int refcount;
-   void (*log_fn)(struct zc_ctx *ctx,
-                  int priority, const char *file, int line, const char *fn,
-                  const char *format, va_list args);
-   int log_priority;
+struct zc_ctx {
+    int refcount;
+    void (*log_fn)(struct zc_ctx *ctx,
+                   int priority, const char *file, int line, const char *fn,
+                   const char *format, va_list args);
+    int log_priority;
 };
 
 void zc_log(struct zc_ctx *ctx,
             int priority, const char *file, int line, const char *fn,
             const char *format, ...)
 {
-   va_list args;
+    va_list args;
 
-   va_start(args, format);
-   ctx->log_fn(ctx, priority, file, line, fn, format, args);
-   va_end(args);
+    va_start(args, format);
+    ctx->log_fn(ctx, priority, file, line, fn, format, args);
+    va_end(args);
 }
 
-static void log_stderr(struct zc_ctx * UNUSED(ctx),
-                       int UNUSED(priority), const char * UNUSED(file), int UNUSED(line), const char *fn,
+static void log_stderr(struct zc_ctx *UNUSED(ctx),
+                       int UNUSED(priority), const char *UNUSED(file), int UNUSED(line), const char *fn,
                        const char *format, va_list args)
 {
-   fprintf(stderr, "libzc: %s: ", fn);
-   vfprintf(stderr, format, args);
+    fprintf(stderr, "libzc: %s: ", fn);
+    vfprintf(stderr, format, args);
 }
 
 static int log_priority(const char *priority)
 {
-   char *endptr;
-   int prio;
+    char *endptr;
+    int prio;
 
-   prio = strtol(priority, &endptr, 10);
-   if (endptr[0] == '\0' || isspace(endptr[0]))
-      return prio;
-   if (strncmp(priority, "err", 3) == 0)
-      return LOG_ERR;
-   if (strncmp(priority, "info", 4) == 0)
-      return LOG_INFO;
-   if (strncmp(priority, "debug", 5) == 0)
-      return LOG_DEBUG;
-   return 0;
+    prio = strtol(priority, &endptr, 10);
+    if (endptr[0] == '\0' || isspace(endptr[0]))
+        return prio;
+    if (strncmp(priority, "err", 3) == 0)
+        return LOG_ERR;
+    if (strncmp(priority, "info", 4) == 0)
+        return LOG_INFO;
+    if (strncmp(priority, "debug", 5) == 0)
+        return LOG_DEBUG;
+    return 0;
 }
 
 /**
@@ -93,27 +92,27 @@ static int log_priority(const char *priority)
  **/
 ZC_EXPORT int zc_new(struct zc_ctx **inctx)
 {
-   const char *env;
-   struct zc_ctx *ctx;
+    const char *env;
+    struct zc_ctx *ctx;
 
-   ctx = calloc(1, sizeof(struct zc_ctx));
-   if (!ctx)
-      return -ENOMEM;
+    ctx = calloc(1, sizeof(struct zc_ctx));
+    if (!ctx)
+        return -ENOMEM;
 
-   ctx->refcount = 1;
-   ctx->log_fn = log_stderr;
-   ctx->log_priority = LOG_ERR;
+    ctx->refcount = 1;
+    ctx->log_fn = log_stderr;
+    ctx->log_priority = LOG_ERR;
 
-   /* environment overwrites config */
-   env = getenv("ZC_LOG");
-   if (env)
-      zc_set_log_priority(ctx, log_priority(env));
+    /* environment overwrites config */
+    env = getenv("ZC_LOG");
+    if (env)
+        zc_set_log_priority(ctx, log_priority(env));
 
-   info(ctx, "ctx %p created\n", ctx);
-   dbg(ctx, "log_priority=%d\n", ctx->log_priority);
-   *inctx = ctx;
+    info(ctx, "ctx %p created\n", ctx);
+    dbg(ctx, "log_priority=%d\n", ctx->log_priority);
+    *inctx = ctx;
 
-   return 0;
+    return 0;
 }
 
 /**
@@ -126,10 +125,10 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
  **/
 ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
 {
-   if (!ctx)
-      return NULL;
-   ctx->refcount++;
-   return ctx;
+    if (!ctx)
+        return NULL;
+    ctx->refcount++;
+    return ctx;
 }
 
 /**
@@ -142,14 +141,14 @@ ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
  **/
 ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
 {
-   if (!ctx)
-      return NULL;
-   ctx->refcount--;
-   if (ctx->refcount > 0)
-      return ctx;
-   info(ctx, "ctx %p released\n", ctx);
-   free(ctx);
-   return NULL;
+    if (!ctx)
+        return NULL;
+    ctx->refcount--;
+    if (ctx->refcount > 0)
+        return ctx;
+    info(ctx, "ctx %p released\n", ctx);
+    free(ctx);
+    return NULL;
 }
 
 /**
@@ -163,13 +162,13 @@ ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
  *
  **/
 ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
-                              void (*log_fn)(struct zc_ctx *ctx,
-                                             int priority, const char *file,
-                                             int line, const char *fn,
-                                             const char *format, va_list args))
+                             void (*log_fn)(struct zc_ctx *ctx,
+                                            int priority, const char *file,
+                                            int line, const char *fn,
+                                            const char *format, va_list args))
 {
-   ctx->log_fn = log_fn;
-   info(ctx, "custom logging function %p registered\n", log_fn);
+    ctx->log_fn = log_fn;
+    info(ctx, "custom logging function %p registered\n", log_fn);
 }
 
 /**
@@ -180,7 +179,7 @@ ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
  **/
 ZC_EXPORT int zc_get_log_priority(struct zc_ctx *ctx)
 {
-   return ctx->log_priority;
+    return ctx->log_priority;
 }
 
 /**
@@ -193,5 +192,5 @@ ZC_EXPORT int zc_get_log_priority(struct zc_ctx *ctx)
  **/
 ZC_EXPORT void zc_set_log_priority(struct zc_ctx *ctx, int priority)
 {
-   ctx->log_priority = priority;
+    ctx->log_priority = priority;
 }

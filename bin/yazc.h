@@ -22,11 +22,10 @@
 #include <stdlib.h>
 #include "libzc.h"
 
-struct yazc_cmd
-{
-   const char *name;
-   int (*cmd)(int argc, char *argv[]);
-   const char *help;
+struct yazc_cmd {
+    const char *name;
+    int (*cmd)(int argc, char *argv[]);
+    const char *help;
 };
 
 #define fatal(arg...)                                           \
@@ -42,9 +41,9 @@ struct yazc_cmd
 #endif
 
 void yazc_log(const char *file, int line, const char *fn, const char *format, ...)
-   __attribute__((format(printf, 4, 5)));
+__attribute__((format(printf, 4, 5)));
 void yazc_err(const char *format, ...)
-   __attribute__((format(printf, 1, 2)));
+__attribute__((format(printf, 1, 2)));
 
 extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
 extern const struct yazc_cmd yazc_cmd_compat_dictionary;

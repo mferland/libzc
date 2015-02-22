@@ -22,114 +22,108 @@
 
 #include "cleanupqueue.h"
 
-struct cleanup_queue
-{
-   pthread_mutex_t mutex;
-   pthread_cond_t cond;
-   struct cleanup_node *head;
-   struct cleanup_node *tail;
+struct cleanup_queue {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    struct cleanup_node *head;
+    struct cleanup_node *tail;
 };
 
 static void queue_put(struct cleanup_queue *root, struct cleanup_node *node)
 {
-   node->next = NULL;
-   if (root->tail)
-      root->tail->next = node;
-   root->tail = node;
-   if (!root->head)
-      root->head = node;
+    node->next = NULL;
+    if (root->tail)
+        root->tail->next = node;
+    root->tail = node;
+    if (!root->head)
+        root->head = node;
 }
 
 static struct cleanup_node *queue_get(struct cleanup_queue *root)
 {
-   struct cleanup_node* node;
-   node = root->head;
-   if (root->head)
-   {
-      root->head = root->head->next;
-      if (!root->head)
-         root->tail = NULL;
-   }
-   return node;
+    struct cleanup_node *node;
+    node = root->head;
+    if (root->head) {
+        root->head = root->head->next;
+        if (!root->head)
+            root->tail = NULL;
+    }
+    return node;
 }
 
 int cleanup_queue_new(struct cleanup_queue **cq)
 {
-   struct cleanup_queue *new_cq = NULL;
-   int err;
+    struct cleanup_queue *new_cq = NULL;
+    int err;
 
-   new_cq = calloc(1, sizeof(struct cleanup_queue));
-   if (!new_cq)
-      return ENOMEM;
+    new_cq = calloc(1, sizeof(struct cleanup_queue));
+    if (!new_cq)
+        return ENOMEM;
 
-   err = pthread_mutex_init(&new_cq->mutex, NULL);
-   if (err)
-   {
-      free(new_cq);
-      return err;
-   }
+    err = pthread_mutex_init(&new_cq->mutex, NULL);
+    if (err) {
+        free(new_cq);
+        return err;
+    }
 
-   err = pthread_cond_init(&new_cq->cond, NULL);
-   if (err)
-   {
-      pthread_mutex_destroy(&new_cq->mutex);
-      free(new_cq);
-      return err;
-   }
+    err = pthread_cond_init(&new_cq->cond, NULL);
+    if (err) {
+        pthread_mutex_destroy(&new_cq->mutex);
+        free(new_cq);
+        return err;
+    }
 
-   new_cq->head = NULL;
-   new_cq->tail = NULL;
-   *cq = new_cq;
+    new_cq->head = NULL;
+    new_cq->tail = NULL;
+    *cq = new_cq;
 
-   return 0;
+    return 0;
 }
 
 void cleanup_queue_destroy(struct cleanup_queue *cq)
 {
-   pthread_cond_destroy(&cq->cond);
-   pthread_mutex_destroy(&cq->mutex);
-   free(cq);
+    pthread_cond_destroy(&cq->cond);
+    pthread_mutex_destroy(&cq->mutex);
+    free(cq);
 }
 
 void cleanup_queue_put(struct cleanup_queue *cq, struct cleanup_node *node)
 {
-   pthread_mutex_lock(&cq->mutex);
-   queue_put(cq, node);
-   pthread_cond_signal(&cq->cond);
-   pthread_mutex_unlock(&cq->mutex);
+    pthread_mutex_lock(&cq->mutex);
+    queue_put(cq, node);
+    pthread_cond_signal(&cq->cond);
+    pthread_mutex_unlock(&cq->mutex);
 }
 
 static void cancel_active_threads(struct cleanup_node *array, size_t size)
 {
-   size_t i;
+    size_t i;
 
-   for (i = 0; i < size; ++i)
-   {
-      if (!array[i].active)
-         continue;
-      pthread_cancel(array[i].thread_id);
-   }
+    for (i = 0; i < size; ++i) {
+        if (!array[i].active)
+            continue;
+        pthread_cancel(array[i].thread_id);
+    }
 }
 
 void cleanup_queue_wait(struct cleanup_queue *cq, struct cleanup_node *node_array, size_t size)
 {
-   struct cleanup_node *node;
-   int nodes_left = size;
+    struct cleanup_node *node;
+    int nodes_left = size;
 
-   if (size == 0)
-      return;                   /* nothing to do */
+    if (size == 0)
+        return;                   /* nothing to do */
 
-   while (nodes_left)
-   {
-      pthread_mutex_lock(&cq->mutex);
-      while (!cq->head)
-         pthread_cond_wait(&cq->cond, &cq->mutex);
-      node = queue_get(cq);
-      node->active = false;
-      if (node->found)
-         cancel_active_threads(node_array, size);
-      pthread_mutex_unlock(&cq->mutex);
-      pthread_join(node->thread_id, NULL);
-      --nodes_left;
-   }
+    while (nodes_left) {
+        pthread_mutex_lock(&cq->mutex);
+        while (!cq->head)
+            pthread_cond_wait(&cq->cond, &cq->mutex);
+        node = queue_get(cq);
+        node->active = false;
+        if (node->found)
+            cancel_active_threads(node_array, size);
+        pthread_mutex_unlock(&cq->mutex);
+        pthread_join(node->thread_id, NULL);
+        --nodes_left;
+    }
 }

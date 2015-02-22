@@ -26,100 +26,97 @@
 static void uint_qsort(uint32_t *arr, uint32_t n)
 {
 #define uint_lt(a,b) ((*a)<(*b))
-   QSORT(uint32_t, arr, n, uint_lt);
+    QSORT(uint32_t, arr, n, uint_lt);
 }
 
 static void sort(struct key_table *table)
 {
-   uint_qsort(table->array, table->size);
+    uint_qsort(table->array, table->size);
 }
 
 int key_table_new(struct key_table **table, size_t initial_size)
 {
-   struct key_table *tmp;
+    struct key_table *tmp;
 
-   if (initial_size == 0)
-      return -EINVAL;
+    if (initial_size == 0)
+        return -EINVAL;
 
-   tmp = calloc(1, sizeof(struct key_table));
-   if (!tmp)
-      return -ENOMEM;
+    tmp = calloc(1, sizeof(struct key_table));
+    if (!tmp)
+        return -ENOMEM;
 
-   tmp->array = calloc(1, initial_size * sizeof(uint32_t));
-   if (!tmp->array)
-   {
-      free(tmp);
-      return -ENOMEM;
-   }
+    tmp->array = calloc(1, initial_size * sizeof(uint32_t));
+    if (!tmp->array) {
+        free(tmp);
+        return -ENOMEM;
+    }
 
-   tmp->capacity = tmp->size = initial_size;
-   *table = tmp;
+    tmp->capacity = tmp->size = initial_size;
+    *table = tmp;
 
-   return 0;
+    return 0;
 }
 
 void key_table_free(struct key_table *table)
 {
-   if (!table)
-      return;
-   free(table->array);
-   free(table);
+    if (!table)
+        return;
+    free(table->array);
+    free(table);
 }
 
 void key_table_append(struct key_table *table, uint32_t key)
 {
-   if (table->size < table->capacity)
-   {
-      table->array[table->size] = key;
-      ++table->size;
-      return;
-   }
+    if (table->size < table->capacity) {
+        table->array[table->size] = key;
+        ++table->size;
+        return;
+    }
 
-   table->capacity += 1024;
-   table->array = realloc(table->array, table->capacity * sizeof(uint32_t));
-   if (!table->array)
-      abort();
+    table->capacity += 1024;
+    table->array = realloc(table->array, table->capacity * sizeof(uint32_t));
+    if (!table->array)
+        abort();
 
-   table->array[table->size] = key;
-   ++table->size;
+    table->array[table->size] = key;
+    ++table->size;
 }
 
 void key_table_uniq(struct key_table *table)
 {
-   size_t i = 0;
-   size_t j;
+    size_t i = 0;
+    size_t j;
 
-   if (table->size <= 1)
-      return;
+    if (table->size <= 1)
+        return;
 
-   sort(table);
+    sort(table);
 
-   /* reduce by removing duplicates */
-   for (j = 1; j < table->size; ++j)
-   {
-      if (table->array[j] != table->array[i])
-         table->array[++i] = table->array[j];
-   }
+    /* reduce by removing duplicates */
+    for (j = 1; j < table->size; ++j) {
+        if (table->array[j] != table->array[i])
+            table->array[++i] = table->array[j];
+    }
 
-   table->size = i + 1;
+    table->size = i + 1;
 }
 
 void key_table_squeeze(struct key_table *table)
 {
-   if (table->size == table->capacity)
-      return;
-   table->array = realloc(table->array, table->size * sizeof(uint32_t));
-   table->capacity = table->size;
+    if (table->size == table->capacity)
+        return;
+    table->array = realloc(table->array, table->size * sizeof(uint32_t));
+    table->capacity = table->size;
 }
 
 void key_table_empty(struct key_table *table)
 {
-   /* future append will restart at 0 */
-   table->size = 0;
+    /* future append will restart at 0 */
+    table->size = 0;
 }
 
 void key_table_print(struct key_table *table, FILE *stream)
 {
-   for (uint32_t i = 0; i < table->size; ++i)
-      fprintf(stream, "0x%0x\n", table->array[i]);
+    for (uint32_t i = 0; i < table->size; ++i)
+        fprintf(stream, "0x%0x\n", table->array[i]);
 }

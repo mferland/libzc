@@ -39,9 +39,9 @@ struct zc_ctx *zc_ref(struct zc_ctx *ctx);
 struct zc_ctx *zc_unref(struct zc_ctx *ctx);
 int zc_new(struct zc_ctx **inctx);
 void zc_set_log_fn(struct zc_ctx *ctx,
-                  void (*log_fn)(struct zc_ctx *ctx,
-                                 int priority, const char *file, int line, const char *fn,
-                                 const char *format, va_list args));
+                   void (*log_fn)(struct zc_ctx *ctx,
+                                  int priority, const char *file, int line, const char *fn,
+                                  const char *format, va_list args));
 int zc_get_log_priority(struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
@@ -51,10 +51,9 @@ void zc_set_log_priority(struct zc_ctx *ctx, int priority);
  * Encrypted file header and magic number used for testing password
  * validity. The zip encryption header is always 12 bytes.
  */
-struct zc_validation_data
-{
-   uint8_t encryption_header[12];
-   uint8_t magic;
+struct zc_validation_data {
+    uint8_t encryption_header[12];
+    uint8_t magic;
 };
 
 /**
@@ -135,11 +134,10 @@ int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_p
  * 5- zc_crk_ptext_find_internal_rep();
  * 6- zc_crk_ptext_unref();
  */
-struct zc_key
-{
-   uint32_t key0;
-   uint32_t key1;
-   uint32_t key2;
+struct zc_key {
+    uint32_t key0;
+    uint32_t key1;
+    uint32_t key2;
 };
 struct zc_crk_ptext;
 struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);

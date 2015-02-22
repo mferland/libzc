@@ -40,33 +40,32 @@
  *
  * Opaque object representing the zip file.
  */
-struct zc_file
-{
-   struct zc_ctx *ctx;
-   int refcount;
-   char *filename;
-   FILE *fd;
+struct zc_file {
+    struct zc_ctx *ctx;
+    int refcount;
+    char *filename;
+    FILE *fd;
 };
 
 ZC_EXPORT struct zc_file *zc_file_ref(struct zc_file *file)
 {
-   if (!file)
-      return NULL;
-   file->refcount++;
-   return file;
+    if (!file)
+        return NULL;
+    file->refcount++;
+    return file;
 }
 
 ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *file)
 {
-   if (!file)
-      return NULL;
-   file->refcount--;
-   if (file->refcount > 0)
-      return file;
-   dbg(file->ctx, "file %p released\n", file);
-   free(file->filename);
-   free(file);
-   return NULL;
+    if (!file)
+        return NULL;
+    file->refcount--;
+    if (file->refcount > 0)
+        return file;
+    dbg(file->ctx, "file %p released\n", file);
+    free(file->filename);
+    free(file);
+    return NULL;
 }
 
 /**
@@ -80,18 +79,18 @@ ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *file)
  */
 ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_file **file)
 {
-   struct zc_file *newfile;
+    struct zc_file *newfile;
 
-   newfile = calloc(1, sizeof(struct zc_file));
-   if (!newfile)
-      return -ENOMEM;
+    newfile = calloc(1, sizeof(struct zc_file));
+    if (!newfile)
+        return -ENOMEM;
 
-   newfile->ctx = ctx;
-   newfile->refcount = 1;
-   newfile->filename = strdup(filename);
-   *file = newfile;
-   dbg(ctx, "file %p created for %s\n", newfile, filename);
-   return 0;
+    newfile->ctx = ctx;
+    newfile->refcount = 1;
+    newfile->filename = strdup(filename);
+    *file = newfile;
+    dbg(ctx, "file %p created for %s\n", newfile, filename);
+    return 0;
 }
 
 /**
@@ -101,7 +100,7 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename
  */
 ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
 {
-   return file->filename;
+    return file->filename;
 }
 
 /**
@@ -113,15 +112,14 @@ ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
  */
 ZC_EXPORT int zc_file_open(struct zc_file *file)
 {
-   FILE *fd = fopen(file->filename, "r");
-   if (!fd)
-   {
-      err(file->ctx, "open() failed: %s.\n", strerror(errno));
-      return -1;
-   }
-   dbg(file->ctx, "file %p open returned: %p\n", file, fd);
-   file->fd = fd;
-   return 0;
+    FILE *fd = fopen(file->filename, "r");
+    if (!fd) {
+        err(file->ctx, "open() failed: %s.\n", strerror(errno));
+        return -1;
+    }
+    dbg(file->ctx, "file %p open returned: %p\n", file, fd);
+    file->fd = fd;
+    return 0;
 }
 
 /**
@@ -133,14 +131,13 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
  */
 ZC_EXPORT int zc_file_close(struct zc_file *file)
 {
-   if (fclose(file->fd))
-   {
-      err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
-      return -1;
-   }
-   dbg(file->ctx, "file %p closed\n", file);
-   file->fd = NULL;
-   return 0;
+    if (fclose(file->fd)) {
+        err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
+        return -1;
+    }
+    dbg(file->ctx, "file %p closed\n", file);
+    file->fd = NULL;
+    return 0;
 }
 
 /**
@@ -150,7 +147,7 @@ ZC_EXPORT int zc_file_close(struct zc_file *file)
  */
 ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 {
-   return (file->fd != NULL);
+    return (file->fd != NULL);
 }
 
 /**
@@ -166,118 +163,108 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
  */
 ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
 {
-   struct zip_header *zip_header;
-   size_t valid_files = 0;
+    struct zip_header *zip_header;
+    size_t valid_files = 0;
 
-   rewind(file->fd);
+    rewind(file->fd);
 
-   if (zip_header_new(&zip_header))
-      return 0;
+    if (zip_header_new(&zip_header))
+        return 0;
 
-   while (zip_header_read(file->fd, zip_header) == 0 && valid_files < nmemb)
-   {
-      if (zip_header_has_encryption_bit(zip_header))
-      {
-         vdata[valid_files].magic = zip_header_encryption_magic(zip_header);
-         if (zip_encryption_header_read(file->fd, vdata[valid_files].encryption_header))
-         {
+    while (zip_header_read(file->fd, zip_header) == 0 && valid_files < nmemb) {
+        if (zip_header_has_encryption_bit(zip_header)) {
+            vdata[valid_files].magic = zip_header_encryption_magic(zip_header);
+            if (zip_encryption_header_read(file->fd, vdata[valid_files].encryption_header)) {
+                zip_header_free(zip_header);
+                return 0;
+            }
+            ++valid_files;
+        }
+
+        if (zip_skip_to_next_header(file->fd, zip_header)) {
             zip_header_free(zip_header);
             return 0;
-         }
-         ++valid_files;
-      }
+        }
+    }
 
-      if (zip_skip_to_next_header(file->fd, zip_header))
-      {
-         zip_header_free(zip_header);
-         return 0;
-      }
-   }
-
-   zip_header_free(zip_header);
-   return valid_files;
+    zip_header_free(zip_header);
+    return valid_files;
 }
 
 static bool filename_matches(const char *in_name, const struct zip_header *h)
 {
-   const char *name = zip_header_filename(h);
-   size_t len = zip_header_filename_len(h);
-   return strncmp(name, in_name, len) == 0;
+    const char *name = zip_header_filename(h);
+    size_t len = zip_header_filename_len(h);
+    return strncmp(name, in_name, len) == 0;
 }
 
 ZC_EXPORT int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_name, void *buf, long offset, size_t count)
 {
-   uint8_t encryption_header[12];
-   struct zip_header *zip_header;
-   int current_index = 0;
-   int err;
+    uint8_t encryption_header[12];
+    struct zip_header *zip_header;
+    int current_index = 0;
+    int err;
 
-   if (count < 1)
-      return -EINVAL;
+    if (count < 1)
+        return -EINVAL;
 
-   if (offset < 0)
-      return -EINVAL;
+    if (offset < 0)
+        return -EINVAL;
 
-   rewind(file->fd);
+    rewind(file->fd);
 
-   if (zip_header_new(&zip_header))
-      return -ENOMEM;
+    if (zip_header_new(&zip_header))
+        return -ENOMEM;
 
-   while ((err = zip_header_read(file->fd, zip_header)) == 0)
-   {
-      if (zip_header_has_encryption_bit(zip_header))
-      {
-         err = zip_encryption_header_read(file->fd, encryption_header);
-         if (err)
+    while ((err = zip_header_read(file->fd, zip_header)) == 0) {
+        if (zip_header_has_encryption_bit(zip_header)) {
+            err = zip_encryption_header_read(file->fd, encryption_header);
+            if (err)
+                goto error;
+        }
+
+        if (filename_matches(in_name, zip_header)) {
+            long lastpos;
+            size_t readitems;
+
+            if (offset + count > zip_header_comp_size(zip_header)) {
+                err = -1;
+                goto error;
+            }
+
+            lastpos = ftell(file->fd);
+            if (lastpos == -1) {
+                err = -1;
+                goto error;
+            }
+
+            err = fseek(file->fd, offset, SEEK_CUR);
+            if (err != 0)
+                goto error;
+
+            readitems = fread(buf, count, 1, file->fd);
+            if (readitems != 1) {
+                err = -1;
+                goto error;
+            }
+
+            err = fseek(file->fd, lastpos, SEEK_SET);
+            if (err != 0)
+                goto error;
+
+            break;
+        }
+
+        err = zip_skip_to_next_header(file->fd, zip_header);
+        if (err)
             goto error;
-      }
 
-      if (filename_matches(in_name, zip_header))
-      {
-         long lastpos;
-         size_t readitems;
-
-         if (offset + count > zip_header_comp_size(zip_header))
-         {
-            err = -1;
-            goto error;
-         }
-
-         lastpos = ftell(file->fd);
-         if (lastpos == -1)
-         {
-            err = -1;
-            goto error;
-         }
-
-         err = fseek(file->fd, offset, SEEK_CUR);
-         if (err != 0)
-            goto error;
-
-         readitems = fread(buf, count, 1, file->fd);
-         if (readitems != 1)
-         {
-            err = -1;
-            goto error;
-         }
-
-         err = fseek(file->fd, lastpos, SEEK_SET);
-         if (err != 0)
-            goto error;
-
-         break;
-      }
-
-      err = zip_skip_to_next_header(file->fd, zip_header);
-      if (err)
-         goto error;
-
-      ++current_index;
-   }
+        ++current_index;
+    }
 
 error:
-   zip_header_free(zip_header);
-   return err == 0 ? 0 : -1;
+    zip_header_free(zip_header);
+    return err == 0 ? 0 : -1;
 }
 
 /**
@@ -292,7 +279,7 @@ error:
  */
 ZC_EXPORT bool zc_file_test_password(const char *filename, const char *pw)
 {
-   char cmd[128];
-   sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);
-   return (system(cmd) == EXIT_SUCCESS);
+    char cmd[128];
+    sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);
+    return (system(cmd) == EXIT_SUCCESS);
 }

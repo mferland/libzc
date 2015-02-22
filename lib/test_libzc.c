@@ -24,64 +24,64 @@
 
 START_TEST(test_zc_new_context)
 {
-   struct zc_ctx *ctx = NULL;
-   fail_if(zc_new(&ctx) != 0,
-           "Creating new library context failed.");
-   zc_unref(ctx);
+    struct zc_ctx *ctx = NULL;
+    fail_if(zc_new(&ctx) != 0,
+            "Creating new library context failed.");
+    zc_unref(ctx);
 }
 END_TEST
 
 START_TEST(test_zc_addremove_ref)
 {
-   struct zc_ctx *ctx;
-   zc_new(&ctx);
-   zc_ref(ctx);
-   fail_if(!zc_unref(ctx),
-           "Ref. count decrement failed.");
-   fail_unless(!zc_unref(ctx),
-               "Ref. count decrement and free failed.");
+    struct zc_ctx *ctx;
+    zc_new(&ctx);
+    zc_ref(ctx);
+    fail_if(!zc_unref(ctx),
+            "Ref. count decrement failed.");
+    fail_unless(!zc_unref(ctx),
+                "Ref. count decrement and free failed.");
 }
 END_TEST
 
 START_TEST(test_zc_ref_with_null_ptr)
 {
-   struct zc_ctx *ctx = NULL;
-   fail_unless(!zc_ref(ctx), NULL);
+    struct zc_ctx *ctx = NULL;
+    fail_unless(!zc_ref(ctx), NULL);
 }
 END_TEST
 
 START_TEST(test_zc_unref_with_null_ptr)
 {
-   struct zc_ctx *ctx = NULL;
-   fail_unless(!zc_unref(ctx), NULL);
+    struct zc_ctx *ctx = NULL;
+    fail_unless(!zc_unref(ctx), NULL);
 }
 END_TEST
 
 Suite *make_libzc_master_suite()
 {
-   Suite *s = suite_create("master");
-   TCase *tc_core = tcase_create("Core");
-   tcase_add_test(tc_core, test_zc_new_context);
-   tcase_add_test(tc_core, test_zc_addremove_ref);
-   tcase_add_test(tc_core, test_zc_ref_with_null_ptr);
-   tcase_add_test(tc_core, test_zc_unref_with_null_ptr);
-   suite_add_tcase(s, tc_core);
+    Suite *s = suite_create("master");
+    TCase *tc_core = tcase_create("Core");
+    tcase_add_test(tc_core, test_zc_new_context);
+    tcase_add_test(tc_core, test_zc_addremove_ref);
+    tcase_add_test(tc_core, test_zc_ref_with_null_ptr);
+    tcase_add_test(tc_core, test_zc_unref_with_null_ptr);
+    suite_add_tcase(s, tc_core);
 
-   return s;
+    return s;
 }
 
 int main()
 {
-   int number_failed;
-   SRunner *sr = srunner_create(make_libzc_master_suite());
-   srunner_add_suite(sr, make_libzc_file_suite());
-   srunner_add_suite(sr, make_libzc_pwgen_suite());
-   srunner_add_suite(sr, make_libzc_crack_suite());
-   srunner_add_suite(sr, make_libzc_pwdict_suite());
-   srunner_add_suite(sr, make_libzc_ptext_suite());
-   srunner_set_log(sr, "test_libzc.log");
-   srunner_run_all(sr, CK_NORMAL);
-   number_failed = srunner_ntests_failed(sr);
-   srunner_free(sr);
-   return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+    int number_failed;
+    SRunner *sr = srunner_create(make_libzc_master_suite());
+    srunner_add_suite(sr, make_libzc_file_suite());
+    srunner_add_suite(sr, make_libzc_pwgen_suite());
+    srunner_add_suite(sr, make_libzc_crack_suite());
+    srunner_add_suite(sr, make_libzc_pwdict_suite());
+    srunner_add_suite(sr, make_libzc_ptext_suite());
+    srunner_set_log(sr, "test_libzc.log");
+    srunner_run_all(sr, CK_NORMAL);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

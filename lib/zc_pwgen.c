@@ -23,192 +23,189 @@
 #include "libzc.h"
 #include "libzc_private.h"
 
-struct zc_pwgen
-{
-   char *pw;
-   char *char_lut;
-   char *char_ascii;
-   char *char_indexes;
-   size_t max_pw_len;
-   size_t char_lut_len;
-   int step;
-   struct zc_ctx *ctx;
-   int refcount;
+struct zc_pwgen {
+    char *pw;
+    char *char_lut;
+    char *char_ascii;
+    char *char_indexes;
+    size_t max_pw_len;
+    size_t char_lut_len;
+    int step;
+    struct zc_ctx *ctx;
+    int refcount;
 };
 
 static inline void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len)
 {
-   gen->pw = gen->char_ascii + gen->max_pw_len - len;
-   strncpy(gen->pw, pw, len);
+    gen->pw = gen->char_ascii + gen->max_pw_len - len;
+    strncpy(gen->pw, pw, len);
 }
 
 static inline void init_char_indexes(struct zc_pwgen *gen, size_t len)
 {
-   const size_t first_valid_index = gen->max_pw_len - len;
-   size_t i, j;
+    const size_t first_valid_index = gen->max_pw_len - len;
+    size_t i, j;
 
-   for (i = 0; i < first_valid_index; ++i)
-      gen->char_indexes[i] = -1;
+    for (i = 0; i < first_valid_index; ++i)
+        gen->char_indexes[i] = -1;
 
-   for (i = first_valid_index, j = 0; j < len; ++i, ++j)
-      gen->char_indexes[i] = index(gen->char_lut, gen->pw[j]) - gen->char_lut;
+    for (i = first_valid_index, j = 0; j < len; ++i, ++j)
+        gen->char_indexes[i] = index(gen->char_lut, gen->pw[j]) - gen->char_lut;
 }
 
 ZC_EXPORT struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen)
 {
-   if (!pwgen)
-      return NULL;
-   pwgen->refcount++;
-   return pwgen;
+    if (!pwgen)
+        return NULL;
+    pwgen->refcount++;
+    return pwgen;
 }
 
 ZC_EXPORT struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen)
 {
-   if (!pwgen)
-      return NULL;
-   pwgen->refcount--;
-   if (pwgen->refcount > 0)
-      return pwgen;
-   dbg(pwgen->ctx, "pwgen %p released\n", pwgen);
-   free(pwgen->char_lut);
-   free(pwgen->char_ascii);
-   free(pwgen->char_indexes);
-   free(pwgen);
-   return NULL;
+    if (!pwgen)
+        return NULL;
+    pwgen->refcount--;
+    if (pwgen->refcount > 0)
+        return pwgen;
+    dbg(pwgen->ctx, "pwgen %p released\n", pwgen);
+    free(pwgen->char_lut);
+    free(pwgen->char_ascii);
+    free(pwgen->char_indexes);
+    free(pwgen);
+    return NULL;
 }
 
 ZC_EXPORT int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **pwgen)
 {
-   struct zc_pwgen *newpwgen;
+    struct zc_pwgen *newpwgen;
 
-   newpwgen = calloc(1, sizeof(struct zc_pwgen));
-   if (!newpwgen)
-      return -ENOMEM;
+    newpwgen = calloc(1, sizeof(struct zc_pwgen));
+    if (!newpwgen)
+        return -ENOMEM;
 
-   newpwgen->ctx = ctx;
-   newpwgen->refcount = 1;
-   *pwgen = newpwgen;
-   dbg(ctx, "pwgen %p created\n", newpwgen);
-   return 0;
+    newpwgen->ctx = ctx;
+    newpwgen->refcount = 1;
+    *pwgen = newpwgen;
+    dbg(ctx, "pwgen %p created\n", newpwgen);
+    return 0;
 }
 
 ZC_EXPORT int zc_pwgen_init(struct zc_pwgen *gen, const char *char_lut, size_t max_pw_len)
 {
-   const size_t lut_len = strlen(char_lut);
-   char *char_lut_tmp = NULL;
-   char *char_ascii_tmp = NULL;
-   char *char_indexes_tmp = NULL;
+    const size_t lut_len = strlen(char_lut);
+    char *char_lut_tmp = NULL;
+    char *char_ascii_tmp = NULL;
+    char *char_indexes_tmp = NULL;
 
-   if (lut_len == 0)
-      return EINVAL;
+    if (lut_len == 0)
+        return EINVAL;
 
-   if (max_pw_len == 0)
-      return EINVAL;
+    if (max_pw_len == 0)
+        return EINVAL;
 
-   char_lut_tmp = strdup(char_lut);
-   if (!char_lut_tmp)
-      return ENOMEM;
+    char_lut_tmp = strdup(char_lut);
+    if (!char_lut_tmp)
+        return ENOMEM;
 
-   char_ascii_tmp = calloc(1, max_pw_len + 1);
-   if (!char_ascii_tmp)
-      goto error1;
+    char_ascii_tmp = calloc(1, max_pw_len + 1);
+    if (!char_ascii_tmp)
+        goto error1;
 
-   char_indexes_tmp = calloc(1, max_pw_len);
-   if (!char_indexes_tmp)
-      goto error2;
+    char_indexes_tmp = calloc(1, max_pw_len);
+    if (!char_indexes_tmp)
+        goto error2;
 
-   gen->char_lut = char_lut_tmp;
-   gen->char_lut_len = lut_len;
-   gen->char_ascii = char_ascii_tmp;
-   gen->char_indexes = char_indexes_tmp;
-   gen->max_pw_len = max_pw_len;
-   return 0;
+    gen->char_lut = char_lut_tmp;
+    gen->char_lut_len = lut_len;
+    gen->char_ascii = char_ascii_tmp;
+    gen->char_indexes = char_indexes_tmp;
+    gen->max_pw_len = max_pw_len;
+    return 0;
 
 error2:
-   free(char_ascii_tmp);
+    free(char_ascii_tmp);
 error1:
-   free(char_lut_tmp);
-   return ENOMEM;
+    free(char_lut_tmp);
+    return ENOMEM;
 }
 
 ZC_EXPORT int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw)
 {
-   const size_t len = strlen(pw);
-   char *tmp = strdup(pw);
+    const size_t len = strlen(pw);
+    char *tmp = strdup(pw);
 
-   if (len > gen->max_pw_len)
-      return EINVAL;
+    if (len > gen->max_pw_len)
+        return EINVAL;
 
-   init_char_ascii(gen, tmp, len);
-   init_char_indexes(gen, len);
+    init_char_ascii(gen, tmp, len);
+    init_char_indexes(gen, len);
 
-   free(tmp);
+    free(tmp);
 
-   dbg(gen->ctx, "password reset to: %s\n", pw);
-   return 0;
+    dbg(gen->ctx, "password reset to: %s\n", pw);
+    return 0;
 }
 
 ZC_EXPORT void zc_pwgen_set_step(struct zc_pwgen *gen, uint32_t step)
 {
-   gen->step = step;
+    gen->step = step;
 }
 
 ZC_EXPORT const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count)
 {
-   int quotient = gen->step;
-   const char *pw_orig = gen->pw;
-   char *char_idx = &gen->char_indexes[gen->max_pw_len - 1];
-   char *char_ascii = &gen->char_ascii[gen->max_pw_len - 1];
-   int iteration = 0;
+    int quotient = gen->step;
+    const char *pw_orig = gen->pw;
+    char *char_idx = &gen->char_indexes[gen->max_pw_len - 1];
+    char *char_ascii = &gen->char_ascii[gen->max_pw_len - 1];
+    int iteration = 0;
 
-   while (1)
-   {
-      *char_idx += quotient;
-      quotient = *char_idx / gen->char_lut_len;
-      *char_idx = *char_idx - quotient * gen->char_lut_len;
+    while (1) {
+        *char_idx += quotient;
+        quotient = *char_idx / gen->char_lut_len;
+        *char_idx = *char_idx - quotient * gen->char_lut_len;
 
-      *char_ascii = gen->char_lut[(unsigned char)*char_idx];
+        *char_ascii = gen->char_lut[(unsigned char) * char_idx];
 
-      if (quotient > 0 && char_ascii == gen->char_ascii)
-      {
-         *count = 0;
-         return NULL;           /* overflow */
-      }
+        if (quotient > 0 && char_ascii == gen->char_ascii) {
+            *count = 0;
+            return NULL;           /* overflow */
+        }
 
-      iteration++;
-      if (quotient == 0)
-         break;
+        iteration++;
+        if (quotient == 0)
+            break;
 
-      --char_idx;
-      --char_ascii;
+        --char_idx;
+        --char_ascii;
 
-      if (char_ascii < gen->pw)
-         gen->pw = char_ascii;
-   }
+        if (char_ascii < gen->pw)
+            gen->pw = char_ascii;
+    }
 
-   /* return 0 if the pw len changed, the pw is only one char or the
-    * first char changed */
-   if (gen->pw != pw_orig ||
-       gen->pw == &gen->char_ascii[gen->max_pw_len - 1] ||
-       iteration == (&gen->char_ascii[gen->max_pw_len - 1] - gen->pw + 1))
-      *count = 0;
-   else
-      *count = char_ascii - gen->pw;
+    /* return 0 if the pw len changed, the pw is only one char or the
+     * first char changed */
+    if (gen->pw != pw_orig ||
+        gen->pw == &gen->char_ascii[gen->max_pw_len - 1] ||
+        iteration == (&gen->char_ascii[gen->max_pw_len - 1] - gen->pw + 1))
+        *count = 0;
+    else
+        *count = char_ascii - gen->pw;
 
-   dbg(gen->ctx, "generated password: %s\n", gen->pw);
-   return gen->pw;
+    dbg(gen->ctx, "generated password: %s\n", gen->pw);
+    return gen->pw;
 }
 
 ZC_EXPORT const char *zc_pwgen_pw(const struct zc_pwgen *gen)
 {
-   return gen->pw;
+    return gen->pw;
 }
 
 ZC_EXPORT bool zc_pwgen_is_initialized(const struct zc_pwgen *gen)
 {
-   if (gen->step <= 0)
-      return false;
-   if (!gen->pw)
-      return false;
-   return true;
+    if (gen->step <= 0)
+        return false;
+    if (!gen->pw)
+        return false;
+    return true;
 }
