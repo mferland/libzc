@@ -23,11 +23,11 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#define ZIP_FILE_HEADER_SIGNATURE 0x04034b50
-#define ZIP_DATA_DESCRIPTOR_SIGNATURE 0x08074b50
-#define ZIP_FILE_STATIC_HEADER_LENGTH 30
-#define GP_BIT_DATA_DESCRIPTOR_PRESENT 0x8
-#define GP_BIT_ENCRYPTION 0x1
+#define ZIP_SIG               0x04034b50
+#define ZIP_DATA_DESC_SIG     0x08074b50
+#define ZIP_STATIC_HEADER_LEN 30
+#define GP_BIT_HAS_DATA_DESC  (1 << 3)
+#define GP_BIT_ENCRYPTION     0x1
 
 struct zip_header {
     uint16_t version_needed;
@@ -40,7 +40,7 @@ struct zip_header {
     uint32_t uncomp_size;
     uint16_t filename_length;
     uint16_t extra_field_length;
-    char    *filename;
+    char *filename;
 };
 
 static int check_header_signature(FILE *fd)
@@ -48,9 +48,7 @@ static int check_header_signature(FILE *fd)
     int sig;
     if (fread(&sig, 4, 1, fd) != 1)
         return -1;
-    if (sig != ZIP_FILE_HEADER_SIGNATURE)
-        return -1;
-    return 0;
+    return sig == ZIP_SIG ? 0 : -1;
 }
 
 static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
@@ -58,11 +56,11 @@ static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
     uint8_t *readbuf;
 
     // Read non-variable part (26 bytes without the 4 bytes signature)
-    readbuf = calloc(1, ZIP_FILE_STATIC_HEADER_LENGTH - 4);
+    readbuf = calloc(1, ZIP_STATIC_HEADER_LEN - 4);
     if (!readbuf)
         return -ENOMEM;
 
-    if (fread(readbuf, ZIP_FILE_STATIC_HEADER_LENGTH - 4, 1, fd) != 1) {
+    if (fread(readbuf, ZIP_STATIC_HEADER_LEN - 4, 1, fd) != 1) {
         free(readbuf);
         return -1;
     }
@@ -112,7 +110,7 @@ static int zip_header_get_data_size(const struct zip_header *header)
 
 static bool zip_header_has_data_descriptor_bit(const struct zip_header *header)
 {
-    return ((header->gen_bit_flag & GP_BIT_DATA_DESCRIPTOR_PRESENT) == GP_BIT_DATA_DESCRIPTOR_PRESENT);
+    return (header->gen_bit_flag & GP_BIT_HAS_DATA_DESC);
 }
 
 static int zip_skip_data(FILE *fd, const struct zip_header *header)
@@ -126,24 +124,17 @@ static int zip_skip_data(FILE *fd, const struct zip_header *header)
 
 static int zip_skip_data_descriptor(FILE *fd)
 {
-    int sig;
-    long offset;
-    /* TODO: do not use sizeof here, use static sizes */
     /*
       signature                       4 bytes (optional)
       crc-32                          4 bytes
       compressed size                 4 bytes
       uncompressed size               4 bytes
      */
-    if (fread(&sig, sizeof(int), 1, fd) != 1)
+    int sig;
+
+    if (fread(&sig, 4, 1, fd) != 1)
         return -1;
-
-    if (sig != ZIP_DATA_DESCRIPTOR_SIGNATURE)
-        offset = sizeof(int) * 2;
-    else
-        offset = sizeof(int) * 3;
-
-    return fseek(fd, offset, SEEK_CUR);
+    return fseek(fd, sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
 }
 
 int zip_header_new(struct zip_header **header)

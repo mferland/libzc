@@ -70,7 +70,6 @@ int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
-int zc_file_read_cipher_bytes(struct zc_file *file, const char *in_name, void *buf, long offset, size_t count);
 bool zc_file_test_password(const char *filename, const char *pw);
 
 /**
