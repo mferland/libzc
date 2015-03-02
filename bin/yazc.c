@@ -40,9 +40,9 @@ static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
     &yazc_cmd_help,
-    &yazc_cmd_compat_bruteforce,
-    &yazc_cmd_compat_dictionary,
-    &yazc_cmd_compat_plaintext,
+    &yazc_cmd_bruteforce,
+    &yazc_cmd_dictionary,
+    &yazc_cmd_plaintext,
     &yazc_cmd_info,
 };
 

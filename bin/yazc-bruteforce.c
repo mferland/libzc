@@ -493,7 +493,7 @@ static int do_bruteforce(int argc, char *argv[])
     return err;
 }
 
-const struct yazc_cmd yazc_cmd_compat_bruteforce = {
+const struct yazc_cmd yazc_cmd_bruteforce = {
     .name = "bruteforce",
     .cmd = do_bruteforce,
     .help = "bruteforce password cracker",

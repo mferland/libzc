@@ -316,7 +316,7 @@ error1:
     return err;
 }
 
-const struct yazc_cmd yazc_cmd_compat_plaintext = {
+const struct yazc_cmd yazc_cmd_plaintext = {
     .name = "plaintext",
     .cmd = do_plaintext,
     .help = "plaintext attack",

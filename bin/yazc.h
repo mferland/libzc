@@ -45,12 +45,15 @@ __attribute__((format(printf, 4, 5)));
 void yazc_err(const char *format, ...)
 __attribute__((format(printf, 1, 2)));
 
-extern const struct yazc_cmd yazc_cmd_compat_bruteforce;
-extern const struct yazc_cmd yazc_cmd_compat_dictionary;
-extern const struct yazc_cmd yazc_cmd_compat_plaintext;
+extern const struct yazc_cmd yazc_cmd_bruteforce;
+extern const struct yazc_cmd yazc_cmd_dictionary;
+extern const struct yazc_cmd yazc_cmd_plaintext;
 extern const struct yazc_cmd yazc_cmd_info;
 
 size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
                             struct zc_validation_data *vdata, size_t nmemb);
 
 #endif /* _YAZC_H_ */
+
+
+

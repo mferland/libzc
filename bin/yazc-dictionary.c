@@ -132,7 +132,7 @@ static int do_dictionary(int argc, char *argv[])
     return err;
 }
 
-const struct yazc_cmd yazc_cmd_compat_dictionary = {
+const struct yazc_cmd yazc_cmd_dictionary = {
     .name = "dictionary",
     .cmd = do_dictionary,
     .help = "dictionary password cracker",
