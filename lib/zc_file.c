@@ -47,6 +47,16 @@ struct zc_file {
     FILE *fd;
 };
 
+struct zc_info {
+    struct zc_file *file;
+    struct zip_header *header;
+    int refcount;
+    int idx;
+    long enc_header_offset;
+    long begin_offset;
+    long end_offset;
+};
+
 ZC_EXPORT struct zc_file *zc_file_ref(struct zc_file *file)
 {
     if (!file)
@@ -206,4 +216,115 @@ ZC_EXPORT bool zc_file_test_password(const char *filename, const char *pw)
     char cmd[128];
     sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);
     return (system(cmd) == EXIT_SUCCESS);
+}
+
+ZC_EXPORT int zc_info_new_from_file(struct zc_file *file, struct zc_info **info)
+{
+    struct zc_info *tmp;
+
+    tmp = calloc(1, sizeof(struct zc_info));
+    if (!tmp)
+        return -ENOMEM;
+
+    if (zip_header_new(&tmp->header)) {
+        free(tmp);
+        return -ENOMEM;
+    }
+
+    tmp->refcount = 1;
+    tmp->file = zc_file_ref(file);
+    tmp->idx = -1;
+    tmp->enc_header_offset = -1;
+    tmp->begin_offset = -1;
+    tmp->end_offset = -1;
+
+    *info = tmp;
+    dbg(file->ctx, "info %p created for %s\n", info, file->filename);
+    return 0;
+}
+
+ZC_EXPORT void zc_info_free(struct zc_info *info)
+{
+    zc_file_unref(info->file);
+    zip_header_free(info->header);
+    free(info);
+}
+
+ZC_EXPORT void zc_info_reset(struct zc_info *info)
+{
+    rewind(info->file->fd);
+    info->idx = -1;
+    info->enc_header_offset = -1;
+    info->begin_offset = -1;
+    info->end_offset = -1;
+}
+
+ZC_EXPORT const char *zc_info_get_filename(const struct zc_info *info)
+{
+    if (info->idx == -1)
+        return NULL;
+    return zip_header_filename(info->header);
+}
+
+ZC_EXPORT uint32_t zc_info_get_data_size(const struct zc_info *info)
+{
+    return zip_header_comp_size(info->header);
+}
+
+ZC_EXPORT long zc_info_get_data_offset_begin(const struct zc_info *info)
+{
+    return info->begin_offset;
+}
+
+ZC_EXPORT long zc_info_get_data_offset_end(const struct zc_info *info)
+{
+    return info->end_offset;
+}
+
+ZC_EXPORT long zc_info_get_enc_header_offset(const struct zc_info *info)
+{
+    return info->enc_header_offset;
+}
+
+ZC_EXPORT int zc_info_get_idx(const struct zc_info *info)
+{
+    return info->idx;
+}
+
+ZC_EXPORT struct zc_info *zc_info_next(struct zc_info *info)
+{
+    FILE *fd = info->file->fd;
+
+    if (zip_header_read(fd, info->header))
+        goto reset;             /* error or EOF */
+
+    if (zip_header_has_encryption_bit(info->header)) {
+        info->enc_header_offset = ftell(fd);
+        if (zip_encryption_header_skip(fd)) {
+            err(info->file->ctx, "Error skipping encryption header.\n");
+            goto reset;
+        }
+    }
+    else
+        info->enc_header_offset = -1L;
+
+    if (zip_header_comp_size(info->header)) {
+        info->begin_offset = ftell(fd);
+        info->end_offset = info->begin_offset + zip_header_comp_size(info->header) - 1;
+        if (zip_skip_to_next_header(info->file->fd, info->header)) {
+            err(info->file->ctx, "Error skipping to next header file.\n");
+            goto reset;
+        }
+    } else {
+        info->begin_offset = -1L;
+        info->end_offset = -1L;
+    }
+
+    info->idx++;
+
+    return info;
+
+reset:
+    zc_info_reset(info);
+    return NULL;
 }

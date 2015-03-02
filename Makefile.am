@@ -93,7 +93,8 @@ bin_yazc_SOURCES = bin/yazc.c \
 	bin/yazc-dictionary.c \
 	bin/yazc-common.c \
 	bin/cleanupqueue.c \
-	bin/yazc-plaintext.c
+	bin/yazc-plaintext.c \
+	bin/yazc-info.c
 bin_yazc_CPPFLAGS = $(AM_CPPFLAGS)
 bin_yazc_CFLAGS = $(AM_CFLAGS) -pthread
 bin_yazc_LDADD = lib/libzc.la

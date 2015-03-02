@@ -101,7 +101,7 @@ static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
     return 0;
 }
 
-static int zip_header_get_data_size(const struct zip_header *header)
+static uint32_t zip_header_get_data_size(const struct zip_header *header)
 {
     if (zip_header_has_encryption_bit(header))
         return header->comp_size - ZIP_ENCRYPTION_HEADER_LENGTH;
@@ -179,7 +179,7 @@ bool zip_header_has_encryption_bit(const struct zip_header *header)
 
 uint32_t zip_header_comp_size(const struct zip_header *header)
 {
-    return header->comp_size;
+    return zip_header_get_data_size(header);
 }
 
 uint8_t zip_header_encryption_magic(const struct zip_header *header)
@@ -199,6 +199,11 @@ int zip_encryption_header_read(FILE *fd, uint8_t *enc_header)
     if (fread(enc_header, ZIP_ENCRYPTION_HEADER_LENGTH, 1, fd) != 1)
         return -1;
     return 0;
+}
+
+int zip_encryption_header_skip(FILE *fd)
+{
+    return fseek(fd, ZIP_ENCRYPTION_HEADER_LENGTH, SEEK_CUR);
 }
 
 int zip_skip_to_next_header(FILE *fd, const struct zip_header *header)

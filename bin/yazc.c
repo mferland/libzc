@@ -43,6 +43,7 @@ static const struct yazc_cmd *yazc_cmds[] = {
     &yazc_cmd_compat_bruteforce,
     &yazc_cmd_compat_dictionary,
     &yazc_cmd_compat_plaintext,
+    &yazc_cmd_info,
 };
 
 static int help(int UNUSED(argc), char *argv[])

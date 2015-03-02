@@ -59,7 +59,7 @@ struct zc_validation_data {
 /**
  * zc_file:
  *
- * contains information about the zip file
+ * contains information about the zip file.
  */
 struct zc_file;
 struct zc_file *zc_file_ref(struct zc_file *file);
@@ -71,6 +71,23 @@ int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
 size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata_array, size_t nmemb);
 bool zc_file_test_password(const char *filename, const char *pw);
+
+/**
+ * zc_info:
+ *
+ * get information about each stored file.
+ */
+struct zc_info;
+int zc_info_new_from_file(struct zc_file *file, struct zc_info **info);
+void zc_info_free(struct zc_info *info);
+void zc_info_reset(struct zc_info *info);
+const char *zc_info_get_filename(const struct zc_info *info);
+uint32_t zc_info_get_data_size(const struct zc_info *info);
+long zc_info_get_data_offset_begin(const struct zc_info *info);
+long zc_info_get_data_offset_end(const struct zc_info *info);
+long zc_info_get_enc_header_offset(const struct zc_info *info);
+int zc_info_get_idx(const struct zc_info *info);
+struct zc_info *zc_info_next(struct zc_info *info);
 
 /**
  * zc_pwgen:

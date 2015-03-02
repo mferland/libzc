@@ -32,6 +32,7 @@ int zip_header_read(FILE *fd, struct zip_header *header);
 bool zip_header_has_encryption_bit(const struct zip_header *header);
 uint8_t zip_header_encryption_magic(const struct zip_header *header);
 int zip_encryption_header_read(FILE *fd, uint8_t *enc_header);
+int zip_encryption_header_skip(FILE *fd);
 int zip_skip_to_next_header(FILE *fd, const struct zip_header *header);
 uint32_t zip_header_comp_size(const struct zip_header *header);
 const char *zip_header_filename(const struct zip_header *header);

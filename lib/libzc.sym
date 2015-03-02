@@ -16,6 +16,16 @@ global:
         zc_file_read_validation_data;
         zc_file_test_password;
         zc_file_read_cipher_bytes;
+        zc_info_new_from_file;
+        zc_info_free;
+        zc_info_reset;
+        zc_info_get_filename;
+        zc_info_get_data_size;
+        zc_info_get_data_offset_begin;
+        zc_info_get_data_offset_end;
+        zc_info_get_enc_header_offset;
+        zc_info_get_idx;
+        zc_info_next;
         zc_pwgen_ref;
         zc_pwgen_unref;
         zc_pwgen_new;
