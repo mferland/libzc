@@ -51,32 +51,33 @@ static int check_header_signature(FILE *fd)
     return sig == ZIP_SIG ? 0 : -1;
 }
 
-static int zip_header_read_static_part(FILE *fd, struct zip_header *header)
+static uint16_t get_le16_at(const uint8_t *b, size_t i)
 {
-    uint8_t *readbuf;
+    return b[i + 1] << 8 | b[i];
+}
 
-    // Read non-variable part (26 bytes without the 4 bytes signature)
-    readbuf = calloc(1, ZIP_STATIC_HEADER_LEN - 4);
-    if (!readbuf)
-        return -ENOMEM;
+static uint32_t get_le32_at(const uint8_t *b, size_t i)
+{
+    return b[i + 3] << 24 | b[i + 2] << 16 | b[i + 1] << 8 | b[i];
+}
 
-    if (fread(readbuf, ZIP_STATIC_HEADER_LEN - 4, 1, fd) != 1) {
-        free(readbuf);
+static int zip_header_read_static_part(FILE *fd, struct zip_header *h)
+{
+    uint8_t buf[ZIP_STATIC_HEADER_LEN - 4];
+
+    if (fread(buf, ZIP_STATIC_HEADER_LEN - 4, 1, fd) != 1)
         return -1;
-    }
 
-    header->version_needed = le16toh(*(uint16_t *)&readbuf[0]);
-    header->gen_bit_flag = le16toh(*(uint16_t *)&readbuf[2]);
-    header->comp_method = le16toh(*(uint16_t *)&readbuf[4]);
-    header->last_mod_time = le16toh(*(uint16_t *)&readbuf[6]);
-    header->last_mod_date = le16toh(*(uint16_t *)&readbuf[8]);
-    header->crc32 = le32toh(*(uint32_t *)&readbuf[10]);
-    header->comp_size = le32toh(*(uint32_t *)&readbuf[14]);
-    header->uncomp_size = le32toh(*(uint32_t *)&readbuf[18]);
-    header->filename_length = le16toh(*(uint16_t *)&readbuf[22]);
-    header->extra_field_length = le16toh(*(uint16_t *)&readbuf[24]);
-
-    free(readbuf);
+    h->version_needed = get_le16_at(buf, 0);
+    h->gen_bit_flag = get_le16_at(buf, 2);
+    h->comp_method = get_le16_at(buf, 4);
+    h->last_mod_time = get_le16_at(buf, 6);
+    h->last_mod_date = get_le16_at(buf, 8);
+    h->crc32 = get_le32_at(buf, 10);
+    h->comp_size = get_le32_at(buf, 14);
+    h->uncomp_size = get_le32_at(buf, 18);
+    h->filename_length = get_le32_at(buf, 22);
+    h->extra_field_length = get_le32_at(buf, 24);
 
     return 0;
 }
