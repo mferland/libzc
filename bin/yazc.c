@@ -93,10 +93,9 @@ void yazc_err(const char *format, ...)
     va_end(args);
 }
 
-static int handle_yazc_commands(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     const char *cmd;
-    int err = 0;
     bool found = false;
     size_t i;
 
@@ -141,18 +140,9 @@ static int handle_yazc_commands(int argc, char *argv[])
         goto fail;
     }
 
-    err = yazc_cmds[i]->cmd(--argc, ++argv);
-
-    return err;
+    return yazc_cmds[i]->cmd(--argc, ++argv);
 
 fail:
     help(argc, argv);
     return EXIT_FAILURE;
-}
-
-int main(int argc, char *argv[])
-{
-    int err;
-    err = handle_yazc_commands(argc, argv);
-    return err;
 }

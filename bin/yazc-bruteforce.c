@@ -372,7 +372,6 @@ static int do_bruteforce(int argc, char *argv[])
     bool alphacaps = false;
     bool numeric = false;
     bool special = false;
-    int err;
 
     memset(&args, 0, sizeof(struct cleanup_node));
 
@@ -483,7 +482,7 @@ static int do_bruteforce(int argc, char *argv[])
     printf("Filename: %s\n", args.filename);
     printf("Initial password: %s\n", args.initial);
 
-    err = launch_crack();
+    int err = launch_crack();
 
     if (!charset)
         free(args.charset);
