@@ -94,16 +94,16 @@ struct zc_info *zc_info_next(struct zc_info *info);
  *
  * Generates all possible password from a given character set.
  */
-struct zc_pwgen;
-struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen);
-struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen);
-int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **gen);
-int zc_pwgen_init(struct zc_pwgen *gen, const char *char_set, size_t max_pw_len);
-int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw);
-void zc_pwgen_set_step(struct zc_pwgen *gen, uint32_t step);
-bool zc_pwgen_is_initialized(const struct zc_pwgen *gen);
-const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count);
-const char *zc_pwgen_pw(const struct zc_pwgen *gen);
+/* struct zc_pwgen; */
+/* struct zc_pwgen *zc_pwgen_ref(struct zc_pwgen *pwgen); */
+/* struct zc_pwgen *zc_pwgen_unref(struct zc_pwgen *pwgen); */
+/* int zc_pwgen_new(struct zc_ctx *ctx, struct zc_pwgen **gen); */
+/* int zc_pwgen_init(struct zc_pwgen *gen, const char *char_set, size_t max_pw_len); */
+/* int zc_pwgen_reset(struct zc_pwgen *gen, const char *pw); */
+/* void zc_pwgen_set_step(struct zc_pwgen *gen, uint32_t step); */
+/* bool zc_pwgen_is_initialized(const struct zc_pwgen *gen); */
+/* const char *zc_pwgen_generate(struct zc_pwgen *gen, size_t *count); */
+/* const char *zc_pwgen_pw(const struct zc_pwgen *gen); */
 
 /**
  * zc_pwdict:
@@ -134,8 +134,9 @@ struct zc_crk_bforce;
 struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *cracker);
 struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *cracker);
 int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **cracker);
-int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *cracker, struct zc_pwgen *pwgen);
 int zc_crk_bforce_set_vdata(struct zc_crk_bforce *cracker, const struct zc_validation_data *vdata, size_t nmemb);
+int zc_crk_bforce_set_pwgen_cfg(struct zc_crk_bforce *crk, const char *char_lut,
+                                size_t max_pw_len, size_t thread_num, const char *initial, uint32_t step);
 int zc_crk_bforce_start(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
 int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
 

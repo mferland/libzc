@@ -46,7 +46,6 @@ lib_libzc_la_SOURCES =\
 	lib/libzc.c \
 	lib/zc_file.c \
 	lib/zip.c \
-	lib/zc_pwgen.c \
 	lib/zc_crk.c \
 	lib/zc_pwdict.c \
 	lib/zc_crk_ptext.c \
@@ -69,7 +68,6 @@ TESTS = lib/test_libzc lib/test_keytable lib/test_key2reduce
 check_PROGRAMS = lib/test_libzc lib/test_keytable lib/test_key2reduce
 lib_test_libzc_SOURCES = lib/test_libzc.c \
 	lib/test_file.c \
-	lib/test_pwgen.c \
 	lib/test_crk.c \
 	lib/test_pwdict.c \
 	lib/test_crk_ptext.c \

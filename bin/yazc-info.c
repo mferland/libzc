@@ -112,7 +112,7 @@ static int do_info(int argc, char *argv[])
            "Encoded Hdr",
            "Data Begin",
            "Data End",
-           "Size");
+           "Data Size");
 
     while (zc_info_next(info)) {
         printf("%5d %*s %11li %11li %11li %11u\n",

@@ -235,58 +235,54 @@ static void *worker(void *t)
     return NULL;
 }
 
-static int init_worker_pwgen(int thread_num, struct zc_pwgen **pwgen)
-{
-    struct zc_pwgen *tmp = NULL;
-    const char *worker_pw = NULL;
+/* static int init_worker_pwgen(int thread_num, struct zc_crk_bforce *crk) */
+/* { */
+/*    /\* TODO: this should go in libzc not yazc *\/ */
+/*     const char *worker_pw = NULL; */
 
-    if (zc_pwgen_new(args.ctx, &tmp))
-        return -ENOMEM;
+/*     if (zc_crk_bforce_set_pwgen_cfg(crk, args.charset, args.maxlength)) */
+/*         goto error; */
 
-    if (zc_pwgen_init(tmp, args.charset, args.maxlength))
-        goto error;
+/*     zc_crk_bforce_pwgen_reset(tmp, args.initial); */
 
-    zc_pwgen_reset(tmp, args.initial);
+/*     if (thread_num > 1) { */
+/*        /\* advance the pwgen to this thread's first pw *\/ */
+/*         zc_crk_bforce_pwgen_step(crk, 1); */
+/*         for (int i = 0; i < thread_num - 1 ; ++i) { */
+/*             size_t count; */
+/*             worker_pw = zc_pwgen_generate(tmp, &count); */
+/*             if (!worker_pw) { */
+/*                 yazc_err("too many threads for password range.\n"); */
+/*                 goto error; */
+/*             } */
+/*         } */
+/*         zc_crk_bforce_pwgen_reset(tmp, worker_pw); */
+/*     } */
 
-    if (thread_num > 1) {
-        /* advance the pwgen to this thread's first pw */
-        zc_pwgen_set_step(tmp, 1);
-        for (int i = 0; i < thread_num - 1 ; ++i) {
-            size_t count;
-            worker_pw = zc_pwgen_generate(tmp, &count);
-            if (!worker_pw) {
-                yazc_err("too many threads for password range.\n");
-                goto error;
-            }
-        }
-        zc_pwgen_reset(tmp, worker_pw);
-    }
+/*     zc_pwgen_set_step(tmp, args.workers); */
+/*     *pwgen = tmp; */
+/*     return 0; */
 
-    zc_pwgen_set_step(tmp, args.workers);
-    *pwgen = tmp;
-    return 0;
-
-error:
-    zc_pwgen_unref(tmp);
-    *pwgen = NULL;
-    return -1;
-}
+/* error: */
+/*     return -1; */
+/* } */
 
 static int init_worker(struct cleanup_node *node)
 {
     struct zc_crk_bforce *crk;
-    struct zc_pwgen *pwgen;
+    /* struct zc_pwgen *pwgen; */
 
-    if (init_worker_pwgen(node->thread_num, &pwgen))
-        return -1;
+    /* if (init_worker_pwgen(node->thread_num, &pwgen)) */
+    /*     return -1; */
 
     if (zc_crk_bforce_new(args.ctx, &crk)) {
-        zc_pwgen_unref(pwgen);
+        /* zc_pwgen_unref(pwgen); */
         return -1;
     }
     zc_crk_bforce_set_vdata(crk, args.vdata, args.vdata_size);
-    zc_crk_bforce_set_pwgen(crk, pwgen);
-    zc_pwgen_unref(pwgen);
+    zc_crk_bforce_set_pwgen_cfg(crk, args.charset, args.maxlength,
+                                node->thread_num, args.initial, args.workers);
+    /* zc_pwgen_unref(pwgen); */
 
     node->crk = crk;
 

@@ -30,12 +30,83 @@
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 
+struct zc_pwgen {
+    char *pw;
+    char *char_lut;
+    char *char_ascii;
+    char *char_indexes;
+    size_t max_pw_len;
+    size_t char_lut_len;
+    int step;
+};
+
+static void init_char_ascii(struct zc_pwgen *gen, const char *pw, size_t len)
+{
+    gen->pw = gen->char_ascii + gen->max_pw_len - len;
+    strncpy(gen->pw, pw, len);
+}
+
+static void init_char_indexes(struct zc_pwgen *gen, size_t len)
+{
+    const size_t first_valid_index = gen->max_pw_len - len;
+    size_t i, j;
+
+    for (i = 0; i < first_valid_index; ++i)
+        gen->char_indexes[i] = -1;
+
+    for (i = first_valid_index, j = 0; j < len; ++i, ++j)
+        gen->char_indexes[i] = index(gen->char_lut, gen->pw[j]) - gen->char_lut;
+}
+
+static inline const char *pwgen_generate(struct zc_pwgen *gen, size_t *count)
+{
+    int quotient = gen->step;
+    const char *pw_orig = gen->pw;
+    char *char_idx = &gen->char_indexes[gen->max_pw_len - 1];
+    char *char_ascii = &gen->char_ascii[gen->max_pw_len - 1];
+    int iteration = 0;
+
+    while (1) {
+        *char_idx += quotient;
+        quotient = *char_idx / gen->char_lut_len;
+        *char_idx = *char_idx - quotient * gen->char_lut_len;
+
+        *char_ascii = gen->char_lut[(unsigned char) * char_idx];
+
+        if (quotient > 0 && char_ascii == gen->char_ascii) {
+            *count = 0;
+            return NULL;           /* overflow */
+        }
+
+        iteration++;
+        if (quotient == 0)
+            break;
+
+        --char_idx;
+        --char_ascii;
+
+        if (char_ascii < gen->pw)
+            gen->pw = char_ascii;
+    }
+
+    /* return 0 if the pw len changed, the pw is only one char or the
+     * first char changed */
+    if (gen->pw != pw_orig ||
+        gen->pw == &gen->char_ascii[gen->max_pw_len - 1] ||
+        iteration == (&gen->char_ascii[gen->max_pw_len - 1] - gen->pw + 1))
+        *count = 0;
+    else
+        *count = char_ascii - gen->pw;
+
+    return gen->pw;
+}
+
 struct zc_crk_bforce {
-    struct zc_pwgen *gen;
     const struct zc_validation_data *vdata;
     size_t vdata_size;
     struct zc_ctx *ctx;
     int refcount;
+    struct zc_pwgen gen;
 };
 
 static inline void update_keys(char c, struct zc_key *k)
@@ -147,17 +218,78 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     if (crk->refcount > 0)
         return crk;
     dbg(crk->ctx, "cracker %p released\n", crk);
-    zc_pwgen_unref(crk->gen);
+    free(crk->gen.char_lut);
+    free(crk->gen.char_ascii);
+    free(crk->gen.char_indexes);
     free(crk);
     return NULL;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_pwgen(struct zc_crk_bforce *crk, struct zc_pwgen *pwgen)
+ZC_EXPORT int zc_crk_bforce_set_pwgen_cfg(struct zc_crk_bforce *crk, const char *char_lut,
+                                          size_t max_pw_len, size_t thread_num, const char *initial, uint32_t step)
 {
-    if (!pwgen)
+    const size_t lut_len = strlen(char_lut);
+    const size_t len = strlen(initial);
+    char *char_lut_tmp = NULL;
+    char *char_ascii_tmp = NULL;
+    char *char_indexes_tmp = NULL;
+
+    if (lut_len == 0)
         return -EINVAL;
-    crk->gen = zc_pwgen_ref(pwgen);
+
+    if (max_pw_len == 0)
+        return -EINVAL;
+
+    if (thread_num == 0)
+       return -EINVAL;
+
+    if (len > max_pw_len)
+       return -EINVAL;
+
+    char_lut_tmp = strdup(char_lut);
+    if (!char_lut_tmp)
+        return -ENOMEM;
+
+    char_ascii_tmp = calloc(1, max_pw_len + 1);
+    if (!char_ascii_tmp)
+        goto error1;
+
+    char_indexes_tmp = calloc(1, max_pw_len);
+    if (!char_indexes_tmp)
+        goto error2;
+
+    crk->gen.char_lut = char_lut_tmp;
+    crk->gen.char_lut_len = lut_len;
+    crk->gen.char_ascii = char_ascii_tmp;
+    crk->gen.char_indexes = char_indexes_tmp;
+    crk->gen.max_pw_len = max_pw_len;
+
+    init_char_ascii(&crk->gen, initial, len);
+    init_char_indexes(&crk->gen, len);
+
+    /* advance the pwgen to this thread's first pw */
+    crk->gen.step = 1;
+    for (size_t i = 0; i < thread_num - 1 ; ++i) {
+       size_t count;
+       if (!pwgen_generate(&crk->gen, &count)) {
+          err(crk->ctx, "too many threads for password range.\n");
+          goto error2;
+       }
+    }
+    crk->gen.step = step;
+
     return 0;
+
+error2:
+    free(char_ascii_tmp);
+error1:
+    free(char_lut_tmp);
+    return -ENOMEM;
+}
+
+ZC_EXPORT void zc_crk_bforce_pwgen_step(struct zc_crk_bforce *crk, uint32_t step)
+{
+    crk->gen.step = step;
 }
 
 ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
@@ -174,10 +306,7 @@ ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc
 static bool is_valid_cracker(struct zc_crk_bforce *crk)
 {
     /* invalid arguments */
-    if (!crk->gen || !crk->vdata)
-        return false;
-
-    if (!zc_pwgen_is_initialized(crk->gen))
+    if (!crk->vdata || crk->gen.step <= 0 || !crk->gen.pw)
         return false;
     return true;
 }
@@ -187,8 +316,6 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
     struct zc_key key;
     struct zc_key base_key;
     struct zc_key key_table[out_pw_size];
-    struct zc_pwgen *gen = crk->gen;
-    const char *pw;
     size_t idem_char = 0;
     bool found = false;
 
@@ -199,9 +326,8 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
 
     set_default_encryption_keys(key_table);
 
-    pw = zc_pwgen_pw(gen);
     do {
-        init_encryption_keys_from_base(pw, key_table, &base_key, idem_char);
+        init_encryption_keys_from_base(crk->gen.pw, key_table, &base_key, idem_char);
         found = true;
         for (size_t i = 0; i < crk->vdata_size; ++i) {
             reset_encryption_keys(&base_key, &key);
@@ -213,12 +339,12 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
 
         if (found) {
             memset(out_pw, 0, out_pw_size);
-            strncpy(out_pw, pw, out_pw_size - 1);
+            strncpy(out_pw, crk->gen.pw, out_pw_size - 1);
             break;
         }
 
-        pw = zc_pwgen_generate(gen, &idem_char);
-    } while (pw);
+        pwgen_generate(&crk->gen, &idem_char);
+    } while (crk->gen.pw);
 
     return found == true ? 0 : -1;
 }
@@ -228,7 +354,7 @@ ZC_EXPORT int zc_crk_bforce_skip(struct zc_crk_bforce *crk, char *UNUSED(out_pw)
     size_t tmp;
     if (!is_valid_cracker(crk))
         return -EINVAL;
-    if (!zc_pwgen_generate(crk->gen, &tmp))
+    if (!pwgen_generate(&crk->gen, &tmp))
         return -1;
     return 0;
 }
