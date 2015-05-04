@@ -109,11 +109,11 @@ struct zc_crk_bforce {
     struct zc_pwgen gen;
 };
 
-static inline void update_keys(char c, struct zc_key *k)
+static inline void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
 {
-    k->key0 = crc32(k->key0, c);
-    k->key1 = (k->key1 + (k->key0 & 0x000000ff)) * MULT + 1;
-    k->key2 = crc32(k->key2, k->key1 >> 24);
+    kdst->key0 = crc32(ksrc->key0, c);
+    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0x000000ff)) * MULT + 1;
+    kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
 }
 
 static inline void set_default_encryption_keys(struct zc_key *k)
@@ -128,22 +128,20 @@ static inline void init_encryption_keys(const char *pw, struct zc_key *k)
     int i = 0;
     set_default_encryption_keys(k);
     while (pw[i] != '\0') {
-        update_keys(pw[i], k);
+        update_keys(pw[i], k, k);
         ++i;
     }
 }
 
-static void init_encryption_keys_from_base(const char *pw, struct zc_key *key_table,
-                                           struct zc_key *k, size_t idem_char)
+static inline size_t init_key_table(const char *pw, struct zc_key *key_table,
+                                    size_t idem_char)
 {
-    *k = key_table[idem_char];
-
     /* do {} while() assuming password is never empty */
     do {
-        update_keys(pw[idem_char], k);
-        key_table[idem_char + 1] = *k;
+        update_keys(pw[idem_char], &key_table[idem_char], &key_table[idem_char + 1]);
         ++idem_char;
     } while (pw[idem_char] != '\0');
+    return idem_char;
 }
 
 static inline void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
@@ -164,7 +162,7 @@ static inline uint8_t decrypt_header(const uint8_t *encrypted_header, struct zc_
 
     for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH; ++i) {
         c = encrypted_header[i] ^ decrypt_byte(k->key2);
-        update_keys(c, k);
+        update_keys(c, k, k);
     }
 
     /* Returns the last byte of the decrypted header */
@@ -314,7 +312,6 @@ static bool is_valid_cracker(struct zc_crk_bforce *crk)
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
 {
     struct zc_key key;
-    struct zc_key base_key;
     struct zc_key key_table[out_pw_size];
     size_t idem_char = 0;
     bool found = false;
@@ -327,10 +324,11 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_
     set_default_encryption_keys(key_table);
 
     do {
-        init_encryption_keys_from_base(crk->gen.pw, key_table, &base_key, idem_char);
+        size_t lastidx = init_key_table(crk->gen.pw, key_table, idem_char);
         found = true;
         for (size_t i = 0; i < crk->vdata_size; ++i) {
-            reset_encryption_keys(&base_key, &key);
+            /* reset key to last key_table entry */
+            key = key_table[lastidx];
             if (decrypt_header(crk->vdata[i].encryption_header, &key) == crk->vdata[i].magic)
                 continue;
             found = false;
