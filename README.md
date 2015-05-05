@@ -37,11 +37,25 @@ Examples:
 Try all password from words.dict:
 
     cat words.dict | yazc dictionary archive.zip
-    
+
 Use John The Ripper to generate more passwords:
 
     john --wordlist=words.dict --rules --stdout | yazc dictionary archive.zip
 
 Plaintext
 ---------
+This mode uses a known vulnerability in the pkzip stream cipher to
+find the internal representation of the encryption key. Once the
+internal representation of the key has been found, you can use an
+external tool (like zipdecrypt from pkcrack) to actually decrypt the
+zip file.
+
+Example:
+    yazc plaintext plain.bin:100:650 archive.zip:112:662:64
+
 TODO
+----
+- Find the actual password when using the plaintext attack.
+- Stop relying on the external 'unzip' command.
+- Support for GPU bruteforce cracking.
+- Add basic mangling rules to dictionary attack.
