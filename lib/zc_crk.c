@@ -133,12 +133,12 @@ static inline void init_encryption_keys(const char *pw, struct zc_key *k)
     }
 }
 
-static inline size_t init_key_table(const char *pw, struct zc_key *key_table,
+static inline size_t init_key_cache(const char *pw, struct zc_key *key_cache,
                                     size_t idem_char)
 {
     /* do {} while() assuming password is never empty */
     do {
-        update_keys(pw[idem_char], &key_table[idem_char], &key_table[idem_char + 1]);
+        update_keys(pw[idem_char], &key_cache[idem_char], &key_cache[idem_char + 1]);
         ++idem_char;
     } while (pw[idem_char] != '\0');
     return idem_char;
@@ -312,23 +312,23 @@ static bool is_valid_cracker(struct zc_crk_bforce *crk)
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *out_pw, size_t out_pw_size)
 {
     struct zc_key key;
-    struct zc_key key_table[out_pw_size];
+    struct zc_key key_cache[out_pw_size];
     size_t idem_char = 0;
     bool found = false;
 
     if (!out_pw || !is_valid_cracker(crk))
         return -EINVAL;
 
-    memset(&key_table, 0, out_pw_size * sizeof(struct zc_key));
+    memset(&key_cache, 0, out_pw_size * sizeof(struct zc_key));
 
-    set_default_encryption_keys(key_table);
+    set_default_encryption_keys(key_cache);
 
     do {
-        size_t lastidx = init_key_table(crk->gen.pw, key_table, idem_char);
+        size_t lastidx = init_key_cache(crk->gen.pw, key_cache, idem_char);
         found = true;
         for (size_t i = 0; i < crk->vdata_size; ++i) {
-            /* reset key to last key_table entry */
-            key = key_table[lastidx];
+            /* reset key to last key_cache entry */
+            key = key_cache[lastidx];
             if (decrypt_header(crk->vdata[i].encryption_header, &key) == crk->vdata[i].magic)
                 continue;
             found = false;
