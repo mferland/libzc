@@ -51,6 +51,7 @@ external tool (like zipdecrypt from pkcrack) to actually decrypt the
 zip file.
 
 Example:
+
     yazc plaintext plain.bin:100:650 archive.zip:112:662:64
 
 TODO
