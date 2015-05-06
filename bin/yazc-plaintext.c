@@ -117,7 +117,7 @@ static int parse_opt(char *opt, int count, const char **filename, off_t *off1, o
             err = parse_offset(token, off3);
             break;
         }
-        if (err < 0)
+        if (err)
             return -1;
     }
 
@@ -185,7 +185,8 @@ static int mmap_text_buf(struct filed *file)
     return 0;
 
 error:
-    close(fd);
+    if (close(fd))
+        yazc_err("close() failed: %s\n", strerror(errno));
     return -1;
 }
 
@@ -193,7 +194,8 @@ static int unmap_text_buf(struct filed *file)
 {
     if (munmap(file->map, size_of_map(file)) < 0)
         yazc_err("munmap() failed: %s.\n", strerror(errno));
-    close(file->fd);
+    if (close(file->fd))
+        yazc_err("close() failed: %s.\n", strerror(errno));
     return 0;
 }
 
