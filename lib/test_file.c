@@ -46,7 +46,7 @@ END_TEST
 
 START_TEST(test_zc_file_open_existant)
 {
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     fail_if(zc_file_open(file) != 0,
             "File could not be opened.");
     zc_file_close(file);
@@ -63,7 +63,7 @@ END_TEST
 
 START_TEST(test_zc_file_close_opened)
 {
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     fail_if(zc_file_close(file) != 0,
             "Closing existant file failed.");
@@ -72,7 +72,7 @@ END_TEST
 
 START_TEST(test_zc_file_isopened_true)
 {
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     fail_unless(zc_file_isopened(file),
                 "File should be open.");
@@ -82,7 +82,7 @@ END_TEST
 
 START_TEST(test_zc_file_isopened_false)
 {
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     fail_if(zc_file_isopened(file),
             "File should not be open.");
 }
@@ -92,7 +92,7 @@ START_TEST(test_zc_file_can_read_validation_data)
 {
     struct zc_validation_data vdata[3];
 
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     int err = zc_file_read_validation_data(file, vdata, 3);
 
@@ -107,7 +107,7 @@ START_TEST(test_zc_file_specify_large_validation_data)
 {
     struct zc_validation_data vdata[12];
 
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     int err = zc_file_read_validation_data(file, vdata, 12);
 
@@ -122,7 +122,7 @@ START_TEST(test_zc_file_not_encrypted)
 {
     struct zc_validation_data vdata[3];
 
-    zc_file_new_from_filename(ctx, "test_non_encrypted.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test_non_encrypted.zip", &file);
     zc_file_open(file);
     int err = zc_file_read_validation_data(file, vdata, 3);
 
@@ -135,13 +135,13 @@ END_TEST
 
 START_TEST(test_zc_file_wrong_password)
 {
-    fail_unless(zc_file_test_password("test.zip", "mfe") == false, NULL);
+    fail_unless(zc_file_test_password("../data/test.zip", "mfe") == false, NULL);
 }
 END_TEST
 
 START_TEST(test_zc_file_good_password)
 {
-    fail_unless(zc_file_test_password("test.zip", "yamaha") == true, NULL);
+    fail_unless(zc_file_test_password("../data/test.zip", "yamaha") == true, NULL);
 }
 END_TEST
 

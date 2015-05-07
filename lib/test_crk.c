@@ -29,7 +29,7 @@ static struct zc_validation_data vdata[3];
 void setup_crack()
 {
     zc_new(&ctx);
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     zc_file_read_validation_data(file, vdata, 3);
 }
@@ -83,7 +83,7 @@ START_TEST(test_start_crack)
     struct zc_file *file;
     char pw[7];
 
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     vdata_size = zc_file_read_validation_data(file, vdata, vdata_size);
     zc_file_close(file);
@@ -109,7 +109,7 @@ START_TEST(test_cannot_find_password)
     struct zc_file *file;
     char pw[7];
 
-    zc_file_new_from_filename(ctx, "test.zip", &file);
+    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
     zc_file_open(file);
     vdata_size = zc_file_read_validation_data(file, vdata, vdata_size);
     zc_file_close(file);

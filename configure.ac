@@ -2,13 +2,10 @@ AC_PREREQ(2.60)
 AC_INIT([zc],
         [1.0.0],
         [marc.ferland@gmail.com],
-        [zc],
-        [http://nositeyet.com])
+        [libzc],
+        [http://github.com/mferland/libzc])
 AC_CONFIG_SRCDIR([lib/libzc.c])
-AC_CONFIG_AUX_DIR([build-aux])
-AM_INIT_AUTOMAKE([check-news foreign 1.11 -Wall -Wno-portability silent-rules tar-pax no-dist-gzip dist-xz subdir-objects])
-AC_PROG_CC_STDC
-AC_USE_SYSTEM_EXTENSIONS
+AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
 AC_SYS_LARGEFILE
 AC_CONFIG_MACRO_DIR([m4])
 AM_SILENT_RULES([yes])
@@ -19,11 +16,7 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
-AC_PROG_SED
-AC_PROG_MKDIR_P
-
 PKG_PROG_PKG_CONFIG
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 AC_ARG_ENABLE([logging],
         AS_HELP_STRING([--disable-logging], [disable system logging @<:@default=enabled@:>@]),
@@ -35,27 +28,26 @@ AS_IF([test "x$enable_logging" = "xyes"], [
 AC_ARG_ENABLE([debug],
         AS_HELP_STRING([--enable-debug], [enable debug messages @<:@default=disabled@:>@]),
         [], [enable_debug=no])
-AS_IF([test "x$enable_debug" = "xyes"], [
-        AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
-])
+AS_IF([test "x$enable_debug" = "xyes"], [AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])])
 
-AC_ARG_ENABLE([yazc],
-        AS_HELP_STRING([--disable-yazc], [disable building yazc command line tool @<:@default=enabled@:>@]),
-        [], enable_yazc=yes)
-AM_CONDITIONAL([BUILD_YAZC], [test "x$enable_yazc" = "xyes"])
-
-my_CFLAGS="-Wall -Wextra"
-AC_SUBST([my_CFLAGS])
+AC_ARG_ENABLE([tests],
+        AS_HELP_STRING([--enable-tests], [enable automated testing @<:@default=disabled@:>@]),
+        [], [enable_debug=no])
+AS_IF([test "x$enable_tests" = "xyes"], [PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])])
+AM_CONDITIONAL([BUILD_TESTS], [test "x$enable_tests" = "xyes"])
 
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
         Makefile
+        lib/Makefile
+        bin/Makefile
+        lib/libzc.pc
 ])
 
 AC_OUTPUT
 AC_MSG_RESULT([
         $PACKAGE $VERSION
-        =====
+        ===========
 
         prefix:                 ${prefix}
         sysconfdir:             ${sysconfdir}
@@ -68,6 +60,5 @@ AC_MSG_RESULT([
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
-
-        yazc:                   ${enable_yazc}
+        tests:                  ${enable_tests}
 ])
