@@ -75,7 +75,6 @@ int main()
     int number_failed;
     SRunner *sr = srunner_create(make_libzc_master_suite());
     srunner_add_suite(sr, make_libzc_file_suite());
-    srunner_add_suite(sr, make_libzc_pwgen_suite());
     srunner_add_suite(sr, make_libzc_crack_suite());
     srunner_add_suite(sr, make_libzc_pwdict_suite());
     srunner_add_suite(sr, make_libzc_ptext_suite());
