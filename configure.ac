@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [1.0.0],
+        [0.1.0],
         [marc.ferland@gmail.com],
         [libzc],
         [http://github.com/mferland/libzc])
@@ -32,7 +32,7 @@ AS_IF([test "x$enable_debug" = "xyes"], [AC_DEFINE(ENABLE_DEBUG, [1], [Debug mes
 
 AC_ARG_ENABLE([tests],
         AS_HELP_STRING([--enable-tests], [enable automated testing @<:@default=disabled@:>@]),
-        [], [enable_debug=no])
+        [], [enable_tests=no])
 AS_IF([test "x$enable_tests" = "xyes"], [PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])])
 AM_CONDITIONAL([BUILD_TESTS], [test "x$enable_tests" = "xyes"])
 

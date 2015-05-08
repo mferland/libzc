@@ -1,0 +1,13 @@
+
+Authors of libzc
+================
+
+libzc is developed and maintained by Marc Ferland
+<marc.ferland@gmail.com>.
+
+Parts of this software were inspired by fcrackzip (by Marc Lehmann)
+and pkcrack (by Peter Conrad).
+
+The initial plaintext attack algorithm was devised by Eli Biham and
+Paul C. Kocher in their paper "A Known Plaintext Attack on the PKZIP
+Stream Cipher".
