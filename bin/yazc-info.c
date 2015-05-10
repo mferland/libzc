@@ -126,11 +126,11 @@ static int do_info(int argc, char *argv[])
     }
 
     zc_info_free(info);
- err3:
+err3:
     zc_file_close(file);
- err2:
+err2:
     zc_file_unref(file);
- err1:
+err1:
     zc_unref(ctx);
     return err;
 }

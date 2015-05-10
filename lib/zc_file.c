@@ -304,8 +304,7 @@ ZC_EXPORT struct zc_info *zc_info_next(struct zc_info *info)
             err(info->file->ctx, "Error skipping encryption header.\n");
             goto reset;
         }
-    }
-    else
+    } else
         info->enc_header_offset = -1L;
 
     if (zip_header_comp_size(info->header)) {

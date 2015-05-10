@@ -239,10 +239,10 @@ ZC_EXPORT int zc_crk_bforce_set_pwgen_cfg(struct zc_crk_bforce *crk, const char 
         return -EINVAL;
 
     if (thread_num == 0)
-       return -EINVAL;
+        return -EINVAL;
 
     if (len > max_pw_len)
-       return -EINVAL;
+        return -EINVAL;
 
     char_lut_tmp = strdup(char_lut);
     if (!char_lut_tmp)
@@ -268,11 +268,11 @@ ZC_EXPORT int zc_crk_bforce_set_pwgen_cfg(struct zc_crk_bforce *crk, const char 
     /* advance the pwgen to this thread's first pw */
     crk->gen.step = 1;
     for (size_t i = 0; i < thread_num - 1 ; ++i) {
-       size_t count;
-       if (!pwgen_generate(&crk->gen, &count)) {
-          err(crk->ctx, "too many threads for password range.\n");
-          goto error2;
-       }
+        size_t count;
+        if (!pwgen_generate(&crk->gen, &count)) {
+            err(crk->ctx, "too many threads for password range.\n");
+            goto error2;
+        }
     }
     crk->gen.step = step;
 
