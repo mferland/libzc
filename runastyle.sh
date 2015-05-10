@@ -10,6 +10,6 @@ OPTIONS="\
 -M80 \
 --suffix=none \
 "
-astyle $OPTIONS "./bin/*.c" "./bin/*.h" "./lib/*.c" "./lib/*.h"
+astyle $OPTIONS "./yazc/*.c" "./yazc/*.h" "./lib/*.c" "./lib/*.h"
 
 exit 0
