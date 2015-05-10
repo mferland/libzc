@@ -40,7 +40,7 @@ AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
         Makefile
         lib/Makefile
-        bin/Makefile
+        yazc/Makefile
         lib/libzc.pc
 ])
 
