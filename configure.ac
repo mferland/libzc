@@ -16,6 +16,13 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
+AC_CHECK_PROG([UNZIP], [unzip], [yes])
+if test x"$UNZIP" != x"yes" ; then
+    AC_MSG_ERROR([unzip command missing.])
+fi
+
+AC_CHECK_LIB(pthread, pthread_create)
+
 PKG_PROG_PKG_CONFIG
 
 AC_ARG_ENABLE([logging],
