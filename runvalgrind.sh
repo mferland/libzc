@@ -1,8 +1,9 @@
-#!/bin/sh
+#!/bin/bash
 
 VALGRIND=`which valgrind`
-OPTS="--tool=memcheck --leak-check=full --log-file=valgrind_run.txt"
-CMD="libtool --mode=execute $VALGRIND $OPTS"
+YAZC="yazc/yazc"
+OPTS="--tool=memcheck --leak-check=full --show-leak-kinds=all --log-file=valgrind_run.txt"
+CMD="libtool --mode=execute $VALGRIND $OPTS $YAZC"
 
 check_output() {
     if cat valgrind_run.txt | grep -q "no leaks are possible"
@@ -20,66 +21,58 @@ check_output() {
     fi
 }
 
-export CK_FORK=no
-
-$CMD yazc/yazc
+$CMD
 check_output
 
-$CMD yazc/yazc --help
+$CMD --help
 check_output
 
-$CMD yazc/yazc bruteforce --help
+$CMD bruteforce --help
 check_output
 
-# invalid max length, 0
-$CMD yazc/yazc bruteforce -l0 data/noradi.zip
+$CMD bruteforce -l0 data/noradi.zip
 check_output
 
-# invalid number of threads o
-$CMD yazc/yazc bruteforce -t0 data/noradi.zip
+$CMD bruteforce -t0 data/noradi.zip
 check_output
 
-# invalid character set
-$CMD yazc/yazc bruteforce -t1 data/noradi.zip
+$CMD bruteforce -t1 data/noradi.zip
 check_output
 
-# invalid initial passw (wrong chars)
-$CMD yazc/yazc bruteforce -cabc -t1 -l5 -iabcdef data/noradi.zip
+$CMD bruteforce -cabc -t1 -l5 -iabcdef data/noradi.zip
 check_output
 
-# invalid initial passw (too long)
-$CMD yazc/yazc bruteforce -cabc -t1 -l5 -iaaaaaa data/noradi.zip
+$CMD bruteforce -cabc -t1 -l5 -iaaaaaa data/noradi.zip
 check_output
 
-# valid
-$CMD yazc/yazc bruteforce -a -t8 -l6 -inoradh data/noradi.zip
+$CMD bruteforce -a -t8 -l6 -inoradh data/noradi.zip
 check_output
 
-$CMD yazc/yazc dictionary --help
+$CMD dictionary --help
 check_output
-
-#$CMD lib/.libs/lt-test_libzc
-#check_output
 
 for i in `seq 5`
 do
-    $CMD yazc/yazc bruteforce -cnoradi -t${i} data/noradi.zip
+    $CMD bruteforce -cnoradi -t${i} data/noradi.zip
     check_output
 done
 
-$CMD yazc/yazc dictionary -d data/dict.txt data/noradi.zip
+$CMD dictionary -d data/dict.txt data/noradi.zip
 check_output
 
-$CMD yazc/yazc dictionary -d data/dict.txt data/test_non_encrypted.zip
+$CMD dictionary -d data/dict.txt data/test_non_encrypted.zip
 check_output
 
-$CMD yazc/yazc bruteforce -cnoradi -t1 data/test_non_encrypted.zip
+$CMD bruteforce -cnoradi -t1 data/test_non_encrypted.zip
 check_output
 
-$CMD yazc/yazc plaintext
+$CMD plaintext
 check_output
 
-$CMD yazc/yazc plaintext --help
+$CMD plaintext --help
+check_output
+
+$CMD plaintext data/archive.zip:64:1808 data/archivec.zip:76:1820:64
 check_output
 
 exit 0
