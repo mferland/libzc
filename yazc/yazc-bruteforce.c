@@ -206,18 +206,18 @@ static void worker_cleanup_handler(void *t)
 
 static void *worker(void *t)
 {
-    pthread_barrier_wait(&barrier);
-    pthread_cleanup_push(worker_cleanup_handler, t);
-
     struct cleanup_node *node = (struct cleanup_node *)t;
     char pw[PW_LEN_MAX + 1];
     int err;
 
+    pthread_cleanup_push(worker_cleanup_handler, t);
+    node->active = true;
+    pthread_barrier_wait(&barrier);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     do {
-        pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
         err = zc_crk_bforce_start(node->crk, pw, sizeof(pw));
-        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 
         if (err)
             break;
@@ -229,6 +229,8 @@ static void *worker(void *t)
         }
 
         err = zc_crk_bforce_skip(node->crk, pw, sizeof(pw));
+        pthread_testcancel();
+        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     } while (err == 0);
 
     pthread_cleanup_pop(1);
@@ -260,7 +262,6 @@ static int start_worker_threads(void)
 
     for (i = 0; i < args.workers; ++i) {
         cleanup_nodes[i].thread_num = i + 1;
-        cleanup_nodes[i].active = true;
         cleanup_nodes[i].found = false;
         err = init_worker(&cleanup_nodes[i]);
         if (err)
