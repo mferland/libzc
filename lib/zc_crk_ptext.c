@@ -383,7 +383,7 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
     struct zc_key k;
     uint32_t i;
 
-    /* the cipher text also includes the 12 prepreded bytes */
+    /* the cipher text also includes the 12 prepended bytes */
     if (size < 12)
         return -1;
 
