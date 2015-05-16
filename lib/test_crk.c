@@ -79,6 +79,13 @@ START_TEST(test_start_crack)
 {
     struct zc_crk_bforce *cracker;
     struct zc_validation_data vdata[5];
+    struct zc_crk_pwcfg pwcfg = {
+        .set = "abcdefghijklmnopqrstuvwxyz",
+        .setlen = 26,
+        .stoplen = 6,
+        .step = 1,
+        .initial = "yamaga"
+    };
     size_t vdata_size = 5;
     struct zc_file *file;
     char pw[7];
@@ -91,9 +98,10 @@ START_TEST(test_start_crack)
 
     zc_crk_bforce_new(ctx, &cracker);
     zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
-    zc_crk_bforce_set_pwgen_cfg(cracker, "abcdefghijklmnopqrstuvwxyz", 6, 1, "yamaga", 1);
+    zc_crk_bforce_set_pwcfg(cracker, &pwcfg);
+    zc_crk_bforce_set_filename(cracker, "../data/test.zip");
 
-    int ret = zc_crk_bforce_start(cracker, pw, 7);
+    int ret = zc_crk_bforce_start(cracker, 4, pw, 7);
     fail_unless(ret == 0, NULL);
     fail_unless(strncmp(pw, "yamaha", 6) == 0, NULL);
 
@@ -105,6 +113,13 @@ START_TEST(test_cannot_find_password)
 {
     struct zc_crk_bforce *cracker;
     struct zc_validation_data vdata[5];
+    struct zc_crk_pwcfg pwcfg = {
+        .set = "abcdefghijklmnopqrstuvwxyz",
+        .setlen = 26,
+        .stoplen = 4,
+        .step = 1,
+        .initial = "aaa"
+    };
     size_t vdata_size = 5;
     struct zc_file *file;
     char pw[7];
@@ -117,9 +132,10 @@ START_TEST(test_cannot_find_password)
 
     zc_crk_bforce_new(ctx, &cracker);
     zc_crk_bforce_set_vdata(cracker, vdata, vdata_size);
-    zc_crk_bforce_set_pwgen_cfg(cracker, "abcdefghijklmnopqrstuvwxyz", 4, 1, "aaa", 1);
+    zc_crk_bforce_set_pwcfg(cracker, &pwcfg);
+    zc_crk_bforce_set_filename(cracker, "../data/test.zip");
 
-    int ret = zc_crk_bforce_start(cracker, pw, 7);
+    int ret = zc_crk_bforce_start(cracker, 4, pw, 7);
     fail_unless(ret == -1, NULL);
 
     zc_crk_bforce_unref(cracker);

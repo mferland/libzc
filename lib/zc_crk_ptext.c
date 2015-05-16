@@ -185,11 +185,6 @@ static int ptext_final_init(struct key_table **key2)
     return 0;
 }
 
-inline static uint32_t compute_key1im1_plus_lsbkey0i(uint32_t key1i)
-{
-    return (key1i - 1) * MULTINV;
-}
-
 static uint32_t compute_key1_msb(struct zc_crk_ptext *ptext, uint32_t current_idx)
 {
     const uint32_t key2i = k2(current_idx);

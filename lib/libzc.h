@@ -114,15 +114,26 @@ bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, 
  *
  * Bruteforce cracker.
  */
+#define ZC_PW_MINLEN 1
+#define ZC_PW_MAXLEN 16
+#define ZC_CHARSET_MAXLEN 96
+struct zc_crk_pwcfg {
+    char set[ZC_CHARSET_MAXLEN + 1];
+    size_t setlen;
+    size_t stoplen;
+    size_t step;
+    char initial[ZC_PW_MAXLEN + 1];
+    size_t ilen;                /* internal usage only */
+};
 struct zc_crk_bforce;
-struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *cracker);
-struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *cracker);
-int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **cracker);
-int zc_crk_bforce_set_vdata(struct zc_crk_bforce *cracker, const struct zc_validation_data *vdata, size_t nmemb);
-int zc_crk_bforce_set_pwgen_cfg(struct zc_crk_bforce *crk, const char *char_lut,
-                                size_t max_pw_len, size_t thread_num, const char *initial, uint32_t step);
-int zc_crk_bforce_start(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
-int zc_crk_bforce_skip(struct zc_crk_bforce *cracker, char *out_pw, size_t out_pw_size);
+struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);
+struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *bforce);
+int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **bforce);
+int zc_crk_bforce_set_vdata(struct zc_crk_bforce *bforce, const struct zc_validation_data *vdata, size_t nmemb);
+int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *bforce, const struct zc_crk_pwcfg *cfg);
+void zc_crk_bforce_set_filename(struct zc_crk_bforce *bforce, const char *filename);
+const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
+int zc_crk_bforce_start(struct zc_crk_bforce *bforce, size_t workers, char *out_pw, size_t out_pw_size);
 
 /**
  * zc_crk_ptext:

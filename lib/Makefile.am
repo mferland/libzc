@@ -12,7 +12,8 @@ AM_CFLAGS = \
         -Wall -Wextra  \
 	-fvisibility=hidden \
 	-ffunction-sections \
-	-fdata-sections
+	-fdata-sections \
+	-pthread
 
 AM_LDFLAGS = \
 	-Wl,--gc-sections \
@@ -45,12 +46,7 @@ libzc_la_SOURCES =\
 	zip.h
 include_HEADERS = libzc.h
 
-EXTRA_DIST += libzc.sym
-
-libzc_la_LDFLAGS = $(AM_LDFLAGS) \
-	-version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE) \
-	-Wl,--version-script=libzc.sym
-libzc_la_DEPENDENCIES = libzc.sym
+libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libzc.pc

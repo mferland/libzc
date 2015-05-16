@@ -39,7 +39,7 @@ void teardown_pwdict()
 
 START_TEST(test_zc_pwdict_new)
 {
-    zc_pwdict_new_from_filename(ctx, "pw.txt", &pwdict);
+    zc_pwdict_new_from_filename(ctx, "../data/pw.txt", &pwdict);
     fail_if(!pwdict,
             "Creating new password dictionary failed.");
 }
@@ -48,7 +48,7 @@ END_TEST
 START_TEST(test_zc_pwdict_open_and_close)
 {
     int err;
-    zc_pwdict_new_from_filename(ctx, "pw.txt", &pwdict);
+    zc_pwdict_new_from_filename(ctx, "../data/pw.txt", &pwdict);
     err = zc_pwdict_open(pwdict);
     fail_if(err != 0,
             "Opening password file pw.txt failed.");
@@ -72,7 +72,7 @@ START_TEST(test_zc_pwdict_can_read_one_line)
 {
     char str[64];
     int err;
-    zc_pwdict_new_from_filename(ctx, "pw.txt", &pwdict);
+    zc_pwdict_new_from_filename(ctx, "../data/pw.txt", &pwdict);
     zc_pwdict_open(pwdict);
 
     err = zc_pwdict_read_one_pw(pwdict, str, 64);

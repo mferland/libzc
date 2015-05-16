@@ -2,7 +2,6 @@
 
 OPTIONS="\
 --style=kr \
---attach-extern-c \
 --pad-oper \
 -k3 \
 -W3 \

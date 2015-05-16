@@ -54,6 +54,3 @@ size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
                             struct zc_validation_data *vdata, size_t nmemb);
 
 #endif /* _YAZC_H_ */
-
-
-

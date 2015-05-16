@@ -5,3 +5,4 @@
 *.lo
 libzc.pc
 test_libzc
+valgrind_run.txt

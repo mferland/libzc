@@ -50,8 +50,8 @@ struct filed {
     void *map;
 };
 
-static struct filed cipher = { NULL, 0, 0, 0, -1, NULL};
-static struct filed plain = { NULL, 0, 0, 0, -1, NULL};
+static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
+static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
 
 static void print_help(const char *name)
 {

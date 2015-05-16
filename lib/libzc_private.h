@@ -54,6 +54,12 @@ zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
 #  define err(ctx, arg...) zc_log_null(ctx, ## arg)
 #endif
 
+#define fatal(ctx, arg...)                                              \
+   do {                                                                 \
+      zc_log(ctx, LOG_ERR, __FILE__, __LINE__, __FUNCTION__, ## arg);   \
+      exit(EXIT_FAILURE);                                               \
+   } while (0)
+
 #define ZC_EXPORT __attribute__ ((visibility("default")))
 
 void zc_log(struct zc_ctx *ctx,
