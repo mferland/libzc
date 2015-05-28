@@ -16,7 +16,7 @@ Just clone, configure, compile and install.
 
 How to use it?
 ==============
-There are currently 2 attack modes available:
+There are currently 3 attack modes available:
 
 Bruteforce
 ----------
