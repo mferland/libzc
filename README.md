@@ -1,6 +1,6 @@
 What is it?
 ===========
-The libz library is a simple zip cracking library. It also comes with
+The libzc library is a simple zip cracking library. It also comes with
 a command line tool called 'yazc' (Yet Another Zip Cracker).
 
 How to install it?
