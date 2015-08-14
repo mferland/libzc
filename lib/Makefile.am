@@ -33,7 +33,7 @@ libzc_la_SOURCES =\
 	libzc.c \
 	zc_file.c \
 	zip.c \
-	zc_crk.c \
+	zc_crk_bforce.c \
 	zc_pwdict.c \
 	zc_crk_ptext.c \
 	key_table.c \
