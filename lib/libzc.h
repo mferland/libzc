@@ -85,6 +85,7 @@ const char *zc_info_get_filename(const struct zc_info *info);
 uint32_t zc_info_get_data_size(const struct zc_info *info);
 long zc_info_get_data_offset_begin(const struct zc_info *info);
 long zc_info_get_data_offset_end(const struct zc_info *info);
+const uint8_t *zc_info_get_enc_header(const struct zc_info *info);
 long zc_info_get_enc_header_offset(const struct zc_info *info);
 int zc_info_get_idx(const struct zc_info *info);
 struct zc_info *zc_info_next(struct zc_info *info);

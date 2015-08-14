@@ -105,24 +105,28 @@ static int do_info(int argc, char *argv[])
             fn_max_len = tmp1;
     }
 
-    printf("%5s %*s %11s %11s %11s %11s\n",
+    printf("%5s %*s %11s %11s %11s %11s %24s\n",
            "Idx",
            (int)(MAX(fn_max_len, 8)),
            "Filename",
            "Encoded Hdr",
            "Data Begin",
            "Data End",
-           "Data Size");
+           "Data Size",
+           "Encoded Hdr Content");
 
     while (zc_info_next(info)) {
-        printf("%5d %*s %11li %11li %11li %11u\n",
+        const uint8_t *ehdr = zc_info_get_enc_header(info);
+        printf("%5d %*s %11li %11li %11li %11u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
                zc_info_get_idx(info),
                (int)(MAX(fn_max_len, 8)),
                zc_info_get_filename(info),
                zc_info_get_enc_header_offset(info),
                zc_info_get_data_offset_begin(info),
                zc_info_get_data_offset_end(info),
-               zc_info_get_data_size(info));
+               zc_info_get_data_size(info),
+               ehdr[0], ehdr[1], ehdr[2], ehdr[3], ehdr[4], ehdr[5],
+               ehdr[6], ehdr[7], ehdr[8], ehdr[9], ehdr[10], ehdr[11]);
     }
 
     zc_info_free(info);

@@ -50,6 +50,7 @@ struct zc_file {
 struct zc_info {
     struct zc_file *file;
     struct zip_header *header;
+    uint8_t enc_header[ZIP_ENCRYPTION_HEADER_LENGTH];
     int refcount;
     int idx;
     long enc_header_offset;
@@ -281,6 +282,11 @@ ZC_EXPORT long zc_info_get_data_offset_end(const struct zc_info *info)
     return info->end_offset;
 }
 
+ZC_EXPORT const uint8_t *zc_info_get_enc_header(const struct zc_info *info)
+{
+   return info->enc_header;
+}
+
 ZC_EXPORT long zc_info_get_enc_header_offset(const struct zc_info *info)
 {
     return info->enc_header_offset;
@@ -300,12 +306,14 @@ ZC_EXPORT struct zc_info *zc_info_next(struct zc_info *info)
 
     if (zip_header_has_encryption_bit(info->header)) {
         info->enc_header_offset = ftell(fd);
-        if (zip_encryption_header_skip(fd)) {
-            err(info->file->ctx, "Error skipping encryption header.\n");
+        if (zip_encryption_header_read(fd, info->enc_header)) {
+            err(info->file->ctx, "Error reading encryption header.\n");
             goto reset;
         }
-    } else
+    } else {
+        memset(info->enc_header, 0, ZIP_ENCRYPTION_HEADER_LENGTH);
         info->enc_header_offset = -1L;
+    }
 
     if (zip_header_comp_size(info->header)) {
         info->begin_offset = ftell(fd);
