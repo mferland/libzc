@@ -7,5 +7,5 @@ yazc_SOURCES = \
 	yazc-plaintext.c \
 	yazc-info.c \
 	yazc.h
-yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_builddir)/lib
-yazc_LDADD = $(top_builddir)/lib/libzc.la
+yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_srcdir)/lib
+yazc_LDADD = $(top_srcdir)/lib/libzc.la
