@@ -94,7 +94,7 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename
 
     newfile = calloc(1, sizeof(struct zc_file));
     if (!newfile)
-        return -ENOMEM;
+        return -1;
 
     newfile->ctx = ctx;
     newfile->refcount = 1;
@@ -225,11 +225,11 @@ ZC_EXPORT int zc_info_new_from_file(struct zc_file *file, struct zc_info **info)
 
     tmp = calloc(1, sizeof(struct zc_info));
     if (!tmp)
-        return -ENOMEM;
+        return -1;
 
     if (zip_header_new(&tmp->header)) {
         free(tmp);
-        return -ENOMEM;
+        return -1;
     }
 
     tmp->refcount = 1;

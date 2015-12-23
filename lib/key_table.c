@@ -39,16 +39,16 @@ int key_table_new(struct key_table **table, size_t initial_size)
     struct key_table *tmp;
 
     if (initial_size == 0)
-        return -EINVAL;
+        return -1;
 
     tmp = calloc(1, sizeof(struct key_table));
     if (!tmp)
-        return -ENOMEM;
+        return -1;
 
     tmp->array = calloc(1, initial_size * sizeof(uint32_t));
     if (!tmp->array) {
         free(tmp);
-        return -ENOMEM;
+        return -1;
     }
 
     tmp->capacity = tmp->size = initial_size;

@@ -88,7 +88,7 @@ static int log_priority(const char *priority)
  *
  * Create a new library context.
  *
- * Returns: 0 on success, -ENOMEM if memory couldn't be allocated.
+ * Returns: 0 on success, -1 on error.
  **/
 ZC_EXPORT int zc_new(struct zc_ctx **inctx)
 {
@@ -97,7 +97,7 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
 
     ctx = calloc(1, sizeof(struct zc_ctx));
     if (!ctx)
-        return -ENOMEM;
+        return -1;
 
     ctx->refcount = 1;
     ctx->log_fn = log_stderr;

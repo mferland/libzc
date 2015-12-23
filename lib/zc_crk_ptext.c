@@ -90,11 +90,11 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 
     new = calloc(1, sizeof(struct zc_crk_ptext));
     if (!new)
-        return -ENOMEM;
+        return -1;
 
     if (key2r_new(&new->k2r)) {
         free(new);
-        return -ENOMEM;
+        return -1;
     }
 
     new->ctx = ctx;
@@ -113,7 +113,7 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
                                     size_t size)
 {
     if (size < 13)
-        return -EINVAL;
+        return -1;
 
     ptext->plaintext = plaintext;
     ptext->ciphertext = ciphertext;
@@ -133,12 +133,12 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
     key3i = generate_key3(ptext, ptext->size - 1);
     key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(ptext->k2r, key3i));
     if (!key2i_plus_1)
-        return -ENOMEM;
+        return -1;
 
     /* allocate space for second table */
     if (key_table_new(&key2i, pow2(22))) {
         key_table_free(key2i_plus_1);
-        return -ENOMEM;
+        return -1;
     }
 
     /* perform reduction */
@@ -179,7 +179,7 @@ static int ptext_final_init(struct key_table **key2)
     for (uint32_t i = 0; i < 12; ++i) {
         if (key_table_new(&key2[i], 64)) { /* FIXME: 64 ? */
             ptext_final_deinit(key2);
-            return -ENOMEM;
+            return -1;
         }
     }
     return 0;
@@ -351,7 +351,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
     struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     if (ptext_final_init(table))
-        return -ENOMEM;
+        return -1;
 
     generate_key0lsb(ptext);
 

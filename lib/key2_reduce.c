@@ -70,12 +70,12 @@ int key2r_new(struct key2r **k2r)
 
     tmp = calloc(1, sizeof(struct key2r));
     if (!tmp)
-        return -ENOMEM;
+        return -1;
 
     bits_15_2_tmp = generate_bits_15_2();
     if (!bits_15_2_tmp) {
         free(tmp);
-        return -ENOMEM;
+        return -1;
     }
 
     tmp->bits_15_2_cache = bits_15_2_tmp;

@@ -49,7 +49,7 @@ ZC_EXPORT int zc_pwdict_new_from_filename(struct zc_ctx *ctx, const char *filena
 
     newpwdict = calloc(1, sizeof(struct zc_pwdict));
     if (!newpwdict)
-        return -ENOMEM;
+        return -1;
 
     newpwdict->ctx = ctx;
     newpwdict->refcount = 1;
@@ -116,7 +116,7 @@ ZC_EXPORT int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t le
     char *str_ret;
 
     if (dict->fd == 0 || len == 0)
-        return -EINVAL;
+        return -1;
 
     str_ret = fgets(str, len, dict->fd);
     if (!str_ret)

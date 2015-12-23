@@ -88,7 +88,7 @@ static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
 
     header->filename = realloc(header->filename, filename_size);
     if (!header->filename)
-        return -ENOMEM;
+        return -1;
     memset(header->filename, 0, filename_size);
 
     if (fread(header->filename, header->filename_length, 1, fd) != 1) {
@@ -144,7 +144,7 @@ int zip_header_new(struct zip_header **header)
 
     newheader = calloc(1, sizeof(struct zip_header));
     if (!newheader)
-        return -ENOMEM;
+        return -1;
 
     *header = newheader;
     return 0;

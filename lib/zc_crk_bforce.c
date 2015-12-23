@@ -1,20 +1,20 @@
 /*
-*  zc - zip crack library
-*  Copyright (C) 2013  Marc Ferland
-*
-*  This program is free software: you can redistribute it and/or modify
-*  it under the terms of the GNU General Public License as published by
-*  the Free Software Foundation, either version 3 of the License, or
-*  (at your option) any later version.
-*
-*  This program is distributed in the hope that it will be useful,
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*  GNU General Public License for more details.
-*
-*  You should have received a copy of the GNU General Public License
-*  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *  zc - zip crack library
+ *  Copyright (C) 2013  Marc Ferland
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <pthread.h>
 #include <stdbool.h>
@@ -224,16 +224,18 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 
     tmp = calloc(1, sizeof(struct zc_crk_bforce));
     if (!tmp)
-        return -ENOMEM;
+        return -1;
 
     err = pthread_mutex_init(&tmp->mutex, NULL);
     if (err) {
+        err(ctx, "pthread_mutex_init() failed: %s\n", strerror(err));
         free(tmp);
         return -1;
     }
 
     err = pthread_cond_init(&tmp->cond, NULL);
     if (err) {
+        err(ctx, "pthread_cond_init() failed: %s\n", strerror(err));
         pthread_mutex_destroy(&tmp->mutex);
         free(tmp);
         return -1;
@@ -277,10 +279,8 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 
 ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
 {
-    if (!vdata)
-        return -EINVAL;
-    if (nmemb == 0)
-        return -EINVAL;
+    if (!vdata || nmemb == 0)
+        return -1;
     crk->vdata = vdata;
     crk->vdata_size = nmemb;
     return 0;
@@ -343,7 +343,7 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
         cfg->setlen > ZC_CHARSET_MAXLEN  ||
         cfg->stoplen == 0 ||
         cfg->stoplen > ZC_PW_MAXLEN)
-        return -EINVAL;
+        return -1;
 
     /* local copy */
     memcpy(&crk->cfg, cfg, sizeof(struct zc_crk_pwcfg));
@@ -359,9 +359,9 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
         crk->cfg.ilen = 1;
     } else {
         if (ilen > cfg->stoplen)
-            return -EINVAL;
+            return -1;
         if (!pw_in_set(cfg->initial, cfg->set, cfg->setlen))
-            return -EINVAL;
+            return -1;
         crk->cfg.ilen = ilen;
     }
 
@@ -474,7 +474,7 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
                 free(w);
                 dealloc_workers(crk);
                 err(crk->ctx, "offset too big for password range.\n");
-                return -EINVAL;
+                return -1;
             }
         }
         w->gen.cfg.step = workers;
@@ -544,7 +544,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, cha
     int err;
 
     if (!workers || !crk->vdata_size || !crk->filename)
-        return -EINVAL;
+        return -1;
 
     if (alloc_workers(crk, workers))
         return -1;
