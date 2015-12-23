@@ -14,7 +14,7 @@ autom4te.cache
 build-aux
 .dirstamp
 lib/test_libzc
-lib/test_keytable
+lib/test_ka
 valgrind.supp
 *.log
 *.trs

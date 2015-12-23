@@ -17,12 +17,10 @@
  */
 
 #include "key2_reduce.h"
-#include "key_table.h"
 #include "libzc_private.h"
 #include "crc32.h"
 
 #include <stdlib.h>
-#include <errno.h>
 
 struct key2r {
     uint16_t *bits_15_2_cache;
@@ -95,15 +93,15 @@ uint16_t *key2r_get_bits_15_2(const struct key2r *k2r, uint8_t key3)
     return &k2r->bits_15_2_cache[key3 * 64];
 }
 
-struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
+struct ka *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
 {
-    struct key_table *table;
+    struct ka *karray;
 
-    if (key_table_new(&table, pow2(22)))
+    if (ka_alloc(&karray, pow2(22)))
         return NULL;
 
-    generate_all_key2_bits_31_2(table->array, key2_bits_15_2);
-    return table;
+    generate_all_key2_bits_31_2(karray->array, key2_bits_15_2);
+    return karray;
 }
 
 static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
@@ -114,7 +112,7 @@ static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
     return tmp;
 }
 
-static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, uint32_t key2i,
+static void generate_all_key2i_with_bits_1_0(struct ka *key2i_array, uint32_t key2i,
                                              const uint16_t *key2im1_bits_15_2)
 
 {
@@ -130,13 +128,13 @@ static void generate_all_key2i_with_bits_1_0(struct key_table *key2i_table, uint
             uint32_t key2im1;
             key2im1 = key2im1_bits_31_10 & 0xfffffc00;
             key2im1 |= key2im1_bits_15_2[j];
-            key_table_append(key2i_table, key2i | bits_1_0_key2i(key2im1, key2i));
+            ka_append(key2i_array, key2i | bits_1_0_key2i(key2im1, key2i));
         }
     }
 }
 
 void key2r_compute_single(uint32_t key2i_plus_1,
-                          struct key_table *key2i,
+                          struct ka *key2i,
                           const uint16_t *key2i_bits_15_2,
                           const uint16_t *key2im1_bits_15_2,
                           uint32_t common_bits_mask)
@@ -164,16 +162,16 @@ void key2r_compute_single(uint32_t key2i_plus_1,
     }
 }
 
-void key2r_compute_next_table(struct key_table *key2i_plus_1,
-                              struct key_table *key2i,
+void key2r_compute_next_array(struct ka *key2i_plus_1,
+                              struct ka *key2i,
                               const uint16_t *key2i_bits_15_2,
                               const uint16_t *key2im1_bits_15_2,
                               uint32_t common_bits_mask)
 {
-    key_table_empty(key2i);
+    ka_empty(key2i);
 
     for (uint32_t i = 0; i < key2i_plus_1->size; ++i) {
-        key2r_compute_single(key_table_at(key2i_plus_1, i),
+        key2r_compute_single(ka_at(key2i_plus_1, i),
                              key2i,
                              key2i_bits_15_2,
                              key2im1_bits_15_2,

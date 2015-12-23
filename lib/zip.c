@@ -20,7 +20,6 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 
 #define ZIP_SIG               0x04034b50

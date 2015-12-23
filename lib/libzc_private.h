@@ -22,6 +22,7 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <stdint.h>
+#include <error.h>
 
 #include "libzc.h"
 
@@ -54,10 +55,9 @@ zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
 #  define err(ctx, arg...) zc_log_null(ctx, ## arg)
 #endif
 
-#define fatal(ctx, arg...)                                              \
+#define fatal(arg...)                                                   \
    do {                                                                 \
-      zc_log(ctx, LOG_ERR, __FILE__, __LINE__, __FUNCTION__, ## arg);   \
-      exit(EXIT_FAILURE);                                               \
+       error_at_line(EXIT_FAILURE, 0, __FILE__, __LINE__, ## arg);      \
    } while (0)
 
 #define ZC_EXPORT __attribute__ ((visibility("default")))
@@ -66,6 +66,9 @@ void zc_log(struct zc_ctx *ctx,
             int priority, const char *file, int line, const char *fn,
             const char *format, ...)
 __attribute__((format(printf, 6, 7)));
+
+#define MULT 134775813u
+#define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
 
 static inline uint32_t pow2(uint32_t p)
 {
@@ -92,7 +95,35 @@ static inline uint8_t lsb(uint32_t v)
     return (v & 0xff);
 }
 
-#define MULT 134775813u
-#define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
+/* key array helper */
+struct ka {
+    uint32_t *array;
+    size_t size;
+    size_t capacity;
+};
+int ka_alloc(struct ka **a, size_t init_size);
+void ka_free(struct ka *a);
+void ka_append(struct ka *a, uint32_t key);
+void ka_uniq(struct ka *a);
+void ka_squeeze(struct ka *a);
+void ka_empty(struct ka *a);
+#ifdef ENABLE_DEBUG
+#include <stdio.h>
+void ka_print(struct ka *a, FILE *stream);
+#endif
+
+static inline
+uint32_t ka_at(const struct ka *a, uint32_t index)
+{
+    return a->array[index];
+}
+
+static inline
+void ka_swap(struct ka **a1, struct ka **a2)
+{
+    struct ka *t = *a1;
+    *a1 = *a2;
+    *a2 = t;
+}
 
 #endif

@@ -19,7 +19,6 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
 
 #include "crc32.h"
@@ -493,7 +492,7 @@ static void start_workers(struct zc_crk_bforce *crk)
     list_for_each_entry(w, &crk->workers_head, workers) {
         int err = pthread_create(&w->thread_id, NULL, worker, w);
         if (err)
-            fatal(crk->ctx, "pthread_create() failed: %s\n", strerror(err));
+            fatal("pthread_create() failed");
     }
     pthread_mutex_unlock(&crk->mutex);
 }
@@ -506,7 +505,7 @@ static void cancel_workers(struct zc_crk_bforce *crk)
     list_for_each_entry(w, &crk->workers_head, workers) {
         int err = pthread_cancel(w->thread_id);
         if (err)
-            fatal(crk->ctx, "pthread_cancel() failed: %s\n", strerror(err));
+            fatal("pthread_cancel() failed");
     }
 }
 
@@ -551,7 +550,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, cha
 
     err = pthread_barrier_init(&crk->barrier, NULL, workers);
     if (err)
-        fatal(crk->ctx, "pthread_barrier_init() failed: %s\n", strerror(err));
+        fatal("pthread_barrier_init() failed");
 
     start_workers(crk);
     err = wait_workers(crk, workers, pwbuf, pwbuflen);

@@ -25,13 +25,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <stdint.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
 #include "crc32.h"
-#include "key_table.h"
 #include "key2_reduce.h"
 
 #define k2(index) ptext->key2_final[index]
@@ -46,7 +44,7 @@ struct zc_crk_ptext {
     const uint8_t *plaintext;
     const uint8_t *ciphertext;
     size_t size;
-    struct key_table *key2;
+    struct ka *key2;
     struct key2r *k2r;
     uint32_t key2_final[13];
     uint32_t key1_final[13];
@@ -78,7 +76,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
     if (ptext->refcount > 0)
         return ptext;
     dbg(ptext->ctx, "ptext %p released\n", ptext);
-    key_table_free(ptext->key2);
+    ka_free(ptext->key2);
     key2r_free(ptext->k2r);
     free(ptext);
     return NULL;
@@ -124,8 +122,8 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
-    struct key_table *key2i_plus_1;
-    struct key_table *key2i;
+    struct ka *key2i_plus_1;
+    struct ka *key2i;
     uint8_t key3i;
     uint8_t key3im1;
 
@@ -135,9 +133,9 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
     if (!key2i_plus_1)
         return -1;
 
-    /* allocate space for second table */
-    if (key_table_new(&key2i, pow2(22))) {
-        key_table_free(key2i_plus_1);
+    /* allocate space for second array */
+    if (ka_alloc(&key2i, pow2(22))) {
+        ka_free(key2i_plus_1);
         return -1;
     }
 
@@ -146,38 +144,38 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
     for (uint32_t i = start_index; i >= 12; --i) {
         key3i = generate_key3(ptext, i);
         key3im1 = generate_key3(ptext, i - 1);
-        key2r_compute_next_table(key2i_plus_1,
+        key2r_compute_next_array(key2i_plus_1,
                                  key2i,
                                  key2r_get_bits_15_2(ptext->k2r, key3i),
                                  key2r_get_bits_15_2(ptext->k2r, key3im1),
                                  i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
-        key_table_uniq(key2i);
-        key_table_swap(&key2i, &key2i_plus_1);
+        ka_uniq(key2i);
+        ka_swap(&key2i, &key2i_plus_1);
     }
 
-    key_table_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
+    ka_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
 
-    ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the table at
+    ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the array at
                                  * index 13 (n=14) this leaves 13
                                  * bytes for the actual attack */
-    key_table_free(key2i);
+    ka_free(key2i);
     return 0;
 }
 
-static void ptext_final_deinit(struct key_table **key2)
+static void ptext_final_deinit(struct ka **key2)
 {
     for (uint32_t i = 0; i < 12; ++i) {
         if (key2[i]) {
-            key_table_free(key2[i]);
+            ka_free(key2[i]);
             key2[i] = NULL;
         }
     }
 }
 
-static int ptext_final_init(struct key_table **key2)
+static int ptext_final_init(struct ka **key2)
 {
     for (uint32_t i = 0; i < 12; ++i) {
-        if (key_table_new(&key2[i], 64)) { /* FIXME: 64 ? */
+        if (ka_alloc(&key2[i], 64)) { /* FIXME: 64 ? */
             ptext_final_deinit(key2);
             return -1;
         }
@@ -297,7 +295,7 @@ static void compute_key1(struct zc_crk_ptext *ptext)
     }
 }
 
-static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, uint32_t current_idx)
+static void recurse_key2(struct zc_crk_ptext *ptext, struct ka **array, uint32_t current_idx)
 {
     uint8_t key3im1;
     uint8_t key3im2;
@@ -310,21 +308,21 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct key_table **table, u
     key3im1 = generate_key3(ptext, current_idx - 1);
     key3im2 = generate_key3(ptext, current_idx - 2);
 
-    /* empty table before appending new keys */
-    key_table_empty(table[current_idx - 1]);
+    /* empty array before appending new keys */
+    ka_empty(array[current_idx - 1]);
 
     key2r_compute_single(k2(current_idx),
-                         table[current_idx - 1],
+                         array[current_idx - 1],
                          key2r_get_bits_15_2(ptext->k2r, key3im1),
                          key2r_get_bits_15_2(ptext->k2r, key3im2),
                          KEY2_MASK_8BITS);
 
-    key_table_uniq(table[current_idx - 1]);
+    ka_uniq(array[current_idx - 1]);
 
-    for (uint32_t i = 0; i < table[current_idx - 1]->size; ++i) {
-        ptext->key2_final[current_idx - 1] = key_table_at(table[current_idx - 1], i);
+    for (uint32_t i = 0; i < array[current_idx - 1]->size; ++i) {
+        ptext->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
         ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
-        recurse_key2(ptext, table, current_idx - 1);
+        recurse_key2(ptext, array, current_idx - 1);
     }
 }
 
@@ -348,9 +346,9 @@ ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key)
 {
-    struct key_table *table[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    struct ka *array[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-    if (ptext_final_init(table))
+    if (ptext_final_init(array))
         return -1;
 
     generate_key0lsb(ptext);
@@ -358,7 +356,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
     ptext->key_found = false;
     for (uint32_t i = 0; i < ptext->key2->size; ++i) {
         ptext->key2_final[12] = ptext->key2->array[i];
-        recurse_key2(ptext, table, 12);
+        recurse_key2(ptext, array, 12);
         if (ptext->key_found) {
             out_key->key0 = ptext->inter_rep.key0;
             out_key->key1 = ptext->inter_rep.key1;
@@ -367,7 +365,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
         }
     }
 
-    ptext_final_deinit(table);
+    ptext_final_deinit(array);
     return (ptext->key_found == true ? 0 : -1);
 }
 

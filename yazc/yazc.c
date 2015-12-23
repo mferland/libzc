@@ -21,7 +21,6 @@
 #include <string.h>
 #include <getopt.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <stdarg.h>
 
 #include "yazc.h"

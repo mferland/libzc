@@ -17,8 +17,8 @@
  */
 
 #include <check.h>
+#include <stdlib.h>
 
-#include "key_table.h"
 #include "key2_reduce.h"
 #include "test_plaintext.h"
 #include "libzc_private.h"
@@ -47,39 +47,39 @@ END_TEST
 
 START_TEST(test_can_generate_first_gen_key2)
 {
-    struct key_table *key2_first_gen;
+    struct ka *key2_first_gen;
     uint16_t *bits15_2;
 
     bits15_2 = key2r_get_bits_15_2(k2r, 0);
     key2_first_gen = key2r_compute_first_gen(bits15_2);
-    fail_if(key_table_at(key2_first_gen, 0) != 0);
-    free(key2_first_gen);
+    fail_if(ka_at(key2_first_gen, 0) != 0);
+    ka_free(key2_first_gen);
 }
 END_TEST
 
-START_TEST(test_can_generate_next_table_from_plaintext)
+START_TEST(test_can_generate_next_array_from_plaintext)
 {
-    struct key_table *key2_first_gen;
-    struct key_table *key2_next_gen;
+    struct ka *key2_first_gen;
+    struct ka *key2_next_gen;
 
     uint8_t key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
     uint8_t key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
     uint8_t key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
 
     key2_first_gen = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
-    key_table_new(&key2_next_gen, pow2(22));
+    ka_alloc(&key2_next_gen, pow2(22));
 
-    key2r_compute_next_table(key2_first_gen,
+    key2r_compute_next_array(key2_first_gen,
                              key2_next_gen,
                              key2r_get_bits_15_2(k2r, key3im1),
                              key2r_get_bits_15_2(k2r, key3im2),
                              KEY2_MASK_6BITS);
-    key_table_uniq(key2_next_gen);
+    ka_uniq(key2_next_gen);
 
     fail_if(key2_next_gen->size != 2256896);
 
-    key_table_free(key2_next_gen);
-    key_table_free(key2_first_gen);
+    ka_free(key2_next_gen);
+    ka_free(key2_first_gen);
 }
 END_TEST
 
@@ -91,7 +91,7 @@ Suite *make_key2_reduce_suite()
     tcase_add_checked_fixture(tc_core, setup_key2r, teardown_key2r);
     tcase_add_test(tc_core, test_can_get_bits_15_2);
     tcase_add_test(tc_core, test_can_generate_first_gen_key2);
-    tcase_add_test(tc_core, test_can_generate_next_table_from_plaintext);
+    tcase_add_test(tc_core, test_can_generate_next_array_from_plaintext);
     suite_add_tcase(s, tc_core);
 
     return s;

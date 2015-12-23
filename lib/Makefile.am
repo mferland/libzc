@@ -36,7 +36,7 @@ libzc_la_SOURCES =\
 	zc_crk_bforce.c \
 	zc_pwdict.c \
 	zc_crk_ptext.c \
-	key_table.c \
+	ka.c \
 	key2_reduce.c \
 	crc32.h \
 	key2_reduce.h \
@@ -54,8 +54,8 @@ CLEANFILES += libzc.pc
 
 # automated tests
 if BUILD_TESTS
-TESTS = test_libzc test_keytable test_key2reduce
-check_PROGRAMS = test_libzc test_keytable test_key2reduce
+TESTS = test_libzc test_ka test_key2reduce
+check_PROGRAMS = test_libzc test_ka test_key2reduce
 
 # test_libzc
 test_libzc_SOURCES = \
@@ -68,13 +68,13 @@ test_libzc_SOURCES = \
 test_libzc_CFLAGS = @CHECK_CFLAGS@
 test_libzc_LDADD = libzc.la @CHECK_LIBS@
 
-# test_keytable
-test_keytable_SOURCES = test_key_table.c key_table.c key_table.h
-test_keytable_CFLAGS = @CHECK_CFLAGS@
-test_keytable_LDADD = @CHECK_LIBS@
+# test_ka
+test_ka_SOURCES = test_ka.c ka.c libzc_private.h
+test_ka_CFLAGS = @CHECK_CFLAGS@
+test_ka_LDADD = @CHECK_LIBS@
 
 # test_key2reduce
-test_key2reduce_SOURCES = test_key2_reduce.c key2_reduce.c key2_reduce.h key_table.c key_table.h
+test_key2reduce_SOURCES = test_key2_reduce.c key2_reduce.c key2_reduce.h ka.c libzc_private.h
 test_key2reduce_CFLAGS = @CHECK_CFLAGS@
 test_key2reduce_LDADD = @CHECK_LIBS@
 endif

@@ -28,14 +28,14 @@ struct key2r;
 int key2r_new(struct key2r **key2r);
 void key2r_free(struct key2r *key2r);
 uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, uint8_t key3);
-struct key_table *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
-void key2r_compute_next_table(struct key_table *key2i_plus_1,
-                              struct key_table *key2i,
+struct ka *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
+void key2r_compute_next_array(struct ka *key2i_plus_1,
+                              struct ka *key2i,
                               const uint16_t *key2i_bits_15_2,
                               const uint16_t *key2im1_bits_15_2,
                               uint32_t common_bits_mask);
 void key2r_compute_single(uint32_t key2i_plus_1,
-                          struct key_table *key2i,
+                          struct ka *key2i,
                           const uint16_t *key2i_bits_15_2,
                           const uint16_t *key2im1_bits_15_2,
                           uint32_t common_bits_mask);
