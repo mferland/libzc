@@ -54,8 +54,8 @@ CLEANFILES += libzc.pc
 
 # automated tests
 if BUILD_TESTS
-TESTS = test_libzc test_ka test_key2reduce
-check_PROGRAMS = test_libzc test_ka test_key2reduce
+TESTS = test_libzc test_ka test_pwstream test_key2reduce
+check_PROGRAMS = test_libzc test_ka test_pwstream test_key2reduce
 
 # test_libzc
 test_libzc_SOURCES = \
@@ -72,6 +72,11 @@ test_libzc_LDADD = libzc.la @CHECK_LIBS@
 test_ka_SOURCES = test_ka.c ka.c libzc_private.h
 test_ka_CFLAGS = @CHECK_CFLAGS@
 test_ka_LDADD = @CHECK_LIBS@
+
+# test_pwstream
+test_pwstream_SOURCES = test_pwstream.c pwstream.c libzc_private.h
+test_pwstream_CFLAGS = @CHECK_CFLAGS@
+test_pwstream_LDADD = @CHECK_LIBS@
 
 # test_key2reduce
 test_key2reduce_SOURCES = test_key2_reduce.c key2_reduce.c key2_reduce.h ka.c libzc_private.h

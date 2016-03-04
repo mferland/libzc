@@ -122,7 +122,7 @@ struct zc_crk_pwcfg {
     char set[ZC_CHARSET_MAXLEN + 1];
     size_t setlen;
     size_t stoplen;
-    size_t step;
+    /* size_t step; */
     char initial[ZC_PW_MAXLEN + 1];
     size_t ilen;                /* internal usage only */
 };

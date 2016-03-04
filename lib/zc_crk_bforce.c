@@ -52,93 +52,84 @@ struct zc_crk_bforce {
     pthread_cond_t cond;
 };
 
-struct pwgen {
-    /* password generator config - per thread */
-    struct zc_crk_pwcfg cfg;
-    /* password generator state */
-    char *pw;
-    char char_ascii[ZC_PW_MAXLEN + 1];
-    char char_indexes[ZC_PW_MAXLEN];
-};
-
 struct worker {
     struct list_head workers;
     struct list_head cleanup;
     pthread_t thread_id;
     bool found;
-    struct pwgen gen;
+    struct zc_crk_pwcfg cfg;
     struct zc_crk_bforce *crk;
 };
 
-static void init_char_ascii(struct pwgen *gen)
-{
-    gen->pw = gen->char_ascii + gen->cfg.stoplen - gen->cfg.ilen;
-    strncpy(gen->pw, gen->cfg.initial, gen->cfg.ilen);
-}
+/* static void init_char_ascii(struct pwgen *gen) */
+/* { */
+/*     gen->pw = gen->char_ascii + gen->cfg.stoplen - gen->cfg.ilen; */
+/*     strncpy(gen->pw, gen->cfg.initial, gen->cfg.ilen); */
+/* } */
 
-static void init_char_indexes(struct pwgen *gen)
-{
-    const size_t first_valid_index = gen->cfg.stoplen - gen->cfg.ilen;
-    size_t i, j;
+/* static void init_char_indexes(struct pwgen *gen) */
+/* { */
+/*     const size_t first_valid_index = gen->cfg.stoplen - gen->cfg.ilen; */
+/*     size_t i, j; */
 
-    for (i = 0; i < first_valid_index; ++i)
-        gen->char_indexes[i] = -1;
+/*     for (i = 0; i < first_valid_index; ++i) */
+/*         gen->char_indexes[i] = -1; */
 
-    for (i = first_valid_index, j = 0; j < gen->cfg.ilen; ++i, ++j)
-        gen->char_indexes[i] = index(gen->cfg.set, gen->pw[j]) - gen->cfg.set;
-}
+/*     for (i = first_valid_index, j = 0; j < gen->cfg.ilen; ++i, ++j) */
+/*         gen->char_indexes[i] = index(gen->cfg.set, gen->pw[j]) - gen->cfg.set; */
+/* } */
 
-static const char *pwgen_generate(struct pwgen *gen, size_t *count)
-{
-    int quotient = gen->cfg.step;
-    const char *pw_orig = gen->pw;
-    char *char_idx = &gen->char_indexes[gen->cfg.stoplen - 1];
-    char *char_ascii = &gen->char_ascii[gen->cfg.stoplen - 1];
-    int iteration = 0;
+/* static const char *pwgen_generate(struct pwgen *gen, size_t *count) */
+/* { */
+/*     int quotient = gen->cfg.step; */
+/*     const char *pw_orig = gen->pw; */
+/*     char *char_idx = &gen->char_indexes[gen->cfg.stoplen - 1]; */
+/*     char *char_ascii = &gen->char_ascii[gen->cfg.stoplen - 1]; */
+/*     int iteration = 0; */
 
-    while (1) {
-        *char_idx += quotient;
-        quotient = *char_idx / gen->cfg.setlen;
-        *char_idx = *char_idx - quotient * gen->cfg.setlen;
+/*     while (1) { */
+/*         *char_idx += quotient; */
+/*         quotient = *char_idx / gen->cfg.setlen; */
+/*         *char_idx = *char_idx - quotient * gen->cfg.setlen; */
 
-        *char_ascii = gen->cfg.set[(unsigned char) * char_idx];
+/*         *char_ascii = gen->cfg.set[(unsigned char) * char_idx]; */
 
-        if (quotient > 0 && char_ascii == gen->char_ascii) {
-            gen->pw = NULL;
-            *count = 0;
-            return NULL;           /* overflow */
-        }
+/*         if (quotient > 0 && char_ascii == gen->char_ascii) { */
+/*             gen->pw = NULL; */
+/*             *count = 0; */
+/*             return NULL;           /\* overflow *\/ */
+/*         } */
 
-        iteration++;
-        if (quotient == 0)
-            break;
+/*         iteration++; */
+/*         if (quotient == 0) */
+/*             break; */
 
-        --char_idx;
-        --char_ascii;
+/*         --char_idx; */
+/*         --char_ascii; */
 
-        if (char_ascii < gen->pw)
-            gen->pw = char_ascii;
-    }
+/*         if (char_ascii < gen->pw) */
+/*             gen->pw = char_ascii; */
+/*     } */
 
-    /* return 0 if the pw len changed, the pw is only one char or the
-     * first char changed */
-    if (gen->pw != pw_orig ||
-        gen->pw == &gen->char_ascii[gen->cfg.stoplen - 1] ||
-        iteration == (&gen->char_ascii[gen->cfg.stoplen - 1] - gen->pw + 1))
-        *count = 0;
-    else
-        *count = char_ascii - gen->pw;
+/*     /\* return 0 if the pw len changed, the pw is only one char or the */
+/*      * first char changed *\/ */
+/*     if (gen->pw != pw_orig || */
+/*         gen->pw == &gen->char_ascii[gen->cfg.stoplen - 1] || */
+/*         iteration == (&gen->char_ascii[gen->cfg.stoplen - 1] - gen->pw + 1)) */
+/*         *count = 0; */
+/*     else */
+/*         *count = char_ascii - gen->pw; */
 
-    return gen->pw;
-}
+/*     return gen->pw; */
+/* } */
 
-static int pwgen_skip(struct pwgen *gen)
-{
-    size_t tmp;
-    if (!pwgen_generate(gen, &tmp))
-        return -1;
-    return 0;
-}
+/* static int pwgen_skip(struct pwgen *gen) */
+/* { */
+/*     size_t tmp; */
+/*     if (!pwgen_generate(gen, &tmp)) */
+/*         return -1; */
+/*     return 0; */
+/* } */
 
 static inline void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
 {
@@ -367,6 +358,81 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
     return 0;
 }
 
+static inline bool try_decrypt(struct worker *w, const struct zc_key *base, const char *pw)
+{
+    struct zc_key key;
+    size_t i;
+    for (i = 0; i < w->crk->vdata_size; ++i) {
+        reset_encryption_keys(&base, &key);
+        if (decrypt_header(w->crk->vdata[i].encryption_header, &key) != w->crk->vdata[i].magic)
+            return false
+    }
+    return true;
+}
+
+static bool test_password(struct worker *w, const char *pw)
+{
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
+    if (zc_file_test_password(w->crk->filename, pw))
+        return true;
+    pthread_testcancel();
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    return false;
+}
+
+/* Single caracter password. No need for multiple threads. */
+static bool do_work_1(struct worker *w, char *ret)
+{
+    struct zc_key base;
+    char pw[2] = {0};
+
+    for (size_t p = 0; p < w->cfg.setlen; ++p) {
+        pw[0] = w->cfg.set[p];
+        init_encryption_keys(pw, &base);
+        if (test_decrypt(w, &base, pw)) {
+            if (test_password(w, pw)) {
+                strcpy(ret, pw);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/* TODO: Two character password. */
+static bool do_work_2(struct worker *w, char *ret)
+{
+    struct zc_key key, base_key;
+    char pw[3] = {0};
+
+    for (size_t p1 = 0; p1 < w->pwcfg.setlen; ++p1) {
+        pw[0] = w->pwcfg.set[p1];
+        for (size_t p2 = 0; p2 < w->pwcfg.setlen; ++p2) {
+            pw[1] = w->pwcfg.set[p2];
+            init_encryption_keys(pw, &base_key);
+            if (test_decrypt(w, &base, pw)) {
+                if (test_password(w, pw)) {
+                    strcpy(ret, pw);
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+static bool do_work_3()
+{}
+
+static bool do_work_4()
+{}
+
+static bool do_work_5()
+{}
+
+static bool do_work_6()
+{}
+
 static int do_work(struct worker *w)
 {
     struct zc_key key;
@@ -465,21 +531,22 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
         memcpy(&w->gen.cfg, &crk->cfg, sizeof(struct zc_crk_pwcfg));
 
         /* initialise password generator */
-        init_char_ascii(&w->gen);
-        init_char_indexes(&w->gen);
+        /* init_char_ascii(&w->gen); */
+        /* init_char_indexes(&w->gen); */
 
         /* position ourselves on the first password - modifies pw generator */
-        w->gen.cfg.step = 1;
-        for (size_t j = 0; j < i; ++j) {
-            size_t count;
-            if (!pwgen_generate(&w->gen, &count)) {
-                free(w);
-                dealloc_workers(crk);
-                err(crk->ctx, "offset too big for password range.\n");
-                return -1;
-            }
-        }
-        w->gen.cfg.step = workers;
+        /* TODO: Create 'find_nearest' function. */
+        /* w->gen.cfg.step = 1; */
+        /* for (size_t j = 0; j < i; ++j) { */
+        /*     size_t count; */
+        /*     if (!pwgen_generate(&w->gen, &count)) { */
+        /*         free(w); */
+        /*         dealloc_workers(crk); */
+        /*         err(crk->ctx, "offset too big for password range.\n"); */
+        /*         return -1; */
+        /*     } */
+        /* } */
+        /* w->gen.cfg.step = workers; */
 
         list_add(&w->workers, &crk->workers_head);
     }
