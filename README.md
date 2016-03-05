@@ -1,3 +1,7 @@
+<a href="https://scan.coverity.com/projects/mferland-libzc">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/7176/badge.svg"/>
+</a>
 What is it?
 ===========
 The libzc library is a simple zip cracking library. It also comes with
