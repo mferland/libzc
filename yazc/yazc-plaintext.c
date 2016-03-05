@@ -94,7 +94,7 @@ static int parse_offset(const char *tok, off_t *offset)
 
 static int parse_opt(char *opt, int count, const char **filename, off_t *off1, off_t *off2, off_t *off3)
 {
-    char *saveptr, *token;
+    char *saveptr = NULL, *token;
     int err = -1;
 
     token = strtok_r(opt, ":", &saveptr);

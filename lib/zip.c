@@ -75,8 +75,8 @@ static int zip_header_read_static_part(FILE *fd, struct zip_header *h)
     h->crc32 = get_le32_at(buf, 10);
     h->comp_size = get_le32_at(buf, 14);
     h->uncomp_size = get_le32_at(buf, 18);
-    h->filename_length = get_le32_at(buf, 22);
-    h->extra_field_length = get_le32_at(buf, 24);
+    h->filename_length = get_le16_at(buf, 22);
+    h->extra_field_length = get_le16_at(buf, 24);
 
     return 0;
 }
@@ -90,15 +90,18 @@ static int zip_header_read_variable_part(FILE *fd, struct zip_header *header)
         return -1;
     memset(header->filename, 0, filename_size);
 
-    if (fread(header->filename, header->filename_length, 1, fd) != 1) {
-        free(header->filename);
-        return -1;
-    }
+    if (fread(header->filename, header->filename_length, 1, fd) != 1)
+        goto error;
 
     // Skip the extra field since we do not use it
-    fseek(fd, header->extra_field_length, SEEK_CUR);
+    if (fseek(fd, header->extra_field_length, SEEK_CUR))
+        goto error;
 
     return 0;
+
+error:
+    free(header->filename);
+    return -1;
 }
 
 static uint32_t zip_header_get_data_size(const struct zip_header *header)

@@ -37,6 +37,7 @@
 #define k0(index) ptext->key0_final[index]
 #define cipher(index) ptext->ciphertext[index]
 #define plaintext(index) ptext->plaintext[index]
+#define SWAP(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
 
 struct zc_crk_ptext {
     struct zc_ctx *ctx;
@@ -149,8 +150,9 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                  key2r_get_bits_15_2(ptext->k2r, key3i),
                                  key2r_get_bits_15_2(ptext->k2r, key3im1),
                                  i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
+
         ka_uniq(key2i);
-        ka_swap(&key2i, &key2i_plus_1);
+        SWAP(key2i, key2i_plus_1);
     }
 
     ka_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
@@ -236,7 +238,7 @@ static int compute_intermediate_internal_rep(struct zc_crk_ptext *ptext, struct 
 
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-    struct zc_key k;
+    struct zc_key k = {0};
 
     /* calculate key0_6{0..15} */
     k.key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;

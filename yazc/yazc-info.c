@@ -49,7 +49,7 @@ static int do_info(int argc, char *argv[])
     const char *filename;
     struct zc_file *file;
     struct zc_info *info;
-    int err;
+    int err = EXIT_SUCCESS;
 
     for (;;) {
         int c;

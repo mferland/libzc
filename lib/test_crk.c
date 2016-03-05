@@ -136,7 +136,7 @@ START_TEST(test_cannot_find_password)
     zc_crk_bforce_set_filename(cracker, "../data/test.zip");
 
     int ret = zc_crk_bforce_start(cracker, 4, pw, 7);
-    fail_unless(ret == -1, NULL);
+    fail_unless(ret == 1, NULL);
 
     zc_crk_bforce_unref(cracker);
 }

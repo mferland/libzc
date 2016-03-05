@@ -164,10 +164,12 @@ static int launch_crack(void)
     printf("Filename: %s\n", filename);
 
     int err = zc_crk_bforce_start(crk, thread_count, pw, sizeof(pw));
-    if (err)
+    if (err > 0)
         printf("Password not found\n");
-    else
+    else if (err == 0)
         printf("Password is: %s\n", pw);
+    else
+        yazc_err("zc_crk_bforce_start failed!\n");
 
 err2:
     zc_crk_bforce_unref(crk);

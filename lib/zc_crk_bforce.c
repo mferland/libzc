@@ -455,6 +455,9 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
 {
     for (size_t i = 0; i < workers; ++i) {
         struct worker *w = calloc(1, sizeof(struct worker));
+        if (!w)
+            return -1;
+
         w->found = false;
         w->crk = crk;
 
@@ -511,8 +514,11 @@ static void cancel_workers(struct zc_crk_bforce *crk)
 
 static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, size_t len)
 {
-    int ret = -1;
+    int ret = 1;
     int workers_left = workers;
+
+    if (!len)
+        return -1;
 
     /* waits for workers on the 'cleanup' list */
     while (workers_left) {
@@ -546,7 +552,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, cha
         return -1;
 
     if (alloc_workers(crk, workers))
-        return -1;
+        fatal("failed to allocate workers\n");
 
     err = pthread_barrier_init(&crk->barrier, NULL, workers);
     if (err)
@@ -554,6 +560,9 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, cha
 
     start_workers(crk);
     err = wait_workers(crk, workers, pwbuf, pwbuflen);
+    if (err < 0)
+        fatal("failed to wait for workers\n");
+
     pthread_barrier_destroy(&crk->barrier);
 
     return err;
