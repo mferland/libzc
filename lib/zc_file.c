@@ -86,7 +86,7 @@ ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *file)
  * is not verified at this stage.
  *
  * @retval 0      Success
- * @retval ENOMEM Insufficient memory was available.
+ * @retval -1     Error
  */
 ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_file **file)
 {
