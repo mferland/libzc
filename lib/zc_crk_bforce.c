@@ -25,6 +25,7 @@
 #include "zip.h"
 #include "list.h"
 #include "libzc.h"
+#include "pwstream.h"
 #include "libzc_private.h"
 
 #define KEY0 0x12345678
@@ -45,6 +46,8 @@ struct zc_crk_bforce {
     /* password generator config from user */
     struct zc_crk_pwcfg cfg;
 
+    struct pwstream **pws;
+
     struct list_head workers_head;
     struct list_head cleanup_head;
     pthread_barrier_t barrier;
@@ -56,80 +59,11 @@ struct worker {
     struct list_head workers;
     struct list_head cleanup;
     pthread_t thread_id;
+    unsigned int id;
+    char pw[ZC_PW_MAXLEN + 1];
     bool found;
-    struct zc_crk_pwcfg cfg;
     struct zc_crk_bforce *crk;
 };
-
-/* static void init_char_ascii(struct pwgen *gen) */
-/* { */
-/*     gen->pw = gen->char_ascii + gen->cfg.stoplen - gen->cfg.ilen; */
-/*     strncpy(gen->pw, gen->cfg.initial, gen->cfg.ilen); */
-/* } */
-
-/* static void init_char_indexes(struct pwgen *gen) */
-/* { */
-/*     const size_t first_valid_index = gen->cfg.stoplen - gen->cfg.ilen; */
-/*     size_t i, j; */
-
-/*     for (i = 0; i < first_valid_index; ++i) */
-/*         gen->char_indexes[i] = -1; */
-
-/*     for (i = first_valid_index, j = 0; j < gen->cfg.ilen; ++i, ++j) */
-/*         gen->char_indexes[i] = index(gen->cfg.set, gen->pw[j]) - gen->cfg.set; */
-/* } */
-
-/* static const char *pwgen_generate(struct pwgen *gen, size_t *count) */
-/* { */
-/*     int quotient = gen->cfg.step; */
-/*     const char *pw_orig = gen->pw; */
-/*     char *char_idx = &gen->char_indexes[gen->cfg.stoplen - 1]; */
-/*     char *char_ascii = &gen->char_ascii[gen->cfg.stoplen - 1]; */
-/*     int iteration = 0; */
-
-/*     while (1) { */
-/*         *char_idx += quotient; */
-/*         quotient = *char_idx / gen->cfg.setlen; */
-/*         *char_idx = *char_idx - quotient * gen->cfg.setlen; */
-
-/*         *char_ascii = gen->cfg.set[(unsigned char) * char_idx]; */
-
-/*         if (quotient > 0 && char_ascii == gen->char_ascii) { */
-/*             gen->pw = NULL; */
-/*             *count = 0; */
-/*             return NULL;           /\* overflow *\/ */
-/*         } */
-
-/*         iteration++; */
-/*         if (quotient == 0) */
-/*             break; */
-
-/*         --char_idx; */
-/*         --char_ascii; */
-
-/*         if (char_ascii < gen->pw) */
-/*             gen->pw = char_ascii; */
-/*     } */
-
-/*     /\* return 0 if the pw len changed, the pw is only one char or the */
-/*      * first char changed *\/ */
-/*     if (gen->pw != pw_orig || */
-/*         gen->pw == &gen->char_ascii[gen->cfg.stoplen - 1] || */
-/*         iteration == (&gen->char_ascii[gen->cfg.stoplen - 1] - gen->pw + 1)) */
-/*         *count = 0; */
-/*     else */
-/*         *count = char_ascii - gen->pw; */
-
-/*     return gen->pw; */
-/* } */
-
-/* static int pwgen_skip(struct pwgen *gen) */
-/* { */
-/*     size_t tmp; */
-/*     if (!pwgen_generate(gen, &tmp)) */
-/*         return -1; */
-/*     return 0; */
-/* } */
 
 static inline void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
 {
@@ -153,17 +87,6 @@ static inline void init_encryption_keys(const char *pw, struct zc_key *k)
         update_keys(pw[i], k, k);
         ++i;
     }
-}
-
-static inline size_t init_key_cache(const char *pw, struct zc_key *key_cache,
-                                    size_t idem_char)
-{
-    /* do {} while() assuming password is never empty */
-    do {
-        update_keys(pw[idem_char], &key_cache[idem_char], &key_cache[idem_char + 1]);
-        ++idem_char;
-    } while (pw[idem_char] != '\0');
-    return idem_char;
 }
 
 static inline void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
@@ -358,39 +281,43 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
     return 0;
 }
 
-static inline bool try_decrypt(struct worker *w, const struct zc_key *base, const char *pw)
+static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
 {
     struct zc_key key;
     size_t i;
-    for (i = 0; i < w->crk->vdata_size; ++i) {
-        reset_encryption_keys(&base, &key);
-        if (decrypt_header(w->crk->vdata[i].encryption_header, &key) != w->crk->vdata[i].magic)
-            return false
+    for (i = 0; i < crk->vdata_size; ++i) {
+        reset_encryption_keys(base, &key);
+        if (decrypt_header(crk->vdata[i].encryption_header, &key) != crk->vdata[i].magic)
+            return false;
     }
     return true;
 }
 
-static bool test_password(struct worker *w, const char *pw)
+static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char *pw)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    if (zc_file_test_password(w->crk->filename, pw))
+    if (zc_file_test_password(crk->filename, pw))
         return true;
     pthread_testcancel();
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     return false;
 }
 
-/* Single caracter password. No need for multiple threads. */
-static bool do_work_1(struct worker *w, char *ret)
+static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
+{
+    return zc_file_test_password(crk->filename, pw);
+}
+
+static bool do_work_1(const struct zc_crk_bforce *crk, char *ret)
 {
     struct zc_key base;
     char pw[2] = {0};
 
-    for (size_t p = 0; p < w->cfg.setlen; ++p) {
-        pw[0] = w->cfg.set[p];
+    for (size_t p = 0; p < crk->cfg.setlen; ++p) {
+        pw[0] = crk->cfg.set[p];
         init_encryption_keys(pw, &base);
-        if (test_decrypt(w, &base, pw)) {
-            if (test_password(w, pw)) {
+        if (try_decrypt(crk, &base)) {
+            if (test_password(crk, pw)) {
                 strcpy(ret, pw);
                 return true;
             }
@@ -399,19 +326,25 @@ static bool do_work_1(struct worker *w, char *ret)
     return false;
 }
 
-/* TODO: Two character password. */
-static bool do_work_2(struct worker *w, char *ret)
+static bool do_work_2(const struct zc_crk_bforce *crk, char *ret)
 {
-    struct zc_key key, base_key;
+    struct zc_key cache[3];
     char pw[3] = {0};
 
-    for (size_t p1 = 0; p1 < w->pwcfg.setlen; ++p1) {
-        pw[0] = w->pwcfg.set[p1];
-        for (size_t p2 = 0; p2 < w->pwcfg.setlen; ++p2) {
-            pw[1] = w->pwcfg.set[p2];
-            init_encryption_keys(pw, &base_key);
-            if (test_decrypt(w, &base, pw)) {
-                if (test_password(w, pw)) {
+    memset(cache, 0, sizeof(struct zc_key) * 3);
+
+    set_default_encryption_keys(cache);
+
+    for (size_t p0 = 0; p0 < crk->cfg.setlen; ++p0) {
+        pw[0] = crk->cfg.set[p0];
+        update_keys(pw[0], cache, &cache[1]);
+
+        for (size_t p1 = 0; p1 < crk->cfg.setlen; ++p1) {
+            pw[1] = crk->cfg.set[p1];
+            update_keys(pw[1], &cache[1], &cache[2]);
+
+            if (try_decrypt(crk, &cache[2])) {
+                if (test_password(crk, pw)) {
                     strcpy(ret, pw);
                     return true;
                 }
@@ -421,50 +354,191 @@ static bool do_work_2(struct worker *w, char *ret)
     return false;
 }
 
-static bool do_work_3()
-{}
-
-static bool do_work_4()
-{}
-
-static bool do_work_5()
-{}
-
-static bool do_work_6()
-{}
-
-static int do_work(struct worker *w)
+static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
+                        unsigned int stream)
 {
-    struct zc_key key;
-    struct zc_key key_cache[ZC_PW_MAXLEN];
-    const struct zc_crk_bforce *crk = w->crk;
-    size_t idem_char = 0;
+    for (size_t i = 0, j = count - 1; i < count * 2; i += 2, --j) {
+        limit[i] = pwstream_get_start_idx(pws, stream, j);
+        limit[i + 1] = pwstream_get_stop_idx(pws, stream, j) + 1;
+    }
+}
 
-    memset(key_cache, 0, sizeof(struct zc_key) * ZC_PW_MAXLEN);
+#define for_each_char_begin(limit, set, pw, cache, level)               \
+    for (size_t p ##level = limit[level * 2]; p ##level < limit[level * 2 + 1]; ++p ##level) { \
+        pw[level] = set[p ##level];                                     \
+        update_keys(pw[level], &cache[level], &cache[level + 1]);       \
 
-    set_default_encryption_keys(key_cache);
+#define for_each_char_end }
 
-    do {
-        size_t lastidx = init_key_cache(w->gen.pw, key_cache, idem_char);
-        size_t matches = 0;
-        for (size_t i = 0; i < crk->vdata_size; ++i) {
-            /* reset key to last key_cache entry */
-            key = key_cache[lastidx];
-            if (decrypt_header(crk->vdata[i].encryption_header, &key) == crk->vdata[i].magic) {
-                ++matches;
-                continue;
+static const bool (*fct)(const struct zc_crk_bforce *crk, struct pwstream *pws, unsigned int stream, char *ret)[16] = {
+    do_work_1,
+    do_work_2,
+    do_work_3,
+    do_work_4,
+    do_work_5,
+    do_work_6,
+    do_work_7,
+    do_work_8,
+    do_work_9,
+    do_work_10,
+    do_work_11,
+    do_work_12,
+    do_work_13,
+    do_work_14,
+    do_work_15,
+    do_work_16
+};
+
+static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
+                      unsigned int stream, char *ret)
+{
+    struct zc_key cache[4];
+    char pw[4] = {0};
+    unsigned int limit[6];
+
+    fill_limits(pws, limit, 3, stream);
+
+    memset(cache, 0, sizeof(struct zc_key) * 4);
+
+    set_default_encryption_keys(cache);
+
+    /* TODO: try call tail recursion? */
+
+    /* for (size_t p0 = limit[0]; p0 < limit[1]; p0++) { */
+    /*     pw[0] = crk->cfg.set[p0]; */
+    /*     update_keys(pw[0], cache, &cache[1]); */
+
+    /*     for (size_t p1 = limit[2]; p1 < limit[3]; p1++) { */
+    /*         pw[1] = crk->cfg.set[p1]; */
+    /*         update_keys(pw[1], &cache[1], &cache[2]); */
+
+    /*         for (size_t p2 = limit[4]; p2 < limit[5]; p2++) { */
+    /*             pw[2] = crk->cfg.set[p2]; */
+    /*             update_keys(pw[2], &cache[2], &cache[3]); */
+
+    /*             if (try_decrypt(crk, &cache[3])) { */
+    /*                 if (test_password_mt(crk, pw)) { */
+    /*                     strcpy(ret, pw); */
+    /*                     return true; */
+    /*                 } */
+    /*             } */
+    /*         } */
+    /*     } */
+    /* } */
+
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
+        if (try_decrypt(crk, &cache[3])) {
+            if (test_password_mt(crk, pw)) {
+                strcpy(ret, pw);
+                return true;
             }
-            break;
         }
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
 
-        /* all files match, potential valid password */
-        if (matches == crk->vdata_size)
-            return 0;
+    return false;
+}
 
-        pwgen_generate(&w->gen, &idem_char);
-    } while (w->gen.pw);
+static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
+                      unsigned int stream, char *ret)
+{
+    struct zc_key cache[5];
+    char pw[5] = {0};
+    unsigned int limit[8];
 
-    return -1;                  /* out of passwords */
+    fill_limits(pws, limit, 4, stream);
+
+    memset(cache, 0, sizeof(struct zc_key) * 5);
+
+    set_default_encryption_keys(cache);
+
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
+        if (try_decrypt(crk, &cache[4])) {
+            if (test_password_mt(crk, pw)) {
+                strcpy(ret, pw);
+                return true;
+            }
+        }
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+
+    return false;
+}
+
+static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
+                      unsigned int stream, char *ret)
+{
+    struct zc_key cache[6];
+    char pw[6] = {0};
+    unsigned int limit[10];
+
+    fill_limits(pws, limit, 5, stream);
+
+    memset(cache, 0, sizeof(struct zc_key) * 6);
+
+    set_default_encryption_keys(cache);
+
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 4)
+        if (try_decrypt(crk, &cache[5])) {
+            if (test_password_mt(crk, pw)) {
+                strcpy(ret, pw);
+                return true;
+            }
+        }
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+
+    return false;
+}
+
+static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
+                      unsigned int stream, char *ret)
+{
+    struct zc_key cache[7];
+    char pw[7] = {0};
+    unsigned int limit[12];
+
+    fill_limits(pws, limit, 6, stream);
+
+    memset(cache, 0, sizeof(struct zc_key) * 7);
+
+    set_default_encryption_keys(cache);
+
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 4)
+    for_each_char_begin(limit, crk->cfg.set, pw, cache, 5)
+        if (try_decrypt(crk, &cache[6])) {
+            if (test_password_mt(crk, pw)) {
+                strcpy(ret, pw);
+                return true;
+            }
+        }
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+    for_each_char_end
+
+    return false;
 }
 
 static void worker_cleanup_handler(void *p)
@@ -480,30 +554,41 @@ static void worker_cleanup_handler(void *p)
 static void *worker(void *p)
 {
     struct worker *w = (struct worker *)p;
-    int err;
 
     pthread_cleanup_push(worker_cleanup_handler, w);
     pthread_barrier_wait(&w->crk->barrier);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-    do {
-        err = do_work(w);
-        pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 
-        if (err)
-            break;
+    /* TODO: pwstream_is_empty */
+    /* if (!pwstream_is_empty(w->crk->pws[0], w->id)) { */
+    /*     if (do_work_1(w->crk, w->crk->pws[0], w->id, w->pw)) { */
+    /*         w->found = true; */
+    /*         goto exit; */
+    /*     } */
+    /* } */
 
-        /* false positive? */
-        if (zc_file_test_password(w->crk->filename, w->gen.pw)) {
-            w->found = true;
-            break;
-        }
+    if (do_work_3(w->crk, w->crk->pws[0], w->id, w->pw)) {
+        w->found = true;
+        goto exit;
+    }
 
-        err = pwgen_skip(&w->gen);
-        pthread_testcancel();
-        pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-    } while (err == 0);
+    if (do_work_4(w->crk, w->crk->pws[1], w->id, w->pw)) {
+        w->found = true;
+        goto exit;
+    }
 
+    if (do_work_5(w->crk, w->crk->pws[2], w->id, w->pw)) {
+        w->found = true;
+        goto exit;
+    }
+
+    if (do_work_6(w->crk, w->crk->pws[3], w->id, w->pw)) {
+        w->found = true;
+        goto exit;
+    }
+
+exit:
     pthread_cleanup_pop(1);
     return NULL;
 }
@@ -522,36 +607,23 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
     for (size_t i = 0; i < workers; ++i) {
         struct worker *w = calloc(1, sizeof(struct worker));
         if (!w)
-            return -1;
+            goto error;
 
         w->found = false;
         w->crk = crk;
+        w->id = i;
 
-        /* copy password generator config from user */
-        memcpy(&w->gen.cfg, &crk->cfg, sizeof(struct zc_crk_pwcfg));
-
-        /* initialise password generator */
-        /* init_char_ascii(&w->gen); */
-        /* init_char_indexes(&w->gen); */
-
-        /* position ourselves on the first password - modifies pw generator */
-        /* TODO: Create 'find_nearest' function. */
-        /* w->gen.cfg.step = 1; */
-        /* for (size_t j = 0; j < i; ++j) { */
-        /*     size_t count; */
-        /*     if (!pwgen_generate(&w->gen, &count)) { */
-        /*         free(w); */
-        /*         dealloc_workers(crk); */
-        /*         err(crk->ctx, "offset too big for password range.\n"); */
-        /*         return -1; */
-        /*     } */
-        /* } */
-        /* w->gen.cfg.step = workers; */
+        /* TODO: Create 'find_nearest' function to position each
+         * stream. See python code. */
 
         list_add(&w->workers, &crk->workers_head);
     }
 
     return 0;
+
+error:
+    dealloc_workers(crk);
+    return -1;
 }
 
 static void start_workers(struct zc_crk_bforce *crk)
@@ -599,7 +671,7 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
             if (w->found) {
                 ret = 0;
                 memset(pw, 0, len);
-                strncpy(pw, w->gen.pw, len - 1);
+                strncpy(pw, w->pw, len - 1);
                 cancel_workers(crk);
             }
             free(w);
@@ -611,12 +683,47 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
     return ret;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, char *pwbuf, size_t pwbuflen)
+static void dealloc_pwstreams(struct zc_crk_bforce *crk)
+{
+    size_t count = crk->cfg.stoplen - crk->cfg.ilen + 1;
+    for (size_t l = 0; l < count; ++l) {
+        if (crk->pws[l])
+            pwstream_free(crk->pws[l]);
+    }
+    free(crk->pws);
+}
+
+static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
+{
+    size_t first = crk->cfg.ilen;
+    size_t last = crk->cfg.stoplen;
+    size_t to_alloc = last - first + 1;
+
+    crk->pws = calloc(1, sizeof(struct pwstream*) * to_alloc);
+    if (!crk->pws)
+        return -1;
+
+    for (size_t i = 0; i < to_alloc; ++i) {
+        if (pwstream_new(&crk->pws[i])) {
+            dealloc_pwstreams(crk);
+            return -1;
+        }
+        pwstream_generate(crk->pws[i], crk->cfg.setlen, first + i, workers);
+    }
+
+    return 0;
+}
+
+ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
+                                  char *pwbuf, size_t pwbuflen)
 {
     int err;
 
     if (!workers || !crk->vdata_size || !crk->filename)
         return -1;
+
+    if (alloc_pwstreams(crk, workers))
+        fatal("failed to allocate password streams");
 
     if (alloc_workers(crk, workers))
         fatal("failed to allocate workers\n");
@@ -631,6 +738,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers, cha
         fatal("failed to wait for workers\n");
 
     pthread_barrier_destroy(&crk->barrier);
+    dealloc_pwstreams(crk);
 
     return err;
 }

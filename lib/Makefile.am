@@ -17,7 +17,8 @@ AM_CFLAGS = \
 
 AM_LDFLAGS = \
 	-Wl,--gc-sections \
-	-Wl,--as-needed
+	-Wl,--as-needed \
+	-lm
 
 # The rules of thumb, when dealing with these values are:
 #  Always increase the revision value.
@@ -38,6 +39,8 @@ libzc_la_SOURCES =\
 	zc_crk_ptext.c \
 	ka.c \
 	key2_reduce.c \
+	pwstream.c \
+	pwstream.h \
 	crc32.h \
 	key2_reduce.h \
 	key_table.h \

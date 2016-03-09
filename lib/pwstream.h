@@ -23,9 +23,10 @@ struct pwstream;
 int pwstream_new(struct pwstream **pws);
 void pwstream_free(struct pwstream *pws);
 int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size_t streams);
-unsigned int pwstream_get_start_idx(struct pwstream *pws, unsigned int stream, unsigned int pos);
-unsigned int pwstream_get_stop_idx(struct pwstream *pws, unsigned int stream, unsigned int pos);
+int pwstream_get_start_idx(struct pwstream *pws, unsigned int stream, unsigned int pos);
+int pwstream_get_stop_idx(struct pwstream *pws, unsigned int stream, unsigned int pos);
 size_t pwstream_get_pwlen(const struct pwstream *pws);
 size_t pwstream_get_stream_count(const struct pwstream *pws);
+bool pwstream_is_empty(struct pwstream *pws, unsigned int stream);
 
 #endif  /* _PWSTREAM_H_ */

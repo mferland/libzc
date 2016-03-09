@@ -83,7 +83,6 @@ START_TEST(test_start_crack)
         .set = "abcdefghijklmnopqrstuvwxyz",
         .setlen = 26,
         .stoplen = 6,
-        .step = 1,
         .initial = "yamaga"
     };
     size_t vdata_size = 5;
@@ -117,7 +116,6 @@ START_TEST(test_cannot_find_password)
         .set = "abcdefghijklmnopqrstuvwxyz",
         .setlen = 26,
         .stoplen = 4,
-        .step = 1,
         .initial = "aaa"
     };
     size_t vdata_size = 5;

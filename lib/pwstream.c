@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <math.h>
 
 #include "libzc_private.h"
 
@@ -27,13 +28,14 @@
  */
 
 struct entry {
-    unsigned int first, last;
+    int first, last;
 };
 
 struct pwstream {
     struct entry *entry;
     size_t rows;
     size_t cols;
+    size_t real_cols;
     size_t plen;
 };
 
@@ -186,7 +188,7 @@ static void generate(struct pwstream *pws)
     }
 }
 
-ZC_EXPORT int pwstream_new(struct pwstream **pws)
+int pwstream_new(struct pwstream **pws)
 {
     struct pwstream *p = malloc(sizeof(struct pwstream));
 
@@ -203,20 +205,32 @@ ZC_EXPORT int pwstream_new(struct pwstream **pws)
     return 0;
 }
 
-ZC_EXPORT void pwstream_free(struct pwstream *pws)
+void pwstream_free(struct pwstream *pws)
 {
     if (pws->entry)
         free(pws->entry);
     free(pws);
 }
 
-ZC_EXPORT int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size_t streams)
+static size_t ceil_streams(size_t pool_len, size_t pw_len, size_t streams)
 {
-    /* TODO: sanitize input */
+    long double permut = powl((long double)pool_len, (long double)pw_len);
+    if (permut == HUGE_VALL)
+        /* assume we won't ever have more than HUGE_VAL streams */
+        return streams;
+    else if (permut < (long double)streams)
+        return (size_t)permut;
+    return streams;
+}
+
+int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size_t streams)
+{
     if (pws->entry)
         free(pws->entry);
 
-    pws->entry = malloc(sizeof(struct entry) * streams * pw_len);
+    size_t cstrm = ceil_streams(pool_len, pw_len, streams);
+
+    pws->entry = malloc(sizeof(struct entry) * cstrm * pw_len);
     if (!pws->entry) {
         pws->rows = 0;
         pws->cols = 0;
@@ -225,31 +239,41 @@ ZC_EXPORT int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw
     }
 
     pws->rows = pw_len;
-    pws->cols = streams;
+    pws->cols = cstrm;
     pws->plen = pool_len;
-    entry_table_init(pws, 0, pool_len - 1);
+    pws->real_cols = streams;
 
+    entry_table_init(pws, 0, pool_len - 1);
     generate(pws);
 
     return 0;
 }
 
-ZC_EXPORT unsigned int pwstream_get_start_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
+int pwstream_get_start_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
 {
+    if (stream >= pws->cols)
+        return -1;
     return get(pws, pos, stream)->first;
 }
 
-ZC_EXPORT unsigned int pwstream_get_stop_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
+int pwstream_get_stop_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
 {
+    if (stream >= pws->cols)
+        return -1;
     return get(pws, pos, stream)->last;
 }
 
-ZC_EXPORT size_t pwstream_get_pwlen(const struct pwstream *pws)
+size_t pwstream_get_pwlen(const struct pwstream *pws)
 {
     return pws->rows;
 }
 
-ZC_EXPORT size_t pwstream_get_stream_count(const struct pwstream *pws)
+size_t pwstream_get_stream_count(const struct pwstream *pws)
 {
-    return pws->cols;
+    return pws->real_cols;
+}
+
+bool pwstream_is_empty(struct pwstream *pws, unsigned int stream)
+{
+    return pwstream_get_start_idx(pws, stream, 0) == -1;
 }
