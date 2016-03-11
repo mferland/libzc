@@ -308,51 +308,51 @@ static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw
     return zc_file_test_password(crk->filename, pw);
 }
 
-static bool do_work_1(const struct zc_crk_bforce *crk, char *ret)
-{
-    struct zc_key base;
-    char pw[2] = {0};
+/* static bool do_work_1(const struct zc_crk_bforce *crk, char *ret) */
+/* { */
+/*     struct zc_key base; */
+/*     char pw[2] = {0}; */
 
-    for (size_t p = 0; p < crk->cfg.setlen; ++p) {
-        pw[0] = crk->cfg.set[p];
-        init_encryption_keys(pw, &base);
-        if (try_decrypt(crk, &base)) {
-            if (test_password(crk, pw)) {
-                strcpy(ret, pw);
-                return true;
-            }
-        }
-    }
-    return false;
-}
+/*     for (size_t p = 0; p < crk->cfg.setlen; ++p) { */
+/*         pw[0] = crk->cfg.set[p]; */
+/*         init_encryption_keys(pw, &base); */
+/*         if (try_decrypt(crk, &base)) { */
+/*             if (test_password(crk, pw)) { */
+/*                 strcpy(ret, pw); */
+/*                 return true; */
+/*             } */
+/*         } */
+/*     } */
+/*     return false; */
+/* } */
 
-static bool do_work_2(const struct zc_crk_bforce *crk, char *ret)
-{
-    struct zc_key cache[3];
-    char pw[3] = {0};
+/* static bool do_work_2(const struct zc_crk_bforce *crk, char *ret) */
+/* { */
+/*     struct zc_key cache[3]; */
+/*     char pw[3] = {0}; */
 
-    memset(cache, 0, sizeof(struct zc_key) * 3);
+/*     memset(cache, 0, sizeof(struct zc_key) * 3); */
 
-    set_default_encryption_keys(cache);
+/*     set_default_encryption_keys(cache); */
 
-    for (size_t p0 = 0; p0 < crk->cfg.setlen; ++p0) {
-        pw[0] = crk->cfg.set[p0];
-        update_keys(pw[0], cache, &cache[1]);
+/*     for (size_t p0 = 0; p0 < crk->cfg.setlen; ++p0) { */
+/*         pw[0] = crk->cfg.set[p0]; */
+/*         update_keys(pw[0], cache, &cache[1]); */
 
-        for (size_t p1 = 0; p1 < crk->cfg.setlen; ++p1) {
-            pw[1] = crk->cfg.set[p1];
-            update_keys(pw[1], &cache[1], &cache[2]);
+/*         for (size_t p1 = 0; p1 < crk->cfg.setlen; ++p1) { */
+/*             pw[1] = crk->cfg.set[p1]; */
+/*             update_keys(pw[1], &cache[1], &cache[2]); */
 
-            if (try_decrypt(crk, &cache[2])) {
-                if (test_password(crk, pw)) {
-                    strcpy(ret, pw);
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-}
+/*             if (try_decrypt(crk, &cache[2])) { */
+/*                 if (test_password(crk, pw)) { */
+/*                     strcpy(ret, pw); */
+/*                     return true; */
+/*                 } */
+/*             } */
+/*         } */
+/*     } */
+/*     return false; */
+/* } */
 
 static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
                         unsigned int stream)
@@ -370,30 +370,57 @@ static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
 
 #define for_each_char_end }
 
-static const bool (*fct)(const struct zc_crk_bforce *crk, struct pwstream *pws, unsigned int stream, char *ret)[16] = {
-    do_work_1,
-    do_work_2,
-    do_work_3,
-    do_work_4,
-    do_work_5,
-    do_work_6,
-    do_work_7,
-    do_work_8,
-    do_work_9,
-    do_work_10,
-    do_work_11,
-    do_work_12,
-    do_work_13,
-    do_work_14,
-    do_work_15,
-    do_work_16
-};
+/* for (size_t p0 = limit[0]; p0 < limit[1]; p0++) { */
+/*     pw[0] = crk->cfg.set[p0]; */
+/*     update_keys(pw[0], cache, &cache[1]); */
+
+/*     for (size_t p1 = limit[2]; p1 < limit[3]; p1++) { */
+/*         pw[1] = crk->cfg.set[p1]; */
+/*         update_keys(pw[1], &cache[1], &cache[2]); */
+
+/*         for (size_t p2 = limit[4]; p2 < limit[5]; p2++) { */
+/*             pw[2] = crk->cfg.set[p2]; */
+/*             update_keys(pw[2], &cache[2], &cache[3]); */
+
+/*             if (try_decrypt(crk, &cache[3])) { */
+/*                 if (test_password_mt(crk, pw)) { */
+/*                     strcpy(ret, pw); */
+/*                     return true; */
+/*                 } */
+/*             } */
+/*         } */
+/*     } */
+/* } */
+
+static bool do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
+                            size_t level_count, char *pw, struct zc_key *cache,
+                            unsigned int *limit)
+{
+    int i = level_count - level;
+    int first = limit[i * 2];
+    int last = limit[i * 2 + 1];
+
+    if (level == 0) {
+        if (try_decrypt(crk, &cache[level_count])) {
+            if (test_password_mt(crk, pw))
+                return true;
+        }
+        return false;
+    } else {
+        for (int p = first; p < last; ++p) {
+            pw[i] = crk->cfg.set[p];
+            update_keys(pw[i], &cache[i], &cache[i + 1]);
+            if (do_work_recurse(crk, level - 1, level_count, pw, cache, limit))
+                return true;
+        }
+        return false;
+    }
+}
 
 static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *ret)
+                      unsigned int stream, char *pw)
 {
     struct zc_key cache[4];
-    char pw[4] = {0};
     unsigned int limit[6];
 
     fill_limits(pws, limit, 3, stream);
@@ -402,51 +429,27 @@ static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
 
     set_default_encryption_keys(cache);
 
-    /* TODO: try call tail recursion? */
-
-    /* for (size_t p0 = limit[0]; p0 < limit[1]; p0++) { */
-    /*     pw[0] = crk->cfg.set[p0]; */
-    /*     update_keys(pw[0], cache, &cache[1]); */
-
-    /*     for (size_t p1 = limit[2]; p1 < limit[3]; p1++) { */
-    /*         pw[1] = crk->cfg.set[p1]; */
-    /*         update_keys(pw[1], &cache[1], &cache[2]); */
-
-    /*         for (size_t p2 = limit[4]; p2 < limit[5]; p2++) { */
-    /*             pw[2] = crk->cfg.set[p2]; */
-    /*             update_keys(pw[2], &cache[2], &cache[3]); */
-
-    /*             if (try_decrypt(crk, &cache[3])) { */
-    /*                 if (test_password_mt(crk, pw)) { */
-    /*                     strcpy(ret, pw); */
-    /*                     return true; */
-    /*                 } */
-    /*             } */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
+    /*     if (try_decrypt(crk, &cache[3])) { */
+    /*         if (test_password_mt(crk, pw)) { */
+    /*             strcpy(ret, pw); */
+    /*             return true; */
     /*         } */
     /*     } */
-    /* } */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
 
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
-        if (try_decrypt(crk, &cache[3])) {
-            if (test_password_mt(crk, pw)) {
-                strcpy(ret, pw);
-                return true;
-            }
-        }
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-
-    return false;
+    /* return false; */
+    return do_work_recurse(crk, 3, 3, pw, cache, limit);
 }
 
 static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *ret)
+                      unsigned int stream, char *pw)
 {
     struct zc_key cache[5];
-    char pw[5] = {0};
     unsigned int limit[8];
 
     fill_limits(pws, limit, 4, stream);
@@ -455,29 +458,29 @@ static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
 
     set_default_encryption_keys(cache);
 
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
-        if (try_decrypt(crk, &cache[4])) {
-            if (test_password_mt(crk, pw)) {
-                strcpy(ret, pw);
-                return true;
-            }
-        }
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
+    /*     if (try_decrypt(crk, &cache[4])) { */
+    /*         if (test_password_mt(crk, pw)) { */
+    /*             strcpy(ret, pw); */
+    /*             return true; */
+    /*         } */
+    /*     } */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
 
-    return false;
+    /* return false; */
+    return do_work_recurse(crk, 4, 4, pw, cache, limit);
 }
 
 static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *ret)
+                      unsigned int stream, char *pw)
 {
     struct zc_key cache[6];
-    char pw[6] = {0};
     unsigned int limit[10];
 
     fill_limits(pws, limit, 5, stream);
@@ -486,31 +489,31 @@ static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
 
     set_default_encryption_keys(cache);
 
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 4)
-        if (try_decrypt(crk, &cache[5])) {
-            if (test_password_mt(crk, pw)) {
-                strcpy(ret, pw);
-                return true;
-            }
-        }
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 4) */
+    /*     if (try_decrypt(crk, &cache[5])) { */
+    /*         if (test_password_mt(crk, pw)) { */
+    /*             strcpy(ret, pw); */
+    /*             return true; */
+    /*         } */
+    /*     } */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
 
-    return false;
+    /* return false; */
+    return do_work_recurse(crk, 5, 5, pw, cache, limit);
 }
 
 static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *ret)
+                      unsigned int stream, char *pw)
 {
     struct zc_key cache[7];
-    char pw[7] = {0};
     unsigned int limit[12];
 
     fill_limits(pws, limit, 6, stream);
@@ -519,26 +522,27 @@ static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
 
     set_default_encryption_keys(cache);
 
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 0)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 1)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 2)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 3)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 4)
-    for_each_char_begin(limit, crk->cfg.set, pw, cache, 5)
-        if (try_decrypt(crk, &cache[6])) {
-            if (test_password_mt(crk, pw)) {
-                strcpy(ret, pw);
-                return true;
-            }
-        }
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
-    for_each_char_end
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 4) */
+    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 5) */
+    /*     if (try_decrypt(crk, &cache[6])) { */
+    /*         if (test_password_mt(crk, pw)) { */
+    /*             strcpy(ret, pw); */
+    /*             return true; */
+    /*         } */
+    /*     } */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
+    /* for_each_char_end */
 
-    return false;
+    /* return false; */
+    return do_work_recurse(crk, 6, 6, pw, cache, limit);
 }
 
 static void worker_cleanup_handler(void *p)
@@ -568,22 +572,22 @@ static void *worker(void *p)
     /*     } */
     /* } */
 
-    if (do_work_3(w->crk, w->crk->pws[0], w->id, w->pw)) {
+    if (do_work_3(w->crk, w->crk->pws[2], w->id, w->pw)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_4(w->crk, w->crk->pws[1], w->id, w->pw)) {
+    if (do_work_4(w->crk, w->crk->pws[3], w->id, w->pw)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_5(w->crk, w->crk->pws[2], w->id, w->pw)) {
+    if (do_work_5(w->crk, w->crk->pws[4], w->id, w->pw)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_6(w->crk, w->crk->pws[3], w->id, w->pw)) {
+    if (do_work_6(w->crk, w->crk->pws[5], w->id, w->pw)) {
         w->found = true;
         goto exit;
     }
