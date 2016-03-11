@@ -20,6 +20,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include "crc32.h"
 #include "zip.h"
@@ -62,6 +63,7 @@ struct worker {
     unsigned int id;
     char pw[ZC_PW_MAXLEN + 1];
     bool found;
+    jmp_buf env;
     struct zc_crk_bforce *crk;
 };
 
@@ -392,33 +394,29 @@ static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
 /*     } */
 /* } */
 
-static bool do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
+static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
                             size_t level_count, char *pw, struct zc_key *cache,
-                            unsigned int *limit)
+                            unsigned int *limit, jmp_buf env)
 {
-    int i = level_count - level;
-    int first = limit[i * 2];
-    int last = limit[i * 2 + 1];
-
     if (level == 0) {
         if (try_decrypt(crk, &cache[level_count])) {
             if (test_password_mt(crk, pw))
-                return true;
+                longjmp(env, 1);
         }
-        return false;
     } else {
+        int i = level_count - level;
+        int first = limit[i * 2];
+        int last = limit[i * 2 + 1];
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            if (do_work_recurse(crk, level - 1, level_count, pw, cache, limit))
-                return true;
+            do_work_recurse(crk, level - 1, level_count, pw, cache, limit, env);
         }
-        return false;
     }
 }
 
 static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw)
+                      unsigned int stream, char *pw, jmp_buf env)
 {
     struct zc_key cache[4];
     unsigned int limit[6];
@@ -443,11 +441,14 @@ static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
     /* for_each_char_end */
 
     /* return false; */
-    return do_work_recurse(crk, 3, 3, pw, cache, limit);
+    int ret = setjmp(env);
+    if (!ret)
+        do_work_recurse(crk, 3, 3, pw, cache, limit, env);
+    return ret == 1 ? true : false;
 }
 
 static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw)
+                      unsigned int stream, char *pw, jmp_buf env)
 {
     struct zc_key cache[5];
     unsigned int limit[8];
@@ -474,11 +475,14 @@ static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
     /* for_each_char_end */
 
     /* return false; */
-    return do_work_recurse(crk, 4, 4, pw, cache, limit);
+    int ret = setjmp(env);
+    if (!ret)
+        do_work_recurse(crk, 4, 4, pw, cache, limit, env);
+    return ret == 1 ? true : false;
 }
 
 static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw)
+                      unsigned int stream, char *pw, jmp_buf env)
 {
     struct zc_key cache[6];
     unsigned int limit[10];
@@ -507,11 +511,14 @@ static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
     /* for_each_char_end */
 
     /* return false; */
-    return do_work_recurse(crk, 5, 5, pw, cache, limit);
+    int ret = setjmp(env);
+    if (!ret)
+        do_work_recurse(crk, 5, 5, pw, cache, limit, env);
+    return ret == 1 ? true : false;
 }
 
 static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw)
+                      unsigned int stream, char *pw, jmp_buf env)
 {
     struct zc_key cache[7];
     unsigned int limit[12];
@@ -542,7 +549,10 @@ static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
     /* for_each_char_end */
 
     /* return false; */
-    return do_work_recurse(crk, 6, 6, pw, cache, limit);
+    int ret = setjmp(env);
+    if (!ret)
+        do_work_recurse(crk, 6, 6, pw, cache, limit, env);
+    return ret == 1 ? true : false;
 }
 
 static void worker_cleanup_handler(void *p)
@@ -572,22 +582,22 @@ static void *worker(void *p)
     /*     } */
     /* } */
 
-    if (do_work_3(w->crk, w->crk->pws[2], w->id, w->pw)) {
+    if (do_work_3(w->crk, w->crk->pws[2], w->id, w->pw, w->env)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_4(w->crk, w->crk->pws[3], w->id, w->pw)) {
+    if (do_work_4(w->crk, w->crk->pws[3], w->id, w->pw, w->env)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_5(w->crk, w->crk->pws[4], w->id, w->pw)) {
+    if (do_work_5(w->crk, w->crk->pws[4], w->id, w->pw, w->env)) {
         w->found = true;
         goto exit;
     }
 
-    if (do_work_6(w->crk, w->crk->pws[5], w->id, w->pw)) {
+    if (do_work_6(w->crk, w->crk->pws[5], w->id, w->pw, w->env)) {
         w->found = true;
         goto exit;
     }
