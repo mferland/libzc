@@ -305,57 +305,6 @@ static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char 
     return false;
 }
 
-static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
-{
-    return zc_file_test_password(crk->filename, pw);
-}
-
-/* static bool do_work_1(const struct zc_crk_bforce *crk, char *ret) */
-/* { */
-/*     struct zc_key base; */
-/*     char pw[2] = {0}; */
-
-/*     for (size_t p = 0; p < crk->cfg.setlen; ++p) { */
-/*         pw[0] = crk->cfg.set[p]; */
-/*         init_encryption_keys(pw, &base); */
-/*         if (try_decrypt(crk, &base)) { */
-/*             if (test_password(crk, pw)) { */
-/*                 strcpy(ret, pw); */
-/*                 return true; */
-/*             } */
-/*         } */
-/*     } */
-/*     return false; */
-/* } */
-
-/* static bool do_work_2(const struct zc_crk_bforce *crk, char *ret) */
-/* { */
-/*     struct zc_key cache[3]; */
-/*     char pw[3] = {0}; */
-
-/*     memset(cache, 0, sizeof(struct zc_key) * 3); */
-
-/*     set_default_encryption_keys(cache); */
-
-/*     for (size_t p0 = 0; p0 < crk->cfg.setlen; ++p0) { */
-/*         pw[0] = crk->cfg.set[p0]; */
-/*         update_keys(pw[0], cache, &cache[1]); */
-
-/*         for (size_t p1 = 0; p1 < crk->cfg.setlen; ++p1) { */
-/*             pw[1] = crk->cfg.set[p1]; */
-/*             update_keys(pw[1], &cache[1], &cache[2]); */
-
-/*             if (try_decrypt(crk, &cache[2])) { */
-/*                 if (test_password(crk, pw)) { */
-/*                     strcpy(ret, pw); */
-/*                     return true; */
-/*                 } */
-/*             } */
-/*         } */
-/*     } */
-/*     return false; */
-/* } */
-
 static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
                         unsigned int stream)
 {
@@ -365,36 +314,7 @@ static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
     }
 }
 
-#define for_each_char_begin(limit, set, pw, cache, level)               \
-    for (size_t p ##level = limit[level * 2]; p ##level < limit[level * 2 + 1]; ++p ##level) { \
-        pw[level] = set[p ##level];                                     \
-        update_keys(pw[level], &cache[level], &cache[level + 1]);       \
-
-#define for_each_char_end }
-
-/* for (size_t p0 = limit[0]; p0 < limit[1]; p0++) { */
-/*     pw[0] = crk->cfg.set[p0]; */
-/*     update_keys(pw[0], cache, &cache[1]); */
-
-/*     for (size_t p1 = limit[2]; p1 < limit[3]; p1++) { */
-/*         pw[1] = crk->cfg.set[p1]; */
-/*         update_keys(pw[1], &cache[1], &cache[2]); */
-
-/*         for (size_t p2 = limit[4]; p2 < limit[5]; p2++) { */
-/*             pw[2] = crk->cfg.set[p2]; */
-/*             update_keys(pw[2], &cache[2], &cache[3]); */
-
-/*             if (try_decrypt(crk, &cache[3])) { */
-/*                 if (test_password_mt(crk, pw)) { */
-/*                     strcpy(ret, pw); */
-/*                     return true; */
-/*                 } */
-/*             } */
-/*         } */
-/*     } */
-/* } */
-
-static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
+static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
                             size_t level_count, char *pw, struct zc_key *cache,
                             unsigned int *limit, jmp_buf env)
 {
@@ -419,144 +339,20 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
     }
 }
 
-static bool do_work_3(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw, jmp_buf env)
+static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws, unsigned int level,
+                    unsigned int stream, char *pw, jmp_buf env)
 {
-    struct zc_key cache[4];
-    unsigned int limit[6];
+    struct zc_key cache[level + 1];
+    unsigned int limit[level * 2];
 
-    fill_limits(pws, limit, 3, stream);
-
-    memset(cache, 0, sizeof(struct zc_key) * 4);
-
+    fill_limits(pws, limit, level, stream);
+    memset(cache, 0, sizeof(struct zc_key) * (level + 1));
     set_default_encryption_keys(cache);
 
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
-    /*     if (try_decrypt(crk, &cache[3])) { */
-    /*         if (test_password_mt(crk, pw)) { */
-    /*             strcpy(ret, pw); */
-    /*             return true; */
-    /*         } */
-    /*     } */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-
-    /* return false; */
     int ret = setjmp(env);
     if (!ret)
-        do_work_recurse(crk, 3, 3, pw, cache, limit, env);
-    return ret == 1 ? true : false;
-}
-
-static bool do_work_4(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw, jmp_buf env)
-{
-    struct zc_key cache[5];
-    unsigned int limit[8];
-
-    fill_limits(pws, limit, 4, stream);
-
-    memset(cache, 0, sizeof(struct zc_key) * 5);
-
-    set_default_encryption_keys(cache);
-
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
-    /*     if (try_decrypt(crk, &cache[4])) { */
-    /*         if (test_password_mt(crk, pw)) { */
-    /*             strcpy(ret, pw); */
-    /*             return true; */
-    /*         } */
-    /*     } */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-
-    /* return false; */
-    int ret = setjmp(env);
-    if (!ret)
-        do_work_recurse(crk, 4, 4, pw, cache, limit, env);
-    return ret == 1 ? true : false;
-}
-
-static bool do_work_5(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw, jmp_buf env)
-{
-    struct zc_key cache[6];
-    unsigned int limit[10];
-
-    fill_limits(pws, limit, 5, stream);
-
-    memset(cache, 0, sizeof(struct zc_key) * 6);
-
-    set_default_encryption_keys(cache);
-
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 4) */
-    /*     if (try_decrypt(crk, &cache[5])) { */
-    /*         if (test_password_mt(crk, pw)) { */
-    /*             strcpy(ret, pw); */
-    /*             return true; */
-    /*         } */
-    /*     } */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-
-    /* return false; */
-    int ret = setjmp(env);
-    if (!ret)
-        do_work_recurse(crk, 5, 5, pw, cache, limit, env);
-    return ret == 1 ? true : false;
-}
-
-static bool do_work_6(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                      unsigned int stream, char *pw, jmp_buf env)
-{
-    struct zc_key cache[7];
-    unsigned int limit[12];
-
-    fill_limits(pws, limit, 6, stream);
-
-    memset(cache, 0, sizeof(struct zc_key) * 7);
-
-    set_default_encryption_keys(cache);
-
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 0) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 1) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 2) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 3) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 4) */
-    /* for_each_char_begin(limit, crk->cfg.set, pw, cache, 5) */
-    /*     if (try_decrypt(crk, &cache[6])) { */
-    /*         if (test_password_mt(crk, pw)) { */
-    /*             strcpy(ret, pw); */
-    /*             return true; */
-    /*         } */
-    /*     } */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-    /* for_each_char_end */
-
-    /* return false; */
-    int ret = setjmp(env);
-    if (!ret)
-        do_work_recurse(crk, 6, 6, pw, cache, limit, env);
-    return ret == 1 ? true : false;
+        do_work_recurse(crk, level, level, pw, cache, limit, env);
+    return (ret == 1);
 }
 
 static void worker_cleanup_handler(void *p)
@@ -586,24 +382,12 @@ static void *worker(void *p)
     /*     } */
     /* } */
 
-    if (do_work_3(w->crk, w->crk->pws[2], w->id, w->pw, w->env)) {
-        w->found = true;
-        goto exit;
-    }
-
-    if (do_work_4(w->crk, w->crk->pws[3], w->id, w->pw, w->env)) {
-        w->found = true;
-        goto exit;
-    }
-
-    if (do_work_5(w->crk, w->crk->pws[4], w->id, w->pw, w->env)) {
-        w->found = true;
-        goto exit;
-    }
-
-    if (do_work_6(w->crk, w->crk->pws[5], w->id, w->pw, w->env)) {
-        w->found = true;
-        goto exit;
+    /* TODO: */
+    for (int i = 2; i < 6; ++i) {
+        if (do_work(w->crk, w->crk->pws[i], i + 1, w->id, w->pw, w->env)) {
+            w->found = true;
+            goto exit;
+        }
     }
 
 exit:
