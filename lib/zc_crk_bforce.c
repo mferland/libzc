@@ -398,15 +398,19 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
                             size_t level_count, char *pw, struct zc_key *cache,
                             unsigned int *limit, jmp_buf env)
 {
-    if (level == 0) {
-        if (try_decrypt(crk, &cache[level_count])) {
-            if (test_password_mt(crk, pw))
-                longjmp(env, 1);
+    int i = level_count - level;
+    int first = limit[i * 2];
+    int last = limit[i * 2 + 1];
+    if (level == 1) {
+        for (int p = first; p < last; ++p) {
+            pw[i] = crk->cfg.set[p];
+            update_keys(pw[i], &cache[i], &cache[i + 1]);
+            if (try_decrypt(crk, &cache[level_count])) {
+                if (test_password_mt(crk, pw))
+                    longjmp(env, 1);
+            }
         }
     } else {
-        int i = level_count - level;
-        int first = limit[i * 2];
-        int last = limit[i * 2 + 1];
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
