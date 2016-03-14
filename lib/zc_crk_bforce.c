@@ -117,103 +117,6 @@ static inline uint8_t decrypt_header(const uint8_t *encrypted_header, struct zc_
     return encrypted_header[i] ^ decrypt_byte(k->key2);
 }
 
-ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
-{
-    struct zc_key key;
-    struct zc_key base_key;
-    size_t i;
-
-    init_encryption_keys(pw, &base_key);
-    for (i = 0; i < nmemb; ++i) {
-        reset_encryption_keys(&base_key, &key);
-        if (decrypt_header(vdata[i].encryption_header, &key) == vdata[i].magic)
-            continue;
-        return false;
-    }
-    return true;
-}
-
-ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
-{
-    struct zc_crk_bforce *tmp;
-    int err;
-
-    tmp = calloc(1, sizeof(struct zc_crk_bforce));
-    if (!tmp)
-        return -1;
-
-    err = pthread_mutex_init(&tmp->mutex, NULL);
-    if (err) {
-        err(ctx, "pthread_mutex_init() failed: %s\n", strerror(err));
-        free(tmp);
-        return -1;
-    }
-
-    err = pthread_cond_init(&tmp->cond, NULL);
-    if (err) {
-        err(ctx, "pthread_cond_init() failed: %s\n", strerror(err));
-        pthread_mutex_destroy(&tmp->mutex);
-        free(tmp);
-        return -1;
-    }
-
-    tmp->ctx = ctx;
-    tmp->refcount = 1;
-
-    INIT_LIST_HEAD(&tmp->workers_head);
-    INIT_LIST_HEAD(&tmp->cleanup_head);
-
-    *crk = tmp;
-
-    dbg(ctx, "cracker %p created\n", tmp);
-    return 0;
-}
-
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
-{
-    if (!crk)
-        return NULL;
-    crk->refcount++;
-    return crk;
-}
-
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
-{
-    if (!crk)
-        return NULL;
-    crk->refcount--;
-    if (crk->refcount > 0)
-        return crk;
-    dbg(crk->ctx, "cracker %p released\n", crk);
-    if (crk->filename)
-        free(crk->filename);
-    pthread_cond_destroy(&crk->cond);
-    pthread_mutex_destroy(&crk->mutex);
-    free(crk);
-    return NULL;
-}
-
-ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
-{
-    if (!vdata || nmemb == 0)
-        return -1;
-    crk->vdata = vdata;
-    crk->vdata_size = nmemb;
-    return 0;
-}
-
-ZC_EXPORT void zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char *filename)
-{
-    if (crk->filename)
-        free(crk->filename);
-    crk->filename = strdup(filename);
-}
-
-ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
-{
-    return crk->cfg.set;
-}
-
 static size_t unique(char *str, size_t len)
 {
     if (len <= 1)
@@ -252,38 +155,6 @@ static bool pw_in_set(const char *pw, const char *set, size_t len)
     return true;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
-{
-    /* basic sanity checks */
-    if (cfg->setlen == 0 ||
-        cfg->setlen > ZC_CHARSET_MAXLEN  ||
-        cfg->stoplen == 0 ||
-        cfg->stoplen > ZC_PW_MAXLEN)
-        return -1;
-
-    /* local copy */
-    memcpy(&crk->cfg, cfg, sizeof(struct zc_crk_pwcfg));
-
-    /* sanitize character set */
-    crk->cfg.setlen = sanitize_set(crk->cfg.set, crk->cfg.setlen);
-
-    size_t ilen = strnlen(cfg->initial, ZC_PW_MAXLEN);
-    if (!ilen) {
-        /* no initial password set, use first character */
-        crk->cfg.initial[0] = crk->cfg.set[0];
-        crk->cfg.initial[1] = '\0';
-        crk->cfg.ilen = 1;
-    } else {
-        if (ilen > cfg->stoplen)
-            return -1;
-        if (!pw_in_set(cfg->initial, cfg->set, cfg->setlen))
-            return -1;
-        crk->cfg.ilen = ilen;
-    }
-
-    return 0;
-}
-
 static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
 {
     struct zc_key key;
@@ -305,7 +176,7 @@ static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char 
     return false;
 }
 
-static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
+static void fill_limits(struct pwstream *pws, int *limit, size_t count,
                         unsigned int stream)
 {
     for (size_t i = 0, j = count - 1; i < count * 2; i += 2, --j) {
@@ -314,11 +185,11 @@ static void fill_limits(struct pwstream *pws, unsigned int *limit, size_t count,
     }
 }
 
-static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
+static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
                             size_t level_count, char *pw, struct zc_key *cache,
-                            unsigned int *limit, jmp_buf env)
+                            int *limit, jmp_buf env)
 {
-    int i = level_count - level;
+    size_t i = level_count - level;
     int first = limit[0];
     int last = limit[1];
     if (level == 1) {
@@ -342,9 +213,9 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
 static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
                     unsigned int stream, char *pw, jmp_buf env)
 {
-    unsigned int level = pwstream_get_pwlen(pws);
+    size_t level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
-    unsigned int limit[level * 2];
+    int limit[level * 2];
 
     fill_limits(pws, limit, level, stream);
     memset(cache, 0, sizeof(struct zc_key) * (level + 1));
@@ -510,6 +381,135 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     }
 
     return 0;
+}
+
+ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
+{
+    struct zc_key key;
+    struct zc_key base_key;
+    size_t i;
+
+    init_encryption_keys(pw, &base_key);
+    for (i = 0; i < nmemb; ++i) {
+        reset_encryption_keys(&base_key, &key);
+        if (decrypt_header(vdata[i].encryption_header, &key) == vdata[i].magic)
+            continue;
+        return false;
+    }
+    return true;
+}
+
+ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
+{
+    struct zc_crk_bforce *tmp;
+    int err;
+
+    tmp = calloc(1, sizeof(struct zc_crk_bforce));
+    if (!tmp)
+        return -1;
+
+    err = pthread_mutex_init(&tmp->mutex, NULL);
+    if (err) {
+        err(ctx, "pthread_mutex_init() failed: %s\n", strerror(err));
+        free(tmp);
+        return -1;
+    }
+
+    err = pthread_cond_init(&tmp->cond, NULL);
+    if (err) {
+        err(ctx, "pthread_cond_init() failed: %s\n", strerror(err));
+        pthread_mutex_destroy(&tmp->mutex);
+        free(tmp);
+        return -1;
+    }
+
+    tmp->ctx = ctx;
+    tmp->refcount = 1;
+
+    INIT_LIST_HEAD(&tmp->workers_head);
+    INIT_LIST_HEAD(&tmp->cleanup_head);
+
+    *crk = tmp;
+
+    dbg(ctx, "cracker %p created\n", tmp);
+    return 0;
+}
+
+ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
+{
+    if (!crk)
+        return NULL;
+    crk->refcount++;
+    return crk;
+}
+
+ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
+{
+    if (!crk)
+        return NULL;
+    crk->refcount--;
+    if (crk->refcount > 0)
+        return crk;
+    dbg(crk->ctx, "cracker %p released\n", crk);
+    if (crk->filename)
+        free(crk->filename);
+    pthread_cond_destroy(&crk->cond);
+    pthread_mutex_destroy(&crk->mutex);
+    free(crk);
+    return NULL;
+}
+
+ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
+{
+    /* basic sanity checks */
+    if (cfg->setlen == 0 ||
+        cfg->setlen > ZC_CHARSET_MAXLEN  ||
+        cfg->stoplen == 0 ||
+        cfg->stoplen > ZC_PW_MAXLEN)
+        return -1;
+
+    /* local copy */
+    memcpy(&crk->cfg, cfg, sizeof(struct zc_crk_pwcfg));
+
+    /* sanitize character set */
+    crk->cfg.setlen = sanitize_set(crk->cfg.set, crk->cfg.setlen);
+
+    size_t ilen = strnlen(cfg->initial, ZC_PW_MAXLEN);
+    if (!ilen) {
+        /* no initial password set, use first character */
+        crk->cfg.initial[0] = crk->cfg.set[0];
+        crk->cfg.initial[1] = '\0';
+        crk->cfg.ilen = 1;
+    } else {
+        if (ilen > cfg->stoplen)
+            return -1;
+        if (!pw_in_set(cfg->initial, cfg->set, cfg->setlen))
+            return -1;
+        crk->cfg.ilen = ilen;
+    }
+
+    return 0;
+}
+
+ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
+{
+    if (!vdata || nmemb == 0)
+        return -1;
+    crk->vdata = vdata;
+    crk->vdata_size = nmemb;
+    return 0;
+}
+
+ZC_EXPORT void zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char *filename)
+{
+    if (crk->filename)
+        free(crk->filename);
+    crk->filename = strdup(filename);
+}
+
+ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
+{
+    return crk->cfg.set;
 }
 
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
