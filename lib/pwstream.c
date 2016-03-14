@@ -27,6 +27,34 @@
    - rename first, last --> start, stop
  */
 
+/*
+ This algorithm distributes a pool of characters to 'n' password
+ streams. These streams can then generate passwords that are mutually
+ exclusive. For example:
+
+ pool: a,b,c
+
+ Distribute to 4 streams of 3 characters:
+ stream0: [a,a] [a,a] [a,c] --> aaa, baa, caa
+ stream1: [a,a] [b,c] [a,c] --> aba, aca, bba, bca, cba, cca
+ stream2: [b,b] [a,c] [a,c] --> aab, abb, acb, bab, bbb, bcb, cab, cbb, ccb
+ stream3: [c,c] [a,c] [a,c] --> aac, abc, acc, bac, bbc, bcc, cac, cbc, ccc
+
+ The output of the algorithm is a table of streams*characters
+ entries. Each entry contains a start and end offset to the character
+ pool. Using these offsets we can easily loop over all possible
+ 'strings' using simple for-loops.
+
+ Pseudo-code (again for 3 characters strings):
+ for (i = table[stream0, 2].first; i <= table[stream0, 2].last; ++i)
+    str[0] = pool[i];
+    for (j = table[stream0, 1].first; j <= table[stream0, 1].last; ++j)
+       str[1] = pool[j];
+       for (k = table[stream0, 0].first; k <= table[stream0, 0].last; ++k)
+          str[2] = pool[k];
+          do_stuff(str);
+ */
+
 struct entry {
     int first, last;
 };
