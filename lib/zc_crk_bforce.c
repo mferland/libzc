@@ -48,6 +48,7 @@ struct zc_crk_bforce {
     struct zc_crk_pwcfg cfg;
 
     struct pwstream **pws;
+    size_t pwslen;
 
     struct list_head workers_head;
     struct list_head cleanup_head;
@@ -104,7 +105,7 @@ static inline uint8_t decrypt_byte(uint32_t k)
 
 static inline uint8_t decrypt_header(const uint8_t *encrypted_header, struct zc_key *k)
 {
-    int i;
+    size_t i;
     uint8_t c;
 
     for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
@@ -338,9 +339,10 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
     }
 }
 
-static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws, unsigned int level,
+static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
                     unsigned int stream, char *pw, jmp_buf env)
 {
+    unsigned int level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
     unsigned int limit[level * 2];
 
@@ -373,17 +375,11 @@ static void *worker(void *p)
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-    /* TODO: pwstream_is_empty */
-    /* if (!pwstream_is_empty(w->crk->pws[0], w->id)) { */
-    /*     if (do_work_1(w->crk, w->crk->pws[0], w->id, w->pw)) { */
-    /*         w->found = true; */
-    /*         goto exit; */
-    /*     } */
-    /* } */
+    for (size_t i = 0; i < w->crk->pwslen; ++i) {
+        if (pwstream_is_empty(w->crk->pws[i], w->id))
+            continue;
 
-    /* TODO: */
-    for (int i = 2; i < 6; ++i) {
-        if (do_work(w->crk, w->crk->pws[i], i + 1, w->id, w->pw, w->env)) {
+        if (do_work(w->crk, w->crk->pws[i], w->id, w->pw, w->env)) {
             w->found = true;
             goto exit;
         }
@@ -486,8 +482,7 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
 
 static void dealloc_pwstreams(struct zc_crk_bforce *crk)
 {
-    size_t count = crk->cfg.stoplen - crk->cfg.ilen + 1;
-    for (size_t l = 0; l < count; ++l) {
+    for (size_t l = 0; l < crk->pwslen; ++l) {
         if (crk->pws[l])
             pwstream_free(crk->pws[l]);
     }
@@ -503,6 +498,8 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     crk->pws = calloc(1, sizeof(struct pwstream*) * to_alloc);
     if (!crk->pws)
         return -1;
+
+    crk->pwslen = to_alloc;
 
     for (size_t i = 0; i < to_alloc; ++i) {
         if (pwstream_new(&crk->pws[i])) {
