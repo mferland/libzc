@@ -286,8 +286,7 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
 static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
 {
     struct zc_key key;
-    size_t i;
-    for (i = 0; i < crk->vdata_size; ++i) {
+    for (size_t i = 0; i < crk->vdata_size; ++i) {
         reset_encryption_keys(base, &key);
         if (decrypt_header(crk->vdata[i].encryption_header, &key) != crk->vdata[i].magic)
             return false;
