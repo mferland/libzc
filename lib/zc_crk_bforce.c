@@ -176,22 +176,20 @@ static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char 
     return false;
 }
 
-static void fill_limits(struct pwstream *pws, int *limit, size_t count,
+static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
                         unsigned int stream)
 {
-    for (size_t i = 0, j = count - 1; i < count * 2; i += 2, --j) {
-        limit[i] = pwstream_get_start_idx(pws, stream, j);
-        limit[i + 1] = pwstream_get_stop_idx(pws, stream, j) + 1;
-    }
+    for (size_t i = 0, j = count - 1; i < count; ++i, --j)
+        limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
 static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
                             size_t level_count, char *pw, struct zc_key *cache,
-                            int *limit, jmp_buf env)
+                            struct entry *limit, jmp_buf env)
 {
     size_t i = level_count - level;
-    int first = limit[0];
-    int last = limit[1];
+    int first = limit[0].initial;
+    int last = limit[0].stop + 1;
     if (level == 1) {
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
@@ -205,9 +203,10 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse(crk, level - 1, level_count, pw, cache, &limit[2], env);
+            do_work_recurse(crk, level - 1, level_count, pw, cache, &limit[1], env);
         }
     }
+    limit[0].initial = limit[0].start;
 }
 
 static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
@@ -215,7 +214,7 @@ static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
 {
     size_t level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
-    int limit[level * 2];
+    struct entry limit[level];
 
     fill_limits(pws, limit, level, stream);
     memset(cache, 0, sizeof(struct zc_key) * (level + 1));
@@ -280,10 +279,6 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
         w->found = false;
         w->crk = crk;
         w->id = i;
-
-        /* TODO: Create 'find_nearest' function to position each
-         * stream. See python code. */
-
         list_add(&w->workers, &crk->workers_head);
     }
 
@@ -360,11 +355,19 @@ static void dealloc_pwstreams(struct zc_crk_bforce *crk)
     free(crk->pws);
 }
 
+static void fill_initial_pwstream(size_t *initial, const char *ipw, size_t ipwlen,
+                                  const char* set, size_t slen)
+{
+    for (size_t i = ipwlen - 1, j = 0; j < ipwlen; --i, ++j)
+        initial[j] = (const char*)memchr(set, ipw[i], slen) - set;
+}
+
 static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 {
-    size_t first = crk->cfg.ilen;
-    size_t last = crk->cfg.stoplen;
-    size_t to_alloc = last - first + 1;
+    size_t start = crk->cfg.ilen;
+    size_t stop = crk->cfg.stoplen;
+    size_t to_alloc = stop - start + 1;
+    size_t initial[stop];
 
     crk->pws = calloc(1, sizeof(struct pwstream*) * to_alloc);
     if (!crk->pws)
@@ -377,7 +380,12 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
             dealloc_pwstreams(crk);
             return -1;
         }
-        pwstream_generate(crk->pws[i], crk->cfg.setlen, first + i, workers);
+        if (!i) {
+            fill_initial_pwstream(initial, crk->cfg.initial, crk->cfg.ilen,
+                                  crk->cfg.set, crk->cfg.setlen);
+            pwstream_generate(crk->pws[i], crk->cfg.setlen, start + i, workers, initial);
+        } else
+            pwstream_generate(crk->pws[i], crk->cfg.setlen, start + i, workers, NULL);
     }
 
     return 0;

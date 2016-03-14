@@ -20,12 +20,10 @@
 #include <stdbool.h>
 #include <math.h>
 
+#include "pwstream.h"
 #include "libzc_private.h"
 
-/*
-   TODO:
-   - rename first, last --> start, stop
- */
+static const struct entry null_entry = {-1, -1, -1};
 
 /*
  This algorithm distributes a pool of characters to 'n' password
@@ -46,21 +44,18 @@
  'strings' using simple for-loops.
 
  Pseudo-code (again for 3 characters strings):
- for (i = table[stream0, 2].first; i <= table[stream0, 2].last; ++i)
+ for (i = table[stream0, 2].start; i <= table[stream0, 2].stop; ++i)
     str[0] = pool[i];
-    for (j = table[stream0, 1].first; j <= table[stream0, 1].last; ++j)
+    for (j = table[stream0, 1].start; j <= table[stream0, 1].stop; ++j)
        str[1] = pool[j];
-       for (k = table[stream0, 0].first; k <= table[stream0, 0].last; ++k)
+       for (k = table[stream0, 0].start; k <= table[stream0, 0].stop; ++k)
           str[2] = pool[k];
           do_stuff(str);
  */
 
-struct entry {
-    int first, last;
-};
-
 struct pwstream {
     struct entry *entry;
+    size_t initial;
     size_t rows;
     size_t cols;
     size_t real_cols;
@@ -73,8 +68,8 @@ static int compare_entries(const void *a, const void *b)
   const struct entry *eb = (const struct entry *)b;
 
   /* since entries are always mutually exclusive, compare only the
-   * 'first' member */
-  return (ea->first > eb->first) - (ea->first < eb->first);
+   * 'start' member */
+  return (ea->start > eb->start) - (ea->start < eb->start);
 }
 
 static void sort(struct entry *e, size_t streams)
@@ -97,8 +92,10 @@ static struct entry *get(struct pwstream *t, size_t row, size_t col)
 static void split_less(size_t plen, size_t streams, struct entry *t)
 {
     for (size_t i = 0; i < streams; ++i) {
-        t[i].first = (i * plen) / streams;
-        t[i].last = ((i + 1) * plen) / streams - 1;
+        int start = (i * plen) / streams;
+        t[i].start = start;
+        t[i].initial = start;
+        t[i].stop = ((i + 1) * plen) / streams - 1;
     }
 }
 
@@ -108,8 +105,10 @@ static void split_less(size_t plen, size_t streams, struct entry *t)
 static void split_more(size_t plen, size_t streams, struct entry *e)
 {
     for (size_t i = 0; i < streams; ++i) {
-        e[i].first = i % plen;
-        e[i].last = i % plen;
+        int tmp = i % plen;
+        e[i].start = tmp;
+        e[i].stop = tmp;
+        e[i].initial = tmp;
     }
     sort(e, streams);
 }
@@ -120,8 +119,9 @@ static void split_more(size_t plen, size_t streams, struct entry *e)
 static void split_equal(size_t plen, struct entry *e)
 {
     for (size_t i = 0; i < plen; ++i) {
-        e[i].first = i;
-        e[i].last = i;
+        e[i].start = i;
+        e[i].stop = i;
+        e[i].initial = i;
     }
 }
 
@@ -131,8 +131,9 @@ static void split_equal(size_t plen, struct entry *e)
 static void distribute(size_t plen, size_t streams, struct entry *entry)
 {
     if (streams == 1) {
-        entry->first = 0;
-        entry->last = plen - 1;
+        entry->start = 0;
+        entry->stop = plen - 1;
+        entry->initial = 0;
     } else if (streams == plen) {
         split_equal(plen, entry);
     } else if (streams > plen) {
@@ -146,17 +147,18 @@ static void distribute(size_t plen, size_t streams, struct entry *entry)
  */
 static bool is_equal_entries(const struct entry *e1, const struct entry *e2)
 {
-    return (e1->first == e2->first && e1->last == e2->last);
+    return (e1->start == e2->start && e1->stop == e2->stop);
 }
 
 /**
  * Initialize entry table with default values.
  */
-static void entry_table_init(struct pwstream *t, int first, int last)
+static void entry_table_init(struct pwstream *t, int start, int stop)
 {
     for (size_t i = 0; i < t->rows * t->cols; ++i) {
-        t->entry[i].first = first;
-        t->entry[i].last = last;
+        t->entry[i].start = start;
+        t->entry[i].stop = stop;
+        t->entry[i].initial = start;
     }
 }
 
@@ -216,6 +218,47 @@ static void generate(struct pwstream *pws)
     }
 }
 
+static bool is_before(const struct entry *e, int c)
+{
+    return (c < e->start);
+}
+
+static bool is_after(const struct entry *e, int c)
+{
+    return (c > e->stop);
+}
+
+static bool is_enclosed(const struct entry *e, int c)
+{
+    return !is_before(e, c) && !is_after(e, c);
+}
+
+static void generate_initial_indexes(struct pwstream *pws, const size_t *initial)
+{
+    for (size_t i = 0; i < pws->rows; ++i) {
+        for (size_t j = 0; j < pws->cols; ++j) {
+            struct entry *e = get(pws, i, j);
+            if (is_enclosed(e, initial[i]))
+                e->initial = initial[i];
+            else if (is_after(e, initial[i]))
+                e->initial = e->stop;
+            else
+                e->initial = e->start;
+        }
+    }
+}
+
+static size_t ceil_streams(size_t pool_len, size_t pw_len, size_t streams)
+{
+    long double permut = powl((long double)pool_len, (long double)pw_len);
+    if (permut == HUGE_VALL)
+        /* assume we won't ever have more than HUGE_VAL streams */
+        return streams;
+    else if (permut < (long double)streams)
+        return (size_t)permut;
+    return streams;
+}
+
 int pwstream_new(struct pwstream **pws)
 {
     struct pwstream *p = malloc(sizeof(struct pwstream));
@@ -240,18 +283,8 @@ void pwstream_free(struct pwstream *pws)
     free(pws);
 }
 
-static size_t ceil_streams(size_t pool_len, size_t pw_len, size_t streams)
-{
-    long double permut = powl((long double)pool_len, (long double)pw_len);
-    if (permut == HUGE_VALL)
-        /* assume we won't ever have more than HUGE_VAL streams */
-        return streams;
-    else if (permut < (long double)streams)
-        return (size_t)permut;
-    return streams;
-}
-
-int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size_t streams)
+int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
+                      size_t streams, const size_t *initial)
 {
     if (pws->entry)
         free(pws->entry);
@@ -263,6 +296,7 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size
         pws->rows = 0;
         pws->cols = 0;
         pws->plen = 0;
+        pws->real_cols = 0;
         return -1;
     }
 
@@ -274,21 +308,18 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len, size
     entry_table_init(pws, 0, pool_len - 1);
     generate(pws);
 
+    if (initial)
+        generate_initial_indexes(pws, initial);
+
     return 0;
 }
 
-int pwstream_get_start_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
+const struct entry *pwstream_get_entry(struct pwstream *pws,
+                                       unsigned int stream, unsigned int pos)
 {
     if (stream >= pws->cols)
-        return -1;
-    return get(pws, pos, stream)->first;
-}
-
-int pwstream_get_stop_idx(struct pwstream *pws, unsigned int stream, unsigned int pos)
-{
-    if (stream >= pws->cols)
-        return -1;
-    return get(pws, pos, stream)->last;
+        return &null_entry;
+    return get(pws, pos, stream);
 }
 
 size_t pwstream_get_pwlen(const struct pwstream *pws)
@@ -303,5 +334,6 @@ size_t pwstream_get_stream_count(const struct pwstream *pws)
 
 bool pwstream_is_empty(struct pwstream *pws, unsigned int stream)
 {
-    return pwstream_get_start_idx(pws, stream, 0) == -1;
+    return stream >= pws->cols;
 }
+

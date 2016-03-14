@@ -265,7 +265,6 @@ static int do_bruteforce(int argc, char *argv[])
             yazc_err("generating character set failed.\n");
             return EXIT_FAILURE;
         }
-        strncpy(pwcfg.set, tmp, ZC_CHARSET_MAXLEN);
     } else
         strncpy(pwcfg.set, arg_set, ZC_CHARSET_MAXLEN);
 
