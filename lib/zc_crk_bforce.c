@@ -319,8 +319,8 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
                             unsigned int *limit, jmp_buf env)
 {
     int i = level_count - level;
-    int first = limit[i * 2];
-    int last = limit[i * 2 + 1];
+    int first = limit[0];
+    int last = limit[1];
     if (level == 1) {
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
@@ -334,7 +334,7 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, unsigned int level,
         for (int p = first; p < last; ++p) {
             pw[i] = crk->cfg.set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse(crk, level - 1, level_count, pw, cache, limit, env);
+            do_work_recurse(crk, level - 1, level_count, pw, cache, &limit[2], env);
         }
     }
 }
