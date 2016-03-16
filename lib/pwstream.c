@@ -321,7 +321,7 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 }
 
 const struct entry *pwstream_get_entry(struct pwstream *pws,
-                                       unsigned int stream, unsigned int pos)
+                                       size_t stream, size_t pos)
 {
     if (stream >= pws->cols)
         return &null_entry;
@@ -342,4 +342,3 @@ bool pwstream_is_empty(struct pwstream *pws, unsigned int stream)
 {
     return stream >= pws->cols;
 }
-

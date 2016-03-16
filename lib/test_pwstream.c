@@ -39,8 +39,8 @@ static void test_generated_stream(const struct entry *ref, struct pwstream *pws)
 {
     size_t streams = pwstream_get_stream_count(pws);
     size_t pwlen = pwstream_get_pwlen(pws);
-    for (int i = 0; i < streams; ++i) {
-        for (int j = 0; j < pwlen; ++j) {
+    for (size_t i = 0; i < streams; ++i) {
+        for (size_t j = 0; j < pwlen; ++j) {
             const struct entry *e = pwstream_get_entry(pws, i, j);
             ck_assert_int_eq(e->start, ref[i * pwlen + j].start);
             ck_assert_int_eq(e->stop, ref[i * pwlen + j].stop);

@@ -61,7 +61,7 @@ struct worker {
     struct list_head workers;
     struct list_head cleanup;
     pthread_t thread_id;
-    unsigned int id;
+    size_t id;
     char pw[ZC_PW_MAXLEN + 1];
     bool found;
     jmp_buf env;
@@ -177,7 +177,7 @@ static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char 
 }
 
 static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
-                        unsigned int stream)
+                        size_t stream)
 {
     for (size_t i = 0, j = count - 1; i < count; ++i, --j)
         limit[i] = *pwstream_get_entry(pws, stream, j);
@@ -210,7 +210,7 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
 }
 
 static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
-                    unsigned int stream, char *pw, jmp_buf env)
+                    size_t stream, char *pw, jmp_buf env)
 {
     size_t level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
