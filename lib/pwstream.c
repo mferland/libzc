@@ -32,7 +32,7 @@ static const struct entry null_entry = {-1, -1, -1};
 
  pool: a,b,c
 
- Distribute to 4 streams of 3 characters:
+ Distribute to 4 streams of 3 characters (last character appears first):
  stream0: [a,a] [a,a] [a,c] --> aaa, baa, caa
  stream1: [a,a] [b,c] [a,c] --> aba, aca, bba, bca, cba, cca
  stream2: [b,b] [a,c] [a,c] --> aab, abb, acb, bab, bbb, bcb, cab, cbb, ccb
@@ -51,6 +51,12 @@ static const struct entry null_entry = {-1, -1, -1};
        for (k = table[stream0, 0].start; k <= table[stream0, 0].stop; ++k)
           str[2] = pool[k];
           do_stuff(str);
+
+ The entry table is divided in the following way:
+ +----------------------------------+
+ |s0c0|s1c0|s2c0|s0c1|s1c1|s2c1|....|
+ +----------------------------------+
+ where s0-->stream0 and c0-->character0.
  */
 
 struct pwstream {
