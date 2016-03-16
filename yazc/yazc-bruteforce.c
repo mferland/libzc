@@ -102,7 +102,7 @@ static void print_help(const char *name)
             name, name);
 }
 
-static char *make_charset(int flags, char* buf, size_t buflen)
+static char *make_charset(int flags, char *buf, size_t buflen)
 {
     size_t len = 0;
 
@@ -116,7 +116,7 @@ static char *make_charset(int flags, char* buf, size_t buflen)
         len += special_set.len;
 
     if (len > buflen)
-       return NULL;
+        return NULL;
     memset(buf, 0, buflen);
 
     if (flags & PWSET_LOWER)

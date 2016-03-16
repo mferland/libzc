@@ -284,7 +284,7 @@ ZC_EXPORT long zc_info_get_data_offset_end(const struct zc_info *info)
 
 ZC_EXPORT const uint8_t *zc_info_get_enc_header(const struct zc_info *info)
 {
-   return info->enc_header;
+    return info->enc_header;
 }
 
 ZC_EXPORT long zc_info_get_enc_header_offset(const struct zc_info *info)

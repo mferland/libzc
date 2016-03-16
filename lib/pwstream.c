@@ -23,7 +23,7 @@
 #include "pwstream.h"
 #include "libzc_private.h"
 
-static const struct entry null_entry = {-1, -1, -1};
+static const struct entry null_entry = { -1, -1, -1};
 
 /*
  This algorithm distributes a pool of characters to 'n' password
@@ -70,12 +70,12 @@ struct pwstream {
 
 static int compare_entries(const void *a, const void *b)
 {
-  const struct entry *ea = (const struct entry *)a;
-  const struct entry *eb = (const struct entry *)b;
+    const struct entry *ea = (const struct entry *)a;
+    const struct entry *eb = (const struct entry *)b;
 
-  /* since entries are always mutually exclusive, compare only the
-   * 'start' member */
-  return (ea->start > eb->start) - (ea->start < eb->start);
+    /* since entries are always mutually exclusive, compare only the
+     * 'start' member */
+    return (ea->start > eb->start) - (ea->start < eb->start);
 }
 
 static void sort(struct entry *e, size_t streams)

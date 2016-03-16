@@ -140,7 +140,7 @@ static size_t unique(char *str, size_t len)
 
 static int compare_char(const void *a, const void *b)
 {
-    return (*(char *)a - *(char *)b);
+    return (*(char *)a - * (char *)b);
 }
 
 static size_t sanitize_set(char *set, size_t len)
@@ -363,10 +363,10 @@ static void dealloc_pwstreams(struct zc_crk_bforce *crk)
 }
 
 static void fill_initial_pwstream(size_t *initial, const char *ipw, size_t ipwlen,
-                                  const char* set, size_t setlen)
+                                  const char *set, size_t setlen)
 {
     for (size_t i = ipwlen - 1, j = 0; j < ipwlen; --i, ++j)
-        initial[j] = (const char*)memchr(set, ipw[i], setlen) - set;
+        initial[j] = (const char *)memchr(set, ipw[i], setlen) - set;
 }
 
 /* when generating the first streams, take into account the
@@ -397,7 +397,7 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     const char *set = crk->set;
     size_t setlen = crk->setlen;
 
-    crk->pws = calloc(1, sizeof(struct pwstream*) * to_alloc);
+    crk->pws = calloc(1, sizeof(struct pwstream *) * to_alloc);
     if (!crk->pws)
         return -1;
 
