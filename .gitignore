@@ -15,6 +15,7 @@ build-aux
 .dirstamp
 lib/test_libzc
 lib/test_ka
+lib/test_pwstream
 valgrind.supp
 *.log
 *.trs
