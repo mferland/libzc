@@ -159,7 +159,7 @@ static int launch_crack(void)
     zc_crk_bforce_set_filename(crk, filename);
 
     printf("Worker threads: %lu\n", thread_count);
-    printf("Maximum length: %lu\n", pwcfg.stoplen);
+    printf("Maximum length: %lu\n", pwcfg.maxlen);
     printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
     printf("Filename: %s\n", filename);
 
@@ -184,7 +184,7 @@ static int do_bruteforce(int argc, char *argv[])
     const char *arg_set = NULL;
     const char *arg_initial = NULL;
     const char *arg_threads = NULL;
-    const char *arg_stoplen = NULL;
+    const char *arg_maxlen = NULL;
     int arg_charset_flag = 0;
 
     for (;;) {
@@ -201,7 +201,7 @@ static int do_bruteforce(int argc, char *argv[])
             arg_initial = optarg;
             break;
         case 'l':
-            arg_stoplen = optarg;
+            arg_maxlen = optarg;
             break;
         case 'a':
             arg_charset_flag |= PWSET_LOWER;
@@ -235,14 +235,14 @@ static int do_bruteforce(int argc, char *argv[])
     filename = argv[optind];
 
     /* password stop length */
-    if (arg_stoplen) {
-        pwcfg.stoplen = atoi(arg_stoplen);
-        if (pwcfg.stoplen < ZC_PW_MINLEN || pwcfg.stoplen > ZC_PW_MAXLEN) {
+    if (arg_maxlen) {
+        pwcfg.maxlen = atoi(arg_maxlen);
+        if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
             yazc_err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN, ZC_PW_MAXLEN);
             return EXIT_FAILURE;
         }
     } else
-        pwcfg.stoplen = PW_LEN_DEFAULT;
+        pwcfg.maxlen = PW_LEN_DEFAULT;
 
     /* number of concurrent threads */
     if (arg_threads) {

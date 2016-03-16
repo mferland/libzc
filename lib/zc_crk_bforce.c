@@ -44,9 +44,16 @@ struct zc_crk_bforce {
 
     char *filename;
 
-    /* password generator config from user */
-    struct zc_crk_pwcfg cfg;
+    /* initial password */
+    char ipw[ZC_PW_MAXLEN + 1];
+    size_t ipwlen;
+    size_t maxlen;
 
+    /* character set */
+    char set[ZC_CHARSET_MAXLEN + 1];
+    size_t setlen;
+
+    /* password streams */
     struct pwstream **pws;
     size_t pwslen;
 
@@ -192,7 +199,7 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
     int last = limit[0].stop + 1;
     if (level == 1) {
         for (int p = first; p < last; ++p) {
-            pw[i] = crk->cfg.set[p];
+            pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
             if (try_decrypt(crk, &cache[level_count])) {
                 if (test_password_mt(crk, pw))
@@ -201,7 +208,7 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
         }
     } else {
         for (int p = first; p < last; ++p) {
-            pw[i] = crk->cfg.set[p];
+            pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
             do_work_recurse(crk, level - 1, level_count, pw, cache, &limit[1], env);
         }
@@ -356,36 +363,57 @@ static void dealloc_pwstreams(struct zc_crk_bforce *crk)
 }
 
 static void fill_initial_pwstream(size_t *initial, const char *ipw, size_t ipwlen,
-                                  const char* set, size_t slen)
+                                  const char* set, size_t setlen)
 {
     for (size_t i = ipwlen - 1, j = 0; j < ipwlen; --i, ++j)
-        initial[j] = (const char*)memchr(set, ipw[i], slen) - set;
+        initial[j] = (const char*)memchr(set, ipw[i], setlen) - set;
+}
+
+/* when generating the first streams, take into account the
+ * initial password provided */
+static int alloc_first_pwstream(struct pwstream **pws, const char *ipw, size_t ipwlen,
+                                const char *set, size_t setlen, size_t workers)
+{
+    struct pwstream *tmp;
+    size_t initial[ipwlen];
+
+    if (pwstream_new(&tmp))
+        return -1;
+
+    fill_initial_pwstream(initial, ipw, ipwlen, set, setlen);
+    pwstream_generate(tmp, setlen, ipwlen, workers, initial);
+
+    *pws = tmp;
+
+    return 0;
 }
 
 static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 {
-    size_t start = crk->cfg.ilen;
-    size_t stop = crk->cfg.stoplen;
-    size_t to_alloc = stop - start + 1;
-    size_t initial[stop];
+    const char *ipw = crk->ipw;
+    size_t ipwlen = crk->ipwlen;
+    size_t maxlen = crk->maxlen;
+    size_t to_alloc = maxlen - ipwlen + 1;
+    const char *set = crk->set;
+    size_t setlen = crk->setlen;
 
     crk->pws = calloc(1, sizeof(struct pwstream*) * to_alloc);
     if (!crk->pws)
         return -1;
 
-    crk->pwslen = to_alloc;
+    if (alloc_first_pwstream(&crk->pws[0], ipw, ipwlen, set, setlen, workers)) {
+        free(crk->pws);
+        return -1;
+    }
 
-    for (size_t i = 0; i < to_alloc; ++i) {
+    crk->pwslen = 1;
+    for (size_t i = 1; i < to_alloc; ++i) {
         if (pwstream_new(&crk->pws[i])) {
             dealloc_pwstreams(crk);
             return -1;
         }
-        if (!i) {
-            fill_initial_pwstream(initial, crk->cfg.initial, crk->cfg.ilen,
-                                  crk->cfg.set, crk->cfg.setlen);
-            pwstream_generate(crk->pws[i], crk->cfg.setlen, start + i, workers, initial);
-        } else
-            pwstream_generate(crk->pws[i], crk->cfg.setlen, start + i, workers, NULL);
+        crk->pwslen++;
+        pwstream_generate(crk->pws[i], setlen, ipwlen + i, workers, NULL);
     }
 
     return 0;
@@ -472,34 +500,34 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
     /* basic sanity checks */
     if (cfg->setlen == 0 ||
         cfg->setlen > ZC_CHARSET_MAXLEN  ||
-        cfg->stoplen == 0 ||
-        cfg->stoplen > ZC_PW_MAXLEN)
+        cfg->maxlen == 0 ||
+        cfg->maxlen > ZC_PW_MAXLEN)
         return -1;
 
-    /* local copy */
-    memcpy(&crk->cfg, cfg, sizeof(struct zc_crk_pwcfg));
+    memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+    memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
+    crk->maxlen = cfg->maxlen;
+    crk->setlen = sanitize_set(crk->set, cfg->setlen);
+    crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
 
-    /* sanitize character set */
-    crk->cfg.setlen = sanitize_set(crk->cfg.set, crk->cfg.setlen);
-
-    size_t ilen = strnlen(cfg->initial, ZC_PW_MAXLEN);
-    if (!ilen) {
-        /* no initial password set, use first character */
-        crk->cfg.initial[0] = crk->cfg.set[0];
-        crk->cfg.initial[1] = '\0';
-        crk->cfg.ilen = 1;
-    } else {
-        if (ilen > cfg->stoplen)
-            return -1;
-        if (!pw_in_set(cfg->initial, cfg->set, cfg->setlen))
-            return -1;
-        crk->cfg.ilen = ilen;
+    if (!crk->ipwlen) {
+        /* no initial password supplied, use first set character */
+        crk->ipw[0] = crk->set[0];
+        crk->ipw[1] = '\0';
+        crk->ipwlen = 1;
+        return 0;
     }
+
+    if (crk->ipwlen > crk->maxlen)
+        return -1;
+    if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
+        return -1;
 
     return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk, const struct zc_validation_data *vdata, size_t nmemb)
+ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk,
+                                      const struct zc_validation_data *vdata, size_t nmemb)
 {
     if (!vdata || nmemb == 0)
         return -1;
@@ -517,7 +545,7 @@ ZC_EXPORT void zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char 
 
 ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
-    return crk->cfg.set;
+    return crk->set;
 }
 
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,

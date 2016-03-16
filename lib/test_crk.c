@@ -82,7 +82,7 @@ START_TEST(test_start_crack)
     struct zc_crk_pwcfg pwcfg = {
         .set = "abcdefghijklmnopqrstuvwxyz",
         .setlen = 26,
-        .stoplen = 6,
+        .maxlen = 6,
         .initial = "yamaga"
     };
     size_t vdata_size = 5;
@@ -115,7 +115,7 @@ START_TEST(test_cannot_find_password)
     struct zc_crk_pwcfg pwcfg = {
         .set = "abcdefghijklmnopqrstuvwxyz",
         .setlen = 26,
-        .stoplen = 4,
+        .maxlen = 4,
         .initial = "aaa"
     };
     size_t vdata_size = 5;

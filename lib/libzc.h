@@ -121,10 +121,8 @@ bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, 
 struct zc_crk_pwcfg {
     char set[ZC_CHARSET_MAXLEN + 1];
     size_t setlen;
-    size_t stoplen;
-    /* size_t step; */
+    size_t maxlen;
     char initial[ZC_PW_MAXLEN + 1];
-    size_t ilen;                /* internal usage only */
 };
 struct zc_crk_bforce;
 struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);
