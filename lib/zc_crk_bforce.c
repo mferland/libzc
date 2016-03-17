@@ -279,8 +279,10 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
 {
     for (size_t i = 0; i < workers; ++i) {
         struct worker *w = calloc(1, sizeof(struct worker));
-        if (!w)
-            goto error;
+        if (!w) {
+            dealloc_workers(crk);
+            return -1;
+        }
 
         w->found = false;
         w->crk = crk;
@@ -289,10 +291,6 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
     }
 
     return 0;
-
-error:
-    dealloc_workers(crk);
-    return -1;
 }
 
 static void start_workers(struct zc_crk_bforce *crk)
@@ -301,8 +299,7 @@ static void start_workers(struct zc_crk_bforce *crk)
 
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
-        int err = pthread_create(&w->thread_id, NULL, worker, w);
-        if (err)
+        if (pthread_create(&w->thread_id, NULL, worker, w))
             fatal("pthread_create() failed");
     }
     pthread_mutex_unlock(&crk->mutex);
@@ -314,8 +311,7 @@ static void cancel_workers(struct zc_crk_bforce *crk)
     struct worker *w;
 
     list_for_each_entry(w, &crk->workers_head, workers) {
-        int err = pthread_cancel(w->thread_id);
-        if (err)
+        if (pthread_cancel(w->thread_id))
             fatal("pthread_cancel() failed");
     }
 }
@@ -324,9 +320,6 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
 {
     int ret = 1;
     int workers_left = workers;
-
-    if (!len)
-        return -1;
 
     /* waits for workers on the 'cleanup' list */
     while (workers_left) {
@@ -340,7 +333,7 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
             if (w->found) {
                 ret = 0;
                 memset(pw, 0, len);
-                strncpy(pw, w->pw, len - 1);
+                strncpy(pw, w->pw, len);
                 cancel_workers(crk);
             }
             free(w);
@@ -547,11 +540,11 @@ ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
 }
 
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
-                                  char *pwbuf, size_t pwbuflen)
+                                  char *pw, size_t len)
 {
     int err;
 
-    if (!workers || !crk->vdata_size || !crk->filename)
+    if (!workers || !len)
         return -1;
 
     if (alloc_pwstreams(crk, workers))
@@ -565,7 +558,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
         fatal("pthread_barrier_init() failed");
 
     start_workers(crk);
-    err = wait_workers(crk, workers, pwbuf, pwbuflen);
+    err = wait_workers(crk, workers, pw, len);
     if (err < 0)
         fatal("failed to wait for workers\n");
 
