@@ -112,16 +112,15 @@ static inline uint8_t decrypt_byte(uint32_t k)
 
 static inline uint8_t decrypt_header(const uint8_t *encrypted_header, struct zc_key *k)
 {
-    size_t i;
     uint8_t c;
 
-    for (i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
+    for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
         c = encrypted_header[i] ^ decrypt_byte(k->key2);
         update_keys(c, k, k);
     }
 
     /* Returns the last byte of the decrypted header */
-    return encrypted_header[i] ^ decrypt_byte(k->key2);
+    return encrypted_header[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte(k->key2);
 }
 
 static size_t unique(char *str, size_t len)
