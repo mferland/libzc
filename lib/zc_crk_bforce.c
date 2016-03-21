@@ -106,21 +106,21 @@ static inline void reset_encryption_keys(const struct zc_key *base, struct zc_ke
 
 static inline uint8_t decrypt_byte(uint32_t k)
 {
-    uint16_t tmp =  k | 2;
-    return ((tmp * (tmp ^ 1)) >> 8);
+    uint32_t tmp =  (k | 2) & 0xffff;
+    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
 }
 
-static inline uint8_t decrypt_header(const uint8_t *encrypted_header, struct zc_key *k)
+static inline uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 {
     uint8_t c;
 
     for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
-        c = encrypted_header[i] ^ decrypt_byte(k->key2);
+        c = hdr[i] ^ decrypt_byte(k->key2);
         update_keys(c, k, k);
     }
 
     /* Returns the last byte of the decrypted header */
-    return encrypted_header[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte(k->key2);
+    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte(k->key2) ^ magic;
 }
 
 static size_t unique(char *str, size_t len)
@@ -166,7 +166,7 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
     struct zc_key key;
     for (size_t i = 0; i < crk->vdata_size; ++i) {
         reset_encryption_keys(base, &key);
-        if (decrypt_header(crk->vdata[i].encryption_header, &key) != crk->vdata[i].magic)
+        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
             return false;
     }
     return true;
@@ -427,9 +427,8 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
     init_encryption_keys(pw, &base_key);
     for (i = 0; i < nmemb; ++i) {
         reset_encryption_keys(&base_key, &key);
-        if (decrypt_header(vdata[i].encryption_header, &key) == vdata[i].magic)
-            continue;
-        return false;
+        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
+            return false;
     }
     return true;
 }
