@@ -173,7 +173,7 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
     return true;
 }
 
-static inline bool test_password_mt(const struct zc_crk_bforce *crk, const char *pw)
+static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
     if (zc_file_test_password(crk->filename, pw))
@@ -202,7 +202,7 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
             pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
             if (try_decrypt(crk, &cache[level_count])) {
-                if (test_password_mt(crk, pw))
+                if (test_password(crk, pw))
                     longjmp(env, 1);
             }
         }
