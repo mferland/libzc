@@ -418,7 +418,7 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
     init_encryption_keys(pw, &base_key);
     for (i = 0; i < nmemb; ++i) {
         reset_encryption_keys(&base_key, &key);
-        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
+        if (decrypt_header(vdata[i].encryption_header, &key, vdata[i].magic))
             return false;
     }
     return true;
