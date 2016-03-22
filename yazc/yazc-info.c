@@ -49,14 +49,10 @@ static int do_info(int argc, char *argv[])
     const char *filename;
     struct zc_file *file;
     struct zc_info *info;
-    int err = EXIT_SUCCESS;
+    int err = EXIT_SUCCESS, c, idx;
 
-    for (;;) {
-        int c;
-        int idx;
-        c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-        if (c == -1)
-            break;
+    c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+    if (c != -1) {
         switch (c) {
         case 'h':
             print_help(basename(argv[0]));
