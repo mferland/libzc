@@ -152,11 +152,9 @@ static size_t sanitize_set(char *set, size_t len)
 
 static bool pw_in_set(const char *pw, const char *set, size_t len)
 {
-    size_t i = 0;
-    while (pw[i]) {
+    for (size_t i = 0; pw[i] != '\0'; ++i) {
         if (!memchr(set, pw[i], len))
             return false;
-        ++i;
     }
     return true;
 }
