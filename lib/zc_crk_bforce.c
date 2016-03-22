@@ -78,7 +78,7 @@ struct worker {
 static inline void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
 {
     kdst->key0 = crc32(ksrc->key0, c);
-    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0x000000ff)) * MULT + 1;
+    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
     kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
 }
 
