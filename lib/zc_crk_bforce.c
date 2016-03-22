@@ -255,11 +255,10 @@ static void *worker(void *p)
 
         if (do_work(w->crk, w->crk->pws[i], w->id, w->pw, w->env)) {
             w->found = true;
-            goto exit;
+            break;
         }
     }
 
-exit:
     pthread_cleanup_pop(1);
     return NULL;
 }
