@@ -18,6 +18,7 @@ AM_CFLAGS = \
 AM_LDFLAGS = \
 	-Wl,--gc-sections \
 	-Wl,--as-needed \
+	-Wl,-z,defs \
 	-lm
 
 # - Start with version information of '0:0:0' for each libtool library.
