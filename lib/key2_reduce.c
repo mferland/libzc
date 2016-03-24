@@ -28,10 +28,9 @@ struct key2r {
 
 static void generate_key2_bits_15_2(uint16_t *value, uint8_t key3)
 {
-    uint8_t key3tmp;
     uint32_t valuei = 0;
     for (uint32_t i = 0; i < pow2(16); i += 4) {
-        key3tmp = ((i | 2) * (i | 3)) >> 8;
+        uint8_t key3tmp = ((i | 2) * (i | 3)) >> 8;
         if (key3 == key3tmp) {
             value[valuei] = i;
             ++valuei;

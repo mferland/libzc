@@ -158,7 +158,7 @@ static int launch_crack(void)
 
     zc_crk_bforce_set_filename(crk, filename);
 
-    printf("Worker threads: %lu\n", thread_count);
+    printf("Worker threads: %zu\n", thread_count);
     printf("Maximum length: %lu\n", pwcfg.maxlen);
     printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
     printf("Filename: %s\n", filename);
