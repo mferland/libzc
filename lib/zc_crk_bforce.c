@@ -23,6 +23,7 @@
 #include <setjmp.h>
 
 #include "crc32.h"
+#include "decrypt_byte.h"
 #include "zip.h"
 #include "list.h"
 #include "libzc.h"
@@ -104,23 +105,17 @@ static inline void reset_encryption_keys(const struct zc_key *base, struct zc_ke
     *k = *base;
 }
 
-static inline uint8_t decrypt_byte(uint32_t k)
-{
-    uint32_t tmp =  (k | 2) & 0xffff;
-    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
-}
-
 static inline uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 {
     uint8_t c;
 
     for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
-        c = hdr[i] ^ decrypt_byte(k->key2);
+        c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
         update_keys(c, k, k);
     }
 
     /* Returns the last byte of the decrypted header */
-    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte(k->key2) ^ magic;
+    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2] ^ magic;
 }
 
 static size_t unique(char *str, size_t len)
