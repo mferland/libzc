@@ -39,23 +39,24 @@ LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
-	libzc_private.h \
-	libzc.c \
-	zc_file.c \
-	zip.c \
-	zc_crk_bforce.c \
-	zc_pwdict.c \
-	zc_crk_ptext.c \
-	ka.c \
-	key2_reduce.c \
-	pwstream.c \
-	pwstream.h \
 	crc32.h \
-	key2_reduce.h \
-	key_table.h \
+	libzc.c \
+	pwstream.h \
+	zc_pwdict.c \
+	decrypt_byte.h \
 	libzc.h \
 	qsort.h \
-	zip.h
+	zip.c \
+	ka.c \
+	libzc_private.h \
+	zc_crk_bforce.c \
+	zip.h \
+	key2_reduce.c \
+	list.h \
+	zc_crk_ptext.c \
+	key2_reduce.h \
+	pwstream.c \
+	zc_file.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
