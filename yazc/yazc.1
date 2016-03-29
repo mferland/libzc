@@ -17,13 +17,13 @@ yazc \- yet another zip cracker
 cracks password protected zip files. Three attack methods are
 supported: \fIbruteforce\fR, \fIdictionnary\fR and \fIplaintext\fR.
 .PP
-Note: Only files encrypted using the legacy zip 2.0 format are
-supported.
+Note: Only files encrypted using the legacy Pkware encryption method
+are supported.
 .PP
 .SH BRUTEFORCE
 The \fIbruteforce\fR command tries every possible character
-combination possible. A general rule of thumb is to use this command
-when you suspect the password to be 8 characters or less.
+combination. A general rule of thumb is to use this command when you
+suspect the password to be 8 characters or less.
 .TP
 .BR \-c ", " \-\-charset=\fICHARSET\fR
 Set the character set to CHARSET.
@@ -75,19 +75,22 @@ decrypt the file.
 .PP
 The \fIplaintext\fR command expects two file arguments along with the
 corresponding offsets separated by colons. The first file argument is
-the plaintext file:
+the plaintext filename and offsets:
 .PP
 .RS
 PLAINTEXT:BEGIN:END
 .RE
 .PP
-The second file argument is the encrypted archive:
+The second file argument is the encrypted archive filename and offsets
+(this time including the offset of the first byte of the cipher):
 .PP
 .RS
 CIPHERTEXT:BEGIN:END:CIPHER_BEGIN
 .RE
 .SH INFO
-The \fIinfo\fR command lists the filenames, offsets
+The \fIinfo\fR command lists the filenames, offsets and the encryption
+header for each file in the archive. This is usefull to determine what
+configuration to pass to the \fIplaintext\fR command.
 .SH EXAMPLES
 Use a \fIbruteforce\fR attack on file archive.zip using only lower case
 letters and distribute the load to 8 threads:
