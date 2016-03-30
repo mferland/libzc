@@ -65,4 +65,3 @@ TODO
 - Support for GPU bruteforce cracking.
 - Add basic mangling rules to dictionary attack.
 - Review library api, should be much simpler.
-- Write a man page for yazc.
