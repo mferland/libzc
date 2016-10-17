@@ -90,16 +90,6 @@ static inline void set_default_encryption_keys(struct zc_key *k)
     k->key2 = KEY2;
 }
 
-static inline void init_encryption_keys(const char *pw, struct zc_key *k)
-{
-    size_t i = 0;
-    set_default_encryption_keys(k);
-    while (pw[i] != '\0') {
-        update_keys(pw[i], k, k);
-        ++i;
-    }
-}
-
 static inline void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
 {
     *k = *base;
@@ -407,9 +397,14 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
 {
     struct zc_key key;
     struct zc_key base_key;
-    size_t i;
+    size_t i = 0;
 
-    init_encryption_keys(pw, &base_key);
+    set_default_encryption_keys(&base_key);
+    while (pw[i] != '\0') {
+        update_keys(pw[i], &base_key, &base_key);
+        ++i;
+    }
+
     for (i = 0; i < nmemb; ++i) {
         reset_encryption_keys(&base_key, &key);
         if (decrypt_header(vdata[i].encryption_header, &key, vdata[i].magic))
