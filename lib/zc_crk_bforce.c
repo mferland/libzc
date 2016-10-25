@@ -198,20 +198,83 @@ static void do_work_recurse(const struct zc_crk_bforce *crk, size_t level,
     limit[0].initial = limit[0].start;
 }
 
+static void do_work_recurse2(const struct zc_crk_bforce *crk, size_t level,
+                             size_t level_count, char *pw, struct zc_key *cache,
+                             struct entry *limit, jmp_buf env)
+{
+    if (level_count > 5 && level == 6) {
+        int firstp1 = limit[0].initial,
+            firstp2 = limit[1].initial,
+            firstp3 = limit[2].initial,
+            firstp4 = limit[3].initial,
+            firstp5 = limit[4].initial,
+            firstp6 = limit[5].initial;
+        int lastp1 = limit[0].stop + 1,
+            lastp2 = limit[1].stop + 1,
+            lastp3 = limit[2].stop + 1,
+            lastp4 = limit[3].stop + 1,
+            lastp5 = limit[4].stop + 1,
+            lastp6 = limit[5].stop + 1;
+        for (int p1 = firstp1; p1 < lastp1; ++p1) {
+            pw[0] = crk->set[p1];
+            update_keys(pw[0], &cache[0], &cache[1]);
+            for (int p2 = firstp2; p2 < lastp2; ++p2) {
+                pw[1] = crk->set[p2];
+                update_keys(pw[1], &cache[1], &cache[2]);
+                for (int p3 = firstp3; p3 < lastp3; ++p3) {
+                    pw[2] = crk->set[p3];
+                    update_keys(pw[2], &cache[2], &cache[3]);
+                    for (int p4 = firstp4; p4 < lastp4; ++p4) {
+                        pw[3] = crk->set[p4];
+                        update_keys(pw[3], &cache[3], &cache[4]);
+                        for (int p5 = firstp5; p5 < lastp5; ++p5) {
+                            pw[4] = crk->set[p5];
+                            update_keys(pw[4], &cache[4], &cache[5]);
+                            for (int p6 = firstp6; p6 < lastp6; ++p6) {
+                                pw[5] = crk->set[p6];
+                                update_keys(pw[5], &cache[5], &cache[6]);
+                                if (try_decrypt(crk, &cache[6]))
+                                    if (test_password(crk, pw))
+                                        longjmp(env, 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        int first = limit[0].initial;
+        int last = limit[0].stop + 1;
+        size_t i = level_count - level;
+        for (int p = first; p < last; ++p) {
+            pw[i] = crk->set[p];
+            update_keys(pw[i], &cache[i], &cache[i + 1]);
+            do_work_recurse(crk, level - 1, level_count, pw, cache, &limit[1], env);
+        }
+    }
+    limit[0].initial = limit[0].start;
+}
+
 static bool do_work(const struct zc_crk_bforce *crk, struct pwstream *pws,
                     size_t stream, char *pw, jmp_buf env)
 {
     size_t level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
     struct entry limit[level];
+    int ret;
 
     fill_limits(pws, limit, level, stream);
     memset(cache, 0, sizeof(struct zc_key) * (level + 1));
     set_default_encryption_keys(cache);
 
-    int ret = setjmp(env);
-    if (!ret)
-        do_work_recurse(crk, level, level, pw, cache, limit, env);
+    ret = setjmp(env);
+    if (!ret) {
+        if (level < 6)
+            do_work_recurse(crk, level, level, pw, cache, limit, env);
+        else
+            do_work_recurse2(crk, level, level, pw, cache, limit, env);
+    }
+
     return (ret == 1);
 }
 
