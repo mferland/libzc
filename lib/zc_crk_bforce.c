@@ -22,17 +22,12 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include "crc32.h"
 #include "decrypt_byte.h"
 #include "zip.h"
 #include "list.h"
 #include "libzc.h"
 #include "pwstream.h"
 #include "libzc_private.h"
-
-#define KEY0 0x12345678
-#define KEY1 0x23456789
-#define KEY2 0x34567890
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -75,20 +70,6 @@ struct worker {
     jmp_buf env;
     struct zc_crk_bforce *crk;
 };
-
-static inline void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
-{
-    kdst->key0 = crc32(ksrc->key0, c);
-    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
-    kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
-}
-
-static inline void set_default_encryption_keys(struct zc_key *k)
-{
-    k->key0 = KEY0;
-    k->key1 = KEY1;
-    k->key2 = KEY2;
-}
 
 static inline void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
 {

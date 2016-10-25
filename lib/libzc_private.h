@@ -25,6 +25,7 @@
 #include <error.h>
 
 #include "libzc.h"
+#include "crc32.h"
 
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
@@ -69,30 +70,54 @@ __attribute__((format(printf, 6, 7)));
 
 #define MULT 134775813u
 #define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
+#define KEY0 0x12345678
+#define KEY1 0x23456789
+#define KEY2 0x34567890
 
-static inline uint32_t pow2(uint32_t p)
+static inline
+uint32_t pow2(uint32_t p)
 {
     return (1 << p);
 }
 
-static inline uint32_t mask_msb(uint32_t v)
+static inline
+uint32_t mask_msb(uint32_t v)
 {
     return (v & 0xff000000);
 }
 
-static inline uint32_t mask_lsb(uint32_t v)
+static inline
+uint32_t mask_lsb(uint32_t v)
 {
     return (v & 0x000000ff);
 }
 
-static inline uint8_t msb(uint32_t v)
+static inline
+uint8_t msb(uint32_t v)
 {
     return (v >> 24);
 }
 
-static inline uint8_t lsb(uint32_t v)
+static inline
+uint8_t lsb(uint32_t v)
 {
     return (v & 0xff);
+}
+
+static inline
+void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
+{
+    kdst->key0 = crc32(ksrc->key0, c);
+    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
+    kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
+}
+
+static inline
+void set_default_encryption_keys(struct zc_key *k)
+{
+    k->key0 = KEY0;
+    k->key1 = KEY1;
+    k->key2 = KEY2;
 }
 
 /* key array helper */
