@@ -26,6 +26,7 @@
 #include "libzc.h"
 #include "zip.h"
 #include "libzc_private.h"
+#include "list.h"
 
 /**
  * SECTION:file
@@ -45,6 +46,7 @@ struct zc_file {
     int refcount;
     char *filename;
     FILE *fd;
+    struct list_head headers;
 };
 
 struct zc_info {
@@ -123,13 +125,22 @@ ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
  */
 ZC_EXPORT int zc_file_open(struct zc_file *file)
 {
-    FILE *fd = fopen(file->filename, "r");
+    FILE *fd;
+
+    if (zc_file_isopened(file))
+        return -1;
+
+    fd = fopen(file->filename, "r");
     if (!fd) {
         err(file->ctx, "open() failed: %s.\n", strerror(errno));
         return -1;
     }
+
     dbg(file->ctx, "file %p open returned: %p\n", file, fd);
+
     file->fd = fd;
+    INIT_LIST_HEAD(&file->headers);
+
     return 0;
 }
 
@@ -142,12 +153,18 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
  */
 ZC_EXPORT int zc_file_close(struct zc_file *file)
 {
+    if (!zc_file_isopened(file))
+        return -1;
+
     if (fclose(file->fd)) {
         err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
         return -1;
     }
+
     dbg(file->ctx, "file %p closed\n", file);
+
     file->fd = NULL;
+
     return 0;
 }
 
