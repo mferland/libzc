@@ -28,6 +28,12 @@
 #include "libzc_private.h"
 #include "list.h"
 
+#define ZIP_SIG               0x04034b50
+#define ZIP_DATA_DESC_SIG     0x08074b50
+#define ZIP_STATIC_HEADER_LEN 30
+#define GP_BIT_HAS_DATA_DESC  (1 << 3)
+#define GP_BIT_ENCRYPTION     0x1
+
 /**
  * SECTION:file
  * @short_description: libzc zip file
@@ -45,20 +51,177 @@ struct zc_file {
     struct zc_ctx *ctx;
     int refcount;
     char *filename;
-    FILE *fd;
-    struct list_head headers;
+    FILE *stream;
+    struct list_head info_head;
+};
+
+struct header {
+    uint16_t version_needed;
+    uint16_t gen_bit_flag;
+    uint16_t comp_method;
+    uint16_t last_mod_time;
+    uint16_t last_mod_date;
+    uint32_t crc32;
+    uint32_t comp_size;
+    uint32_t uncomp_size;
+    uint16_t filename_length;
+    uint16_t extra_field_length;
+    char *filename;
 };
 
 struct zc_info {
-    struct zc_file *file;
-    struct zip_header *header;
     uint8_t enc_header[ZIP_ENCRYPTION_HEADER_LENGTH];
-    int refcount;
+    uint8_t magic;
     int idx;
     long enc_header_offset;
     long begin_offset;
     long end_offset;
+    struct header header;
+    struct list_head header_list;
 };
+
+static uint16_t get_le16_at(const uint8_t *b, size_t i)
+{
+    return b[i + 1] << 8 | b[i];
+}
+
+static uint32_t get_le32_at(const uint8_t *b, size_t i)
+{
+    return b[i + 3] << 24 | b[i + 2] << 16 | b[i + 1] << 8 | b[i];
+}
+
+static bool is_encrypted(uint16_t flag)
+{
+    return !!(flag & GP_BIT_ENCRYPTION);
+}
+
+static bool has_data_desc(uint16_t flag)
+{
+    return !!(flag & GP_BIT_HAS_DATA_DESC);
+}
+
+static uint8_t check_byte(const struct header *h)
+{
+    if (has_data_desc(h->gen_bit_flag))
+        return h->last_mod_time >> 8;
+    return h->crc32 >> 24;
+}
+
+void clear_header_list(struct zc_file *f)
+{
+    struct zc_info *i, *tmp;
+    list_for_each_entry_safe(i, tmp, &f->info_head, header_list) {
+        list_del(&i->header_list);
+        free(i->header.filename);
+        free(i);
+    }
+}
+
+int fill_header_list(struct zc_file *f)
+{
+    int ret, sig, idx = 0;
+    uint8_t buf[ZIP_STATIC_HEADER_LEN - 4];
+    struct zc_info *info;
+
+    rewind(f->stream);
+
+    while (1) {
+
+        /* read zip header signature */
+        ret = fread(&sig, 4, 1, f->stream);
+        if (ret != 1) {
+            return -1;
+        } else if (sig != ZIP_SIG) {
+            return idx == 0;
+        }
+
+        info = calloc(1, sizeof(struct zc_info));
+        if (!info)
+            return -1;
+
+        /* static header */
+        ret = fread(buf, ZIP_STATIC_HEADER_LEN - 4, 1, f->stream);
+        if (ret != 1)
+            goto end;
+
+        info->header.version_needed = get_le16_at(buf, 0);
+        info->header.gen_bit_flag = get_le16_at(buf, 2);
+        info->header.comp_method = get_le16_at(buf, 4);
+        info->header.last_mod_time = get_le16_at(buf, 6);
+        info->header.last_mod_date = get_le16_at(buf, 8);
+        info->header.crc32 = get_le32_at(buf, 10);
+        info->header.comp_size = get_le32_at(buf, 14);
+        info->header.uncomp_size = get_le32_at(buf, 18);
+        info->header.filename_length = get_le16_at(buf, 22);
+        info->header.extra_field_length = get_le16_at(buf, 24);
+
+        /* filename (variable length) */
+        if (!info->header.filename_length)
+            goto end;
+
+        info->header.filename = calloc(1, info->header.filename_length + 1);
+        if (!info->header.filename)
+            goto end;
+
+        ret = fread(info->header.filename, info->header.filename_length, 1, f->stream);
+        if (ret != 1)
+            goto end;
+
+        /* skip the extra field */
+        ret = fseek(f->stream, info->header.extra_field_length, SEEK_CUR);
+        if (ret < 0)
+            goto end;
+
+        /* set offsets and read encrypted header */
+        if (is_encrypted(info->header.gen_bit_flag)) {
+            info->magic = check_byte(&info->header);
+            info->enc_header_offset = ftell(f->stream);
+            info->begin_offset = info->enc_header_offset + ZIP_ENCRYPTION_HEADER_LENGTH;
+            info->end_offset = info->enc_header_offset + info->header.comp_size;
+            ret = fread(info->enc_header, ZIP_ENCRYPTION_HEADER_LENGTH, 1, f->stream);
+            if (ret != 1)
+                goto end;
+        } else {
+            info->magic = 0;
+            info->enc_header_offset = -1;
+            info->begin_offset = ftell(f->stream);
+            info->end_offset = info->begin_offset + info->header.comp_size;
+        }
+
+        /* seek to end of compressed stream */
+        fseek(f->stream, info->end_offset, SEEK_SET);
+
+        /* seek data descriptor signature */
+        if (has_data_desc(info->header.gen_bit_flag)) {
+            int data_desc_sig;
+
+            /*
+              signature                       4 bytes (optional)
+              crc-32                          4 bytes
+              compressed size                 4 bytes
+              uncompressed size               4 bytes
+            */
+
+            ret = fread(&data_desc_sig, 4, 1, f->stream);
+            if (ret != 1)
+                goto end;
+            fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
+        }
+
+        info->idx = idx;
+
+        list_add_tail(&info->header_list, &f->info_head);
+        ++idx;
+    }
+
+    return 0;
+
+end:
+    free(info->header.filename);
+    free(info);
+    clear_header_list(f);
+    return -1;
+}
 
 ZC_EXPORT struct zc_file *zc_file_ref(struct zc_file *file)
 {
@@ -101,6 +264,7 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename
     newfile->ctx = ctx;
     newfile->refcount = 1;
     newfile->filename = strdup(filename);
+    INIT_LIST_HEAD(&newfile->info_head);
     *file = newfile;
     dbg(ctx, "file %p created for %s\n", newfile, filename);
     return 0;
@@ -125,23 +289,25 @@ ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *file)
  */
 ZC_EXPORT int zc_file_open(struct zc_file *file)
 {
-    FILE *fd;
+    FILE *stream;
 
     if (zc_file_isopened(file))
         return -1;
 
-    fd = fopen(file->filename, "r");
-    if (!fd) {
+    stream = fopen(file->filename, "r");
+    if (!stream) {
         err(file->ctx, "open() failed: %s.\n", strerror(errno));
         return -1;
     }
 
-    dbg(file->ctx, "file %p open returned: %p\n", file, fd);
+    dbg(file->ctx, "file %p open returned: %p\n", file, stream);
 
-    file->fd = fd;
-    INIT_LIST_HEAD(&file->headers);
+    file->stream = stream;
 
-    return 0;
+    int ret = fill_header_list(file);
+    if (ret < 0)
+        err(file->ctx, "failure while reading headers.\n");
+    return ret;
 }
 
 /**
@@ -156,14 +322,16 @@ ZC_EXPORT int zc_file_close(struct zc_file *file)
     if (!zc_file_isopened(file))
         return -1;
 
-    if (fclose(file->fd)) {
+    clear_header_list(file);
+
+    if (fclose(file->stream)) {
         err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
         return -1;
     }
 
     dbg(file->ctx, "file %p closed\n", file);
 
-    file->fd = NULL;
+    file->stream = NULL;
 
     return 0;
 }
@@ -175,7 +343,7 @@ ZC_EXPORT int zc_file_close(struct zc_file *file)
  */
 ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 {
-    return (file->fd != NULL);
+    return (file->stream != NULL);
 }
 
 /**
@@ -191,31 +359,22 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
  */
 ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
 {
-    struct zip_header *zip_header;
+    struct zc_info *info;
     size_t valid_files = 0;
 
-    rewind(file->fd);
+    list_for_each_entry(info, &file->info_head, header_list) {
+        if (!is_encrypted(info->header.gen_bit_flag))
+            continue;
 
-    if (zip_header_new(&zip_header))
-        return 0;
+        vdata[valid_files].magic = info->magic;
+        memcpy(vdata[valid_files].encryption_header,
+               info->enc_header,
+               ZIP_ENCRYPTION_HEADER_LENGTH);
 
-    while (zip_header_read(file->fd, zip_header) == 0 && valid_files < nmemb) {
-        if (zip_header_has_encryption_bit(zip_header)) {
-            vdata[valid_files].magic = zip_header_encryption_magic(zip_header);
-            if (zip_encryption_header_read(file->fd, vdata[valid_files].encryption_header)) {
-                zip_header_free(zip_header);
-                return 0;
-            }
-            ++valid_files;
-        }
-
-        if (zip_skip_to_next_header(file->fd, zip_header)) {
-            zip_header_free(zip_header);
-            return 0;
-        }
+        if (++valid_files == nmemb)
+            break;
     }
 
-    zip_header_free(zip_header);
     return valid_files;
 }
 
@@ -236,119 +395,49 @@ ZC_EXPORT bool zc_file_test_password(const char *filename, const char *pw)
     return (system(cmd) == EXIT_SUCCESS);
 }
 
-ZC_EXPORT int zc_info_new_from_file(struct zc_file *file, struct zc_info **info)
+ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file, struct zc_info *info)
 {
-    struct zc_info *tmp;
+    struct zc_info *i;
 
-    tmp = calloc(1, sizeof(struct zc_info));
-    if (!tmp)
-        return -1;
-
-    if (zip_header_new(&tmp->header)) {
-        free(tmp);
-        return -1;
+    if (!info) {
+        i = list_entry((&file->info_head)->next, typeof(*i), header_list);
+        return i;
     }
 
-    tmp->refcount = 1;
-    tmp->file = zc_file_ref(file);
-    tmp->idx = -1;
-    tmp->enc_header_offset = -1;
-    tmp->begin_offset = -1;
-    tmp->end_offset = -1;
+    i = list_entry(info->header_list.next, struct zc_info, header_list);
 
-    *info = tmp;
-    dbg(file->ctx, "info %p created for %s\n", info, file->filename);
-    return 0;
-}
-
-ZC_EXPORT void zc_info_free(struct zc_info *info)
-{
-    zc_file_unref(info->file);
-    zip_header_free(info->header);
-    free(info);
-}
-
-ZC_EXPORT void zc_info_reset(struct zc_info *info)
-{
-    rewind(info->file->fd);
-    info->idx = -1;
-    info->enc_header_offset = -1;
-    info->begin_offset = -1;
-    info->end_offset = -1;
-}
-
-ZC_EXPORT const char *zc_info_get_filename(const struct zc_info *info)
-{
-    if (info->idx == -1)
+    if (&i->header_list == &file->info_head)
         return NULL;
-    return zip_header_filename(info->header);
+
+    return i;
 }
 
-ZC_EXPORT uint32_t zc_info_get_data_size(const struct zc_info *info)
+ZC_EXPORT const char *zc_file_info_name(const struct zc_info *info)
 {
-    return zip_header_comp_size(info->header);
+    return info->header.filename;
 }
 
-ZC_EXPORT long zc_info_get_data_offset_begin(const struct zc_info *info)
+ZC_EXPORT uint32_t zc_file_info_size(const struct zc_info *info)
+{
+    return info->header.uncomp_size;
+}
+
+ZC_EXPORT long zc_file_info_offset(const struct zc_info *info)
 {
     return info->begin_offset;
 }
 
-ZC_EXPORT long zc_info_get_data_offset_end(const struct zc_info *info)
-{
-    return info->end_offset;
-}
-
-ZC_EXPORT const uint8_t *zc_info_get_enc_header(const struct zc_info *info)
-{
-    return info->enc_header;
-}
-
-ZC_EXPORT long zc_info_get_enc_header_offset(const struct zc_info *info)
+ZC_EXPORT long zc_file_info_crypt_header_offset(const struct zc_info *info)
 {
     return info->enc_header_offset;
 }
 
-ZC_EXPORT int zc_info_get_idx(const struct zc_info *info)
+ZC_EXPORT const uint8_t *zc_file_info_enc_header(const struct zc_info *info)
 {
-    return info->idx;
+    return info->enc_header;
 }
 
-ZC_EXPORT struct zc_info *zc_info_next(struct zc_info *info)
+ZC_EXPORT int zc_file_info_idx(const struct zc_info *info)
 {
-    FILE *fd = info->file->fd;
-
-    if (zip_header_read(fd, info->header))
-        goto reset;             /* error or EOF */
-
-    if (zip_header_has_encryption_bit(info->header)) {
-        info->enc_header_offset = ftell(fd);
-        if (zip_encryption_header_read(fd, info->enc_header)) {
-            err(info->file->ctx, "Error reading encryption header.\n");
-            goto reset;
-        }
-    } else {
-        memset(info->enc_header, 0, ZIP_ENCRYPTION_HEADER_LENGTH);
-        info->enc_header_offset = -1L;
-    }
-
-    if (zip_header_comp_size(info->header)) {
-        info->begin_offset = ftell(fd);
-        info->end_offset = info->begin_offset + zip_header_comp_size(info->header) - 1;
-        if (zip_skip_to_next_header(info->file->fd, info->header)) {
-            err(info->file->ctx, "Error skipping to next header file.\n");
-            goto reset;
-        }
-    } else {
-        info->begin_offset = -1L;
-        info->end_offset = -1L;
-    }
-
-    info->idx++;
-
-    return info;
-
-reset:
-    zc_info_reset(info);
-    return NULL;
+    return info->idx;
 }

@@ -46,11 +46,9 @@ libzc_la_SOURCES =\
 	decrypt_byte.h \
 	libzc.h \
 	qsort.h \
-	zip.c \
 	ka.c \
 	libzc_private.h \
 	zc_crk_bforce.c \
-	zip.h \
 	key2_reduce.c \
 	list.h \
 	zc_crk_ptext.c \
