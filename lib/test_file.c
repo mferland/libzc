@@ -135,13 +135,13 @@ END_TEST
 
 START_TEST(test_zc_file_wrong_password)
 {
-    fail_unless(zc_file_test_password("../data/test.zip", "mfe") == false, NULL);
+    fail_unless(zc_file_test_password_ext("../data/test.zip", "mfe") == false, NULL);
 }
 END_TEST
 
 START_TEST(test_zc_file_good_password)
 {
-    fail_unless(zc_file_test_password("../data/test.zip", "yamaha") == true, NULL);
+    fail_unless(zc_file_test_password_ext("../data/test.zip", "yamaha") == true, NULL);
 }
 END_TEST
 

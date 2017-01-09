@@ -23,7 +23,6 @@
 #include <setjmp.h>
 
 #include "decrypt_byte.h"
-#include "zip.h"
 #include "list.h"
 #include "libzc.h"
 #include "pwstream.h"
@@ -139,7 +138,7 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
 static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    if (zc_file_test_password(crk->filename, pw))
+    if (zc_file_test_password_ext(crk->filename, pw))
         return true;
     pthread_testcancel();
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);

@@ -72,7 +72,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
     do {
         err = zc_pwdict_read_one_pw(pwdict, pw, PW_BUF_LEN);
         if (err == 0 && zc_crk_test_one_pw(pw, vdata, vdata_size)) {
-            if (zc_file_test_password(zip_filename, pw)) {
+            if (zc_file_test_password_ext(zip_filename, pw)) {
                 printf("Password is: %s\n", pw);
                 break;
             }

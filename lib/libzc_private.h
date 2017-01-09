@@ -73,6 +73,7 @@ __attribute__((format(printf, 6, 7)));
 #define KEY0 0x12345678
 #define KEY1 0x23456789
 #define KEY2 0x34567890
+#define ZIP_ENCRYPTION_HEADER_LENGTH 12
 
 static inline
 uint32_t pow2(uint32_t p)
