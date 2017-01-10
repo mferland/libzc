@@ -508,8 +508,11 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     if (crk->refcount > 0)
         return crk;
     dbg(crk->ctx, "cracker %p released\n", crk);
-    if (crk->filename)
+    if (crk->filename) {
         free(crk->filename);
+        zc_file_close(crk->file);
+        zc_file_unref(crk->file);
+    }
     pthread_cond_destroy(&crk->cond);
     pthread_mutex_destroy(&crk->mutex);
     free(crk);
@@ -547,21 +550,41 @@ ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc
     return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_set_vdata(struct zc_crk_bforce *crk,
-                                      const struct zc_validation_data *vdata, size_t nmemb)
+/* TODO: rename */
+ZC_EXPORT int zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char *filename)
 {
-    if (!vdata || nmemb == 0)
-        return -1;
-    crk->vdata = vdata;
-    crk->vdata_size = nmemb;
-    return 0;
-}
-
-ZC_EXPORT void zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char *filename)
-{
-    if (crk->filename)
+    if (crk->filename) {
         free(crk->filename);
+        crk->filename = NULL;
+        zc_file_close(crk->file);
+        zc_file_unref(crk->file);
+        crk->file = NULL;
+    }
+
+    err = zc_file_new_from_filename(ctx, filename, &crk->file);
+    if (err)
+        return -1;
+
+    err = zc_file_open(crk->file);
+    if (err) {
+        zc_file_unref(crk->file);
+        crk->file = NULL;
+        return -1;
+    }
+
+    crk->vdata_size = zc_file_read_validation_data(crk->file,
+                                                   crk->vdata,
+                                                   crk->vdata_size);
+    if (vdata_size < 1) {
+        /* no encrypted file found */
+        zc_file_close(crk->file);
+        zc_file_unref(crk->file);
+        crk->file = NULL;
+        return -2;
+    }
+
     crk->filename = strdup(filename);
+    return 0;
 }
 
 ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
@@ -576,6 +599,12 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
 
     if (!workers || !len)
         return -1;
+
+    size_t s = read_validation_data(crk->ctx,
+                                    crk->filename,
+                                    &crk->vdata,
+                                    &crk->vdata_size);
+    
 
     if (alloc_pwstreams(crk, workers))
         fatal("failed to allocate password streams");

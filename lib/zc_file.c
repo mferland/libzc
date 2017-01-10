@@ -54,31 +54,6 @@ struct zc_file {
     struct list_head info_head;
 };
 
-struct header {
-    uint16_t version_needed;
-    uint16_t gen_bit_flag;
-    uint16_t comp_method;
-    uint16_t last_mod_time;
-    uint16_t last_mod_date;
-    uint32_t crc32;
-    uint32_t comp_size;
-    uint32_t uncomp_size;
-    uint16_t filename_length;
-    uint16_t extra_field_length;
-    char *filename;
-};
-
-struct zc_info {
-    uint8_t enc_header[ZIP_ENCRYPTION_HEADER_LENGTH];
-    uint8_t magic;
-    int idx;
-    long enc_header_offset;
-    long begin_offset;
-    long end_offset;
-    struct header header;
-    struct list_head header_list;
-};
-
 static uint16_t get_le16_at(const uint8_t *b, size_t i)
 {
     return b[i + 1] << 8 | b[i];
@@ -345,6 +320,11 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
     return (file->stream != NULL);
 }
 
+struct list_head * zc_file_get_info_head(struct zc_file *file)
+{
+    return &file->info_head;
+}
+
 /**
  * zc_file_read_validation_data:
  *
@@ -356,7 +336,7 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-ZC_EXPORT size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
+size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
 {
     struct zc_info *info;
     size_t valid_files = 0;
