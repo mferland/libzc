@@ -28,16 +28,19 @@
 #include "pwstream.h"
 #include "libzc_private.h"
 
+#define VDATA_MAX 5
+
 /* bruteforce cracker */
 struct zc_crk_bforce {
     struct zc_ctx *ctx;
     int refcount;
 
     /* validation data */
-    const struct zc_validation_data *vdata;
+    struct zc_validation_data vdata[VDATA_MAX];
     size_t vdata_size;
 
-    char *filename;
+    /* zip file info */
+    struct zc_file *file;
 
     /* initial password */
     char ipw[ZC_PW_MAXLEN + 1];
@@ -138,7 +141,7 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
 static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    if (zc_file_test_password_ext(crk->filename, pw))
+    if (zc_file_test_password_ext(zc_file_get_filename(crk->file), pw))
         return true;
     pthread_testcancel();
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -456,6 +459,92 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
     return true;
 }
 
+static int fill_vdata(struct zc_crk_bforce *crk, const char *filename)
+{
+    int err;
+
+    if (crk->file)
+        return -1;
+
+    err = zc_file_new_from_filename(crk->ctx, filename, &crk->file);
+    if (err)
+        return -1;
+
+    err = zc_file_open(crk->file);
+    if (err) {
+        zc_file_unref(crk->file);
+        crk->file = NULL;
+        return -1;
+    }
+
+    crk->vdata_size = zc_file_read_validation_data(crk->file,
+                                                   crk->vdata,
+                                                   VDATA_MAX);
+    if (crk->vdata_size < 1) {
+        /* no encrypted file found */
+        zc_file_close(crk->file);
+        zc_file_unref(crk->file);
+        crk->file = NULL;
+        return -2;
+    }
+
+    return 0;
+}
+
+static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
+{
+    /* basic sanity checks */
+    if (cfg->setlen == 0 ||
+        cfg->setlen > ZC_CHARSET_MAXLEN  ||
+        cfg->maxlen == 0 ||
+        cfg->maxlen > ZC_PW_MAXLEN)
+        return -1;
+
+    memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+    memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
+    crk->maxlen = cfg->maxlen;
+    crk->setlen = sanitize_set(crk->set, cfg->setlen);
+    crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+
+    if (!crk->ipwlen) {
+        /* no initial password supplied, use first set character */
+        crk->ipw[0] = crk->set[0];
+        crk->ipw[1] = '\0';
+        crk->ipwlen = 1;
+        return 0;
+    }
+
+    if (crk->ipwlen > crk->maxlen)
+        return -1;
+
+    if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
+        return -1;
+
+    return 0;
+}
+
+
+ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
+                                 const char *filename,
+                                 const struct zc_crk_pwcfg *cfg)
+{
+    int err;
+
+    err = set_pwcfg(crk, cfg);
+    if (err) {
+        err(crk->ctx, "failed to set password configuration\n");
+        return -1;
+    }
+
+    err = fill_vdata(crk, filename);
+    if (err) {
+        err(crk->ctx, "failed to read validation data\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 {
     struct zc_crk_bforce *tmp;
@@ -508,8 +597,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     if (crk->refcount > 0)
         return crk;
     dbg(crk->ctx, "cracker %p released\n", crk);
-    if (crk->filename) {
-        free(crk->filename);
+    if (crk->file) {
         zc_file_close(crk->file);
         zc_file_unref(crk->file);
     }
@@ -517,74 +605,6 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     pthread_mutex_destroy(&crk->mutex);
     free(crk);
     return NULL;
-}
-
-ZC_EXPORT int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
-{
-    /* basic sanity checks */
-    if (cfg->setlen == 0 ||
-        cfg->setlen > ZC_CHARSET_MAXLEN  ||
-        cfg->maxlen == 0 ||
-        cfg->maxlen > ZC_PW_MAXLEN)
-        return -1;
-
-    memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
-    memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
-    crk->maxlen = cfg->maxlen;
-    crk->setlen = sanitize_set(crk->set, cfg->setlen);
-    crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
-
-    if (!crk->ipwlen) {
-        /* no initial password supplied, use first set character */
-        crk->ipw[0] = crk->set[0];
-        crk->ipw[1] = '\0';
-        crk->ipwlen = 1;
-        return 0;
-    }
-
-    if (crk->ipwlen > crk->maxlen)
-        return -1;
-    if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
-        return -1;
-
-    return 0;
-}
-
-/* TODO: rename */
-ZC_EXPORT int zc_crk_bforce_set_filename(struct zc_crk_bforce *crk, const char *filename)
-{
-    if (crk->filename) {
-        free(crk->filename);
-        crk->filename = NULL;
-        zc_file_close(crk->file);
-        zc_file_unref(crk->file);
-        crk->file = NULL;
-    }
-
-    err = zc_file_new_from_filename(ctx, filename, &crk->file);
-    if (err)
-        return -1;
-
-    err = zc_file_open(crk->file);
-    if (err) {
-        zc_file_unref(crk->file);
-        crk->file = NULL;
-        return -1;
-    }
-
-    crk->vdata_size = zc_file_read_validation_data(crk->file,
-                                                   crk->vdata,
-                                                   crk->vdata_size);
-    if (vdata_size < 1) {
-        /* no encrypted file found */
-        zc_file_close(crk->file);
-        zc_file_unref(crk->file);
-        crk->file = NULL;
-        return -2;
-    }
-
-    crk->filename = strdup(filename);
-    return 0;
 }
 
 ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
@@ -599,12 +619,6 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
 
     if (!workers || !len)
         return -1;
-
-    size_t s = read_validation_data(crk->ctx,
-                                    crk->filename,
-                                    &crk->vdata,
-                                    &crk->vdata_size);
-    
 
     if (alloc_pwstreams(crk, workers))
         fatal("failed to allocate password streams");

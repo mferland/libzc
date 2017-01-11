@@ -33,6 +33,33 @@
 #define GP_BIT_HAS_DATA_DESC  (1 << 3)
 #define GP_BIT_ENCRYPTION     0x1
 
+
+/* zip file */
+struct header {
+    uint16_t version_needed;
+    uint16_t gen_bit_flag;
+    uint16_t comp_method;
+    uint16_t last_mod_time;
+    uint16_t last_mod_date;
+    uint32_t crc32;
+    uint32_t comp_size;
+    uint32_t uncomp_size;
+    uint16_t filename_length;
+    uint16_t extra_field_length;
+    char *filename;
+};
+
+struct zc_info {
+    uint8_t enc_header[ZIP_ENCRYPTION_HEADER_LENGTH];
+    uint8_t magic;
+    int idx;
+    long enc_header_offset;
+    long begin_offset;
+    long end_offset;
+    struct header header;
+    struct list_head header_list;
+};
+
 /**
  * SECTION:file
  * @short_description: libzc zip file

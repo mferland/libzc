@@ -40,9 +40,9 @@ size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
         return 0;
     }
 
-    err = zc_file_read_validation_data(file, vdata, nmemb);
-    if (err < 1)
-        yazc_err("file is not encrypted.\n");
+    /* err = zc_file_read_validation_data(file, vdata, nmemb); */
+    /* if (err < 1) */
+    /*     yazc_err("file is not encrypted.\n"); */
 
     zc_file_close(file);
     zc_file_unref(file);

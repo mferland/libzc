@@ -27,7 +27,6 @@
 #include "yazc.h"
 #include "libzc.h"
 
-#define VDATA_CAPACITY 5
 #define PW_LEN_DEFAULT 8
 
 #define PWSET_LOWER 1
@@ -35,8 +34,6 @@
 #define PWSET_NUMB  (1 << 2)
 #define PWSET_SPEC  (1 << 3)
 
-static struct zc_validation_data vdata[VDATA_CAPACITY];
-static size_t vdata_size;
 static const char *filename;
 static struct zc_crk_pwcfg pwcfg;
 static size_t thread_count;
@@ -141,22 +138,15 @@ static int launch_crack(void)
         return EXIT_FAILURE;
     }
 
-    vdata_size = fill_validation_data(ctx, filename, vdata, VDATA_CAPACITY);
-    if (vdata_size == 0)
-        goto err1;
-
     if (zc_crk_bforce_new(ctx, &crk)) {
         yazc_err("zc_crk_bforce_new() failed!\n");
         goto err1;
     }
 
-    zc_crk_bforce_set_vdata(crk, vdata, vdata_size);
-    if (zc_crk_bforce_set_pwcfg(crk, &pwcfg)) {
-        yazc_err("zc_crk_bforce_set_pwcfg failed!\n");
+    if (zc_crk_bforce_init(crk, filename, &pwcfg)) {
+        yazc_err("zc_crk_bforce_init() failed!\n");
         goto err2;
     }
-
-    zc_crk_bforce_set_filename(crk, filename);
 
     printf("Worker threads: %zu\n", thread_count);
     printf("Maximum length: %lu\n", pwcfg.maxlen);

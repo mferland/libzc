@@ -118,9 +118,7 @@ struct zc_crk_bforce;
 struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);
 struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *bforce);
 int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **bforce);
-/* int zc_crk_bforce_set_vdata(struct zc_crk_bforce *bforce, const struct zc_validation_data *vdata, size_t nmemb); */
-int zc_crk_bforce_set_pwcfg(struct zc_crk_bforce *bforce, const struct zc_crk_pwcfg *cfg);
-void zc_crk_bforce_set_filename(struct zc_crk_bforce *bforce, const char *filename);
+int zc_crk_bforce_init(struct zc_crk_bforce *bforce, const char *fname, const struct zc_crk_pwcfg *cfg);
 const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
 int zc_crk_bforce_start(struct zc_crk_bforce *bforce, size_t workers, char *out_pw, size_t out_pw_size);
 
