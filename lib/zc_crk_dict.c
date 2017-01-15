@@ -107,7 +107,7 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char 
     char pwbuf[PW_BUF_LEN];
     int err = 1;
 
-    if (len < PW_BUF_LEN || !crk->vdata_size)
+    if (len > PW_BUF_LEN || !crk->vdata_size)
         return -1;
 
     f = fopen(dict, "r");
