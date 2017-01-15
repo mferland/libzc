@@ -37,8 +37,8 @@ struct zc_crk_bforce {
     struct zc_validation_data vdata[VDATA_MAX];
     size_t vdata_size;
 
-    /* zip file info */
-    struct zc_file *file;
+    /* zip filename */
+    char *filename;
 
     /* initial password */
     char ipw[ZC_PW_MAXLEN + 1];
@@ -139,7 +139,7 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
 static inline bool test_password(const struct zc_crk_bforce *crk, const char *pw)
 {
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    if (zc_file_test_password_ext(zc_file_get_filename(crk->file), pw))
+    if (zc_file_test_password_ext(crk->filename, pw))
         return true;
     pthread_testcancel();
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -509,6 +509,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
     }
 
     crk->vdata_size = err;
+    crk->filename = strdup(filename);
 
     return 0;
 }
@@ -564,10 +565,8 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     crk->refcount--;
     if (crk->refcount > 0)
         return crk;
-    if (crk->file) {
-        zc_file_close(crk->file);
-        zc_file_unref(crk->file);
-    }
+    if (crk->filename)
+        free(crk->filename);
     pthread_cond_destroy(&crk->cond);
     pthread_mutex_destroy(&crk->mutex);
     free(crk);
