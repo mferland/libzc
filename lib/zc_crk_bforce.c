@@ -28,8 +28,6 @@
 #include "pwstream.h"
 #include "libzc_private.h"
 
-#define VDATA_MAX 5
-
 /* bruteforce cracker */
 struct zc_crk_bforce {
     struct zc_ctx *ctx;
@@ -439,7 +437,7 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     return 0;
 }
 
-ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
+bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
 {
     struct zc_key key;
     struct zc_key base_key;
@@ -457,38 +455,6 @@ ZC_EXPORT bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_dat
             return false;
     }
     return true;
-}
-
-static int fill_vdata(struct zc_crk_bforce *crk, const char *filename)
-{
-    int err;
-
-    if (crk->file)
-        return -1;
-
-    err = zc_file_new_from_filename(crk->ctx, filename, &crk->file);
-    if (err)
-        return -1;
-
-    err = zc_file_open(crk->file);
-    if (err) {
-        zc_file_unref(crk->file);
-        crk->file = NULL;
-        return -1;
-    }
-
-    crk->vdata_size = zc_file_read_validation_data(crk->file,
-                                                   crk->vdata,
-                                                   VDATA_MAX);
-    if (crk->vdata_size < 1) {
-        /* no encrypted file found */
-        zc_file_close(crk->file);
-        zc_file_unref(crk->file);
-        crk->file = NULL;
-        return -2;
-    }
-
-    return 0;
 }
 
 static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
@@ -536,11 +502,13 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
         return -1;
     }
 
-    err = fill_vdata(crk, filename);
-    if (err) {
+    err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+    if (err < 1) {
         err(crk->ctx, "failed to read validation data\n");
         return -1;
     }
+
+    crk->vdata_size = err;
 
     return 0;
 }
@@ -596,7 +564,6 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
     crk->refcount--;
     if (crk->refcount > 0)
         return crk;
-    dbg(crk->ctx, "cracker %p released\n", crk);
     if (crk->file) {
         zc_file_close(crk->file);
         zc_file_unref(crk->file);

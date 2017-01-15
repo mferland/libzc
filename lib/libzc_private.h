@@ -74,6 +74,12 @@ __attribute__((format(printf, 6, 7)));
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 #define ZIP_ENCRYPTION_HEADER_LENGTH 12
+#define VDATA_MAX 5
+
+struct zc_validation_data {
+    uint8_t encryption_header[12];
+    uint8_t magic;
+};
 
 static inline
 uint32_t pow2(uint32_t p)
@@ -121,9 +127,15 @@ void set_default_encryption_keys(struct zc_key *k)
     k->key2 = KEY2;
 }
 
+int fill_vdata(struct zc_ctx *ctx, const char *filename,
+               struct zc_validation_data *vdata,
+               size_t nmemb);
 size_t zc_file_read_validation_data(struct zc_file *file,
                                     struct zc_validation_data *vdata,
                                     size_t nmemb);
+bool zc_crk_test_one_pw(const char *pw,
+                        const struct zc_validation_data *vdata,
+                        size_t nmemb);
 
 /* key array helper */
 struct ka {

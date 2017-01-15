@@ -132,6 +132,7 @@ static int launch_crack(void)
     struct zc_ctx *ctx;
     struct zc_crk_bforce *crk;
     char pw[ZC_PW_MAXLEN + 1];
+    int err = -1;
 
     if (zc_new(&ctx)) {
         yazc_err("zc_new() failed!\n");
@@ -153,7 +154,7 @@ static int launch_crack(void)
     printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
     printf("Filename: %s\n", filename);
 
-    int err = zc_crk_bforce_start(crk, thread_count, pw, sizeof(pw));
+    err = zc_crk_bforce_start(crk, thread_count, pw, sizeof(pw));
     if (err > 0)
         printf("Password not found\n");
     else if (err == 0)

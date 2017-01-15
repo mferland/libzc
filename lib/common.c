@@ -1,6 +1,6 @@
 /*
- *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2013  Marc Ferland
+ *  zc - zip crack library
+ *  Copyright (C) 2017  Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,35 +16,29 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
+#include "libzc_private.h"
 
-#include "yazc.h"
-#include "libzc.h"
-
-size_t fill_validation_data(struct zc_ctx *ctx, const char *filename,
-                            struct zc_validation_data *vdata, size_t nmemb)
+int fill_vdata(struct zc_ctx *ctx, const char *filename,
+               struct zc_validation_data *vdata,
+               size_t nmemb)
 {
-    struct zc_file *file = NULL;
+    struct zc_file *file;
     int err;
 
     err = zc_file_new_from_filename(ctx, filename, &file);
-    if (!file) {
-        yazc_err("zc_file_new_from_filename() failed!\n");
-        return 0;
-    }
+    if (err)
+        return -1;
 
     err = zc_file_open(file);
     if (err) {
-        yazc_err("failed to open %s.\n", filename);
         zc_file_unref(file);
-        return 0;
+        return -1;
     }
 
-    /* err = zc_file_read_validation_data(file, vdata, nmemb); */
-    /* if (err < 1) */
-    /*     yazc_err("file is not encrypted.\n"); */
+    int size = zc_file_read_validation_data(file, vdata, nmemb);
 
     zc_file_close(file);
     zc_file_unref(file);
-    return err < 1 ? 0 : (size_t)err;
+
+    return size;
 }

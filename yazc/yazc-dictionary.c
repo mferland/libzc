@@ -23,9 +23,6 @@
 #include "yazc.h"
 #include "libzc.h"
 
-#define VDATA_ALLOC 5
-#define PW_BUF_LEN 64
-
 static const char short_opts[] = "d:h";
 static const struct option long_opts[] = {
     {"dictionary", required_argument, 0, 'd'},
@@ -48,41 +45,41 @@ static void print_help(const char *cmdname)
 
 static int launch_crack(const char *dict_filename, const char *zip_filename)
 {
-    struct zc_pwdict *pwdict;
-    struct zc_validation_data vdata[VDATA_ALLOC];
-    size_t vdata_size;
-    char pw[PW_BUF_LEN];
-    int err;
+    struct zc_ctx *ctx;
+    struct zc_crk_dict *crk;
+    char pw[ZC_PW_MAXLEN + 1];
+    int err = -1;
 
-    vdata_size = fill_validation_data(ctx, zip_filename,
-                                      vdata, VDATA_ALLOC);
-    if (vdata_size == 0)
-        return EXIT_FAILURE;
-
-    err = zc_pwdict_new_from_filename(ctx, dict_filename, &pwdict);
-    if (err != 0)
-        return EXIT_FAILURE;
-
-    err = zc_pwdict_open(pwdict);
-    if (err != 0) {
-        zc_pwdict_unref(pwdict);
-        return EXIT_FAILURE;
+    if (zc_new(&ctx)) {
+        yazc_err("zc_new() failed!\n");
+        return -1;
     }
 
-    do {
-        err = zc_pwdict_read_one_pw(pwdict, pw, PW_BUF_LEN);
-        if (err == 0 && zc_crk_test_one_pw(pw, vdata, vdata_size)) {
-            if (zc_file_test_password_ext(zip_filename, pw)) {
-                printf("Password is: %s\n", pw);
-                break;
-            }
-        }
-    } while (err == 0);
+    if (zc_crk_dict_new(ctx, &crk)) {
+        yazc_err("zc_crk_dict_new() failed!\n");
+        goto err1;
+    }
 
-    zc_pwdict_close(pwdict);
-    zc_pwdict_unref(pwdict);
+    if (zc_crk_dict_init(crk, zip_filename)) {
+        yazc_err("zc_crk_dict_init() failed!\n");
+        goto err2;
+    }
 
-    return 0;
+    err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
+    if (err > 0)
+        printf("Password not found\n");
+    else if (err == 0)
+        printf("Password is: %s\n", pw);
+    else
+        yazc_err("zc_crk_dict_start failed!\n");
+
+err2:
+    zc_crk_dict_unref(crk);
+
+err1:
+    zc_unref(ctx);
+
+    return err;
 }
 
 static int do_dictionary(int argc, char *argv[])
@@ -120,14 +117,7 @@ static int do_dictionary(int argc, char *argv[])
     printf("Dictionary file: %s\n", !dict_filename ? "stdin" : dict_filename);
     printf("Filename: %s\n", zip_filename);
 
-    if (zc_new(&ctx)) {
-        yazc_err("zc_new() failed!\n");
-        return EXIT_FAILURE;
-    }
-
     err = launch_crack(dict_filename, zip_filename);
-
-    zc_unref(ctx);
 
     return err;
 }

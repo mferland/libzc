@@ -42,7 +42,6 @@ libzc_la_SOURCES =\
 	crc32.h \
 	libzc.c \
 	pwstream.h \
-	zc_pwdict.c \
 	decrypt_byte.h \
 	libzc.h \
 	qsort.h \
@@ -54,7 +53,9 @@ libzc_la_SOURCES =\
 	zc_crk_ptext.c \
 	key2_reduce.h \
 	pwstream.c \
-	zc_file.c
+	zc_file.c \
+	common.c \
+	zc_crk_dict.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

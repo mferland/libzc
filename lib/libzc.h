@@ -46,17 +46,6 @@ int zc_get_log_priority(struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
 /**
- * zc_validation_data:
- *
- * Encrypted file header and magic number used for testing password
- * validity. The zip encryption header is always 12 bytes.
- */
-struct zc_validation_data {
-    uint8_t encryption_header[12];
-    uint8_t magic;
-};
-
-/**
  * zc_file:
  *
  * contains information about the zip file.
@@ -81,29 +70,20 @@ const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
 int zc_file_info_idx(const struct zc_info *info);
 
 /**
- * zc_pwdict:
+ * zc_crk_dict:
  *
- * Password dictionnary.
+ * Dictionnary attack.
  */
-struct zc_pwdict;
-struct zc_pwdict *zc_pwdict_ref(struct zc_pwdict *dict);
-struct zc_pwdict *zc_pwdict_unref(struct zc_pwdict *dict);
-int zc_pwdict_new_from_filename(struct zc_ctx *ctx, const char *filename, struct zc_pwdict **dict);
-int zc_pwdict_open(struct zc_pwdict *dict);
-int zc_pwdict_close(struct zc_pwdict *dict);
-int zc_pwdict_read_one_pw(struct zc_pwdict *dict, char *str, size_t len);
-
-/**
- * zc_crk_test_one_pw:
- *
- * Test one password.
- */
-bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb);
+struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk);
+struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk);
+int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk);
+int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
+int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw, size_t len);
 
 /**
  * zc_crk_bforce:
  *
- * Bruteforce cracker.
+ * Bruteforce attack.
  */
 #define ZC_PW_MINLEN 1
 #define ZC_PW_MAXLEN 16
