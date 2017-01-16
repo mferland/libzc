@@ -33,7 +33,6 @@
 #define GP_BIT_HAS_DATA_DESC  (1 << 3)
 #define GP_BIT_ENCRYPTION     0x1
 
-
 /* zip file */
 struct header {
     uint16_t version_needed;
@@ -108,7 +107,7 @@ static uint8_t check_byte(const struct header *h)
     return h->crc32 >> 24;
 }
 
-void clear_header_list(struct zc_file *f)
+static void clear_header_list(struct zc_file *f)
 {
     struct zc_info *i, *tmp;
     list_for_each_entry_safe(i, tmp, &f->info_head, header_list) {
@@ -118,7 +117,7 @@ void clear_header_list(struct zc_file *f)
     }
 }
 
-int fill_header_list(struct zc_file *f)
+static int fill_header_list(struct zc_file *f)
 {
     int ret, sig, idx = 0;
     uint8_t buf[ZIP_STATIC_HEADER_LEN - 4];
@@ -305,10 +304,17 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
     file->stream = stream;
 
-    int ret = fill_header_list(file);
-    if (ret < 0)
+    if (fill_header_list(file)) {
         err(file->ctx, "failure while reading headers.\n");
-    return ret;
+        goto err;
+    }
+
+    return 0;
+
+err:
+    fclose(file->stream);
+    file->stream = NULL;
+    return -1;
 }
 
 /**
@@ -384,6 +390,51 @@ size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_d
     return valid_files;
 }
 
+static struct zc_info *find_file_largest(struct zc_file *file)
+{
+    struct zc_info *info, *ret = NULL;
+    long s = 0;
+
+    list_for_each_entry(info, &file->info_head, header_list) {
+        if (!is_encrypted(info->header.gen_bit_flag))
+            continue;
+
+        long tmp = info->end_offset - info->begin_offset;
+        if (tmp > s) {
+            s = tmp;
+            ret = info;
+        }
+    }
+
+    return ret;
+}
+
+size_t zc_file_read_crypt_data(struct zc_file *file, char *buf, size_t len)
+{
+    struct zc_info *info;
+    size_t to_read;
+
+    info = find_file_largest(file);
+    if (!info)
+        return 0;
+
+    to_read = min(len, info->end_offset - info->header_offset);
+
+    err = fseek(file->stream, info->header_offset, SEEK_SET);
+    if (err) {
+        err(file->ctx, "fseek(): %s\n", strerror(errno));
+        return 0;
+    }
+
+    size_t ret = fread(buf, to_read, 1, file->stream);
+    if (ret != 1) {
+        err(file->ctx, "fread(): %s\n", strerror(errno));
+        return 0;
+    }
+
+    return to_read;
+}
+
 /**
  * zc_file_test_password_ext:
  *
@@ -394,7 +445,7 @@ size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_d
  * @retval true The file was successfully decrypted (password found).
  * @retval false The file can't be decrypted (false positive).
  */
-ZC_EXPORT bool zc_file_test_password_ext(const char *filename, const char *pw)
+bool zc_file_test_password_ext(const char *filename, const char *pw)
 {
     char cmd[128];
     sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);

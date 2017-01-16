@@ -58,7 +58,6 @@ const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(struct zc_file *file);
-bool zc_file_test_password_ext(const char *filename, const char *pw);
 
 struct zc_info;
 struct zc_info *zc_file_info_next(struct zc_file *, struct zc_info *info);

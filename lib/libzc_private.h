@@ -75,6 +75,8 @@ __attribute__((format(printf, 6, 7)));
 #define KEY2 0x34567890
 #define ZIP_ENCRYPTION_HEADER_LENGTH 12
 #define VDATA_MAX 5
+#define max(a, b) (( a > b) ? a : b)
+#define min(a, b) (( a > b) ? b : a)
 
 struct zc_validation_data {
     uint8_t encryption_header[12];
@@ -136,7 +138,15 @@ size_t zc_file_read_validation_data(struct zc_file *file,
 bool zc_crk_test_one_pw(const char *pw,
                         const struct zc_validation_data *vdata,
                         size_t nmemb);
-
+bool zc_file_test_password_ext(const char *filename,
+                               const char *pw);
+bool zc_file_test_password(const char *filename,
+                           const char *pw,
+                           char *buf,
+                           size_t len);
+size_t zc_file_read_crypt_data(struct zc_file *file,
+                               char *buf,
+                               size_t len);
 /* key array helper */
 struct ka {
     uint32_t *array;

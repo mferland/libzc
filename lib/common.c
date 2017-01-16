@@ -18,6 +18,8 @@
 
 #include "libzc_private.h"
 
+#include <zlib.h>
+
 int fill_vdata(struct zc_ctx *ctx, const char *filename,
                struct zc_validation_data *vdata,
                size_t nmemb)
@@ -41,4 +43,53 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
     zc_file_unref(file);
 
     return size;
+}
+
+int decrypt(const char *in, char *out, size_t len, const char *pw)
+{
+    struct zc_key k;
+
+    set_default_encryption_keys(&k);
+
+    /* initialize keys with password */
+    while (*pw)
+        update_keys(*pw++, &k, &k);
+
+    /* decrypt */
+    for (size_t i = 0; i < len; ++i) {
+        out[i] = in[i] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+        update_keys(out[i], &k, &k);
+    }
+}
+
+int inflate(const char *in, char *out, size_t len)
+{
+    int ret;
+    z_stream strm;
+
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = 0;
+    strm.next_in = Z_NULL;
+    ret = inflateInit(&strm);
+    if (ret != Z_OK)
+        return ret;
+
+    strm.avail_in = len;
+    strm.next_in = in;
+    do {
+        strm.avail_out = len;
+        strm.next_out = out;
+        ret = inflate(&strm, Z_NO_FLUSH);
+        switch (ret) {
+        case Z_NEED_DICT:
+            ret = Z_DATA_ERROR;
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            inflateEnd(&strm);
+            return ret;
+        }
+        /* RENDU CICICICICICI */
+    } while();
 }
