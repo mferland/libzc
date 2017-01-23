@@ -13,7 +13,7 @@ AM_CFLAGS = \
 	-fvisibility=hidden \
 	-ffunction-sections \
 	-fdata-sections \
-	-pthread
+	-pthread -lz
 
 AM_LDFLAGS = \
 	-Wl,--gc-sections \

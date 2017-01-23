@@ -22,6 +22,7 @@ if test x"$UNZIP" != x"yes" ; then
 fi
 
 AC_CHECK_LIB(pthread, pthread_create)
+AC_CHECK_LIB(z, inflate)
 
 PKG_PROG_PKG_CONFIG
 

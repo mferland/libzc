@@ -409,30 +409,46 @@ static struct zc_info *find_file_largest(struct zc_file *file)
     return ret;
 }
 
-size_t zc_file_read_crypt_data(struct zc_file *file, char *buf, size_t len)
+size_t zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf)
 {
     struct zc_info *info;
     size_t to_read;
+    int err;
 
     info = find_file_largest(file);
     if (!info)
         return 0;
 
-    to_read = min(len, info->end_offset - info->header_offset);
+    to_read = info->end_offset - info->enc_header_offset;
 
-    err = fseek(file->stream, info->header_offset, SEEK_SET);
+    err = fseek(file->stream, info->enc_header_offset, SEEK_SET);
     if (err) {
         err(file->ctx, "fseek(): %s\n", strerror(errno));
         return 0;
     }
 
-    size_t ret = fread(buf, to_read, 1, file->stream);
-    if (ret != 1) {
-        err(file->ctx, "fread(): %s\n", strerror(errno));
-        return 0;
+    unsigned char *tmp = malloc(to_read);
+    if (!tmp) {
+        err(file->ctx, "malloc() failed(): %s\n", strerror(errno));
+        return -1;
     }
 
-    return to_read;
+    size_t ret = fread(tmp, 1, to_read, file->stream);
+    if (ferror(file->stream)) {
+        err(file->ctx, "fread() error.\n");
+        goto err;
+    } else if (feof(file->stream)) {
+        err(file->ctx, "fread() read past eof. File corrupted?\n");
+        goto err;
+    }
+
+    *buf = tmp;
+
+    return ret;
+
+err:
+    free(tmp);
+    return 0;
 }
 
 /**

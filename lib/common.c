@@ -17,6 +17,7 @@
  */
 
 #include "libzc_private.h"
+#include "decrypt_byte.h"
 
 #include <zlib.h>
 
@@ -45,7 +46,36 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
     return size;
 }
 
-int decrypt(const char *in, char *out, size_t len, const char *pw)
+int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
+                     unsigned char **buf, size_t *len)
+{
+    struct zc_file *file;
+    int err;
+
+    err = zc_file_new_from_filename(ctx, filename, &file);
+    if (err)
+        return -1;
+
+    err = zc_file_open(file);
+    if (err) {
+        zc_file_unref(file);
+        return -1;
+    }
+
+    size_t tmp = zc_file_read_crypt_data(file, buf);
+    if (!tmp) {
+        zc_file_unref(file);
+        return -1;
+    }
+
+    *len = tmp;
+    zc_file_close(file);
+    zc_file_unref(file);
+
+    return 0;
+}
+
+void decrypt(const unsigned char *in, unsigned char *out, size_t len, const char *pw)
 {
     struct zc_key k;
 
@@ -62,7 +92,8 @@ int decrypt(const char *in, char *out, size_t len, const char *pw)
     }
 }
 
-int inflate(const char *in, char *out, size_t len)
+int inflate_buffer(const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t outlen)
 {
     int ret;
     z_stream strm;
@@ -76,10 +107,10 @@ int inflate(const char *in, char *out, size_t len)
     if (ret != Z_OK)
         return ret;
 
-    strm.avail_in = len;
+    strm.avail_in = inlen;
     strm.next_in = in;
     do {
-        strm.avail_out = len;
+        strm.avail_out = outlen;
         strm.next_out = out;
         ret = inflate(&strm, Z_NO_FLUSH);
         switch (ret) {
@@ -90,6 +121,10 @@ int inflate(const char *in, char *out, size_t len)
             inflateEnd(&strm);
             return ret;
         }
-        /* RENDU CICICICICICI */
-    } while();
+    } while (strm.avail_out == 0);
+
+    /* TODO: test crc? */
+
+    inflateEnd(&strm);
+    return ret == Z_STREAM_END ? 0 : -1;
 }
