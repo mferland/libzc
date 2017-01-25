@@ -101,14 +101,12 @@ int inflate_buffer(const unsigned char *in, size_t inlen,
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
     strm.opaque = Z_NULL;
-    strm.avail_in = 0;
-    strm.next_in = Z_NULL;
-    ret = inflateInit(&strm);
+    strm.avail_in = inlen;
+    strm.next_in = in;
+    ret = inflateInit2(&strm, -MAX_WBITS);
     if (ret != Z_OK)
         return ret;
 
-    strm.avail_in = inlen;
-    strm.next_in = in;
     do {
         strm.avail_out = outlen;
         strm.next_out = out;
