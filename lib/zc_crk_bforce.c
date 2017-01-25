@@ -145,7 +145,9 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
 static inline bool test_password(struct worker *w, const char *pw)
 {
     int err;
+
     decrypt(w->crk->cipher, w->plaintext, w->crk->cipher_size, pw);
+
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
     err = inflate_buffer(&w->plaintext[12], w->crk->cipher_size - 12, w->inflate, INFLATE_CHUNK);
     if (!err)
