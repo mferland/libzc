@@ -75,15 +75,9 @@ int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
     return 0;
 }
 
-void decrypt(const unsigned char *in, unsigned char *out, size_t len, const char *pw)
+void decrypt(const unsigned char *in, unsigned char *out, size_t len, const struct zc_key *key)
 {
-    struct zc_key k;
-
-    set_default_encryption_keys(&k);
-
-    /* initialize keys with password */
-    while (*pw)
-        update_keys(*pw++, &k, &k);
+    struct zc_key k = *key;
 
     /* decrypt */
     for (size_t i = 0; i < len - 1; ++i) {

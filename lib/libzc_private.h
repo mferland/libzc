@@ -150,7 +150,7 @@ size_t zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf);
 int inflate_buffer(const unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen);
 void decrypt(const unsigned char *in, unsigned char *out,
-             size_t len, const char *pw);
+             size_t len, const struct zc_key *key);
 
 /* key array helper */
 struct ka {

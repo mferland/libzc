@@ -142,11 +142,11 @@ static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_
     return true;
 }
 
-static inline bool test_password(struct worker *w, const char *pw)
+static inline bool test_password(struct worker *w, const struct zc_key *key)
 {
     int err;
 
-    decrypt(w->crk->cipher, w->plaintext, w->crk->cipher_size, pw);
+    decrypt(w->crk->cipher, w->plaintext, w->crk->cipher_size, key);
 
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
     err = inflate_buffer(&w->plaintext[12], w->crk->cipher_size - 12, w->inflate, INFLATE_CHUNK);
@@ -176,7 +176,7 @@ static void do_work_recurse(struct worker *w, size_t level,
             pw[level_count - 1] = crk->set[p];
             update_keys(pw[level_count - 1], &cache[level_count - 1], &cache[level_count]);
             if (try_decrypt(crk, &cache[level_count])) {
-                if (test_password(w, pw))
+                if (test_password(w, &cache[level_count]))
                     longjmp(env, 1);
             }
         }
@@ -191,9 +191,6 @@ static void do_work_recurse(struct worker *w, size_t level,
     limit[0].initial = limit[0].start;
 }
 
-/*
- * TODO: remove 'pw' once ziprefactor is done.
- */
 static void do_work_recurse2(struct worker *w, size_t level,
                              size_t level_count, char *pw, struct zc_key *cache,
                              struct entry *limit, jmp_buf env)
@@ -213,26 +210,28 @@ static void do_work_recurse2(struct worker *w, size_t level,
             lastp5 = limit[4].stop + 1,
             lastp6 = limit[5].stop + 1;
         for (int p1 = firstp1; p1 < lastp1; ++p1) {
-            pw[0] = crk->set[p1];
-            update_keys(pw[0], &cache[0], &cache[1]);
+            update_keys(crk->set[p1], &cache[0], &cache[1]);
             for (int p2 = firstp2; p2 < lastp2; ++p2) {
-                pw[1] = crk->set[p2];
-                update_keys(pw[1], &cache[1], &cache[2]);
+                update_keys(crk->set[p2], &cache[1], &cache[2]);
                 for (int p3 = firstp3; p3 < lastp3; ++p3) {
-                    pw[2] = crk->set[p3];
-                    update_keys(pw[2], &cache[2], &cache[3]);
+                    update_keys(crk->set[p3], &cache[2], &cache[3]);
                     for (int p4 = firstp4; p4 < lastp4; ++p4) {
-                        pw[3] = crk->set[p4];
-                        update_keys(pw[3], &cache[3], &cache[4]);
+                        update_keys(crk->set[p4], &cache[3], &cache[4]);
                         for (int p5 = firstp5; p5 < lastp5; ++p5) {
-                            pw[4] = crk->set[p5];
-                            update_keys(pw[4], &cache[4], &cache[5]);
+                            update_keys(crk->set[p5], &cache[4], &cache[5]);
                             for (int p6 = firstp6; p6 < lastp6; ++p6) {
-                                pw[5] = crk->set[p6];
-                                update_keys(pw[5], &cache[5], &cache[6]);
-                                if (try_decrypt(crk, &cache[6]))
-                                    if (test_password(w, pw))
+                                update_keys(crk->set[p6], &cache[5], &cache[6]);
+                                if (try_decrypt(crk, &cache[6])) {
+                                    if (test_password(w, &cache[6])) {
+					pw[0] = crk->set[p1];
+					pw[1] = crk->set[p2];
+					pw[2] = crk->set[p3];
+					pw[3] = crk->set[p4];
+					pw[4] = crk->set[p5];
+					pw[5] = crk->set[p6];
                                         longjmp(env, 1);
+				    }
+				}
                             }
                         }
                     }
