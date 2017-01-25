@@ -173,11 +173,12 @@ static void do_work_recurse(struct worker *w, size_t level,
     int last = limit[0].stop + 1;
     if (level == 1) {
         for (int p = first; p < last; ++p) {
-            pw[level_count - 1] = crk->set[p];
-            update_keys(pw[level_count - 1], &cache[level_count - 1], &cache[level_count]);
+            update_keys(crk->set[p], &cache[level_count - 1], &cache[level_count]);
             if (try_decrypt(crk, &cache[level_count])) {
-                if (test_password(w, &cache[level_count]))
+                if (test_password(w, &cache[level_count])) {
+		    pw[level_count - 1] = crk->set[p];
                     longjmp(env, 1);
+		}
             }
         }
     } else {
