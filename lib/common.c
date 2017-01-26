@@ -19,8 +19,6 @@
 #include "libzc_private.h"
 #include "decrypt_byte.h"
 
-#include <zlib.h>
-
 int fill_vdata(struct zc_ctx *ctx, const char *filename,
                struct zc_validation_data *vdata,
                size_t nmemb)
@@ -47,78 +45,40 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
 }
 
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
-                     unsigned char **buf, size_t *len)
+                     unsigned char **buf, size_t *len,
+                     uint32_t *original_crc)
 {
     struct zc_file *file;
     int err;
 
     err = zc_file_new_from_filename(ctx, filename, &file);
     if (err)
-        return -1;
+        goto err1;
 
     err = zc_file_open(file);
-    if (err) {
-        zc_file_unref(file);
-        return -1;
-    }
+    if (err)
+        goto err2;
 
-    size_t tmp = zc_file_read_crypt_data(file, buf);
-    if (!tmp) {
-        zc_file_unref(file);
-        return -1;
-    }
-
-    *len = tmp;
+    err = zc_file_read_crypt_data(file, buf, len, original_crc);
     zc_file_close(file);
     zc_file_unref(file);
 
-    return 0;
+    return err ? -1 : 0;
+
+err2:
+    zc_file_unref(file);
+err1:
+    return -1;
 }
 
 void decrypt(const unsigned char *in, unsigned char *out, size_t len, const struct zc_key *key)
 {
     struct zc_key k = *key;
 
-    /* decrypt */
     for (size_t i = 0; i < len - 1; ++i) {
         out[i] = in[i] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
         update_keys(out[i], &k, &k);
     }
 
     out[len - 1] = in[len - 1] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
-}
-
-int inflate_buffer(const unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen)
-{
-    int ret;
-    z_stream strm;
-
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = inlen;
-    strm.next_in = in;
-    ret = inflateInit2(&strm, -MAX_WBITS);
-    if (ret != Z_OK)
-        return ret;
-
-    do {
-        strm.avail_out = outlen;
-        strm.next_out = out;
-        ret = inflate(&strm, Z_NO_FLUSH);
-        switch (ret) {
-        case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;
-        case Z_DATA_ERROR:
-        case Z_MEM_ERROR:
-            inflateEnd(&strm);
-            return ret;
-        }
-    } while (strm.avail_out == 0);
-
-    /* TODO: test crc? */
-
-    inflateEnd(&strm);
-    return ret == Z_STREAM_END ? 0 : -1;
 }

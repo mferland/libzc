@@ -55,7 +55,8 @@ libzc_la_SOURCES =\
 	pwstream.c \
 	zc_file.c \
 	common.c \
-	zc_crk_dict.c
+	zc_crk_dict.c \
+	inflate.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

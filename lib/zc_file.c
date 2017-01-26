@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <endian.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
@@ -390,17 +391,17 @@ size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_d
     return valid_files;
 }
 
-static struct zc_info *find_file_largest(struct zc_file *file)
+static struct zc_info *find_file_smallest(struct zc_file *file)
 {
     struct zc_info *info, *ret = NULL;
-    long s = 0;
+    long s = LONG_MAX;
 
     list_for_each_entry(info, &file->info_head, header_list) {
         if (!is_encrypted(info->header.gen_bit_flag))
             continue;
 
         long tmp = info->end_offset - info->begin_offset;
-        if (tmp > s) {
+        if (tmp < s) {
             s = tmp;
             ret = info;
         }
@@ -409,22 +410,23 @@ static struct zc_info *find_file_largest(struct zc_file *file)
     return ret;
 }
 
-size_t zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf)
+int zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf,
+                            size_t *len, uint32_t *original_crc)
 {
     struct zc_info *info;
     size_t to_read;
     int err;
 
-    info = find_file_largest(file);
+    info = find_file_smallest(file);
     if (!info)
-        return 0;
+        return -1;
 
     to_read = info->end_offset - info->enc_header_offset;
 
     err = fseek(file->stream, info->enc_header_offset, SEEK_SET);
     if (err) {
         err(file->ctx, "fseek(): %s\n", strerror(errno));
-        return 0;
+        return -1;
     }
 
     unsigned char *tmp = malloc(to_read);
@@ -443,12 +445,14 @@ size_t zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf)
     }
 
     *buf = tmp;
+    *len = ret;
+    *original_crc = info->header.crc32;
 
-    return ret;
+    return 0;
 
 err:
     free(tmp);
-    return 0;
+    return -1;
 }
 
 /**

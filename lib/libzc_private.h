@@ -133,7 +133,8 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
                struct zc_validation_data *vdata,
                size_t nmemb);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
-                     unsigned char **buf, size_t *len);
+                     unsigned char **buf, size_t *len,
+                     uint32_t *original_crc);
 size_t zc_file_read_validation_data(struct zc_file *file,
                                     struct zc_validation_data *vdata,
                                     size_t nmemb);
@@ -146,9 +147,11 @@ bool zc_file_test_password(const char *filename,
                            const char *pw,
                            char *buf,
                            size_t len);
-size_t zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf);
+int zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf,
+                            size_t *len, uint32_t *original_crc);
 int inflate_buffer(const unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen);
+                   unsigned char *out, size_t outlen,
+                   uint32_t original_crc);
 void decrypt(const unsigned char *in, unsigned char *out,
              size_t len, const struct zc_key *key);
 

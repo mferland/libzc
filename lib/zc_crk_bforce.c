@@ -40,6 +40,7 @@ struct zc_crk_bforce {
     size_t vdata_size;
     unsigned char *cipher;
     size_t cipher_size;
+    uint32_t original_crc;
 
     /* zip filename */
     char *filename;
@@ -149,7 +150,11 @@ static inline bool test_password(struct worker *w, const struct zc_key *key)
     decrypt(w->crk->cipher, w->plaintext, w->crk->cipher_size, key);
 
     pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-    err = inflate_buffer(&w->plaintext[12], w->crk->cipher_size - 12, w->inflate, INFLATE_CHUNK);
+    err = inflate_buffer(&w->plaintext[12],
+                         w->crk->cipher_size - 12,
+                         w->inflate,
+                         INFLATE_CHUNK,
+                         w->crk->original_crc);
     if (!err)
         return true;
     pthread_testcancel();
@@ -540,7 +545,11 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 
     crk->vdata_size = err;
 
-    err = fill_test_cipher(crk->ctx, filename, &crk->cipher, &crk->cipher_size);
+    err = fill_test_cipher(crk->ctx,
+                           filename,
+                           &crk->cipher,
+                           &crk->cipher_size,
+                           &crk->original_crc);
     if (err) {
         err(crk->ctx, "failed to read cipher data\n");
         return -1;
