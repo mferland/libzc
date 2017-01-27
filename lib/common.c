@@ -20,7 +20,7 @@
 #include "decrypt_byte.h"
 
 int fill_vdata(struct zc_ctx *ctx, const char *filename,
-               struct zc_validation_data *vdata,
+               struct validation_data *vdata,
                size_t nmemb)
 {
     struct zc_file *file;
@@ -36,7 +36,7 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
         return -1;
     }
 
-    int size = zc_file_read_validation_data(file, vdata, nmemb);
+    int size = read_validation_data(file, vdata, nmemb);
 
     zc_file_close(file);
     zc_file_unref(file);
@@ -59,7 +59,7 @@ int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
     if (err)
         goto err2;
 
-    err = zc_file_read_crypt_data(file, buf, len, original_crc);
+    err = read_crypt_data(file, buf, len, original_crc);
     zc_file_close(file);
     zc_file_unref(file);
 

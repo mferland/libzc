@@ -360,7 +360,7 @@ struct list_head * zc_file_get_info_head(struct zc_file *file)
 }
 
 /**
- * zc_file_read_validation_data:
+ * read_validation_data:
  *
  * Read the validation data from the file and store them in the vdata
  * array. At most nmemb elements will be stored in the array.
@@ -370,7 +370,7 @@ struct list_head * zc_file_get_info_head(struct zc_file *file)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-size_t zc_file_read_validation_data(struct zc_file *file, struct zc_validation_data *vdata, size_t nmemb)
+size_t read_validation_data(struct zc_file *file, struct validation_data *vdata, size_t nmemb)
 {
     struct zc_info *info;
     size_t valid_files = 0;
@@ -410,8 +410,8 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
     return ret;
 }
 
-int zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf,
-                            size_t *len, uint32_t *original_crc)
+int read_crypt_data(struct zc_file *file, unsigned char **buf,
+                    size_t *len, uint32_t *original_crc)
 {
     struct zc_info *info;
     size_t to_read;
@@ -456,7 +456,7 @@ err:
 }
 
 /**
- * zc_file_test_password_ext:
+ * test_password_ext:
  *
  * Test the given password using the unzip command line tool. This
  * should be used exclusively for discarding false positives returned
@@ -465,7 +465,7 @@ err:
  * @retval true The file was successfully decrypted (password found).
  * @retval false The file can't be decrypted (false positive).
  */
-bool zc_file_test_password_ext(const char *filename, const char *pw)
+bool test_password_ext(const char *filename, const char *pw)
 {
     char cmd[128];
     sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);

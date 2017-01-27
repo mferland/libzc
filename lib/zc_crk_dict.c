@@ -31,7 +31,7 @@ struct zc_crk_dict {
     struct zc_ctx *ctx;
     int refcount;
     char *filename;
-    struct zc_validation_data vdata[VDATA_MAX];
+    struct validation_data vdata[VDATA_MAX];
     size_t vdata_size;
     FILE *fd;
 };
@@ -125,8 +125,8 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char 
 
         remove_trailing_newline(s);
 
-        if (zc_crk_test_one_pw(s, crk->vdata, crk->vdata_size)) {
-            if (zc_file_test_password_ext(crk->filename, s)) {
+        if (test_one_pw(s, crk->vdata, crk->vdata_size)) {
+            if (test_password_ext(crk->filename, s)) {
                 err = 0;
                 memset(pw, 0, len);
                 strncpy(pw, s, len);

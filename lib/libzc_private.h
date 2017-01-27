@@ -78,7 +78,7 @@ __attribute__((format(printf, 6, 7)));
 #define max(a, b) (( a > b) ? a : b)
 #define min(a, b) (( a > b) ? b : a)
 
-struct zc_validation_data {
+struct validation_data {
     uint8_t encryption_header[12];
     uint8_t magic;
 };
@@ -130,25 +130,21 @@ void set_default_encryption_keys(struct zc_key *k)
 }
 
 int fill_vdata(struct zc_ctx *ctx, const char *filename,
-               struct zc_validation_data *vdata,
+               struct validation_data *vdata,
                size_t nmemb);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
                      unsigned char **buf, size_t *len,
                      uint32_t *original_crc);
-size_t zc_file_read_validation_data(struct zc_file *file,
-                                    struct zc_validation_data *vdata,
-                                    size_t nmemb);
-bool zc_crk_test_one_pw(const char *pw,
-                        const struct zc_validation_data *vdata,
-                        size_t nmemb);
-bool zc_file_test_password_ext(const char *filename,
-                               const char *pw);
-bool zc_file_test_password(const char *filename,
-                           const char *pw,
-                           char *buf,
-                           size_t len);
-int zc_file_read_crypt_data(struct zc_file *file, unsigned char **buf,
-                            size_t *len, uint32_t *original_crc);
+size_t read_validation_data(struct zc_file *file,
+                            struct validation_data *vdata,
+                            size_t nmemb);
+bool test_one_pw(const char *pw,
+                 const struct validation_data *vdata,
+                 size_t nmemb);
+bool test_password_ext(const char *filename,
+                       const char *pw);
+int read_crypt_data(struct zc_file *file, unsigned char **buf,
+                    size_t *len, uint32_t *original_crc);
 int inflate_buffer(const unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen,
                    uint32_t original_crc);

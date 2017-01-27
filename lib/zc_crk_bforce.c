@@ -36,7 +36,7 @@ struct zc_crk_bforce {
     int refcount;
 
     /* validation data */
-    struct zc_validation_data vdata[VDATA_MAX];
+    struct validation_data vdata[VDATA_MAX];
     size_t vdata_size;
     unsigned char *cipher;
     size_t cipher_size;
@@ -472,7 +472,7 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     return 0;
 }
 
-bool zc_crk_test_one_pw(const char *pw, const struct zc_validation_data *vdata, size_t nmemb)
+bool test_one_pw(const char *pw, const struct validation_data *vdata, size_t nmemb)
 {
     struct zc_key key;
     struct zc_key base_key;
