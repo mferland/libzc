@@ -33,6 +33,11 @@ struct zc_crk_dict {
     char *filename;
     struct validation_data vdata[VDATA_MAX];
     size_t vdata_size;
+    unsigned char *cipher;
+    unsigned char *plaintext;
+    unsigned char *inflate;
+    size_t cipher_size;
+    uint32_t original_crc;
     FILE *fd;
 };
 
@@ -63,8 +68,10 @@ ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
     crk->refcount--;
     if (crk->refcount > 0)
         return crk;
-    if (crk->filename)
-        free(crk->filename);
+    free(crk->filename);
+    free(crk->cipher);
+    free(crk->plaintext);
+    free(crk->inflate);
     free(crk);
     return NULL;
 }
@@ -89,6 +96,12 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 {
     int err;
 
+    crk->inflate = malloc(INFLATE_CHUNK);
+    if (!crk->inflate) {
+        err(crk->ctx, "failed to allocate memory\n");
+        return -1;
+    }
+
     err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
     if (err < 1) {
         err(crk->ctx, "failed to read validation data\n");
@@ -96,9 +109,56 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
     }
 
     crk->vdata_size = err;
+
+    err = fill_test_cipher(crk->ctx,
+                           filename,
+                           &crk->cipher,
+                           &crk->cipher_size,
+                           &crk->original_crc);
+    if (err) {
+        err(crk->ctx, "failed to read cipher data\n");
+        return -1;
+    }
+
+    crk->plaintext = malloc(crk->cipher_size);
+    if (!crk->plaintext) {
+        free(crk->inflate);
+        free(crk->cipher);
+        return -1;
+    }
     crk->filename = strdup(filename);
 
     return 0;
+}
+
+static bool test_password(struct zc_crk_dict *crk, const char *pw)
+{
+    struct zc_key key, base;
+    size_t i = 0;
+
+    set_default_encryption_keys(&base);
+
+    while(pw[i] != '\0') {
+        update_keys(pw[i], &base, &base);
+        ++i;
+    }
+
+    for (i = 0; i < crk->vdata_size; ++i) {
+        reset_encryption_keys(&base, &key);
+        if (decrypt_header(crk->vdata[i].encryption_header,
+                           &key,
+                           crk->vdata[i].magic))
+            return false;
+    }
+
+    decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
+    int err = inflate_buffer(&crk->plaintext[12],
+                             crk->cipher_size - 12,
+                             crk->inflate,
+                             INFLATE_CHUNK,
+                             crk->original_crc);
+
+    return err ? false : true;
 }
 
 ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw, size_t len)
@@ -125,13 +185,11 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char 
 
         remove_trailing_newline(s);
 
-        if (test_one_pw(s, crk->vdata, crk->vdata_size)) {
-            if (test_password_ext(crk->filename, s)) {
-                err = 0;
-                memset(pw, 0, len);
-                strncpy(pw, s, len);
-                break;
-            }
+        if (test_password(crk, s)) {
+            err = 0;
+            memset(pw, 0, len);
+            strncpy(pw, s, len);
+            break;
         }
     }
 

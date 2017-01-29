@@ -26,6 +26,7 @@
 
 #include "libzc.h"
 #include "crc32.h"
+#include "decrypt_byte.h"
 
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
@@ -77,6 +78,7 @@ __attribute__((format(printf, 6, 7)));
 #define VDATA_MAX 5
 #define max(a, b) (( a > b) ? a : b)
 #define min(a, b) (( a > b) ? b : a)
+#define INFLATE_CHUNK 16384
 
 struct validation_data {
     uint8_t encryption_header[12];
@@ -127,6 +129,26 @@ void set_default_encryption_keys(struct zc_key *k)
     k->key0 = KEY0;
     k->key1 = KEY1;
     k->key2 = KEY2;
+}
+
+static inline
+void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
+{
+    *k = *base;
+}
+
+static inline
+uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
+{
+    uint8_t c;
+
+    for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
+        c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
+        update_keys(c, k, k);
+    }
+
+    /* Returns the last byte of the decrypted header */
+    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2] ^ magic;
 }
 
 int fill_vdata(struct zc_ctx *ctx, const char *filename,

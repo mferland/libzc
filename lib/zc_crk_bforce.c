@@ -22,13 +22,10 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include "decrypt_byte.h"
 #include "list.h"
 #include "libzc.h"
 #include "pwstream.h"
 #include "libzc_private.h"
-
-#define INFLATE_CHUNK 16384
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -78,22 +75,16 @@ struct worker {
     struct zc_crk_bforce *crk;
 };
 
-static inline void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
+static inline
+bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
 {
-    *k = *base;
-}
-
-static inline uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
-{
-    uint8_t c;
-
-    for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
-        c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
-        update_keys(c, k, k);
+    struct zc_key key;
+    for (size_t i = 0; i < crk->vdata_size; ++i) {
+        reset_encryption_keys(base, &key);
+        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
+            return false;
     }
-
-    /* Returns the last byte of the decrypted header */
-    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2] ^ magic;
+    return true;
 }
 
 static size_t unique(char *str, size_t len)
@@ -127,17 +118,6 @@ static bool pw_in_set(const char *pw, const char *set, size_t len)
 {
     for (size_t i = 0; pw[i] != '\0'; ++i) {
         if (!memchr(set, pw[i], len))
-            return false;
-    }
-    return true;
-}
-
-static inline bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
-{
-    struct zc_key key;
-    for (size_t i = 0; i < crk->vdata_size; ++i) {
-        reset_encryption_keys(base, &key);
-        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
             return false;
     }
     return true;
@@ -472,26 +452,6 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
     return 0;
 }
 
-bool test_one_pw(const char *pw, const struct validation_data *vdata, size_t nmemb)
-{
-    struct zc_key key;
-    struct zc_key base_key;
-    size_t i = 0;
-
-    set_default_encryption_keys(&base_key);
-    while (pw[i] != '\0') {
-        update_keys(pw[i], &base_key, &base_key);
-        ++i;
-    }
-
-    for (i = 0; i < nmemb; ++i) {
-        reset_encryption_keys(&base_key, &key);
-        if (decrypt_header(vdata[i].encryption_header, &key, vdata[i].magic))
-            return false;
-    }
-    return true;
-}
-
 static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 {
     /* basic sanity checks */
@@ -523,7 +483,6 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 
     return 0;
 }
-
 
 ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
                                  const char *filename,
