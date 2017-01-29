@@ -19,7 +19,7 @@
 #include <zlib.h>
 #include <stdint.h>
 
-int inflate_buffer(const unsigned char *in, size_t inlen,
+int inflate_buffer(unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen,
                    uint32_t original_crc)
 {
