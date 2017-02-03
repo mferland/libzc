@@ -33,6 +33,7 @@
 #define ZIP_STATIC_HEADER_LEN 30
 #define GP_BIT_HAS_DATA_DESC  (1 << 3)
 #define GP_BIT_ENCRYPTION     0x1
+#define MAX_FNLENGTH          (4096 + 255)
 
 /* zip file */
 struct header {
@@ -157,7 +158,8 @@ static int fill_header_list(struct zc_file *f)
         info->header.extra_field_length = get_le16_at(buf, 24);
 
         /* filename (variable length) */
-        if (!info->header.filename_length)
+        if (!info->header.filename_length ||
+            info->header.filename_length > MAX_FNLENGTH)
             goto end;
 
         info->header.filename = calloc(1, info->header.filename_length + 1);
