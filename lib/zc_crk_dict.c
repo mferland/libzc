@@ -170,11 +170,14 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char 
     if (len > PW_BUF_LEN || !crk->vdata_size)
         return -1;
 
-    f = fopen(dict, "r");
-    if (!f) {
-        err(crk->ctx, "fopen() failed: %s\n", strerror(errno));
-        return -1;
-    }
+    if (dict) {
+        f = fopen(dict, "r");
+        if (!f) {
+            err(crk->ctx, "fopen() failed: %s\n", strerror(errno));
+            return -1;
+        }
+    } else
+        f = stdin;
 
     while (1) {
         char *s = fgets(pwbuf, PW_BUF_LEN, f);
