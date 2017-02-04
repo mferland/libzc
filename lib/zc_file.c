@@ -208,7 +208,9 @@ static int fill_header_list(struct zc_file *f)
             ret = fread(&data_desc_sig, 4, 1, f->stream);
             if (ret != 1)
                 goto end;
-            fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
+            ret = fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
+            if (ret)
+                goto end;
         }
 
         info->idx = idx;
