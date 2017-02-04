@@ -97,6 +97,9 @@ static int parse_opt(char *opt, int count, const char **filename, off_t *off1, o
     char *saveptr = NULL, *token;
     int err = -1;
 
+    if (!opt)
+        return -1;
+
     token = strtok_r(opt, ":", &saveptr);
     if (!token)
         return -1;
