@@ -139,12 +139,12 @@ static int fill_header_list(struct zc_file *f)
 
         info = calloc(1, sizeof(struct zc_info));
         if (!info)
-            return -1;
+            goto err1;
 
         /* static header */
         ret = fread(buf, ZIP_STATIC_HEADER_LEN - 4, 1, f->stream);
         if (ret != 1)
-            goto end;
+            goto err2;
 
         info->header.version_needed = get_le16_at(buf, 0);
         info->header.gen_bit_flag = get_le16_at(buf, 2);
@@ -160,20 +160,20 @@ static int fill_header_list(struct zc_file *f)
         /* filename (variable length) */
         if (!info->header.filename_length ||
             info->header.filename_length > MAX_FNLENGTH)
-            goto end;
+            goto err2;
 
         info->header.filename = calloc(1, info->header.filename_length + 1);
         if (!info->header.filename)
-            goto end;
+            goto err2;
 
         ret = fread(info->header.filename, info->header.filename_length, 1, f->stream);
         if (ret != 1)
-            goto end;
+            goto err2;
 
         /* skip the extra field */
         ret = fseek(f->stream, info->header.extra_field_length, SEEK_CUR);
         if (ret < 0)
-            goto end;
+            goto err2;
 
         /* set offsets and read encrypted header */
         if (is_encrypted(info->header.gen_bit_flag)) {
@@ -183,7 +183,7 @@ static int fill_header_list(struct zc_file *f)
             info->end_offset = info->enc_header_offset + info->header.comp_size;
             ret = fread(info->enc_header, ZIP_ENCRYPTION_HEADER_LENGTH, 1, f->stream);
             if (ret != 1)
-                goto end;
+                goto err2;
         } else {
             info->magic = 0;
             info->enc_header_offset = -1;
@@ -192,7 +192,9 @@ static int fill_header_list(struct zc_file *f)
         }
 
         /* seek to end of compressed stream */
-        fseek(f->stream, info->end_offset, SEEK_SET);
+        ret = fseek(f->stream, info->end_offset, SEEK_SET);
+        if (ret)
+            goto err2;
 
         /* seek data descriptor signature */
         if (has_data_desc(info->header.gen_bit_flag)) {
@@ -207,10 +209,10 @@ static int fill_header_list(struct zc_file *f)
 
             ret = fread(&data_desc_sig, 4, 1, f->stream);
             if (ret != 1)
-                goto end;
+                goto err2;
             ret = fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
             if (ret)
-                goto end;
+                goto err2;
         }
 
         info->idx = idx;
@@ -221,9 +223,10 @@ static int fill_header_list(struct zc_file *f)
 
     return 0;
 
-end:
+err2:
     free(info->header.filename);
     free(info);
+err1:
     clear_header_list(f);
     return -1;
 }
