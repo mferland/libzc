@@ -45,7 +45,7 @@ check_output
 $CMD bruteforce -cabc -t1 -l5 -iaaaaaa data/noradi.zip
 check_output
 
-$CMD bruteforce -a -t8 -l6 -inoradh data/noradi.zip
+$CMD bruteforce -a -t1 -l6 -inoradh data/noradi.zip
 check_output
 
 $CMD dictionary --help
@@ -72,7 +72,7 @@ check_output
 $CMD plaintext --help
 check_output
 
-$CMD plaintext data/archive.zip:64:1808 data/archivec.zip:76:1820:64
-check_output
+# $CMD plaintext data/archive.zip:64:1808 data/archivec.zip:76:1820:64
+# check_output
 
 exit 0
