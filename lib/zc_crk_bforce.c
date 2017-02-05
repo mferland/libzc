@@ -299,6 +299,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
     list_for_each_entry_safe(w, wtmp,  &crk->workers_head, workers) {
         list_del(&w->workers);
         free(w->inflate);
+        free(w->plaintext);
         free(w);
     }
 }
@@ -377,6 +378,8 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
                 strncpy(pw, w->pw, len);
                 cancel_workers(crk);
             }
+            free(w->inflate);
+            free(w->plaintext);
             free(w);
             --workers_left;
         }
