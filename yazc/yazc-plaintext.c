@@ -204,15 +204,11 @@ static int unmap_text_buf(struct filed *file)
 
 static int do_plaintext(int argc, char *argv[])
 {
-    int err = 0;
+    int c, idx, err = 0;
     struct zc_crk_ptext *ptext;
 
-    for (;;) {
-        int c;
-        int idx;
-        c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-        if (c == -1)
-            break;
+    c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+    if (c != -1) {
         switch (c) {
         case 'h':
             print_help(basename(argv[0]));
