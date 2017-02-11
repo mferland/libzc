@@ -231,7 +231,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
         for (int p = first; p < last; ++p) {
             pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse(w, level - 1, level_count, pw, cache, &limit[1], env);
+            do_work_recurse2(w, level - 1, level_count, pw, cache, &limit[1], env);
         }
     }
     limit[0].initial = limit[0].start;
