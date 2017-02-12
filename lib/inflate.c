@@ -43,13 +43,9 @@ int inflate_buffer(unsigned char *in, size_t inlen,
         strm.avail_out = outlen;
         strm.next_out = out;
         ret = inflate(&strm, Z_NO_FLUSH);
-        switch (ret) {
-        case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;
-        case Z_DATA_ERROR:
-        case Z_MEM_ERROR:
+        if (ret < 0) {
             inflateEnd(&strm);
-            return ret;
+            return -1;
         }
         crc = crc32(crc, out, outlen - strm.avail_out);
     } while (ret != Z_STREAM_END);

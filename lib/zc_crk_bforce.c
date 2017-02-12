@@ -21,11 +21,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <setjmp.h>
+#include <stdio.h>
 
 #include "list.h"
 #include "libzc.h"
 #include "pwstream.h"
 #include "libzc_private.h"
+
+#define LEN 8192
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -72,6 +75,18 @@ struct worker {
     unsigned char *inflate;
     unsigned char *plaintext;
     jmp_buf env;
+
+    struct hash {
+        int pw[6 * LEN];
+        uint8_t check[LEN];
+        uint32_t initk0[LEN];
+        uint32_t k0[LEN];
+        uint32_t initk1[LEN];
+        uint32_t k1[LEN];
+        uint32_t initk2[LEN];
+        uint32_t k2[LEN];
+    } h;
+
     struct zc_crk_bforce *crk;
 };
 
@@ -177,47 +192,117 @@ static void do_work_recurse(struct worker *w, size_t level,
     limit[0].initial = limit[0].start;
 }
 
+static inline uint8_t decrypt_byte(uint32_t k)
+{
+    uint32_t tmp = k | 2;
+    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
+}
+
+static void first_pass(const struct zc_crk_bforce *crk, struct hash *h)
+{
+    uint8_t *c = h->check;
+
+    /* first pass */
+    for (int i = 0; i < 11; ++i) {
+        uint8_t header = crk->vdata[0].encryption_header[i];
+        for (int j = 0; j < LEN; ++j)
+            c[j] = header ^ decrypt_byte(h->k2[j]);
+
+        /* update key0 */
+        for (int j = 0; j < LEN; ++j)
+            h->k0[j] = crc32(h->k0[j], c[j]);
+
+        /* update key1 */
+        for (int j = 0; j < LEN; ++j)
+            h->k1[j] = (h->k1[j] + (h->k0[j] & 0xff)) * MULT + 1;
+
+        /* update key2 */
+        for (int j = 0; j < LEN; ++j)
+            h->k2[j] = crc32(h->k2[j], h->k1[j] >> 24);
+    }
+
+    uint8_t header = crk->vdata[0].encryption_header[11];
+    uint8_t magic = crk->vdata[0].magic;
+    for (int j = 0; j < LEN; ++j)
+        c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
+}
+
+static inline
+int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
+{
+    struct zc_key key;
+    struct hash *h = &w->h;
+
+    for (int i = 0; i < LEN; ++i) {
+        if (h->check[i])
+            continue;
+        key.key0 = h->initk0[i];
+        key.key1 = h->initk1[i];
+        key.key2 = h->initk2[i];
+        for (size_t j = 1; j < crk->vdata_size; ++j) {
+            if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
+                continue;
+        }
+        key.key0 = h->initk0[i];
+        key.key1 = h->initk1[i];
+        key.key2 = h->initk2[i];
+        if (test_password(w, &key))
+            return i;
+    }
+
+    return -1;
+}
+
 static void do_work_recurse2(struct worker *w, size_t level,
                              size_t level_count, char *pw, struct zc_key *cache,
                              struct entry *limit, jmp_buf env)
 {
     const struct zc_crk_bforce *crk = w->crk;
     if (level_count > 5 && level == 6) {
-        int firstp1 = limit[0].initial,
-            firstp2 = limit[1].initial,
-            firstp3 = limit[2].initial,
-            firstp4 = limit[3].initial,
-            firstp5 = limit[4].initial,
-            firstp6 = limit[5].initial;
-        int lastp1 = limit[0].stop + 1,
-            lastp2 = limit[1].stop + 1,
-            lastp3 = limit[2].stop + 1,
-            lastp4 = limit[3].stop + 1,
-            lastp5 = limit[4].stop + 1,
-            lastp6 = limit[5].stop + 1;
-        for (int p1 = firstp1; p1 < lastp1; ++p1) {
+        int first[6], last[6];
+        uint32_t pwi = 0;
+
+        for (int i = 0; i < 6; ++i) {
+            first[i] = limit[i].initial;
+            last[i] = limit[i].stop + 1;
+        }
+
+        for (int p1 = first[0]; p1 < last[0]; ++p1) {
             update_keys(crk->set[p1], &cache[0], &cache[1]);
-            for (int p2 = firstp2; p2 < lastp2; ++p2) {
+            for (int p2 = first[1]; p2 < last[1]; ++p2) {
                 update_keys(crk->set[p2], &cache[1], &cache[2]);
-                for (int p3 = firstp3; p3 < lastp3; ++p3) {
+                for (int p3 = first[2]; p3 < last[2]; ++p3) {
                     update_keys(crk->set[p3], &cache[2], &cache[3]);
-                    for (int p4 = firstp4; p4 < lastp4; ++p4) {
+                    for (int p4 = first[3]; p4 < last[3]; ++p4) {
                         update_keys(crk->set[p4], &cache[3], &cache[4]);
-                        for (int p5 = firstp5; p5 < lastp5; ++p5) {
+                        for (int p5 = first[4]; p5 < last[4]; ++p5) {
                             update_keys(crk->set[p5], &cache[4], &cache[5]);
-                            for (int p6 = firstp6; p6 < lastp6; ++p6) {
+                            for (int p6 = first[5]; p6 < last[5]; ++p6) {
                                 update_keys(crk->set[p6], &cache[5], &cache[6]);
-                                if (try_decrypt(crk, &cache[6])) {
-                                    if (test_password(w, &cache[6])) {
-					pw[0] = crk->set[p1];
-					pw[1] = crk->set[p2];
-					pw[2] = crk->set[p3];
-					pw[3] = crk->set[p4];
-					pw[4] = crk->set[p5];
-					pw[5] = crk->set[p6];
+                                w->h.pw[0 + (6 * pwi)] = p1;
+                                w->h.pw[1 + (6 * pwi)] = p2;
+                                w->h.pw[2 + (6 * pwi)] = p3;
+                                w->h.pw[3 + (6 * pwi)] = p4;
+                                w->h.pw[4 + (6 * pwi)] = p5;
+                                w->h.pw[5 + (6 * pwi)] = p6;
+                                w->h.initk0[pwi] = w->h.k0[pwi] = cache[6].key0;
+                                w->h.initk1[pwi] = w->h.k1[pwi] = cache[6].key1;
+                                w->h.initk2[pwi] = w->h.k2[pwi] = cache[6].key2;
+                                if (++pwi == LEN) {
+                                    first_pass(crk, &w->h);
+                                    int ret = try_decrypt2(crk, w);
+                                    if (ret >= 0) {
+                                        int index = 6 * ret;
+                                        pw[0] = crk->set[w->h.pw[index]];
+                                        pw[1] = crk->set[w->h.pw[index + 1]];
+                                        pw[2] = crk->set[w->h.pw[index + 2]];
+                                        pw[3] = crk->set[w->h.pw[index + 3]];
+                                        pw[4] = crk->set[w->h.pw[index + 4]];
+                                        pw[5] = crk->set[w->h.pw[index + 5]];
                                         longjmp(env, 1);
-				    }
-				}
+                                    }
+                                    pwi = 0;
+                                }
                             }
                         }
                     }
