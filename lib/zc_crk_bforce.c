@@ -253,13 +253,13 @@ int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
     return -1;
 }
 
-static void do_work_recurse2(struct worker *w, size_t level,
+ static void do_work_recurse2(struct worker *w, size_t level,
                              size_t level_count, char *pw, struct zc_key *cache,
                              struct entry *limit, jmp_buf env)
 {
     const struct zc_crk_bforce *crk = w->crk;
     if (level_count > 5 && level == 6) {
-        int first[6], last[6];
+        int first[6], last[6], p[6];
         uint32_t pwi = 0;
 
         for (int i = 0; i < 6; ++i) {
@@ -267,38 +267,35 @@ static void do_work_recurse2(struct worker *w, size_t level,
             last[i] = limit[i].stop + 1;
         }
 
-        for (int p1 = first[0]; p1 < last[0]; ++p1) {
-            update_keys(crk->set[p1], &cache[0], &cache[1]);
-            for (int p2 = first[1]; p2 < last[1]; ++p2) {
-                update_keys(crk->set[p2], &cache[1], &cache[2]);
-                for (int p3 = first[2]; p3 < last[2]; ++p3) {
-                    update_keys(crk->set[p3], &cache[2], &cache[3]);
-                    for (int p4 = first[3]; p4 < last[3]; ++p4) {
-                        update_keys(crk->set[p4], &cache[3], &cache[4]);
-                        for (int p5 = first[4]; p5 < last[4]; ++p5) {
-                            update_keys(crk->set[p5], &cache[4], &cache[5]);
-                            for (int p6 = first[5]; p6 < last[5]; ++p6) {
-                                update_keys(crk->set[p6], &cache[5], &cache[6]);
-                                w->h.pw[0 + (6 * pwi)] = p1;
-                                w->h.pw[1 + (6 * pwi)] = p2;
-                                w->h.pw[2 + (6 * pwi)] = p3;
-                                w->h.pw[3 + (6 * pwi)] = p4;
-                                w->h.pw[4 + (6 * pwi)] = p5;
-                                w->h.pw[5 + (6 * pwi)] = p6;
+        for (p[0] = first[0]; p[0] < last[0]; ++p[0]) {
+            update_keys(crk->set[p[0]], &cache[0], &cache[1]);
+            for (p[1] = first[1]; p[1] < last[1]; ++p[1]) {
+                update_keys(crk->set[p[1]], &cache[1], &cache[2]);
+                for (p[2] = first[2]; p[2] < last[2]; ++p[2]) {
+                    update_keys(crk->set[p[2]], &cache[2], &cache[3]);
+                    for (p[3] = first[3]; p[3] < last[3]; ++p[3]) {
+                        update_keys(crk->set[p[3]], &cache[3], &cache[4]);
+                        for (p[4] = first[4]; p[4] < last[4]; ++p[4]) {
+                            update_keys(crk->set[p[4]], &cache[4], &cache[5]);
+                            for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
+                                update_keys(crk->set[p[5]], &cache[5], &cache[6]);
+
+                                /* save password indexes */
+                                for (int i = 0; i < 6; ++i)
+                                    w->h.pw[i + (6 * pwi)] = p[i];
+
+                                /* save password hashes */
                                 w->h.initk0[pwi] = w->h.k0[pwi] = cache[6].key0;
                                 w->h.initk1[pwi] = w->h.k1[pwi] = cache[6].key1;
                                 w->h.initk2[pwi] = w->h.k2[pwi] = cache[6].key2;
+
                                 if (++pwi == LEN) {
                                     first_pass(crk, &w->h);
                                     int ret = try_decrypt2(crk, w);
                                     if (ret >= 0) {
-                                        int index = 6 * ret;
-                                        pw[0] = crk->set[w->h.pw[index]];
-                                        pw[1] = crk->set[w->h.pw[index + 1]];
-                                        pw[2] = crk->set[w->h.pw[index + 2]];
-                                        pw[3] = crk->set[w->h.pw[index + 3]];
-                                        pw[4] = crk->set[w->h.pw[index + 4]];
-                                        pw[5] = crk->set[w->h.pw[index + 5]];
+                                        /* copy password to 'pw' */
+                                        for (int i = 6 * ret, j = 0; i < 6 * ret + 6; ++i, ++j)
+                                            pw[j] = crk->set[w->h.pw[i]];
                                         longjmp(env, 1);
                                     }
                                     pwi = 0;
@@ -309,6 +306,8 @@ static void do_work_recurse2(struct worker *w, size_t level,
                 }
             }
         }
+        /* TODO: process remaining hashes */
+        printf("Remaining hashes: %d\n", pwi);
     } else {
         int first = limit[0].initial;
         int last = limit[0].stop + 1;
