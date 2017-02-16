@@ -198,8 +198,9 @@ static inline uint8_t decrypt_byte(uint32_t k)
     return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
 }
 
-static void first_pass(const struct zc_crk_bforce *crk, struct hash *h)
+static int first_pass(const struct zc_crk_bforce *crk, struct hash *h)
 {
+    int ret = 0;
     uint8_t *c = h->check;
 
     /* first pass */
@@ -223,8 +224,11 @@ static void first_pass(const struct zc_crk_bforce *crk, struct hash *h)
 
     uint8_t header = crk->vdata[0].encryption_header[11];
     uint8_t magic = crk->vdata[0].magic;
-    for (int j = 0; j < LEN; ++j)
+    for (int j = 0; j < LEN; ++j) {
         c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
+	ret |= c[j];
+    }
+    return ret;
 }
 
 static inline
@@ -300,27 +304,29 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                 w->h.initk2[pwi % LEN] = w->h.k2[pwi % LEN] = cache[6].key2;
 
                                 if (++pwi % LEN == 0) {
-                                    first_pass(crk, &w->h);
-                                    int ret = try_decrypt2(crk, w);
-                                    if (ret >= 0) {
-                                        /* copy password to 'pw' */
-                                        int out[6], in[6];
-                                        in[0] = last[0] - first[0];
-                                        in[1] = last[1] - first[1];
-                                        in[2] = last[2] - first[2];
-                                        in[3] = last[3] - first[3];
-                                        in[4] = last[4] - first[4];
-                                        in[5] = last[5] - first[5];
-                                        pwi = pwi - (LEN - 1 - ret) - 1; /*  */
-                                        indexes_from_raw_counter(pwi, in, out);
-                                        printf("%ld\n", pwi);
-                                        for (int j = 0; j < 6; ++j) {
-                                            /* printf("Real: %d, Calculated: %d, First: %d, Last: %d\n", w->h.pw[i], out[j], first[j], last[j]); */
-                                            pw[j] = crk->set[out[j] + first[j]];
-                                        }
-                                        longjmp(env, 1);
-                                    }
-                                }
+                                    int ret = first_pass(crk, &w->h);
+				    if (ret) {
+					ret = try_decrypt2(crk, w);
+					if (ret >= 0) {
+					    /* copy password to 'pw' */
+					    int out[6], in[6];
+					    in[0] = last[0] - first[0];
+					    in[1] = last[1] - first[1];
+					    in[2] = last[2] - first[2];
+					    in[3] = last[3] - first[3];
+					    in[4] = last[4] - first[4];
+					    in[5] = last[5] - first[5];
+					    pwi = pwi - (LEN - 1 - ret) - 1; /*  */
+					    indexes_from_raw_counter(pwi, in, out);
+					    printf("%ld\n", pwi);
+					    for (int j = 0; j < 6; ++j) {
+						/* printf("Real: %d, Calculated: %d, First: %d, Last: %d\n", w->h.pw[i], out[j], first[j], last[j]); */
+						pw[j] = crk->set[out[j] + first[j]];
+					    }
+					    longjmp(env, 1);
+					}
+				    }
+				}
                             }
                         }
                     }
