@@ -28,7 +28,7 @@
 #include "pwstream.h"
 #include "libzc_private.h"
 
-#define LEN 8192
+#define LEN 64
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -77,7 +77,7 @@ struct worker {
     jmp_buf env;
 
     struct hash {
-        int pw[6 * LEN];
+        /* int pw[6 * LEN]; */
         uint8_t check[LEN];
         uint32_t initk0[LEN];
         uint32_t k0[LEN];
@@ -253,14 +253,24 @@ int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
     return -1;
 }
 
- static void do_work_recurse2(struct worker *w, size_t level,
+static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
+{
+    out[5] = c % in[5];
+    out[4] = (c / in[5]) % in[4];
+    out[3] = (c / in[5] / in[4]) % in[3];
+    out[2] = (c / in[5] / in[4] / in[3]) % in[2];
+    out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
+    out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
+}
+
+static void do_work_recurse2(struct worker *w, size_t level,
                              size_t level_count, char *pw, struct zc_key *cache,
                              struct entry *limit, jmp_buf env)
 {
     const struct zc_crk_bforce *crk = w->crk;
     if (level_count > 5 && level == 6) {
         int first[6], last[6], p[6];
-        uint32_t pwi = 0;
+        uint64_t pwi = 0;
 
         for (int i = 0; i < 6; ++i) {
             first[i] = limit[i].initial;
@@ -281,24 +291,35 @@ int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
                                 update_keys(crk->set[p[5]], &cache[5], &cache[6]);
 
                                 /* save password indexes */
-                                for (int i = 0; i < 6; ++i)
-                                    w->h.pw[i + (6 * pwi)] = p[i];
+                                /* for (int i = 0; i < 6; ++i) */
+                                /*     w->h.pw[i + (6 * (pwi % LEN))] = p[i]; */
 
                                 /* save password hashes */
-                                w->h.initk0[pwi] = w->h.k0[pwi] = cache[6].key0;
-                                w->h.initk1[pwi] = w->h.k1[pwi] = cache[6].key1;
-                                w->h.initk2[pwi] = w->h.k2[pwi] = cache[6].key2;
+                                w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
+                                w->h.initk1[pwi % LEN] = w->h.k1[pwi % LEN] = cache[6].key1;
+                                w->h.initk2[pwi % LEN] = w->h.k2[pwi % LEN] = cache[6].key2;
 
-                                if (++pwi == LEN) {
+                                if (++pwi % LEN == 0) {
                                     first_pass(crk, &w->h);
                                     int ret = try_decrypt2(crk, w);
                                     if (ret >= 0) {
                                         /* copy password to 'pw' */
-                                        for (int i = 6 * ret, j = 0; i < 6 * ret + 6; ++i, ++j)
-                                            pw[j] = crk->set[w->h.pw[i]];
+                                        int out[6], in[6];
+                                        in[0] = last[0] - first[0];
+                                        in[1] = last[1] - first[1];
+                                        in[2] = last[2] - first[2];
+                                        in[3] = last[3] - first[3];
+                                        in[4] = last[4] - first[4];
+                                        in[5] = last[5] - first[5];
+                                        pwi = pwi - (LEN - 1 - ret) - 1; /*  */
+                                        indexes_from_raw_counter(pwi, in, out);
+                                        printf("%ld\n", pwi);
+                                        for (int j = 0; j < 6; ++j) {
+                                            /* printf("Real: %d, Calculated: %d, First: %d, Last: %d\n", w->h.pw[i], out[j], first[j], last[j]); */
+                                            pw[j] = crk->set[out[j] + first[j]];
+                                        }
                                         longjmp(env, 1);
                                     }
-                                    pwi = 0;
                                 }
                             }
                         }
@@ -307,7 +328,7 @@ int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
             }
         }
         /* TODO: process remaining hashes */
-        printf("Remaining hashes: %d\n", pwi);
+        printf("Remaining hashes: %ld\n", pwi);
     } else {
         int first = limit[0].initial;
         int last = limit[0].stop + 1;
