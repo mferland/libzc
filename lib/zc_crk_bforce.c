@@ -303,36 +303,38 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                 w->h.initk1[pwi % LEN] = w->h.k1[pwi % LEN] = cache[6].key1;
                                 w->h.initk2[pwi % LEN] = w->h.k2[pwi % LEN] = cache[6].key2;
 
-                                if (++pwi % LEN == 0) {
-                                    int ret = first_pass(crk, &w->h);
-				    if (ret) {
-					ret = try_decrypt2(crk, w);
-					if (ret >= 0) {
-					    /* copy password to 'pw' */
-					    int out[6], in[6];
-					    in[0] = last[0] - first[0];
-					    in[1] = last[1] - first[1];
-					    in[2] = last[2] - first[2];
-					    in[3] = last[3] - first[3];
-					    in[4] = last[4] - first[4];
-					    in[5] = last[5] - first[5];
-					    pwi = pwi - (LEN - 1 - ret) - 1; /*  */
-					    indexes_from_raw_counter(pwi, in, out);
-					    printf("%ld\n", pwi);
-					    for (int j = 0; j < 6; ++j) {
-						/* printf("Real: %d, Calculated: %d, First: %d, Last: %d\n", w->h.pw[i], out[j], first[j], last[j]); */
-						pw[j] = crk->set[out[j] + first[j]];
-					    }
-					    longjmp(env, 1);
-					}
-				    }
-				}
+                                if (++pwi % LEN)
+                                    continue;
+
+                                if (!first_pass(crk, &w->h))
+                                    continue;
+
+                                int ret = try_decrypt2(crk, w);
+                                if (ret < 0)
+                                    continue;
+
+                                /* copy the loop length to 'in' */
+                                int out[6], in[6];
+                                for (int i = 0; i < 6; ++i)
+                                    in[i] = last[i] - first[i];
+
+                                /* adjust the counter to the index of
+                                 * the correct hash */
+                                pwi = pwi - (LEN - 1 - ret) - 1; /*  */
+                                indexes_from_raw_counter(pwi, in, out);
+                                printf("%ld\n", pwi);
+                                for (int i = 0; i < 6; ++i)
+                                    pw[i] = crk->set[out[i] + first[i]];
+
+                                longjmp(env, 1);
                             }
                         }
                     }
                 }
             }
         }
+
+        
         /* TODO: process remaining hashes */
         printf("Remaining hashes: %ld\n", pwi);
     } else {
