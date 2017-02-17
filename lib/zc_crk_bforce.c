@@ -320,7 +320,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
 
                                 /* adjust the counter to the index of
                                  * the correct hash */
-                                pwi = pwi - (LEN - 1 - ret) - 1; /*  */
+                                pwi = pwi - (LEN - 1 - ret) - 1;
                                 indexes_from_raw_counter(pwi, in, out);
                                 printf("%ld\n", pwi);
                                 for (int i = 0; i < 6; ++i)
