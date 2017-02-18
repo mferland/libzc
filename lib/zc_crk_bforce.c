@@ -77,30 +77,17 @@ struct worker {
     jmp_buf env;
 
     struct hash {
-        /* int pw[6 * LEN]; */
         uint8_t check[LEN];
         uint32_t initk0[LEN];
-        uint32_t k0[LEN];
         uint32_t initk1[LEN];
-        uint32_t k1[LEN];
         uint32_t initk2[LEN];
+        uint32_t k0[LEN];
+        uint32_t k1[LEN];
         uint32_t k2[LEN];
     } h;
 
     struct zc_crk_bforce *crk;
 };
-
-static inline
-bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
-{
-    struct zc_key key;
-    for (size_t i = 0; i < crk->vdata_size; ++i) {
-        reset_encryption_keys(base, &key);
-        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
-            return false;
-    }
-    return true;
-}
 
 static size_t unique(char *str, size_t len)
 {
@@ -138,7 +125,7 @@ static bool pw_in_set(const char *pw, const char *set, size_t len)
     return true;
 }
 
-static inline bool test_password(struct worker *w, const struct zc_key *key)
+static bool test_password(struct worker *w, const struct zc_key *key)
 {
     int err;
 
@@ -157,11 +144,15 @@ static inline bool test_password(struct worker *w, const struct zc_key *key)
     return false;
 }
 
-static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
-                        size_t stream)
+static bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *base)
 {
-    for (size_t i = 0, j = count - 1; i < count; ++i, --j)
-        limit[i] = *pwstream_get_entry(pws, stream, j);
+    struct zc_key key;
+    for (size_t i = 0; i < crk->vdata_size; ++i) {
+        reset_encryption_keys(base, &key);
+        if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
+            return false;
+    }
+    return true;
 }
 
 static void do_work_recurse(struct worker *w, size_t level,
@@ -192,13 +183,7 @@ static void do_work_recurse(struct worker *w, size_t level,
     limit[0].initial = limit[0].start;
 }
 
-static inline uint8_t decrypt_byte(uint32_t k)
-{
-    uint32_t tmp = k | 2;
-    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
-}
-
-static int first_pass(const struct zc_crk_bforce *crk, struct hash *h)
+static int try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
 {
     int ret = 0;
     uint8_t *c = h->check;
@@ -231,13 +216,12 @@ static int first_pass(const struct zc_crk_bforce *crk, struct hash *h)
     return ret;
 }
 
-static inline
-int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
+static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int len)
 {
     struct zc_key key;
     struct hash *h = &w->h;
 
-    for (int i = 0; i < LEN; ++i) {
+    for (int i = 0; i < len; ++i) {
         if (h->check[i])
             continue;
         key.key0 = h->initk0[i];
@@ -257,14 +241,22 @@ int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
     return -1;
 }
 
-static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
-{
+/*
     out[5] = c % in[5];
     out[4] = (c / in[5]) % in[4];
     out[3] = (c / in[5] / in[4]) % in[3];
     out[2] = (c / in[5] / in[4] / in[3]) % in[2];
     out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
     out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
+ */
+static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
+{
+    int i = 5;
+    out[i] = c;
+    for (; i >= 0; --i)
+        out[i - 1] = out[i] / in[i];
+    for (i = 0; i < 6; ++i)
+        out[i] %= in[i];
 }
 
 static void do_work_recurse2(struct worker *w, size_t level,
@@ -273,7 +265,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
 {
     const struct zc_crk_bforce *crk = w->crk;
     if (level_count > 5 && level == 6) {
-        int first[6], last[6], p[6];
+        int first[6], last[6], p[6], out[6], in[6], ret;
         uint64_t pwi = 0;
 
         for (int i = 0; i < 6; ++i) {
@@ -294,10 +286,6 @@ static void do_work_recurse2(struct worker *w, size_t level,
                             for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
                                 update_keys(crk->set[p[5]], &cache[5], &cache[6]);
 
-                                /* save password indexes */
-                                /* for (int i = 0; i < 6; ++i) */
-                                /*     w->h.pw[i + (6 * (pwi % LEN))] = p[i]; */
-
                                 /* save password hashes */
                                 w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
                                 w->h.initk1[pwi % LEN] = w->h.k1[pwi % LEN] = cache[6].key1;
@@ -306,15 +294,14 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                 if (++pwi % LEN)
                                     continue;
 
-                                if (!first_pass(crk, &w->h))
+                                if (!try_decrypt_fast(crk, &w->h))
                                     continue;
 
-                                int ret = try_decrypt2(crk, w);
+                                ret = try_decrypt2(crk, w, LEN);
                                 if (ret < 0)
                                     continue;
 
                                 /* copy the loop length to 'in' */
-                                int out[6], in[6];
                                 for (int i = 0; i < 6; ++i)
                                     in[i] = last[i] - first[i];
 
@@ -322,7 +309,6 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                  * the correct hash */
                                 pwi = pwi - (LEN - 1 - ret) - 1;
                                 indexes_from_raw_counter(pwi, in, out);
-                                printf("%ld\n", pwi);
                                 for (int i = 0; i < 6; ++i)
                                     pw[i] = crk->set[out[i] + first[i]];
 
@@ -334,9 +320,21 @@ static void do_work_recurse2(struct worker *w, size_t level,
             }
         }
 
-        
-        /* TODO: process remaining hashes */
-        printf("Remaining hashes: %ld\n", pwi);
+        /* TODO: test! */
+        printf("TEST ME: %ld\n", pwi);
+        ret = try_decrypt2(crk, w, pwi);
+        if (ret < 0)
+            return;
+
+        for (int i = 0; i < 6; ++i)
+            in[i] = last[i] - first[i];
+
+        pwi = pwi - (LEN - 1 - ret);
+        indexes_from_raw_counter(pwi, in, out);
+        for (int i = 0; i < 6; ++i)
+            pw[i] = crk->set[out[i] + first[i]];
+
+        longjmp(env, 1);
     } else {
         int first = limit[0].initial;
         int last = limit[0].stop + 1;
@@ -348,6 +346,13 @@ static void do_work_recurse2(struct worker *w, size_t level,
         }
     }
     limit[0].initial = limit[0].start;
+}
+
+static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
+                        size_t stream)
+{
+    for (size_t i = 0, j = count - 1; i < count; ++i, --j)
+        limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
 static bool do_work(struct worker *w, struct pwstream *pws,

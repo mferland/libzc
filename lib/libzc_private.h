@@ -137,6 +137,12 @@ void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
     *k = *base;
 }
 
+static inline uint8_t decrypt_byte(uint32_t k)
+{
+    uint32_t tmp = k | 2;
+    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
+}
+
 static inline
 uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 {
