@@ -37,6 +37,7 @@ struct zc_crk_dict {
     unsigned char *plaintext;
     unsigned char *inflate;
     size_t cipher_size;
+    bool cipher_is_deflated;
     uint32_t original_crc;
     FILE *fd;
 };
@@ -114,7 +115,8 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
                            filename,
                            &crk->cipher,
                            &crk->cipher_size,
-                           &crk->original_crc);
+                           &crk->original_crc,
+                           &crk->cipher_is_deflated);
     if (err) {
         err(crk->ctx, "failed to read cipher data\n");
         return -1;
@@ -152,11 +154,17 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
     }
 
     decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
-    int err = inflate_buffer(&crk->plaintext[12],
+    int err;
+    if (crk->cipher_is_deflated)
+        err = inflate_buffer(&crk->plaintext[12],
                              crk->cipher_size - 12,
                              crk->inflate,
                              INFLATE_CHUNK,
                              crk->original_crc);
+    else
+        err = test_buffer_crc(&crk->plaintext[12],
+                              crk->cipher_size - 12,
+                              crk->original_crc);
 
     return err ? false : true;
 }

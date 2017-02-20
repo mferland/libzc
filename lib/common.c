@@ -46,7 +46,7 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
 
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
                      unsigned char **buf, size_t *len,
-                     uint32_t *original_crc)
+                     uint32_t *original_crc, bool *is_deflated)
 {
     struct zc_file *file;
     int err;
@@ -59,7 +59,7 @@ int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
     if (err)
         goto err2;
 
-    err = read_crypt_data(file, buf, len, original_crc);
+    err = read_crypt_data(file, buf, len, original_crc, is_deflated);
     zc_file_close(file);
     zc_file_unref(file);
 

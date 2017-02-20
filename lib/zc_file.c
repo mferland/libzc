@@ -102,6 +102,16 @@ static bool has_data_desc(uint16_t flag)
     return !!(flag & GP_BIT_HAS_DATA_DESC);
 }
 
+static bool is_deflated(uint16_t flag)
+{
+    return flag == 0x8;
+}
+
+static bool is_stored(uint16_t flag)
+{
+    return flag == 0x0;
+}
+
 static uint8_t check_byte(const struct header *h)
 {
     if (has_data_desc(h->gen_bit_flag))
@@ -385,6 +395,9 @@ size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
     list_for_each_entry(info, &file->info_head, header_list) {
         if (!is_encrypted(info->header.gen_bit_flag))
             continue;
+        if (!is_deflated(info->header.comp_method) &&
+            !is_stored(info->header.comp_method))
+            continue;
 
         vdata[valid_files].magic = info->magic;
         memcpy(vdata[valid_files].encryption_header,
@@ -406,6 +419,9 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
     list_for_each_entry(info, &file->info_head, header_list) {
         if (!is_encrypted(info->header.gen_bit_flag))
             continue;
+        if (!is_deflated(info->header.comp_method) &&
+            !is_stored(info->header.comp_method))
+            continue;
 
         long tmp = info->end_offset - info->begin_offset;
         if (tmp < s) {
@@ -418,7 +434,7 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
 }
 
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
-                    size_t *len, uint32_t *original_crc)
+                    size_t *len, uint32_t *original_crc, bool *deflated)
 {
     struct zc_info *info;
     size_t to_read;
@@ -454,6 +470,7 @@ int read_crypt_data(struct zc_file *file, unsigned char **buf,
     *buf = tmp;
     *len = ret;
     *original_crc = info->header.crc32;
+    *deflated = is_deflated(info->header.comp_method);
 
     return 0;
 

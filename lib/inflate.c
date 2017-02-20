@@ -54,3 +54,11 @@ int inflate_buffer(unsigned char *in, size_t inlen,
 
     return crc == original_crc ? 0 : -1;
 }
+
+int test_buffer_crc(unsigned char *in, size_t inlen,
+                    uint32_t original_crc)
+{
+    uint32_t crc = crc32(0L, Z_NULL, 0);
+    crc = crc32(crc, in, inlen);
+    return crc == original_crc ? 0 : -1;
+}
