@@ -20,8 +20,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <setjmp.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "list.h"
 #include "libzc.h"
@@ -75,7 +75,6 @@ struct worker {
     bool found;
     unsigned char *inflate;
     unsigned char *plaintext;
-    jmp_buf env;
 
     struct hash {
         uint8_t check[LEN];
@@ -160,19 +159,20 @@ static bool try_decrypt(const struct zc_crk_bforce *crk, const struct zc_key *ba
 
 static void do_work_recurse(struct worker *w, size_t level,
                             size_t level_count, char *pw, struct zc_key *cache,
-                            struct entry *limit, jmp_buf env)
+                            struct entry *limit)
 {
     const struct zc_crk_bforce *crk = w->crk;
     int first = limit[0].initial;
     int last = limit[0].stop + 1;
+
     if (level == 1) {
         for (int p = first; p < last; ++p) {
             update_keys(crk->set[p], &cache[level_count - 1], &cache[level_count]);
             if (try_decrypt(crk, &cache[level_count])) {
                 if (test_password(w, &cache[level_count])) {
 		    pw[level_count - 1] = crk->set[p];
-                    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-                    longjmp(env, 1);
+                    w->found = true;
+                    pthread_exit(w);
 		}
             }
         }
@@ -181,7 +181,7 @@ static void do_work_recurse(struct worker *w, size_t level,
         for (int p = first; p < last; ++p) {
             pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse(w, level - 1, level_count, pw, cache, &limit[1], env);
+            do_work_recurse(w, level - 1, level_count, pw, cache, &limit[1]);
         }
     }
     limit[0].initial = limit[0].start;
@@ -265,7 +265,7 @@ static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
 
 static void do_work_recurse2(struct worker *w, size_t level,
                              size_t level_count, char *pw, struct zc_key *cache,
-                             struct entry *limit, jmp_buf env)
+                             struct entry *limit)
 {
     const struct zc_crk_bforce *crk = w->crk;
     if (level_count > 5 && level == 6) {
@@ -316,8 +316,8 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                 for (int i = 0; i < 6; ++i)
                                     pw[i] = crk->set[out[i] + first[i]];
 
-                                pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-                                longjmp(env, 1);
+                                w->found = true;
+                                pthread_exit(w);
                             }
                         }
                     }
@@ -339,8 +339,8 @@ static void do_work_recurse2(struct worker *w, size_t level,
         for (int i = 0; i < 6; ++i)
             pw[i] = crk->set[out[i] + first[i]];
 
-        pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-        longjmp(env, 1);
+        w->found = true;
+        pthread_exit(w);
     } else {
         int first = limit[0].initial;
         int last = limit[0].stop + 1;
@@ -348,7 +348,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
         for (int p = first; p < last; ++p) {
             pw[i] = crk->set[p];
             update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse2(w, level - 1, level_count, pw, cache, &limit[1], env);
+            do_work_recurse2(w, level - 1, level_count, pw, cache, &limit[1]);
         }
     }
     limit[0].initial = limit[0].start;
@@ -361,27 +361,23 @@ static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
         limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
-static bool do_work(struct worker *w, struct pwstream *pws,
-                    size_t stream, char *pw, jmp_buf env)
+static void do_work(struct worker *w, struct pwstream *pws,
+                    size_t stream, char *pw)
 {
     size_t level = pwstream_get_pwlen(pws);
     struct zc_key cache[level + 1];
     struct entry limit[level];
-    int ret;
 
     fill_limits(pws, limit, level, stream);
     memset(cache, 0, sizeof(struct zc_key) * (level + 1));
     set_default_encryption_keys(cache);
 
-    ret = setjmp(env);
-    if (!ret) {
-        if (level < 6)
-            do_work_recurse(w, level, level, pw, cache, limit, env);
-        else
-            do_work_recurse2(w, level, level, pw, cache, limit, env);
-    }
-
-    return (ret == 1);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    if (level < 6)
+        do_work_recurse(w, level, level, pw, cache, limit);
+    else
+        do_work_recurse2(w, level, level, pw, cache, limit);
+    pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 }
 
 static void worker_cleanup_handler(void *p)
@@ -399,25 +395,18 @@ static void *worker(void *p)
     struct worker *w = (struct worker *)p;
 
     pthread_cleanup_push(worker_cleanup_handler, w);
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
     pthread_barrier_wait(&w->crk->barrier);
 
-    /* https://sourceware.org/ml/libc-alpha/2015-07/msg00585.html */
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
     for (size_t i = 0; i < w->crk->pwslen; ++i) {
         if (pwstream_is_empty(w->crk->pws[i], w->id))
             continue;
-
-        if (do_work(w, w->crk->pws[i], w->id, w->pw, w->env)) {
-            w->found = true;
-            break;
-        }
+        do_work(w, w->crk->pws[i], w->id, w->pw);
+        pthread_testcancel();
     }
-
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
     pthread_cleanup_pop(1);
     return NULL;

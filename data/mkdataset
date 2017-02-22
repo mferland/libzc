@@ -1,0 +1,91 @@
+#!/bin/bash
+
+ZIP=$(which zip)
+ARCHIVE="archive.zip"
+YAZC="../yazc/yazc"
+CMD="libtool --mode=execute $YAZC"
+
+
+if [ ! -f "${ZIP}" ]; then
+    echo >&2 "error: zip not found!"
+    exit 1
+fi
+
+create_dummy_files() {
+    for i in $(seq 0 2)
+    do
+        dd if=/dev/urandom of=file_${i} bs=${RANDOM} count=1
+    done
+    for i in $(seq 3 6)
+    do
+        dd if=/dev/zero of=file_${i} bs=${RANDOM} count=1
+    done
+}
+
+cleanup() {
+    rm -f file_[0-9]
+    rm -f archive.zip
+}
+
+generate_random_string() {
+    $(cat /dev/urandom | tr -dc '${1}' | fold -w ${2} | head -n 1)
+}
+
+test_zip_1() {
+    # zip files with passwords [a-z]
+    for pw in {a..z}
+    do
+        FILES=""
+        for filen in file_{0..6}
+        do
+            FILES="${FILES} ${filen}"
+            zip -e -P ${pw} ${ARCHIVE} ${FILES}
+            for threads in $(seq 1 8)
+            do
+                for cset in -a -aA -aAn -aAns
+                do
+                    if ! ${CMD} bruteforce -t${threads} ${cset} -l1 ${ARCHIVE}; then
+                        echo >&2 "yazc failed to find the password (options: -t${threads} ${cset} ${ARCHIVE})"
+                        exit 1
+                    fi
+                done
+            done
+            rm ${ARCHIVE}
+        done
+    done
+}
+
+test_zip_2() {
+    # zip files with passwords [a-z][a-z]
+    for pw in {a..z}{a..z}
+    do
+        FILES=""
+        for filen in file_{0..6}
+        do
+            FILES="${FILES} ${filen}"
+            zip -e -P ${pw} ${ARCHIVE} ${FILES}
+            for threads in $(seq 1 8)
+            do
+                for cset in -a -aA -aAn -aAns
+                do
+                    if ! ${CMD} bruteforce -t${threads} ${cset} -l2 ${ARCHIVE}; then
+                        echo >&2 "yazc failed to find the password (options: -t${threads} ${cset} ${ARCHIVE})"
+                        exit 1
+                    fi
+                done
+            done
+            rm ${ARCHIVE}
+        done
+    done
+}
+
+cleanup
+
+create_dummy_files
+
+test_zip_1
+#test_zip_2
+
+cleanup
+
+exit 0
