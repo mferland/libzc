@@ -13,13 +13,13 @@ AM_CFLAGS = \
 	-fvisibility=hidden \
 	-ffunction-sections \
 	-fdata-sections \
-	-pthread -lz
+	-pthread
 
 AM_LDFLAGS = \
 	-Wl,--gc-sections \
 	-Wl,--as-needed \
 	-Wl,-z,defs \
-	-lm
+	-lm -lz -pthread
 
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
@@ -33,7 +33,7 @@ AM_LDFLAGS = \
 #   increment age.
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
-LIBZC_CURRENT=2
+LIBZC_CURRENT=3
 LIBZC_REVISION=0
 LIBZC_AGE=0
 
