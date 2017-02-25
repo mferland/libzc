@@ -28,7 +28,7 @@ cleanup() {
 }
 
 generate_random_string() {
-    echo $(cat /dev/urandom | tr -dc "\'${1}\'" | fold -w ${2} | head -n 1)
+    echo $(cat /dev/urandom | tr -dc "${1}" | fold -w ${2} | head -n 1)
 }
 
 test_zip_1() {
@@ -84,16 +84,14 @@ test_zip_6() {
     count=0
     while [ $count -lt 10 ]; do
         pw="$(generate_random_string a-z 6)"
-        FILES=""
-        for filen in file_{0..6}
-        do
-            FILES="${FILES} ${filen}"
-            zip -e -P ${pw} ${ARCHIVE} ${FILES}
-            if ! ${CMD} bruteforce -t8 -a ${ARCHIVE}; then
-                echo >&2 "yazc failed to find the password (options: -t8 -a ${ARCHIVE}, password: ${pw})"
-                exit 1
-            fi
-        done
+        FILES="file_0 file_1 file_2 file_3"
+        zip -e -P ${pw} ${ARCHIVE} ${FILES} >/dev/null
+        echo "Testing password: ${pw}"
+        if ! ${CMD} bruteforce -t8 -a ${ARCHIVE}; then
+            echo >&2 "yazc failed to find the password (options: -t8 -a ${ARCHIVE}, password: ${pw})"
+            exit 1
+        fi
+        rm ${ARCHIVE}
         count=$((count+1))
     done
 }
