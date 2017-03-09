@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2016  Marc Ferland
+ *  Copyright (C) 2017 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 #include <check.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #include "libzc_private.h"
 #include "pwstream.h"
@@ -312,9 +311,9 @@ START_TEST(generate_equal)
 }
 END_TEST
 
-Suite *make_libzc_pws_suite()
+Suite *pwstream_suite()
 {
-    Suite *s = suite_create("pws");
+    Suite *s = suite_create("pwstream");
 
     TCase *tc_core = tcase_create("Core");
     tcase_add_checked_fixture(tc_core, setup_pws, teardown_pws);
@@ -340,10 +339,15 @@ Suite *make_libzc_pws_suite()
 int main()
 {
     int number_failed;
-    SRunner *sr = srunner_create(make_libzc_pws_suite());
-    srunner_set_log(sr, "test_pws.log");
+    Suite *s;
+    SRunner *sr;
+
+    s = pwstream_suite();
+    sr = srunner_create(s);
+
     srunner_run_all(sr, CK_NORMAL);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
+
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

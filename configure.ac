@@ -16,11 +16,6 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
-AC_CHECK_PROG([UNZIP], [unzip], [yes])
-if test x"$UNZIP" != x"yes" ; then
-    AC_MSG_ERROR([unzip command missing.])
-fi
-
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(z, inflate)
 
