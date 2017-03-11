@@ -1,8 +1,9 @@
-TESTS = basic file pwstream reduce plaintext
+TESTS = basic file pwstream bruteforce reduce plaintext
 
 check_PROGRAMS = basic \
 	file \
 	pwstream \
+	bruteforce \
 	reduce \
 	plaintext
 
@@ -15,6 +16,11 @@ basic_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 file_SOURCES = check_file.c
 file_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 file_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
+
+# zc_crk_bforce related functions
+bruteforce_SOURCES = check_bruteforce.c
+bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+bruteforce_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 
 # pwstream related functions
 pwstream_SOURCES = check_pwstream.c

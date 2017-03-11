@@ -582,6 +582,9 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
         cfg->maxlen > ZC_PW_MAXLEN)
         return -1;
 
+    if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
+        return -1;
+
     memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
     memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
     crk->maxlen = cfg->maxlen;
