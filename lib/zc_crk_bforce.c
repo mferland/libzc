@@ -628,6 +628,10 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 
     crk->vdata_size = err;
 
+    if (crk->cipher) {
+        free(crk->cipher);
+        crk->cipher = NULL;
+    }
     err = fill_test_cipher(crk->ctx,
                            filename,
                            &crk->cipher,
@@ -639,6 +643,8 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
         return -1;
     }
 
+    if (crk->filename)
+        free(crk->filename);
     crk->filename = strdup(filename);
 
     return 0;

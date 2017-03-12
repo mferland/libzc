@@ -77,6 +77,29 @@ START_TEST(test_parameter_setlen)
 }
 END_TEST
 
+START_TEST(test_parameter_init_leak)
+{
+    struct zc_crk_pwcfg cfg;
+
+    strcpy(cfg.set, "abcd");
+    cfg.maxlen = 5;
+    cfg.setlen = 4;
+    strcpy(cfg.initial, "a");
+
+    /* first call */
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+
+    /* second call, should not leak */
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+
+    /* third call, should not leak */
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+}
+END_TEST
+
 Suite * bforce_suite(void)
 {
     Suite *s;
@@ -89,6 +112,7 @@ Suite * bforce_suite(void)
     tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_parameter_set);
     tcase_add_test(tc_core, test_parameter_setlen);
+    tcase_add_test(tc_core, test_parameter_init_leak);
     suite_add_tcase(s, tc_core);
 
     return s;
