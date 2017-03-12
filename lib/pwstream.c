@@ -206,7 +206,7 @@ static void recurse(struct pwstream *t, size_t count, struct entry *e)
 
     size_t u = 0;
     for (size_t i = 0; i < count; i += u) {
-        u = uniq_from_entry(&e[i], count);
+        u = uniq_from_entry(&e[i], count - i);
         recurse(t, u, &e[i + t->cols]);
     }
 }
@@ -267,7 +267,7 @@ static size_t ceil_streams(size_t pool_len, size_t pw_len, size_t streams)
 
 int pwstream_new(struct pwstream **pws)
 {
-    struct pwstream *p = malloc(sizeof(struct pwstream));
+    struct pwstream *p = calloc(1, sizeof(struct pwstream));
 
     if (!p)
         return -1;
@@ -297,7 +297,7 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 
     size_t cstrm = ceil_streams(pool_len, pw_len, streams);
 
-    pws->entry = malloc(sizeof(struct entry) * cstrm * pw_len);
+    pws->entry = calloc(cstrm * pw_len, sizeof(struct entry));
     if (!pws->entry) {
         pws->rows = 0;
         pws->cols = 0;
