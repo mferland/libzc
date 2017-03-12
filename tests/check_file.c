@@ -121,6 +121,8 @@ START_TEST(test_zc_file_info_encrypted)
     } while (info);
 
     ck_assert_int_eq(i, 4);
+
+    zc_file_close(file);
 }
 END_TEST
 
@@ -160,6 +162,8 @@ START_TEST(test_zc_file_info_non_encrypted)
     } while (info);
 
     ck_assert_int_eq(i, 3);
+
+    zc_file_close(file);
 }
 END_TEST
 

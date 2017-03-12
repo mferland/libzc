@@ -43,65 +43,110 @@ END_TEST
 
 START_TEST(test_zc_refcount)
 {
+    struct zc_ctx *p;
+
     ck_assert_ptr_eq(zc_ref(ctx), ctx);    /* inc */
-    ck_assert_ptr_eq(zc_unref(ctx), ctx);  /* dec */
-    ck_assert_ptr_eq(zc_unref(ctx), NULL); /* dec */
+
+    p = zc_unref(ctx);
+    ck_assert_ptr_eq(p, ctx);              /* dec */
+    ctx = p;
+
+    p = zc_unref(ctx);
+    ck_assert_ptr_eq(p, NULL);             /* dec */
+    ctx = p;
+
     ck_assert_ptr_eq(zc_unref(NULL), NULL);
 }
 END_TEST
 
 START_TEST(test_zc_file_refcount)
 {
-    struct zc_file *file;
+    struct zc_file *file, *tmp;
     int ret;
 
     ret = zc_file_new_from_filename(ctx, "dummy", &file);
     ck_assert_int_eq(ret, 0);
-    ck_assert_ptr_eq(zc_file_ref(file), file);   /* inc */
-    ck_assert_ptr_eq(zc_file_unref(file), file); /* dec */
-    ck_assert_ptr_eq(zc_file_unref(file), NULL); /* dec */
+
+    tmp = zc_file_ref(file);
+    ck_assert_ptr_eq(tmp, file);                 /* inc */
+    file = tmp;
+
+    tmp = zc_file_unref(file);
+    ck_assert_ptr_eq(tmp, file);                 /* dec */
+    file = tmp;
+
+    tmp = zc_file_unref(file);
+    ck_assert_ptr_eq(tmp, NULL);                 /* dec */
+
     ck_assert_ptr_eq(zc_file_unref(NULL), NULL); /* dec */
 }
 END_TEST
 
 START_TEST(test_zc_crk_dict_refcount)
 {
-    struct zc_crk_dict *p;
+    struct zc_crk_dict *p, *tmp;
     int ret;
 
     ret = zc_crk_dict_new(ctx, &p);
     ck_assert_int_eq(ret, 0);
-    ck_assert_ptr_eq(zc_crk_dict_ref(p), p);         /* inc */
-    ck_assert_ptr_eq(zc_crk_dict_unref(p), p);       /* dec */
-    ck_assert_ptr_eq(zc_crk_dict_unref(p), NULL);    /* dec */
+
+    tmp = zc_crk_dict_ref(p);
+    ck_assert_ptr_eq(tmp, p);                        /* inc */
+    p = tmp;
+
+    tmp = zc_crk_dict_unref(p);
+    ck_assert_ptr_eq(tmp, p);                        /* dec */
+    p = tmp;
+
+    tmp = zc_crk_dict_unref(p);
+    ck_assert_ptr_eq(tmp, NULL);                     /* dec */
+
     ck_assert_ptr_eq(zc_crk_dict_unref(NULL), NULL); /* dec */
 }
 END_TEST
 
 START_TEST(test_zc_crk_bforce_refcount)
 {
-    struct zc_crk_bforce *p;
+    struct zc_crk_bforce *p, *tmp;
     int ret;
 
     ret = zc_crk_bforce_new(ctx, &p);
     ck_assert_int_eq(ret, 0);
-    ck_assert_ptr_eq(zc_crk_bforce_ref(p), p);         /* inc */
-    ck_assert_ptr_eq(zc_crk_bforce_unref(p), p);       /* dec */
-    ck_assert_ptr_eq(zc_crk_bforce_unref(p), NULL);    /* dec */
+
+    tmp = zc_crk_bforce_ref(p);
+    ck_assert_ptr_eq(tmp, p);                          /* inc */
+    p = tmp;
+
+    tmp = zc_crk_bforce_unref(p);
+    ck_assert_ptr_eq(tmp, p);                          /* dec */
+    p = tmp;
+
+    tmp = zc_crk_bforce_unref(p);
+    ck_assert_ptr_eq(tmp, NULL);                       /* dec */
+
     ck_assert_ptr_eq(zc_crk_bforce_unref(NULL), NULL); /* dec */
 }
 END_TEST
 
 START_TEST(test_zc_crk_ptext_refcount)
 {
-    struct zc_crk_ptext *p;
+    struct zc_crk_ptext *p, *tmp;
     int ret;
 
     ret = zc_crk_ptext_new(ctx, &p);
     ck_assert_int_eq(ret, 0);
-    ck_assert_ptr_eq(zc_crk_ptext_ref(p), p);         /* inc */
-    ck_assert_ptr_eq(zc_crk_ptext_unref(p), p);       /* dec */
-    ck_assert_ptr_eq(zc_crk_ptext_unref(p), NULL);    /* dec */
+
+    tmp = zc_crk_ptext_ref(p);
+    ck_assert_ptr_eq(tmp, p);                         /* inc */
+    p = tmp;
+
+    tmp = zc_crk_ptext_unref(p);
+    ck_assert_ptr_eq(tmp, p);                         /* dec */
+    p = tmp;
+
+    tmp = zc_crk_ptext_unref(p);
+    ck_assert_ptr_eq(tmp, NULL);                      /* dec */
+
     ck_assert_ptr_eq(zc_crk_ptext_unref(NULL), NULL); /* dec */
 }
 END_TEST
