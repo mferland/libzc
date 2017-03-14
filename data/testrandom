@@ -100,11 +100,8 @@ cleanup
 
 create_dummy_files
 
-#test_zip_1
-
-# Very long
-#test_zip_2
-
+test_zip_1
+test_zip_2
 test_zip_6
 
 cleanup
