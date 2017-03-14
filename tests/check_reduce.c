@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2014  Marc Ferland
+ *  Copyright (C) 2017 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -83,9 +83,9 @@ START_TEST(test_can_generate_next_array_from_plaintext)
 }
 END_TEST
 
-Suite *make_key2_reduce_suite()
+Suite *reduce_suite()
 {
-    Suite *s = suite_create("key2");
+    Suite *s = suite_create("reduce");
 
     TCase *tc_core = tcase_create("Core");
     tcase_add_checked_fixture(tc_core, setup_key2r, teardown_key2r);
@@ -100,10 +100,15 @@ Suite *make_key2_reduce_suite()
 int main()
 {
     int number_failed;
-    SRunner *sr = srunner_create(make_key2_reduce_suite());
-    srunner_set_log(sr, "test_key2_reduce.log");
+    Suite *s;
+    SRunner *sr;
+
+    s = reduce_suite();
+    sr = srunner_create(s);
+
     srunner_run_all(sr, CK_NORMAL);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
+
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

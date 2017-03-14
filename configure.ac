@@ -16,15 +16,12 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
-AC_CHECK_PROG([UNZIP], [unzip], [yes])
-if test x"$UNZIP" != x"yes" ; then
-    AC_MSG_ERROR([unzip command missing.])
-fi
-
 AC_CHECK_LIB(pthread, pthread_create)
 AC_CHECK_LIB(z, inflate)
 
 PKG_PROG_PKG_CONFIG
+
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 
 AC_ARG_ENABLE([logging],
         AS_HELP_STRING([--disable-logging], [disable system logging @<:@default=enabled@:>@]),
@@ -36,19 +33,16 @@ AS_IF([test "x$enable_logging" = "xyes"], [
 AC_ARG_ENABLE([debug],
         AS_HELP_STRING([--enable-debug], [enable debug messages @<:@default=disabled@:>@]),
         [], [enable_debug=no])
-AS_IF([test "x$enable_debug" = "xyes"], [AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])])
-
-AC_ARG_ENABLE([tests],
-        AS_HELP_STRING([--enable-tests], [enable automated testing @<:@default=disabled@:>@]),
-        [], [enable_tests=no])
-AS_IF([test "x$enable_tests" = "xyes"], [PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])])
-AM_CONDITIONAL([BUILD_TESTS], [test "x$enable_tests" = "xyes"])
+AS_IF([test "x$enable_debug" = "xyes"], [
+            AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
+])
 
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
         Makefile
         lib/Makefile
         yazc/Makefile
+        tests/Makefile
         lib/libzc.pc
 ])
 
@@ -68,5 +62,4 @@ AC_MSG_RESULT([
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
-        tests:                  ${enable_tests}
 ])

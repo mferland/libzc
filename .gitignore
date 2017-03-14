@@ -13,9 +13,6 @@ configure
 autom4te.cache
 build-aux
 .dirstamp
-lib/test_libzc
-lib/test_ka
-lib/test_pwstream
 valgrind.supp
 *.log
 *.trs
@@ -29,3 +26,7 @@ ltmain.sh
 missing
 test-driver
 /valgrind_run.txt
+tests/.deps
+tests/.libs
+tests/check_basic
+tests/check_file

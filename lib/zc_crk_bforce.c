@@ -582,6 +582,9 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
         cfg->maxlen > ZC_PW_MAXLEN)
         return -1;
 
+    if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
+        return -1;
+
     memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
     memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
     crk->maxlen = cfg->maxlen;
@@ -625,6 +628,10 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 
     crk->vdata_size = err;
 
+    if (crk->cipher) {
+        free(crk->cipher);
+        crk->cipher = NULL;
+    }
     err = fill_test_cipher(crk->ctx,
                            filename,
                            &crk->cipher,
@@ -636,6 +643,8 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
         return -1;
     }
 
+    if (crk->filename)
+        free(crk->filename);
     crk->filename = strdup(filename);
 
     return 0;
@@ -733,5 +742,5 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
     pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
-    return err;
+    return err ? -1 : 0;        /* return -1 on error, else 0. */
 }
