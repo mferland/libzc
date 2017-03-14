@@ -100,6 +100,144 @@ START_TEST(test_parameter_init_leak)
 }
 END_TEST
 
+START_TEST(test_bruteforce_password_found)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradiqwerty");
+    cfg.maxlen = 6;
+    cfg.setlen = 12;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "noradi");
+}
+END_TEST
+
+START_TEST(test_bruteforce_password_found_multicall)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradiqwerty");
+    cfg.maxlen = 6;
+    cfg.setlen = 12;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "noradi");
+
+    memset(out, 0, sizeof(out));
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "noradi");
+}
+END_TEST
+
+START_TEST(test_bruteforce_password_not_found)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradiqwerty");
+    cfg.maxlen = 4;
+    cfg.setlen = 12;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
+}
+END_TEST
+
+START_TEST(test_bruteforce_password_not_found_multicall)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradiqwerty");
+    cfg.maxlen = 4;
+    cfg.setlen = 12;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
+}
+END_TEST
+
+START_TEST(test_bruteforce_stored)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[5];
+
+    strcpy(cfg.set, "password");
+    cfg.maxlen = 4;
+    cfg.setlen = 8;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/stored.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "pass");
+}
+END_TEST
+
+START_TEST(test_bruteforce_stored_multicall)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[5];
+
+    strcpy(cfg.set, "password");
+    cfg.maxlen = 4;
+    cfg.setlen = 8;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/stored.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "pass");
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "pass");
+}
+END_TEST
+
+#define CANCEL_TESTS 10
+
+static void test_cancel(size_t threads)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradi");
+    cfg.maxlen = 6;
+    cfg.setlen = 6;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    for (int i = 0; i < CANCEL_TESTS; ++i) {
+        ck_assert_int_eq(zc_crk_bforce_start(crk, threads, out, sizeof(out)), 0);
+        ck_assert_str_eq(out, "noradi");
+    }
+}
+
+START_TEST(test_bruteforce_thread_cancellation)
+{
+    /* Thread cancellation can easily break when making changes, if it
+       does, try to catch it here. If thread cancellation is broken
+       this loop should trigger the problem and the program will just
+       hang forever (making the test fail). */
+    for (size_t i = 1; i <= 10; ++i)
+        test_cancel(i);
+}
+END_TEST
+
 Suite * bforce_suite(void)
 {
     Suite *s;
@@ -113,6 +251,14 @@ Suite * bforce_suite(void)
     tcase_add_test(tc_core, test_parameter_set);
     tcase_add_test(tc_core, test_parameter_setlen);
     tcase_add_test(tc_core, test_parameter_init_leak);
+    tcase_add_test(tc_core, test_bruteforce_password_found);
+    tcase_add_test(tc_core, test_bruteforce_password_found_multicall);
+    tcase_add_test(tc_core, test_bruteforce_password_not_found);
+    tcase_add_test(tc_core, test_bruteforce_password_not_found_multicall);
+    tcase_add_test(tc_core, test_bruteforce_stored);
+    tcase_add_test(tc_core, test_bruteforce_stored_multicall);
+    tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
+    tcase_set_timeout(tc_core, 30);
     suite_add_tcase(s, tc_core);
 
     return s;

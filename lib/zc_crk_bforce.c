@@ -742,5 +742,5 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
     pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
-    return err;
+    return err ? -1 : 0;        /* return -1 on error, else 0. */
 }
