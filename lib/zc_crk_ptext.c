@@ -393,8 +393,81 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
     return 0;
 }
 
-ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *UNUSED(internal_rep))
+static int test_pw_with_key(const char *pw, const struct zc_key *k)
 {
-    /* TODO */
+    struct zc_key tmp;
+    int i = 0;
+
+    set_default_encryption_keys(&tmp);
+
+    while(pw[i] != '\0') {
+        update_keys(pw[i], &tmp, &tmp);
+        ++i;
+    }
+
+    return (k->key0 == tmp.key0 &&
+            k->key1 == tmp.key1 &&
+            k->key2 == tmp.key2) ? 0 : -1;
+}
+
+static int recurse_key14(char *pw, struct zc_key *k, size_t level, size_t nlevel)
+{
+    int ret;
+
+    if (!level) {
+        if (k->key0 == KEY0) {
+            *pw = '\0';
+            return test_pw_with_key(pw - nlevel, k - nlevel);
+        }
+        return -1;
+    }
+
+    struct zc_key *next = k + 1;
+    for (int c = 0; c < 256; ++c) {
+        *pw = c;
+        next->key0 = crc32inv(k->key0, c);
+        ret = recurse_key14(pw + 1, next, level - 1, nlevel);
+        if (ret < 0)
+            continue;
+        break;
+    }
+
+    return ret;
+}
+
+#define PASS_MAX_LEN 13
+
+ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
+                                         char *out, size_t len)
+{
+    char pw[PASS_MAX_LEN + 1] = {0};
+    struct zc_key k[PASS_MAX_LEN + 1] = {0};  /* 14 --> store the internal rep at index 0 */
+    int ret;
+
+    if (len < PASS_MAX_LEN)
+        return -1;
+
+    if (internal_rep->key0 == KEY0 &&
+        internal_rep->key1 == KEY1 &&
+        internal_rep->key2 == KEY2)
+    {
+        memset(pw, 0, len);
+        return 0;
+    }
+
+    /* try passwords length [1..4] */
+    k[0] = *internal_rep;
+    for (size_t l = 1; l <= 4; ++l) {
+        ret = recurse_key14(pw, k, l, l);
+        if (ret < 0)
+            continue;
+        goto found;
+    }
+
+    /* password not found */
+    return -1;
+
+found:
+    strncpy(out, pw, min(sizeof(pw), len));
     return 0;
 }

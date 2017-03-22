@@ -77,13 +77,6 @@ START_TEST(test_zc_crk_ptext_find_internal_rep)
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password)
-{
-    struct zc_key internal_rep = { .key0 = 0x9ccebdf4, .key1 = 0x758c65be, .key2 = 0xc661eb70 };
-    fail_unless(zc_crk_ptext_find_password(&internal_rep) == 0, NULL);
-}
-END_TEST
-
 Suite *plaintext_suite()
 {
     Suite *s = suite_create("plaintext");
@@ -94,7 +87,6 @@ Suite *plaintext_suite()
     tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
     tcase_add_test(tc_core, test_zc_crk_ptext_attack);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
-    tcase_add_test(tc_core, test_zc_crk_ptext_find_password);
     tcase_set_timeout(tc_core, 60*60);
     suite_add_tcase(s, tc_core);
 

@@ -1,10 +1,11 @@
-TESTS = basic file pwstream bruteforce reduce plaintext
+TESTS = basic file pwstream bruteforce reduce plaintext_password plaintext
 
 check_PROGRAMS = basic \
 	file \
 	pwstream \
 	bruteforce \
 	reduce \
+	plaintext_password \
 	plaintext
 
 # basic functions test
@@ -33,6 +34,11 @@ reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 reduce_LDADD = $(top_srcdir)/lib/key2_reduce.lo \
 	$(top_srcdir)/lib/ka.lo \
 	@CHECK_LIBS@
+
+# plaintext password functions
+plaintext_password_SOURCES = check_plaintext_password.c
+plaintext_password_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+plaintext_password_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 
 # plaintext related functions
 plaintext_SOURCES = check_plaintext.c
