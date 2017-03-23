@@ -19,6 +19,9 @@
 #include <zlib.h>
 #include <stdint.h>
 
+/* TODO: use inflateReset to avoid calling inflateInit2 and
+ * inflateEnd */
+
 int inflate_buffer(unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen,
                    uint32_t original_crc)
