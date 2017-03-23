@@ -393,7 +393,7 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
     return 0;
 }
 
-static int test_pw_with_key(const char *pw, size_t len, const struct zc_key *k)
+static int compare_pw_with_key(const char *pw, size_t len, const struct zc_key *k)
 {
     struct zc_key tmp;
 
@@ -413,7 +413,7 @@ static int recurse_key14(char *pw, struct zc_key *k, size_t level, size_t nlevel
 
     if (!level) {
         if (k->key0 == KEY0)
-            return test_pw_with_key(pw - nlevel, nlevel, k - nlevel);
+            return compare_pw_with_key(pw - nlevel, nlevel, k - nlevel);
         return -1;
     }
 
