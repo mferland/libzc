@@ -21,11 +21,19 @@
 
 #include "libzc.h"
 
+START_TEST(test_zc_crk_ptext_find_password_0)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x12345678, .key1 = 0x23456789, .key2 = 0x34567890 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 0);
+}
+END_TEST
+
 START_TEST(test_zc_crk_ptext_find_password_1)
 {
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0x64799c96, .key1 = 0xb303049c, .key2 = 0xa253270a };
-    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 0);
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 1);
     ck_assert_str_eq(pw, "a");
 }
 END_TEST
@@ -34,7 +42,7 @@ START_TEST(test_zc_crk_ptext_find_password_2)
 {
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0x23bd1e23, .key1 = 0x2b7993bc, .key2 = 0x4ccb4379 };
-    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 0);
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 2);
     ck_assert_str_eq(pw, "aa");
 }
 END_TEST
@@ -43,8 +51,17 @@ START_TEST(test_zc_crk_ptext_find_password_3)
 {
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0x98f19da2, .key1 = 0x1cd05dd7, .key2 = 0x3d945e94 };
-    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 0);
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 3);
     ck_assert_str_eq(pw, "aaa");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_4)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x2f56297, .key1 = 0x64329027, .key2 = 0xbd806642 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 4);
+    ck_assert_str_eq(pw, "aaaa");
 }
 END_TEST
 
@@ -53,9 +70,12 @@ Suite *plaintext_password_suite()
     Suite *s = suite_create("plaintext_password");
 
     TCase *tc_core = tcase_create("Core");
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_0);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_1);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_4);
+    tcase_set_timeout(tc_core, 30);
     suite_add_tcase(s, tc_core);
 
     return s;

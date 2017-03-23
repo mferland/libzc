@@ -393,17 +393,14 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
     return 0;
 }
 
-static int test_pw_with_key(const char *pw, const struct zc_key *k)
+static int test_pw_with_key(const char *pw, size_t len, const struct zc_key *k)
 {
     struct zc_key tmp;
-    int i = 0;
 
     set_default_encryption_keys(&tmp);
 
-    while(pw[i] != '\0') {
+    for (size_t i = 0; i < len; ++i)
         update_keys(pw[i], &tmp, &tmp);
-        ++i;
-    }
 
     return (k->key0 == tmp.key0 &&
             k->key1 == tmp.key1 &&
@@ -415,10 +412,8 @@ static int recurse_key14(char *pw, struct zc_key *k, size_t level, size_t nlevel
     int ret;
 
     if (!level) {
-        if (k->key0 == KEY0) {
-            *pw = '\0';
-            return test_pw_with_key(pw - nlevel, k - nlevel);
-        }
+        if (k->key0 == KEY0)
+            return test_pw_with_key(pw - nlevel, nlevel, k - nlevel);
         return -1;
     }
 
@@ -442,6 +437,7 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
 {
     char pw[PASS_MAX_LEN + 1] = {0};
     struct zc_key k[PASS_MAX_LEN + 1] = {0};  /* 14 --> store the internal rep at index 0 */
+    size_t l = 0;
     int ret;
 
     if (len < PASS_MAX_LEN)
@@ -450,14 +446,11 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
     if (internal_rep->key0 == KEY0 &&
         internal_rep->key1 == KEY1 &&
         internal_rep->key2 == KEY2)
-    {
-        memset(pw, 0, len);
-        return 0;
-    }
+        return l;               /* password has 0 bytes */
 
     /* try passwords length [1..4] */
     k[0] = *internal_rep;
-    for (size_t l = 1; l <= 4; ++l) {
+    for (l = 1; l <= 4; ++l) {
         ret = recurse_key14(pw, k, l, l);
         if (ret < 0)
             continue;
@@ -468,6 +461,7 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
     return -1;
 
 found:
-    strncpy(out, pw, min(sizeof(pw), len));
-    return 0;
+    memset(out, 0, len);
+    memcpy(out, pw, l);
+    return l;
 }
