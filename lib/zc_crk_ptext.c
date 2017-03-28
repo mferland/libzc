@@ -407,27 +407,65 @@ static int compare_pw_with_key(const char *pw, size_t len, const struct zc_key *
             k->key2 == tmp.key2) ? 0 : -1;
 }
 
-static int recurse_key14(char *pw, struct zc_key *k, size_t level, size_t nlevel)
+static int crack_password_1_4(char *pw, struct zc_key *k, size_t level)
+{
+    const size_t len = 4 - level + 1;
+    struct zc_key *next = k + 1;
+    int ret = -1;
+
+    for (int c = 0; c < 256; ++c) {
+        *pw = c;
+        next->key0 = crc32inv(k->key0, c);
+        if (next->key0 == KEY0) {
+            if (compare_pw_with_key(pw - len + 1, len, k - len + 1) == 0)
+                return len;
+        }
+        if (level > 1) {
+            ret = crack_password_1_4(pw + 1, next, level - 1);
+            if (ret < 0)
+                continue;
+            break;
+        }
+    }
+
+    return ret;
+}
+
+static int guess_key1_msb(struct zc_key *k, size_t level)
 {
     int ret;
 
     if (!level) {
-        if (k->key0 == KEY0)
-            return compare_pw_with_key(pw - nlevel, nlevel, k - nlevel);
+        if (k->key2 == KEY2)
+            return 0;
         return -1;
     }
 
-    struct zc_key *next = k + 1;
-    for (int c = 0; c < 256; ++c) {
-        *pw = c;
-        next->key0 = crc32inv(k->key0, c);
-        ret = recurse_key14(pw + 1, next, level - 1, nlevel);
+    for (int i = 0; i < 256; ++i) {
+        k->key1 = (i << 24);
+        k[1].key2 = crc32inv(k->key2, msb(k->key1));
+        ret = guess_key1_msb(&k[1], level - 1);
         if (ret < 0)
             continue;
         break;
     }
 
     return ret;
+}
+
+static int guess_key56(char *pw, struct zc_key *k, size_t level)
+{
+    /* calculate key2_0 */
+    k[1].key2 = crc32inv(k[0].key2, msb(k[0].key1));
+
+    /* calculate key1_0 */
+    k[1].key1 = ((k[0].key1 - 1) * MULTINV) - lsb(k[0].key0);
+
+    /* calculate key2_-1 */
+    k[2].key2 = crc32inv(k[1].key2, msb(k[1].key1));
+
+    /* guess msb(key1_2-l)...msb(key1_-1)*/
+    return guess_key1_msb(&k[2], level - 2);
 }
 
 #define PASS_MAX_LEN 13
@@ -437,7 +475,6 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
 {
     char pw[PASS_MAX_LEN + 1] = {0};
     struct zc_key k[PASS_MAX_LEN + 1] = {0};  /* 14 --> store the internal rep at index 0 */
-    size_t l = 0;
     int ret;
 
     if (len < PASS_MAX_LEN)
@@ -446,12 +483,18 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
     if (internal_rep->key0 == KEY0 &&
         internal_rep->key1 == KEY1 &&
         internal_rep->key2 == KEY2)
-        return l;               /* password has 0 bytes */
+        return 0;               /* password has 0 bytes */
 
-    /* try passwords length [1..4] */
     k[0] = *internal_rep;
-    for (l = 1; l <= 4; ++l) {
-        ret = recurse_key14(pw, k, l, l);
+    ret = crack_password_1_4(pw, k, 4);
+    if (ret > 0)
+        goto found;
+
+    /* try passwords length [5..6] */
+    memset(k, 0, sizeof(k));
+    k[0] = *internal_rep;
+    for (size_t l = 5; l <= 6; ++l) {
+        ret = guess_key56(pw, k, l);
         if (ret < 0)
             continue;
         goto found;
@@ -462,6 +505,6 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
 
 found:
     memset(out, 0, len);
-    memcpy(out, pw, l);
-    return l;
+    memcpy(out, pw, ret);
+    return ret;
 }

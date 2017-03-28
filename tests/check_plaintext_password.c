@@ -65,6 +65,15 @@ START_TEST(test_zc_crk_ptext_find_password_4)
 }
 END_TEST
 
+START_TEST(test_zc_crk_ptext_find_password_5)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x54dca24b, .key1 = 0x1b079a3b, .key2 = 0x120a6936 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(&internal_rep, pw, sizeof(pw)), 5);
+    ck_assert_str_eq(pw, "aaaaa");
+}
+END_TEST
+
 Suite *plaintext_password_suite()
 {
     Suite *s = suite_create("plaintext_password");
@@ -75,7 +84,8 @@ Suite *plaintext_password_suite()
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_4);
-    tcase_set_timeout(tc_core, 30);
+    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_5); */
+    tcase_set_timeout(tc_core, 60);
     suite_add_tcase(s, tc_core);
 
     return s;
