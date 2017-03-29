@@ -76,11 +76,14 @@ def update_key(c, key):
     key[1] = ((key[1] + (key[0] & 0xff)) * 134775813 + 1) & 0xffffffff
     key[2] = crc32(key[2], key[1] >> 24)
 
+def print_key(c, key):
+    print '[{}] %s'.format(', '.join("0x" + hex(x)[2:].zfill(8) for x in key)) % c
+
 pw = sys.argv[1]
 key = [0x12345678, 0x23456789, 0x34567890]
 
+print_key('(null)', key)
 while pw != '':
     update_key(ord(pw[0]), key)
+    print_key(pw[0], key)
     pw = pw[1:]
-
-print '[{}]'.format(', '.join(hex(x) for x in key))
