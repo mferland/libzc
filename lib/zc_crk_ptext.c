@@ -61,6 +61,17 @@ static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
     return (plaintext(i) ^ cipher(i));
 }
 
+static void generate_key0lsb(struct zc_crk_ptext *ptext)
+{
+    /* reset lsb counters to 0 */
+    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
+
+    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
+        uint8_t msbp = msb(p);
+        ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
+    }
+}
+
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
     if (!ptext)
@@ -96,6 +107,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
         return -1;
     }
 
+    generate_key0lsb(new);
     new->ctx = ctx;
     new->refcount = 1;
     new->key_found = false;
@@ -328,17 +340,6 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct ka **array, uint32_t
     }
 }
 
-static void generate_key0lsb(struct zc_crk_ptext *ptext)
-{
-    /* reset lsb counters to 0 */
-    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
-
-    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
-        uint8_t msbp = msb(p);
-        ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
-    }
-}
-
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
     if (ptext->key2)
@@ -352,8 +353,6 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 
     if (ptext_final_init(array))
         return -1;
-
-    generate_key0lsb(ptext);
 
     ptext->key_found = false;
     for (uint32_t i = 0; i < ptext->key2->size; ++i) {
@@ -407,70 +406,132 @@ static int compare_pw_with_key(const char *pw, size_t len, const struct zc_key *
             k->key2 == tmp.key2) ? 0 : -1;
 }
 
-static int crack_password_1_4(char *pw, struct zc_key *k, size_t level)
+
+/*
+ * from k0 msb and previous k0 lsb, find the key.
+ */
+static char recover_key_from_crcs(uint32_t prev, uint32_t k)
 {
-    const size_t len = 4 - level + 1;
-    struct zc_key *next = k + 1;
-    int ret = -1;
-
-    for (int c = 0; c < 256; ++c) {
-        *pw = c;
-        next->key0 = crc32inv(k->key0, c);
-        if (next->key0 == KEY0) {
-            if (compare_pw_with_key(pw - len + 1, len, k - len + 1) == 0)
-                return len;
-        }
-        if (level > 1) {
-            ret = crack_password_1_4(pw + 1, next, level - 1);
-            if (ret < 0)
-                continue;
-            break;
-        }
-    }
-
-    return ret;
+    return (prev ^ crc_32_invtab[k >> 24] ^ 0x00) & 0xff;
 }
 
-static int guess_key1_msb(struct zc_key *k, size_t level)
+/*
+   when this function returns true we will have something like:
+{key0 = 0x54dca24b, key1 = 0x1b079a3b, key2 = 0x120a6936} INT
+{key0 =       0x97, key1 = 0x64329027, key2 = 0xbd806642},
+{key0 =       0xa2, key1 = 0x1cd05dd7, key2 = 0x3d945e94},
+{key0 =       0x23, key1 = 0x2b7993bc, key2 = 0x4ccb4379},
+{key0 =       0x96, key1 = 0xb303049c, key2 = 0xa253270a},
+{key0 = 0x12345678, key1 = 0x23456789, key2 = 0x34567890}}
+
+ */
+static bool guess_key1(struct zc_key *k, struct zc_crk_ptext *ptext, uint32_t level)
 {
-    int ret;
+    if (level == 0)
+        return k->key1 == KEY1;
 
-    if (!level) {
-        if (k->key2 == KEY2)
-            return 0;
-        return -1;
+    uint32_t key1 = k->key1;
+    uint32_t key1m1 = (k + 1)->key1;
+    uint32_t key1m2 = (k + 2)->key1;
+    uint32_t rhs_step1 = (key1 - 1) * MULTINV;
+    uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
+    uint8_t diff = msb(rhs_step2 - mask_msb(key1m2));
+
+    for (uint32_t c = 2; c != 0; --c, --diff) {
+        for (uint32_t i = 0; i < ptext->lsbk0_count[diff]; ++i) {
+            uint32_t lsbkey0i = ptext->lsbk0_lookup[diff][i];
+            if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
+                (k + 1)->key1 = rhs_step1 - lsbkey0i;
+                k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
+                if (guess_key1(k + 1, ptext, level - 1))
+                    return true;
+            }
+        }
     }
-
-    for (int i = 0; i < 256; ++i) {
-        k->key1 = (i << 24);
-        k[1].key2 = crc32inv(k->key2, msb(k->key1));
-        ret = guess_key1_msb(&k[1], level - 1);
-        if (ret < 0)
-            continue;
-        break;
-    }
-
-    return ret;
-}
-
-static int guess_key56(char *pw, struct zc_key *k, size_t level)
-{
-    /* calculate key2_0 */
-    k[1].key2 = crc32inv(k[0].key2, msb(k[0].key1));
-
-    /* calculate key1_0 */
-    k[1].key1 = ((k[0].key1 - 1) * MULTINV) - lsb(k[0].key0);
-
-    /* calculate key2_-1 */
-    k[2].key2 = crc32inv(k[1].key2, msb(k[1].key1));
-
-    /* guess msb(key1_2-l)...msb(key1_-1)*/
-    return guess_key1_msb(&k[2], level - 2);
+    return false;
 }
 
 #define PASS_MAX_LEN 13
 
-ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
+static void recover_key1msb_and_key2(struct zc_key *k, int start)
+{
+    uint32_t prev = KEY2;
+
+    /* recover key2_-2 (24 bits msb) */
+    k[3].key2 = crc32inv(k[2].key2, 0x0);
+
+    /* recover key2_-3 (16 bits msb) */
+    k[4].key2 = crc32inv(k[3].key2, 0x0);
+
+    /* recover key2_-3 (16 bits msb) */
+    k[5].key2 = crc32inv(k[4].key2, 0x0);
+
+    for (int i = start; i >= 2; --i) {
+        k[i].key1 = recover_key_from_crcs(prev, k[i].key2) << 24;
+        prev = crc32(prev, msb(k[i].key1));
+        /* do not overwrite key2_-1, since we know the full value */
+        if (i > 2)
+            k[i].key2 = prev;
+    }
+}
+
+static void set_initial_keys(struct zc_key *k)
+{
+    k->key0 = KEY0;
+    k->key1 = KEY1;
+    k->key2 = KEY2;
+}
+
+static int try_key_56(char *pw, struct zc_key *k, struct zc_crk_ptext *ptext)
+{
+    /* recover full key2_0 */
+    k[1].key2 = crc32inv(k[0].key2, msb(k[0].key1));
+
+    /* recover full key1_0 */
+    k[1].key1 = ((k[0].key1 - 1) * MULTINV) - lsb(k[0].key0);
+
+    /* recover full key2_-1 */
+    k[2].key2 = crc32inv(k[1].key2, msb(k[1].key1));
+
+    for (int i = 4; i <= 5; ++i) {
+        recover_key1msb_and_key2(k, i);
+
+        /* verify against key2_-1 */
+        if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
+            printf("found!\n");
+            set_initial_keys(&k[i + 1]);
+            k[i + 2].key1 = 0x57d2770;
+            for (int j = 0; j < 3; ++j)
+                k[j + 1].key0 = crc32inv(k[j].key0, 0x0);
+            if (guess_key1(&k[1], ptext, i))
+                printf("found real key1\n");
+            return i + 1;
+        }
+    }
+
+    return -1;
+}
+
+/*
+ * passwords length 1->4, k points to the internal rep.
+ */
+static int try_key_14(char *pw, struct zc_key *k)
+{
+    for (int i = 0, len = 1; i < 4; ++i, ++len) {
+        k[i + 1].key0 = crc32inv(k[i].key0, 0x0);
+        uint32_t prev = KEY0;
+        for (int j = 0; j < len; ++j) {
+            pw[j] = recover_key_from_crcs(prev, k[i - j].key0);
+            prev = crc32(prev, pw[j]);
+        }
+        if (compare_pw_with_key(pw, len, k) == 0)
+            return len;
+    }
+    return -1;
+}
+
+ZC_EXPORT int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+                                         const struct zc_key *internal_rep,
                                          char *out, size_t len)
 {
     char pw[PASS_MAX_LEN + 1] = {0};
@@ -485,20 +546,18 @@ ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *internal_rep,
         internal_rep->key2 == KEY2)
         return 0;               /* password has 0 bytes */
 
+    /* initialise k[0] with internal representation */
     k[0] = *internal_rep;
-    ret = crack_password_1_4(pw, k, 4);
+
+    ret = try_key_14(pw, k);
     if (ret > 0)
         goto found;
 
     /* try passwords length [5..6] */
-    memset(k, 0, sizeof(k));
-    k[0] = *internal_rep;
-    for (size_t l = 5; l <= 6; ++l) {
-        ret = guess_key56(pw, k, l);
-        if (ret < 0)
-            continue;
+    memset(&k[1], 0, sizeof(k));
+    ret = try_key_56(pw, k, ptext);
+    if (ret > 0)
         goto found;
-    }
 
     /* password not found */
     return -1;
