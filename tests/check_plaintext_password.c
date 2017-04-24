@@ -85,7 +85,7 @@ START_TEST(test_zc_crk_ptext_find_password_5)
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0x54dca24b, .key1 = 0x1b079a3b, .key2 = 0x120a6936 };
     ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 5);
-    //ck_assert_str_eq(pw, "aaaaa");
+    ck_assert_str_eq(pw, "aaaaa");
 }
 END_TEST
 
@@ -94,7 +94,16 @@ START_TEST(test_zc_crk_ptext_find_password_6)
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0xdbef1574, .key1 = 0xc060416c, .key2 = 0x54cc5d40 };
     ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 6);
-    //ck_assert_str_eq(pw, "aaaaa");
+    ck_assert_str_eq(pw, "aaaaaa");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_7)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x6d060bfe, .key1 = 0xc76ff413, .key2 = 0x7388dade };
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 6);
+    ck_assert_str_eq(pw, "aaaaaaa");
 }
 END_TEST
 
@@ -104,13 +113,14 @@ Suite *plaintext_password_suite()
 
     TCase *tc_core = tcase_create("Core");
     tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_0); */
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_1); */
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2); */
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3); */
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_4); */
-    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_5); */
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_0);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_1);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_4);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_5);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_6);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_7);
     tcase_set_timeout(tc_core, 60);
     suite_add_tcase(s, tc_core);
 

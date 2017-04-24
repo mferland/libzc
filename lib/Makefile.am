@@ -56,7 +56,8 @@ libzc_la_SOURCES =\
 	zc_file.c \
 	common.c \
 	zc_crk_dict.c \
-	inflate.c
+	inflate.c \
+	find_password.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

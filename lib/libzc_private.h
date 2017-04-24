@@ -181,6 +181,12 @@ int test_buffer_crc(unsigned char *in, size_t inlen,
 void decrypt(const unsigned char *in, unsigned char *out,
              size_t len, const struct zc_key *key);
 
+int find_password(const uint8_t (*lsbk0_lookup)[2],
+                  const uint32_t *lsbk0_count,
+                  const struct zc_key *internal_rep,
+                  char *out,
+                  size_t len);
+
 /* key array helper */
 struct ka {
     uint32_t *array;
