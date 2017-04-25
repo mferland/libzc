@@ -28,7 +28,6 @@
 struct final {
     const uint8_t (*lsbk0_lookup)[2];
     const uint32_t *lsbk0_count;
-    const struct zc_key *irep;  /* internal representation */
     char pw[PASS_MAX_LEN + 1];
     struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
 };
@@ -134,6 +133,22 @@ static bool guess_key1(struct zc_key *k, const uint8_t (*lsbk0_lookup)[2], const
 }
 
 /**
+ * From the internal representation, we can calculate key1_0, key2_0,
+ * and key2_-1. See equation 2 in Biham & Kocher.
+ */
+static void key_56_step1(struct zc_key *k)
+{
+    /* recover full key2_0 */
+    k[1].key2 = crc32inv(k[0].key2, msb(k[0].key1));
+
+    /* recover full key1_0 */
+    k[1].key1 = ((k[0].key1 - 1) * MULTINV) - lsb(k[0].key0);
+
+    /* recover full key2_-1 */
+    k[2].key2 = crc32inv(k[1].key2, msb(k[1].key1));
+}
+
+/**
  * From full key2_0, key1_0 and key2_-1 recover the other full key2
  * values and k1 MSBs.
  *
@@ -165,7 +180,7 @@ static bool guess_key1(struct zc_key *k, const uint8_t (*lsbk0_lookup)[2], const
  * key0 = 0x12345678 key1 = 0x23456789 key2 = 0x34567890
  *
  */
-static void recover_key1msb_and_key2(struct zc_key *k, int start)
+static void key_56_step2(struct zc_key *k, int start)
 {
     uint32_t prev = KEY2;
 
@@ -191,34 +206,70 @@ static int try_key_56(struct final *f)
 {
     struct zc_key *k = f->k;
 
-    /* recover full key2_0 */
-    k[1].key2 = crc32inv(k[0].key2, msb(k[0].key1));
-
-    /* recover full key1_0 */
-    k[1].key1 = ((k[0].key1 - 1) * MULTINV) - lsb(k[0].key0);
-
-    /* recover full key2_-1 */
-    k[2].key2 = crc32inv(k[1].key2, msb(k[1].key1));
+    key_56_step1(k);
 
     for (int i = 4; i <= 5; ++i) {
-        recover_key1msb_and_key2(k, i);
+        key_56_step2(k, i);
 
         /* verify against key2_-1 */
         if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
             set_default_encryption_keys(&k[i + 1]);
             k[i + 2].key1 = PREKEY1;
             /* TODO: is this loop really needed? we dont need key0 MSBs? */
-            for (int j = 0; j < 3; ++j)
-                k[j + 1].key0 = crc32inv(k[j].key0, 0x0);
+            /* for (int j = 0; j < 3; ++j) */
+            /*     k[j + 1].key0 = crc32inv(k[j].key0, 0x0); */
             if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, i)) {
                 for (int j = 0; j < i + 1; ++j) {
                     f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
                     k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
                 }
+                /* TODO: test password! */
+                return i + 1;
             }
-            return i + 1;
         }
     }
+
+    return -1;
+}
+
+static void recover_prev_key(const struct zc_key *k, char c, struct zc_key *prev)
+{
+    prev->key2 = crc32inv(k->key2, msb(k->key1));
+    prev->key1 = ((k->key1 - 1) * MULTINV) - lsb(k->key0);
+    prev->key0 = crc32inv(k->key0, c);
+}
+
+static int recurse_key_7_13(struct final *f, size_t level, struct zc_key *irep)
+{
+    if (level > 0) {
+        for (int i = 0; i < 256; ++i) {
+            recover_prev_key(irep, c, &irep[1]);
+            int ret = recurse_key_7_13(f, level - 1, &irep[1]);
+            if (ret > 0)
+                return ret;
+        }
+        return -1;
+    }
+
+    struct zc_key *k = f->k;
+    key_56_step1(k);
+    key_56_step2(k, 5);
+    /* verify against key2_-1 */
+    if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
+        set_default_encryption_keys(&k[6]);
+        k[7].key1 = PREKEY1;
+        if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, 5)) {
+            for (int j = 0; j < 6; ++j) {
+                f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
+                k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
+            }
+            return 7;
+        }
+    }
+}
+
+static int try_key_7_13(struct final *f)
+{
 
     return -1;
 }
@@ -254,10 +305,10 @@ int find_password(const uint8_t (*lsbk0_lookup)[2],
     if (ret > 0)
         goto found;
 
-    /* reset(&f); */
-    /* ret = try_key_7_13(&f); */
-    /* if (ret > 0) */
-    /*     goto found; */
+    reset(&f);
+    ret = try_key_7_13(&f);
+    if (ret > 0)
+        goto found;
 
     /* password not found */
     return -1;

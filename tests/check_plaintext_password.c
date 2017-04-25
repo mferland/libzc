@@ -102,7 +102,7 @@ START_TEST(test_zc_crk_ptext_find_password_7)
 {
     char pw[14];
     struct zc_key internal_rep = { .key0 = 0x6d060bfe, .key1 = 0xc76ff413, .key2 = 0x7388dade };
-    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 6);
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 7);
     ck_assert_str_eq(pw, "aaaaaaa");
 }
 END_TEST
