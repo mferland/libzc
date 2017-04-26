@@ -239,38 +239,62 @@ static void recover_prev_key(const struct zc_key *k, char c, struct zc_key *prev
     prev->key0 = crc32inv(k->key0, c);
 }
 
-static int recurse_key_7_13(struct final *f, size_t level, struct zc_key *irep)
+static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *current_irep, char *pw)
 {
+    struct zc_key prev_irep;
+
+    /*
+     * Try all the possible values at position key_0, key_-1, up to
+     * key_l-6 basically offsetting the internal representation by one
+     * byte at each recursion level.
+     */
     if (level > 0) {
         for (int i = 0; i < 256; ++i) {
-            recover_prev_key(irep, c, &irep[1]);
-            int ret = recurse_key_7_13(f, level - 1, &irep[1]);
+            *pw = i;
+            recover_prev_key(current_irep, i, &prev_irep);
+            int ret = recurse_key_7_13(f, level - 1, &prev_irep, pw + 1);
             if (ret > 0)
-                return ret;
+                return ret + 1;
         }
         return -1;
     }
 
+    /*
+     * Try to recover the remaining 6 key bytes by using the same
+     * algorithm as try_key_5_6() (l=6).
+     */
     struct zc_key *k = f->k;
+    struct zc_key saved = k[0];
+    *k = *current_irep;
     key_56_step1(k);
     key_56_step2(k, 5);
+
     /* verify against key2_-1 */
     if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
         set_default_encryption_keys(&k[6]);
         k[7].key1 = PREKEY1;
         if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, 5)) {
             for (int j = 0; j < 6; ++j) {
-                f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
-                k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
+                pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
+                k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
             }
-            return 7;
+            *k = saved;
+            /* TODO: fix me!!! */
+            if (compare_pw_with_key(f->pw, &pw[5] - f->pw + 1, &f->k[0]) == 0)
+                return 6;
         }
     }
+    *k = saved;
+    return -1;
 }
 
 static int try_key_7_13(struct final *f)
 {
-
+    for (int i = 1; i <= 13; ++i) {
+        if (recurse_key_7_13(f, i, &f->k[0], f->pw) == 6 + i) {
+                return 6 + i;
+        }
+    }
     return -1;
 }
 

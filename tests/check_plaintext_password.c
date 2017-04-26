@@ -107,6 +107,42 @@ START_TEST(test_zc_crk_ptext_find_password_7)
 }
 END_TEST
 
+START_TEST(test_zc_crk_ptext_find_password_8)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x60dd88de, .key1 = 0xcf040cb6, .key2 = 0x6ac3a828 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 8);
+    ck_assert_str_eq(pw, "aaaaaaaa");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_9)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x5bbe7395, .key1 = 0xe446ee78, .key2 =  0x92b84d33};
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 9);
+    ck_assert_str_eq(pw, "aaaaaaaaa");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_10)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0xba8b8876, .key1 = 0xf00562a7, .key2 = 0x02ff2b47 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 10);
+    ck_assert_str_eq(pw, "aaaaaaaaaa");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_11)
+{
+    char pw[14];
+    struct zc_key internal_rep = { .key0 = 0x83690e4f, .key1 = 0x3ed1c6cf, .key2 = 0x29db36b3 };
+    ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw)), 11);
+    ck_assert_str_eq(pw, "aaaaaaaaaaa");
+}
+END_TEST
+
 Suite *plaintext_password_suite()
 {
     Suite *s = suite_create("plaintext_password");
@@ -121,7 +157,11 @@ Suite *plaintext_password_suite()
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_5);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_6);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_7);
-    tcase_set_timeout(tc_core, 60);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_8);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_9);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
+    //tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
+    tcase_set_timeout(tc_core, 120);
     suite_add_tcase(s, tc_core);
 
     return s;
