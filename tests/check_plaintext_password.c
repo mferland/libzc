@@ -24,6 +24,38 @@
 struct zc_ctx *ctx;
 struct zc_crk_ptext *ptext;
 
+struct test_pool {
+    struct zc_key k;
+    const char *pw;
+    size_t len;
+};
+
+#define POOL_LEN 19
+struct test_pool pool[POOL_LEN] = {
+    { { 0x64799c96, 0xb303049c, 0xa253270a }, "a", 1 },
+    { { 0xfd70cd2c, 0x5f7c5a8a, 0x0bef8959 }, "b", 1 },
+    { { 0x8a77fdba, 0xd4359550, 0x7185d3f1 }, "c", 1 },
+    { { 0x14136819, 0xc6da8e2b, 0x823ca2b9 }, "d", 1 },
+    { { 0x6b644339, 0xb7a8c716, 0x2943427d }, "12", 2 },
+    { { 0xe0be8d5d, 0x70bb3140, 0x7e983fff }, "123", 3 },
+    { { 0x5dd2af4d, 0x589d03b4, 0x3cf5ffa4 }, "abc", 3 },
+    { { 0x42ef4ac3, 0x8d167254, 0x428e6d93 }, "abcd", 4 },
+    { { 0x86acf865, 0x35f28777, 0x487a4de6 }, "eert", 4 },
+    { { 0xc7c2fd91, 0x8ceeffa2, 0x607e0c0b }, "marc", 4 },
+    { { 0x71850bee, 0xf0d3c2f5, 0xcd86a60b }, "12345", 5 },
+    { { 0x69ca8e31, 0xada107e8, 0x1a02db98 }, "soleil", 6 },
+    { { 0xbfa7c384, 0x8ce275f6, 0x381ff5ad }, "pploam", 6 },
+    { { 0x92d892f8, 0x929fc2cd, 0xbecc427c }, "olivier", 7 },
+    { { 0xf06c6793, 0xa728bdfe, 0xad145306 }, "quanfp5", 7 },
+    { { 0xc55fcbf5, 0xb45779f0, 0xaad9ef66 }, "p)(]lkj", 7 },
+    { { 0xf5ba4621, 0x5333625d, 0x6c5eaac2 }, "laurence", 8 },
+    { { 0x6c0c6c36, 0x4c8d85db, 0xdf01fc4f }, "mmna017f", 8 },
+    { { 0x354fe972, 0x1d10245c, 0xb361d1e4 }, "uuhnd5FG%", 9 },
+    /* { { 0x315e2c2d, 0x5b1586ba, 0xf57b0245 }, "kkjnhbgv78", 10 }, */
+    /* { { 0xd9a4f37e, 0x671cc039, 0xe1c65a02 }, "yhfg-098m31", 11 }, */
+    /* { { 0x9986f7db, 0x67338fae, 0x131eb6d7 }, "0098ikjmn3@@", 12 }, */
+};
+
 void setup_ptext()
 {
     zc_new(&ctx);
@@ -143,6 +175,22 @@ START_TEST(test_zc_crk_ptext_find_password_11)
 }
 END_TEST
 
+START_TEST(test_zc_crk_ptext_find_password_pool)
+{
+    char pw[14];
+    struct zc_key internal_rep;
+
+    for (int i = 0; i < POOL_LEN; ++i) {
+        internal_rep = pool[i].k;
+        ck_assert_int_eq(zc_crk_ptext_find_password(ptext,
+                                                    &internal_rep,
+                                                    pw, sizeof(pw)),
+                         pool[i].len);
+        ck_assert_str_eq(pw, pool[i].pw);
+    }
+}
+END_TEST
+
 Suite *plaintext_password_suite()
 {
     Suite *s = suite_create("plaintext_password");
@@ -160,8 +208,9 @@ Suite *plaintext_password_suite()
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_8);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_9);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
-    //tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
-    tcase_set_timeout(tc_core, 120);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
+    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_pool);
+    tcase_set_timeout(tc_core, 3600);
     suite_add_tcase(s, tc_core);
 
     return s;

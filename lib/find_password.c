@@ -22,15 +22,37 @@
 #include "libzc_private.h"
 #include "crc32.h"
 
-#define PREKEY1 0x57d2770
+#define PREKEY1 0x57d2770       /* the only key1 value possible before
+                                 * 0x12345678, found by exaustive
+                                 * search */
 #define PASS_MAX_LEN 13
 
 struct final {
     const uint8_t (*lsbk0_lookup)[2];
     const uint32_t *lsbk0_count;
-    char pw[PASS_MAX_LEN + 1];
+    char pw[PASS_MAX_LEN];
     struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
 };
+
+void inplace_reverse(char *str, size_t len)
+{
+    char * end = str + len - 1;
+
+#   define XOR_SWAP(a,b) do\
+    {\
+      a ^= b;\
+      b ^= a;\
+      a ^= b;\
+    } while (0)
+
+    while (str < end)
+    {
+      XOR_SWAP(*str, *end);
+      str++;
+      end--;
+    }
+#   undef XOR_SWAP
+}
 
 /**
  * Zero-out pw and keys
@@ -38,7 +60,7 @@ struct final {
 static void reset(struct final *f)
 {
     memset(f->pw, 0, PASS_MAX_LEN + 1);
-    memset(&f->k[1], 0, PASS_MAX_LEN);
+    memset(&f->k[1], 0, PASS_MAX_LEN * sizeof(struct zc_key));
 }
 
 /**
@@ -68,18 +90,33 @@ static int compare_pw_with_key(const char *pw, size_t len, const struct zc_key *
             k->key2 == tmp.key2) ? 0 : -1;
 }
 
+static int compare_revpw_with_key(const char *pw, size_t len, const struct zc_key *k)
+{
+    char revpw[PASS_MAX_LEN];
+
+    for (int i = len - 1, j = 0; i >= 0; --i, ++j) {
+        revpw[j] = pw[i];
+    }
+
+    return compare_pw_with_key(revpw, len, k);
+}
+
 /**
- * passwords length 1->4, k points to the internal rep.
+ * passwords length 1->4
  */
 static int try_key_14(struct final *f)
 {
     for (int i = 0, len = 1; i < 4; ++i, ++len) {
+        /* recover k0 msb */
         f->k[i + 1].key0 = crc32inv(f->k[i].key0, 0x0);
+
+        /* recover bytes from crcs */
         uint32_t prev = KEY0;
-        for (int j = 0; j < len; ++j) {
-            f->pw[j] = recover_input_byte_from_crcs(prev, f->k[i - j].key0);
+        for (int j = 0, k = i; j < len; ++j, --k) {
+            f->pw[j] = recover_input_byte_from_crcs(prev, f->k[k].key0);
             prev = crc32(prev, f->pw[j]);
         }
+
         if (compare_pw_with_key(f->pw, len, f->k) == 0)
             return len;
     }
@@ -193,6 +230,7 @@ static void key_56_step2(struct zc_key *k, int start)
     /* recover key2_-4 (8 bits msb) */
     k[5].key2 = crc32inv(k[4].key2, 0x0); /* TODO: k[5] is already known if key is only 5 chars */
 
+    /* recover full key1 values */
     for (int i = start; i >= 2; --i) {
         k[i].key1 = recover_input_byte_from_crcs(prev, k[i].key2) << 24;
         prev = crc32(prev, msb(k[i].key1));
@@ -200,6 +238,11 @@ static void key_56_step2(struct zc_key *k, int start)
         if (i > 2)
             k[i].key2 = prev;
     }
+}
+
+static bool verify_against_key2m1(const struct zc_key *k)
+{
+    return crc32(k[3].key2, msb(k[2].key1)) == k[2].key2;
 }
 
 static int try_key_56(struct final *f)
@@ -211,22 +254,26 @@ static int try_key_56(struct final *f)
     for (int i = 4; i <= 5; ++i) {
         key_56_step2(k, i);
 
-        /* verify against key2_-1 */
-        if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
-            set_default_encryption_keys(&k[i + 1]);
-            k[i + 2].key1 = PREKEY1;
-            /* TODO: is this loop really needed? we dont need key0 MSBs? */
-            /* for (int j = 0; j < 3; ++j) */
-            /*     k[j + 1].key0 = crc32inv(k[j].key0, 0x0); */
-            if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, i)) {
-                for (int j = 0; j < i + 1; ++j) {
-                    f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
-                    k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
-                }
-                /* TODO: test password! */
-                return i + 1;
-            }
+        if (!verify_against_key2m1(k))
+            continue;
+
+        set_default_encryption_keys(&k[i + 1]);
+        k[i + 2].key1 = PREKEY1;
+
+        if (!guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, i))
+            continue;
+
+        /* recover bytes from key0 */
+        for (int j = 0; j < i + 1; ++j) {
+            f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
+            k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
         }
+
+        if (compare_revpw_with_key(f->pw, i + 1, &f->k[0]) < 0)
+            continue;
+
+        inplace_reverse(f->pw, i + 1);
+        return i + 1;
     }
 
     return -1;
@@ -270,7 +317,7 @@ static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *
     key_56_step2(k, 5);
 
     /* verify against key2_-1 */
-    if (crc32(k[3].key2, msb(k[2].key1)) == k[2].key2) {
+    if (verify_against_key2m1(k)) {
         set_default_encryption_keys(&k[6]);
         k[7].key1 = PREKEY1;
         if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, 5)) {
@@ -279,9 +326,11 @@ static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *
                 k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
             }
             *k = saved;
-            /* TODO: fix me!!! */
-            if (compare_pw_with_key(f->pw, &pw[5] - f->pw + 1, &f->k[0]) == 0)
+            size_t len = &pw[5] - f->pw + 1;
+            if (compare_revpw_with_key(f->pw, len, &f->k[0]) == 0) {
+                inplace_reverse(f->pw, len);
                 return 6;
+            }
         }
     }
     *k = saved;
@@ -290,7 +339,7 @@ static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *
 
 static int try_key_7_13(struct final *f)
 {
-    for (int i = 1; i <= 13; ++i) {
+    for (int i = 1; i <= 7; ++i) {
         if (recurse_key_7_13(f, i, &f->k[0], f->pw) == 6 + i) {
                 return 6 + i;
         }
