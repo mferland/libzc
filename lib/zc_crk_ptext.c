@@ -61,6 +61,17 @@ static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
     return (plaintext(i) ^ cipher(i));
 }
 
+static void generate_key0lsb(struct zc_crk_ptext *ptext)
+{
+    /* reset lsb counters to 0 */
+    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
+
+    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
+        uint8_t msbp = msb(p);
+        ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
+    }
+}
+
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
     if (!ptext)
@@ -96,6 +107,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
         return -1;
     }
 
+    generate_key0lsb(new);
     new->ctx = ctx;
     new->refcount = 1;
     new->key_found = false;
@@ -328,17 +340,6 @@ static void recurse_key2(struct zc_crk_ptext *ptext, struct ka **array, uint32_t
     }
 }
 
-static void generate_key0lsb(struct zc_crk_ptext *ptext)
-{
-    /* reset lsb counters to 0 */
-    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
-
-    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
-        uint8_t msbp = msb(p);
-        ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
-    }
-}
-
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
     if (ptext->key2)
@@ -352,8 +353,6 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 
     if (ptext_final_init(array))
         return -1;
-
-    generate_key0lsb(ptext);
 
     ptext->key_found = false;
     for (uint32_t i = 0; i < ptext->key2->size; ++i) {
@@ -393,8 +392,13 @@ ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
     return 0;
 }
 
-ZC_EXPORT int zc_crk_ptext_find_password(const struct zc_key *UNUSED(internal_rep))
+ZC_EXPORT int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+                                         const struct zc_key *internal_rep,
+                                         char *out, size_t len)
 {
-    /* TODO */
-    return 0;
+    return find_password(ptext->lsbk0_lookup,
+                         ptext->lsbk0_count,
+                         internal_rep,
+                         out,
+                         len);
 }

@@ -132,7 +132,9 @@ int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
                                    const uint8_t *ciphertext,
                                    size_t size,
                                    struct zc_key *internal_rep);
-int zc_crk_ptext_find_password(const struct zc_key *internal_rep);
+int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+                               const struct zc_key *internal_rep,
+                               char *out, size_t len);
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
