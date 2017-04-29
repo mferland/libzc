@@ -30,7 +30,7 @@ struct test_pool {
     size_t len;
 };
 
-#define POOL_LEN 19
+#define POOL_LEN 20
 struct test_pool pool[POOL_LEN] = {
     { { 0x64799c96, 0xb303049c, 0xa253270a }, "a", 1 },
     { { 0xfd70cd2c, 0x5f7c5a8a, 0x0bef8959 }, "b", 1 },
@@ -51,7 +51,7 @@ struct test_pool pool[POOL_LEN] = {
     { { 0xf5ba4621, 0x5333625d, 0x6c5eaac2 }, "laurence", 8 },
     { { 0x6c0c6c36, 0x4c8d85db, 0xdf01fc4f }, "mmna017f", 8 },
     { { 0x354fe972, 0x1d10245c, 0xb361d1e4 }, "uuhnd5FG%", 9 },
-    /* { { 0x315e2c2d, 0x5b1586ba, 0xf57b0245 }, "kkjnhbgv78", 10 }, */
+    { { 0x315e2c2d, 0x5b1586ba, 0xf57b0245 }, "kkjnhbgv78", 10 },
     /* { { 0xd9a4f37e, 0x671cc039, 0xe1c65a02 }, "yhfg-098m31", 11 }, */
     /* { { 0x9986f7db, 0x67338fae, 0x131eb6d7 }, "0098ikjmn3@@", 12 }, */
 };
@@ -207,8 +207,8 @@ Suite *plaintext_password_suite()
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_7);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_8);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_9);
-    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
-    tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
+    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10); */
+    /* tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11); */
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_pool);
     tcase_set_timeout(tc_core, 3600);
     suite_add_tcase(s, tc_core);

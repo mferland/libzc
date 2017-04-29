@@ -32,6 +32,7 @@ struct final {
     const uint32_t *lsbk0_count;
     char pw[PASS_MAX_LEN];
     struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
+    struct zc_key saved;
 };
 
 void inplace_reverse(char *str, size_t len)
@@ -94,9 +95,8 @@ static int compare_revpw_with_key(const char *pw, size_t len, const struct zc_ke
 {
     char revpw[PASS_MAX_LEN];
 
-    for (int i = len - 1, j = 0; i >= 0; --i, ++j) {
+    for (int i = len - 1, j = 0; i >= 0; --i, ++j)
         revpw[j] = pw[i];
-    }
 
     return compare_pw_with_key(revpw, len, k);
 }
@@ -104,7 +104,7 @@ static int compare_revpw_with_key(const char *pw, size_t len, const struct zc_ke
 /**
  * passwords length 1->4
  */
-static int try_key_14(struct final *f)
+static int try_key_1_4(struct final *f)
 {
     for (int i = 0, len = 1; i < 4; ++i, ++len) {
         /* recover k0 msb */
@@ -245,7 +245,7 @@ static bool verify_against_key2m1(const struct zc_key *k)
     return crc32(k[3].key2, msb(k[2].key1)) == k[2].key2;
 }
 
-static int try_key_56(struct final *f)
+static int try_key_5_6(struct final *f)
 {
     struct zc_key *k = f->k;
 
@@ -286,20 +286,29 @@ static void recover_prev_key(const struct zc_key *k, char c, struct zc_key *prev
     prev->key0 = crc32inv(k->key0, c);
 }
 
-static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *current_irep, char *pw)
+static void save_internal_rep(struct final *f)
 {
-    struct zc_key prev_irep;
+    f->saved = f->k[0];
+}
 
+static void restore_internal_rep(struct final *f)
+{
+    f->k[0] = f->saved;
+}
+
+static int recurse_key_7_13(struct final *f, size_t level, struct zc_key current, char *pw)
+{
     /*
      * Try all the possible values at position key_0, key_-1, up to
      * key_l-6 basically offsetting the internal representation by one
      * byte at each recursion level.
      */
     if (level > 0) {
+        struct zc_key prev;
         for (int i = 0; i < 256; ++i) {
             *pw = i;
-            recover_prev_key(current_irep, i, &prev_irep);
-            int ret = recurse_key_7_13(f, level - 1, &prev_irep, pw + 1);
+            recover_prev_key(&current, i, &prev);
+            int ret = recurse_key_7_13(f, level - 1, prev, pw + 1);
             if (ret > 0)
                 return ret + 1;
         }
@@ -308,11 +317,10 @@ static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *
 
     /*
      * Try to recover the remaining 6 key bytes by using the same
-     * algorithm as try_key_5_6() (l=6).
+     * algorithm as try_key_5_6 (l=6).
      */
     struct zc_key *k = f->k;
-    struct zc_key saved = k[0];
-    *k = *current_irep;
+    *k = current;
     key_56_step1(k);
     key_56_step2(k, 5);
 
@@ -325,25 +333,27 @@ static int recurse_key_7_13(struct final *f, size_t level, const struct zc_key *
                 pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
                 k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
             }
-            *k = saved;
             size_t len = &pw[5] - f->pw + 1;
-            if (compare_revpw_with_key(f->pw, len, &f->k[0]) == 0) {
+            if (compare_revpw_with_key(f->pw, len, &f->saved) == 0) {
                 inplace_reverse(f->pw, len);
                 return 6;
             }
         }
     }
-    *k = saved;
+    restore_internal_rep(f);
     return -1;
 }
 
 static int try_key_7_13(struct final *f)
 {
-    for (int i = 1; i <= 7; ++i) {
-        if (recurse_key_7_13(f, i, &f->k[0], f->pw) == 6 + i) {
-                return 6 + i;
+    save_internal_rep(f);
+    for (int i = 1, len = 7; i <= 7; ++i, ++len) {
+        if (recurse_key_7_13(f, i, f->k[0], f->pw) == len) {
+            restore_internal_rep(f);
+            return len;
         }
     }
+    restore_internal_rep(f);
     return -1;
 }
 
@@ -369,12 +379,12 @@ int find_password(const uint8_t (*lsbk0_lookup)[2],
     f.lsbk0_count = lsbk0_count;
     f.k[0] = *internal_rep;
 
-    ret = try_key_14(&f);
+    ret = try_key_1_4(&f);
     if (ret > 0)
         goto found;
 
     reset(&f);
-    ret = try_key_56(&f);
+    ret = try_key_5_6(&f);
     if (ret > 0)
         goto found;
 

@@ -28,6 +28,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "yazc.h"
 #include "libzc.h"
@@ -305,6 +306,24 @@ static int do_plaintext(int argc, char *argv[])
 
     printf("Internal key representation: 0x%x 0x%x 0x%x\n",
            int_rep.key0, int_rep.key1, int_rep.key2);
+
+    printf("Recovering original password...");
+    fflush(stdout);
+    char pw[14];
+    err = zc_crk_ptext_find_password(ptext, &int_rep, pw, sizeof(pw));
+    if (err < 0) {
+        yazc_err(" failed!\n");
+        goto error4;
+    }
+
+    printf("\nOriginal password: ");
+    for (int i = 0; i < err; ++i) {
+        if (isprint(pw[i]))
+            printf("%c ", pw[i]);
+        else
+            printf("0x%x ", pw[i]);
+    }
+    printf("\n");
 
 error4:
     zc_crk_ptext_unref(ptext);
