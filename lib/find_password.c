@@ -33,6 +33,7 @@ struct final {
     char pw[PASS_MAX_LEN];
     struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
     struct zc_key saved;
+    int len_under_test;
 };
 
 void inplace_reverse(char *str, size_t len)
@@ -62,6 +63,16 @@ static void reset(struct final *f)
 {
     memset(f->pw, 0, PASS_MAX_LEN + 1);
     memset(&f->k[1], 0, PASS_MAX_LEN * sizeof(struct zc_key));
+}
+
+static void save_internal_rep(struct final *f)
+{
+    f->saved = f->k[0];
+}
+
+static void restore_internal_rep(struct final *f)
+{
+    f->k[0] = f->saved;
 }
 
 /**
@@ -110,7 +121,7 @@ static int try_key_1_4(struct final *f)
         /* recover k0 msb */
         f->k[i + 1].key0 = crc32inv(f->k[i].key0, 0x0);
 
-        /* recover bytes from crcs */
+        /* recover bytes */
         uint32_t prev = KEY0;
         for (int j = 0, k = i; j < len; ++j, --k) {
             f->pw[j] = recover_input_byte_from_crcs(prev, f->k[k].key0);
@@ -143,7 +154,10 @@ static int try_key_1_4(struct final *f)
  * key0 = 0x??????96 key1 = 0xb303049c key2 = 0xa253270a
  * key0 = 0x12345678 key1 = 0x23456789 key2 = 0x34567890
  */
-static bool guess_key1(struct zc_key *k, const uint8_t (*lsbk0_lookup)[2], const uint32_t *lsbk0_count, uint32_t level)
+static bool recover_key1_key0lsb(struct zc_key *k,
+                                 const uint8_t (*lsbk0_lookup)[2],
+                                 const uint32_t *lsbk0_count,
+                                 uint32_t level)
 {
     if (level == 0)
         return k->key1 == KEY1;
@@ -161,7 +175,7 @@ static bool guess_key1(struct zc_key *k, const uint8_t (*lsbk0_lookup)[2], const
             if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
                 (k + 1)->key1 = rhs_step1 - lsbkey0i;
                 k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
-                if (guess_key1(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
+                if (recover_key1_key0lsb(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
                     return true;
             }
         }
@@ -260,10 +274,10 @@ static int try_key_5_6(struct final *f)
         set_default_encryption_keys(&k[i + 1]);
         k[i + 2].key1 = PREKEY1;
 
-        if (!guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, i))
+        if (!recover_key1_key0lsb(&k[1], f->lsbk0_lookup, f->lsbk0_count, i))
             continue;
 
-        /* recover bytes from key0 */
+        /* recover bytes */
         for (int j = 0; j < i + 1; ++j) {
             f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
             k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
@@ -284,16 +298,6 @@ static void recover_prev_key(const struct zc_key *k, char c, struct zc_key *prev
     prev->key2 = crc32inv(k->key2, msb(k->key1));
     prev->key1 = ((k->key1 - 1) * MULTINV) - lsb(k->key0);
     prev->key0 = crc32inv(k->key0, c);
-}
-
-static void save_internal_rep(struct final *f)
-{
-    f->saved = f->k[0];
-}
-
-static void restore_internal_rep(struct final *f)
-{
-    f->k[0] = f->saved;
 }
 
 static int recurse_key_7_13(struct final *f, size_t level, struct zc_key current, char *pw)
@@ -325,21 +329,27 @@ static int recurse_key_7_13(struct final *f, size_t level, struct zc_key current
     key_56_step2(k, 5);
 
     /* verify against key2_-1 */
-    if (verify_against_key2m1(k)) {
-        set_default_encryption_keys(&k[6]);
-        k[7].key1 = PREKEY1;
-        if (guess_key1(&k[1], f->lsbk0_lookup, f->lsbk0_count, 5)) {
-            for (int j = 0; j < 6; ++j) {
-                pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
-                k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
-            }
-            size_t len = &pw[5] - f->pw + 1;
-            if (compare_revpw_with_key(f->pw, len, &f->saved) == 0) {
-                inplace_reverse(f->pw, len);
-                return 6;
-            }
-        }
+    if (!verify_against_key2m1(k))
+        goto next;
+
+    set_default_encryption_keys(&k[6]);
+    k[7].key1 = PREKEY1;
+    if (!recover_key1_key0lsb(&k[1], f->lsbk0_lookup, f->lsbk0_count, 5))
+        goto next;
+
+    for (int j = 0; j < 6; ++j) {
+        pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
+        k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
     }
+
+    if (!compare_revpw_with_key(f->pw, f->len_under_test, &f->saved) == 0)
+        goto next;
+
+    /* got it! */
+    inplace_reverse(f->pw, f->len_under_test);
+    return 6;
+
+next:
     restore_internal_rep(f);
     return -1;
 }
@@ -348,6 +358,7 @@ static int try_key_7_13(struct final *f)
 {
     save_internal_rep(f);
     for (int i = 1, len = 7; i <= 7; ++i, ++len) {
+        f->len_under_test = len;
         if (recurse_key_7_13(f, i, f->k[0], f->pw) == len) {
             restore_internal_rep(f);
             return len;
@@ -359,7 +370,7 @@ static int try_key_7_13(struct final *f)
 
 int find_password(const uint8_t (*lsbk0_lookup)[2],
                   const uint32_t *lsbk0_count,
-                  const struct zc_key *internal_rep,
+                  const struct zc_key *int_rep,
                   char *out,
                   size_t len)
 {
@@ -369,15 +380,15 @@ int find_password(const uint8_t (*lsbk0_lookup)[2],
     if (len < PASS_MAX_LEN)
         return -1;
 
-    if (internal_rep->key0 == KEY0 &&
-        internal_rep->key1 == KEY1 &&
-        internal_rep->key2 == KEY2)
+    if (int_rep->key0 == KEY0 &&
+        int_rep->key1 == KEY1 &&
+        int_rep->key2 == KEY2)
         return 0;               /* password has 0 bytes */
 
     /* initialise final structure */
     f.lsbk0_lookup = lsbk0_lookup;
     f.lsbk0_count = lsbk0_count;
-    f.k[0] = *internal_rep;
+    f.k[0] = *int_rep;
 
     ret = try_key_1_4(&f);
     if (ret > 0)
