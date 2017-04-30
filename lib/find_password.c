@@ -23,7 +23,7 @@
 #include "crc32.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
-                                 * 0x12345678, found by exaustive
+                                 * 0x12345678, found by exhaustive
                                  * search */
 #define PASS_MAX_LEN 13
 
