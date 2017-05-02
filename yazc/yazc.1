@@ -68,10 +68,7 @@ stream cipher to find the internal representation of the encryption
 key. To use this attack type, you need at least 13 known plaintext
 bytes from any file in the archive. Generally, this means that you
 need to obtain at least 13 bytes of the \fBcompressed\fR stream before
-it was encrypted. Currently the algorithm does not return the password
-itself but only the encryption key derived from the password. A future
-version will provide more options to find the actual password and/or
-decrypt the file.
+it was encrypted.
 .PP
 The \fIplaintext\fR command expects two file arguments along with the
 corresponding offsets separated by colons. The first file argument is
@@ -115,7 +112,8 @@ to 650 and map them to ciphertext bytes 112 to 662. Use these bytes to
 reduce the number of keys and perform the attack. Once the
 intermediate key is found, decrypt the rest of the cipher (begins at
 offset 64) to get the internal representation (the encryption key
-derived from the password).
+derived from the password). If possible the actual (or equivalent)
+password will also be recovered and printed.
 .PP
 .nf
 .RS
