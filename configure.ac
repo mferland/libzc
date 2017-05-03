@@ -21,7 +21,8 @@ AC_CHECK_LIB(z, inflate)
 
 PKG_PROG_PKG_CONFIG
 
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [HAVE_CHECK=1], [HAVE_CHECK=0])
+AM_CONDITIONAL([USE_CHECK], [test "$HAVE_CHECK" -eq 1])
 
 AC_ARG_ENABLE([logging],
         AS_HELP_STRING([--disable-logging], [disable system logging @<:@default=enabled@:>@]),
