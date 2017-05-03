@@ -28,5 +28,10 @@ test-driver
 /valgrind_run.txt
 tests/.deps
 tests/.libs
-tests/check_basic
-tests/check_file
+tests/basic
+tests/bruteforce
+tests/file
+tests/plaintext
+tests/plaintext_password
+tests/pwstream
+tests/reduce
