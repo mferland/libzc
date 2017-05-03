@@ -1,5 +1,5 @@
 #!/bin/sh
 
-autoreconf --install --symlink
+autoreconf --install
 
 exit 0
