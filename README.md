@@ -51,9 +51,8 @@ Plaintext
 ---------
 This mode uses a known vulnerability in the pkzip stream cipher to
 find the internal representation of the encryption key. Once the
-internal representation of the key has been found, you can use an
-external tool (like zipdecrypt from pkcrack) to actually decrypt the
-zip file.
+internal representation of the key has been found, we try to find the
+actual (or an equivalent) password.
 
 Example:
 
@@ -61,7 +60,8 @@ Example:
 
 TODO
 ----
-- Find the actual password when using the plaintext attack.
 - Support for GPU bruteforce cracking.
 - Add basic mangling rules to dictionary attack.
 - Review library api, should be much simpler.
+- Optionally decrypt the archive (plaintext).
+- Provide a way to benchmark libzc.
