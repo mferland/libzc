@@ -4,6 +4,7 @@ AC_INIT([zc],
         [marc.ferland@gmail.com],
         [libzc],
         [http://github.com/mferland/libzc])
+m4_include([m4/ax_pthread.m4])
 AC_CONFIG_SRCDIR([lib/libzc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
 AC_SYS_LARGEFILE
@@ -16,11 +17,13 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
-AC_CHECK_LIB(pthread, pthread_create)
-AC_CHECK_LIB(z, inflate)
+AX_PTHREAD([CLIBS="$PTHREAD_LIBS $LIBS"
+            CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+            LDFLAGS="$LDFLAGS $PTHREAD_CFLAGS"])
 
 PKG_PROG_PKG_CONFIG
 
+PKG_CHECK_MODULES(ZLIB, zlib)
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [HAVE_CHECK=1], [HAVE_CHECK=0])
 AM_CONDITIONAL([USE_CHECK], [test "$HAVE_CHECK" -eq 1])
 
@@ -59,7 +62,7 @@ AC_MSG_RESULT([
 
         compiler:               ${CC}
         cflags:                 ${CFLAGS}
-        ldflags:                ${LDFLAGS}
+        ldflags:                ${LIBS} ${LDFLAGS}
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}

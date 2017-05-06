@@ -12,14 +12,13 @@ AM_CFLAGS = \
         -Wall -Wextra  \
 	-fvisibility=hidden \
 	-ffunction-sections \
-	-fdata-sections \
-	-pthread
+	-fdata-sections
 
 AM_LDFLAGS = \
 	-Wl,--gc-sections \
 	-Wl,--as-needed \
 	-Wl,-z,defs \
-	-lm -lz -pthread
+	-lm ${ZLIB_LIBS}
 
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
@@ -62,6 +61,6 @@ include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
 
-pkgconfigdir = $(libdir)/pkgconfig
+pkgconfigdir = $(datadir)/pkgconfig
 pkgconfig_DATA = libzc.pc
 CLEANFILES += libzc.pc

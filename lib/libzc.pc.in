@@ -9,3 +9,4 @@ Version: @VERSION@
 Libs: -L${libdir} -lzc
 Libs.private:
 Cflags: -I${includedir}
+Requires.private: zlib
