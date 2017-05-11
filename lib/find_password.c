@@ -117,13 +117,13 @@ static int compare_revpw_with_key(const char *pw, size_t len, const struct zc_ke
  */
 static int try_key_1_4(struct final *f)
 {
-    for (int i = 0, len = 1; i < 4; ++i, ++len) {
+    for (int len = 1; len <= 4; ++len) {
         /* recover k0 msb */
-        f->k[i + 1].key0 = crc32inv(f->k[i].key0, 0x0);
+        f->k[len].key0 = crc32inv(f->k[len - 1].key0, 0x0);
 
         /* recover bytes */
         uint32_t prev = KEY0;
-        for (int j = 0, k = i; j < len; ++j, --k) {
+        for (int j = 0, k = len - 1; j < len; ++j, --k) {
             f->pw[j] = recover_input_byte_from_crcs(prev, f->k[k].key0);
             prev = crc32(prev, f->pw[j]);
         }
