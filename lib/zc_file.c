@@ -479,23 +479,6 @@ err:
     return -1;
 }
 
-/**
- * test_password_ext:
- *
- * Test the given password using the unzip command line tool. This
- * should be used exclusively for discarding false positives returned
- * by the cracker.
- *
- * @retval true The file was successfully decrypted (password found).
- * @retval false The file can't be decrypted (false positive).
- */
-bool test_password_ext(const char *filename, const char *pw)
-{
-    char cmd[128];
-    sprintf(cmd, "unzip -qqtP \"%s\" \"%s\" >/dev/null 2>&1", pw, filename);
-    return (system(cmd) == EXIT_SUCCESS);
-}
-
 ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file, struct zc_info *info)
 {
     struct zc_info *i;

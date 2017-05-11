@@ -169,8 +169,6 @@ size_t read_validation_data(struct zc_file *file,
 bool test_one_pw(const char *pw,
                  const struct validation_data *vdata,
                  size_t nmemb);
-bool test_password_ext(const char *filename,
-                       const char *pw);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
                     size_t *len, uint32_t *original_crc, bool *is_deflated);
 int inflate_buffer(const unsigned char *in, size_t inlen,
