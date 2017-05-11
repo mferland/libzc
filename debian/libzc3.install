@@ -1,0 +1,3 @@
+usr/lib/*/lib*.so.*
+usr/bin/yazc
+usr/share/man/man1/yazc.1
