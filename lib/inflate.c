@@ -21,9 +21,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* TODO: use inflateReset to avoid calling inflateInit2 and
- * inflateEnd */
-
 struct zlib_state {
     z_stream s;
 };
