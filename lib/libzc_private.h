@@ -171,11 +171,6 @@ bool test_one_pw(const char *pw,
                  size_t nmemb);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
                     size_t *len, uint32_t *original_crc, bool *is_deflated);
-int inflate_buffer(const unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen,
-                   uint32_t original_crc);
-int test_buffer_crc(unsigned char *in, size_t inlen,
-                    uint32_t original_crc);
 void decrypt(const unsigned char *in, unsigned char *out,
              size_t len, const struct zc_key *key);
 
@@ -184,6 +179,17 @@ int find_password(const uint8_t (*lsbk0_lookup)[2],
                   const struct zc_key *internal_rep,
                   char *out,
                   size_t len);
+
+/* zlib stuff */
+struct zlib_state;
+int inflate_new(struct zlib_state **zlib);
+void inflate_destroy(struct zlib_state *zlib);
+int inflate_buffer(struct zlib_state *zlib,
+		   const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t outlen,
+                   uint32_t original_crc);
+int test_buffer_crc(unsigned char *in, size_t inlen,
+                    uint32_t original_crc);
 
 /* key array helper */
 struct ka {

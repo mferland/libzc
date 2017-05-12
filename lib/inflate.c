@@ -18,42 +18,67 @@
 
 #include <zlib.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
 
 /* TODO: use inflateReset to avoid calling inflateInit2 and
  * inflateEnd */
 
-int inflate_buffer(unsigned char *in, size_t inlen,
+struct zlib_state {
+    z_stream s;
+};
+
+int inflate_new(struct zlib_state **zlib)
+{
+    struct zlib_state *tmp;
+
+    tmp = calloc(1, sizeof(struct zlib_state));
+    if (!tmp)
+	return -1;
+
+    tmp->s.zalloc = Z_NULL;
+    tmp->s.zfree = Z_NULL;
+    tmp->s.opaque = Z_NULL;
+    if (inflateInit2(&tmp->s, -MAX_WBITS) != Z_OK) {
+	free(tmp);
+	return -1;
+    }
+
+    *zlib = tmp;
+    return 0;
+}
+
+void inflate_destroy(struct zlib_state *zlib)
+{
+    inflateEnd(&zlib->s);
+    free(zlib);
+}
+
+int inflate_buffer(struct zlib_state *zlib,
+		   unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen,
                    uint32_t original_crc)
 {
     int ret;
-    z_stream strm;
     uint32_t crc;
 
-    strm.zalloc = Z_NULL;
-    strm.zfree = Z_NULL;
-    strm.opaque = Z_NULL;
-    strm.avail_in = inlen;
-    strm.next_in = in;
-
-    ret = inflateInit2(&strm, -MAX_WBITS);
-    if (ret != Z_OK)
-        return ret;
+    zlib->s.avail_in = inlen;
+    zlib->s.next_in = in;
 
     crc = crc32(0L, Z_NULL, 0);
 
     do {
-        strm.avail_out = outlen;
-        strm.next_out = out;
-        ret = inflate(&strm, Z_NO_FLUSH);
+        zlib->s.avail_out = outlen;
+        zlib->s.next_out = out;
+        ret = inflate(&zlib->s, Z_NO_FLUSH);
         if (ret < 0) {
-            inflateEnd(&strm);
+	    inflateReset(&zlib->s);
             return -1;
-        }
-        crc = crc32(crc, out, outlen - strm.avail_out);
+	}
+        crc = crc32(crc, out, outlen - zlib->s.avail_out);
     } while (ret != Z_STREAM_END);
 
-    inflateEnd(&strm);
+    inflateReset(&zlib->s);
 
     return crc == original_crc ? 0 : -1;
 }

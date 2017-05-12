@@ -75,6 +75,7 @@ struct worker {
     bool found;
     unsigned char *inflate;
     unsigned char *plaintext;
+    struct zlib_state *zlib;
 
     struct hash {
         uint8_t check[LEN];
@@ -133,7 +134,8 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     if (w->crk->cipher_is_deflated)
-        err = inflate_buffer(&w->plaintext[12],
+        err = inflate_buffer(w->zlib,
+			     &w->plaintext[12],
                              w->crk->cipher_size - 12,
                              w->inflate,
                              INFLATE_CHUNK,
@@ -418,6 +420,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
         list_del(&w->workers);
         free(w->inflate);
         free(w->plaintext);
+	inflate_destroy(w->zlib);
         free(w);
     }
 }
@@ -447,6 +450,13 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
             dealloc_workers(crk);
             return -1;
         }
+	if (inflate_new(&w->zlib) < 0) {
+	    free(w->plaintext);
+            free(w->inflate);
+            free(w);
+            dealloc_workers(crk);
+            return -1;
+	}
         list_add(&w->workers, &crk->workers_head);
     }
 
@@ -498,6 +508,7 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
             }
             free(w->inflate);
             free(w->plaintext);
+	    inflate_destroy(w->zlib);
             free(w);
             --workers_left;
         }
