@@ -1,9 +1,10 @@
-TESTS = basic file pwstream bruteforce reduce plaintext_password plaintext
+TESTS = basic file pwstream bruteforce dictionary reduce plaintext_password plaintext
 
 check_PROGRAMS = basic \
 	file \
 	pwstream \
 	bruteforce \
+	dictionary \
 	reduce \
 	plaintext_password \
 	plaintext
@@ -22,6 +23,11 @@ file_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 bruteforce_SOURCES = check_bruteforce.c
 bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 bruteforce_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
+
+# zc_crk_dict related functions
+dictionary_SOURCES = check_dictionary.c
+dictionary_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+dictionary_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 
 # pwstream related functions
 pwstream_SOURCES = check_pwstream.c
