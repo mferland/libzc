@@ -30,6 +30,7 @@ tests/.deps
 tests/.libs
 tests/basic
 tests/bruteforce
+tests/dictionary
 tests/file
 tests/plaintext
 tests/plaintext_password
