@@ -269,6 +269,10 @@ static int do_plaintext(int argc, char *argv[])
                                 &((const uint8_t *)plain.map)[plain.txt_begin],
                                 &((const uint8_t *)cipher.map)[cipher.txt_begin],
                                 size_of_map(&plain));
+    if (err < 0) {
+        yazc_err("zc_crk_ptext_set_text() failed!\n");
+        goto error4;
+    }
 
     printf("Key2 reduction...");
     fflush(stdout);

@@ -61,7 +61,7 @@ void inplace_reverse(char *str, size_t len)
  */
 static void reset(struct final *f)
 {
-    memset(f->pw, 0, PASS_MAX_LEN + 1);
+    memset(f->pw, 0, PASS_MAX_LEN);
     memset(&f->k[1], 0, PASS_MAX_LEN * sizeof(struct zc_key));
 }
 
