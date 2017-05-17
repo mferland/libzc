@@ -23,6 +23,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "yazc.h"
 #include "libzc.h"
@@ -37,6 +38,7 @@
 static const char *filename;
 static struct zc_crk_pwcfg pwcfg;
 static size_t thread_count;
+static bool stats = false;
 
 struct charset {
     const char *set;
@@ -63,7 +65,7 @@ static const struct charset special_set = {
     .len = 22
 };
 
-static const char short_opts[] = "c:i:l:aAnst:h";
+static const char short_opts[] = "c:i:l:aAnsSt:h";
 static const struct option long_opts[] = {
     {"charset", required_argument, 0, 'c'},
     {"initial", required_argument, 0, 'i'},
@@ -73,6 +75,7 @@ static const struct option long_opts[] = {
     {"numeric", no_argument, 0, 'n'},
     {"special", no_argument, 0, 's'},
     {"threads", required_argument, 0, 't'},
+    {"stats", no_argument, 0, 'S'},
     {"help", no_argument, 0, 'h'},
     {NULL, 0, 0, 0}
 };
@@ -95,6 +98,7 @@ static void print_help(const char *name)
             "\t-n, --numeric           use characters [0-9]\n"
             "\t-s, --special           use special characters\n"
             "\t-t, --threads=NUM       spawn NUM threads\n"
+            "\t-S, --stats             print statistics\n"
             "\t-h, --help              show this help\n",
             name, name);
 }
@@ -132,6 +136,7 @@ static int launch_crack(void)
     struct zc_ctx *ctx;
     struct zc_crk_bforce *crk;
     char pw[ZC_PW_MAXLEN + 1];
+    struct timeval begin, end;
     int err = -1;
 
     if (zc_new(&ctx)) {
@@ -149,12 +154,21 @@ static int launch_crack(void)
         goto err2;
     }
 
-    printf("Worker threads: %zu\n", thread_count);
-    printf("Maximum length: %lu\n", pwcfg.maxlen);
-    printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
-    printf("Filename: %s\n", filename);
+    if (stats) {
+	printf("Worker threads: %zu\n", thread_count);
+	printf("Maximum length: %lu\n", pwcfg.maxlen);
+	printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
+	printf("Filename: %s\n", filename);
+    }
 
+    gettimeofday(&begin, NULL);
     err = zc_crk_bforce_start(crk, thread_count, pw, sizeof(pw));
+    gettimeofday(&end, NULL);
+
+    if (stats)
+	printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
+	       (double)(end.tv_sec - begin.tv_sec));
+
     if (err > 0)
         printf("Password not found\n");
     else if (err == 0)
@@ -209,6 +223,9 @@ static int do_bruteforce(int argc, char *argv[])
         case 't':
             arg_threads = optarg;
             break;
+	case 'S':
+	    stats = true;
+	    break;
         case 'h':
             print_help(basename(argv[0]));
             return EXIT_SUCCESS;
