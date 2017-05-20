@@ -1,6 +1,6 @@
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [0.3.1],
+        [0.3.2],
         [marc.ferland@gmail.com],
         [libzc],
         [http://github.com/mferland/libzc])
