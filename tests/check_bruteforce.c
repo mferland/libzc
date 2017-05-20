@@ -238,6 +238,23 @@ START_TEST(test_bruteforce_thread_cancellation)
 }
 END_TEST
 
+START_TEST(test_bruteforce_pay)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[10];
+
+    strcpy(cfg.set, "amorpheus!");
+    cfg.maxlen = 10;
+    cfg.setlen = 10;
+    strcpy(cfg.initial, "moaaaaaaa");
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/pay.zip", &cfg), 0);
+
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 8, out, sizeof(out)), 0);
+    ck_assert_str_eq(out, "morpheus!");
+}
+END_TEST
+
 Suite * bforce_suite(void)
 {
     Suite *s;
@@ -258,6 +275,7 @@ Suite * bforce_suite(void)
     tcase_add_test(tc_core, test_bruteforce_stored);
     tcase_add_test(tc_core, test_bruteforce_stored_multicall);
     tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
+    tcase_add_test(tc_core, test_bruteforce_pay);
     tcase_set_timeout(tc_core, 30);
     suite_add_tcase(s, tc_core);
 

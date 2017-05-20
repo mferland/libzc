@@ -345,11 +345,10 @@ static void do_work_recurse2(struct worker *w, size_t level,
     } else {
         int first = limit[0].initial;
         int last = limit[0].stop + 1;
-        size_t i = level_count - level;
         for (int p = first; p < last; ++p) {
-            pw[i] = crk->set[p];
-            update_keys(pw[i], &cache[i], &cache[i + 1]);
-            do_work_recurse2(w, level - 1, level_count, pw, cache, &limit[1]);
+            pw[0] = crk->set[p];
+            update_keys(pw[0], &cache[0], &cache[1]);
+            do_work_recurse2(w, level - 1, level_count, &pw[1], &cache[1], &limit[1]);
         }
     }
     limit[0].initial = limit[0].start;
