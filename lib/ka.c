@@ -74,8 +74,10 @@ void ka_append(struct ka *a, uint32_t key)
 
     a->capacity += 1024;
     a->array = realloc(a->array, a->capacity * sizeof(uint32_t));
-    if (!a->array)
-        fatal("realloc() failed");
+    if (!a->array) {
+       perror("failed to expand key array");
+       exit(1);
+    }
 
     a->array[a->size] = key;
     ++a->size;

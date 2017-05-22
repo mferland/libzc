@@ -17,6 +17,9 @@
  */
 
 #include <pthread.h>
+#ifdef __APPLE__
+#include "pthread_barrier.h"
+#endif
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,6 +67,7 @@ struct zc_crk_bforce {
     pthread_barrier_t barrier;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
+    bool found;
 };
 
 struct worker {
@@ -468,8 +472,10 @@ static void start_workers(struct zc_crk_bforce *crk)
 
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
-        if (pthread_create(&w->thread_id, NULL, worker, w))
-            fatal("pthread_create() failed");
+       if (pthread_create(&w->thread_id, NULL, worker, w)) {
+          perror("pthread_create failed");
+          exit(1);
+       }
     }
     pthread_mutex_unlock(&crk->mutex);
 }
@@ -480,14 +486,15 @@ static void cancel_workers(struct zc_crk_bforce *crk)
     struct worker *w;
 
     list_for_each_entry(w, &crk->workers_head, workers) {
-        if (pthread_cancel(w->thread_id))
-            fatal("pthread_cancel() failed");
+       if (pthread_cancel(w->thread_id)) {
+          perror("pthread_cancel failed");
+          exit(1);
+       }
     }
 }
 
-static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, size_t len)
+static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, size_t len)
 {
-    int ret = 1;
     int workers_left = workers;
 
     /* waits for workers on the 'cleanup' list */
@@ -500,9 +507,9 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
             list_del(&w->cleanup);
             pthread_join(w->thread_id, NULL);
             if (w->found) {
-                ret = 0;
                 memset(pw, 0, len);
                 strncpy(pw, w->pw, len);
+                crk->found = true;
                 cancel_workers(crk);
             }
             free(w->inflate);
@@ -513,8 +520,6 @@ static int wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, siz
         }
         pthread_mutex_unlock(&crk->mutex);
     }
-
-    return ret;
 }
 
 static void dealloc_pwstreams(struct zc_crk_bforce *crk)
@@ -729,28 +734,37 @@ ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
                                   char *pw, size_t len)
 {
-    int err;
-
     if (!workers || !len)
         return -1;
 
-    if (alloc_pwstreams(crk, workers))
-        fatal("failed to allocate password streams");
+    if (alloc_pwstreams(crk, workers)) {
+        perror("failed to allocate password streams");
+        goto err1;
+    }
 
-    if (alloc_workers(crk, workers))
-        fatal("failed to allocate workers\n");
+    if (alloc_workers(crk, workers)) {
+       perror("failed to allocate workers");
+       goto err2;
+    }
 
-    err = pthread_barrier_init(&crk->barrier, NULL, workers);
-    if (err)
-        fatal("pthread_barrier_init() failed");
+    if (pthread_barrier_init(&crk->barrier, NULL, workers)) {
+       perror("pthread_barrier_init failed");
+       goto err3;
+    }
 
+    crk->found = false;
     start_workers(crk);
-    err = wait_workers(crk, workers, pw, len);
-    if (err < 0)
-        fatal("failed to wait for workers\n");
+    wait_workers(crk, workers, pw, len);
 
     pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
-    return err ? -1 : 0;        /* return -1 on error, else 0. */
+    return crk->found ? 0 : 1;        /* return -1 on error, else 0. */
+
+err3:
+    dealloc_workers(crk);
+err2:
+    dealloc_pwstreams(crk);
+err1:
+    return -1;
 }

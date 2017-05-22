@@ -22,7 +22,9 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <stdint.h>
+#ifndef __APPLE__
 #include <error.h>
+#endif
 
 #include "libzc.h"
 #include "crc32.h"
@@ -56,11 +58,6 @@ zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
 #  define info(ctx, arg...) zc_log_null(ctx, ## arg)
 #  define err(ctx, arg...) zc_log_null(ctx, ## arg)
 #endif
-
-#define fatal(arg...)                                                   \
-   do {                                                                 \
-       error_at_line(EXIT_FAILURE, 0, __FILE__, __LINE__, ## arg);      \
-   } while (0)
 
 #define ZC_EXPORT __attribute__ ((visibility("default")))
 
