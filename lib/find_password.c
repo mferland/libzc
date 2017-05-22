@@ -342,7 +342,7 @@ static int recurse_key_7_13(struct final *f, size_t level, struct zc_key current
         k[j + 1].key0 = crc32inv(k[j].key0, pw[j]);
     }
 
-    if (!compare_revpw_with_key(f->pw, f->len_under_test, &f->saved) == 0)
+    if (compare_revpw_with_key(f->pw, f->len_under_test, &f->saved) < 0)
         goto next;
 
     /* got it! */

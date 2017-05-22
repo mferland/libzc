@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <endian.h>
 #include <stdint.h>
 #include <limits.h>
 
