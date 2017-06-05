@@ -228,9 +228,8 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     struct hash *h = &w->h;
 
     for (int i = 0; i < len; ++i) {
-        /* TODO: make this condition more obvious */
-        if (len == LEN && h->check[i])
-            continue;
+	if (h->check[i])
+	    continue;
         key.key0 = h->initk0[i];
         key.key1 = h->initk1[i];
         key.key2 = h->initk2[i];
@@ -327,6 +326,10 @@ static void do_work_recurse2(struct worker *w, size_t level,
                 }
             }
         }
+
+	/* fill the check bytes with zeros so try_decrypt2 will test
+	 * all the remaining hashes */
+	memset(w->h.check, 0, LEN);
 
         ret = try_decrypt2(crk, w, pwi % LEN);
         if (ret < 0)
