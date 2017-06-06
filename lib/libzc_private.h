@@ -22,9 +22,6 @@
 #include <stdbool.h>
 #include <syslog.h>
 #include <stdint.h>
-#ifndef __APPLE__
-#include <error.h>
-#endif
 
 #include "libzc.h"
 #include "crc32.h"

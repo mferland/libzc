@@ -738,17 +738,17 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
         return -1;
 
     if (alloc_pwstreams(crk, workers)) {
-        err(crk->ctx, "failed to allocate password streams");
+        err(crk->ctx, "failed to allocate password streams\n");
         goto err1;
     }
 
     if (alloc_workers(crk, workers)) {
-       err(crk->ctx, "failed to allocate workers");
+       err(crk->ctx, "failed to allocate workers\n");
        goto err2;
     }
 
     if (pthread_barrier_init(&crk->barrier, NULL, workers)) {
-       err(crk->ctx, "pthread_barrier_init failed");
+       err(crk->ctx, "pthread_barrier_init failed\n");
        goto err3;
     }
 
@@ -759,7 +759,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
     pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
-    return crk->found ? 0 : 1;        /* return -1 on error, else 0. */
+    return crk->found ? 0 : 1; /* return -1 on error, 1 if not found else 0. */
 
 err3:
     dealloc_workers(crk);

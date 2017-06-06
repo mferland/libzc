@@ -14,8 +14,7 @@ AM_CFLAGS = \
 	-ffunction-sections \
 	-fdata-sections
 
-AM_LDFLAGS = \
-	-lm ${ZLIB_LIBS}
+AM_LDFLAGS = -lm ${ZLIB_LIBS}
 
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
