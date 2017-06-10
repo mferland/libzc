@@ -61,8 +61,8 @@ static const struct charset number_set = {
 };
 
 static const struct charset special_set = {
-    .set = "!:$%&/()=?{[]}+-*~#@|;",
-    .len = 22
+    .set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}",
+    .len = 32
 };
 
 static const char short_opts[] = "c:i:l:aAnsSt:h";
