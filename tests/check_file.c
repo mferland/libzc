@@ -92,7 +92,7 @@ START_TEST(test_zc_file_info_encrypted)
         {0xb7, 0x3d, 0xc9, 0xd1, 0xb6, 0x73, 0x12, 0x69, 0x2d, 0x06, 0x9a, 0x33},
         {0xdb, 0xe9, 0x9c, 0x24, 0xb7, 0xb0, 0x83, 0x64, 0x71, 0x78, 0x21, 0x06},
         {0x61, 0x6f, 0x68, 0xa1, 0xe8, 0x2c, 0x05, 0x65, 0x1d, 0xc9, 0x89, 0xe8}};
-    const int info_size[4] = {4658, 4464, 6879, 3165};
+    const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
     const long info_offset[4] = {84, 1398, 2698, 4175};
     const long info_crypt[4] = {72, 1386, 2686, 4163};
     const char *info_filename[4] = {"lib/test_crk.c",
@@ -135,7 +135,7 @@ END_TEST
  */
 START_TEST(test_zc_file_info_non_encrypted)
 {
-    const int info_size[3] = {2898, 2647, 31002};
+    const uint32_t info_size[3] = {2898, 2647, 31002};
     const long info_offset[3] = {66, 1075, 1997};
     const char *info_filename[3] = {"config.h",
                                     "config.h.in",
@@ -188,7 +188,7 @@ Suite * file_suite(void)
     return s;
 }
 
-int main(int argc, char *argv[])
+int main(void)
 {
     int number_failed;
     Suite *s;
