@@ -3,6 +3,11 @@
        src="https://scan.coverity.com/projects/7176/badge.svg"/>
 </a>
 
+<a href="https://travis-ci.org/mferland/libzc">
+   <img alt="Build Status"
+        src="https://travis-ci.org/mferland/libzc.svg?branch=master"/>
+</a>
+
 What is it?
 ===========
 The libzc library is a simple zip cracking library. It also comes with
