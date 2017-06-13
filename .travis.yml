@@ -1,0 +1,19 @@
+language: c
+
+os:
+  - linux
+
+compiler:
+  - gcc
+
+addons:
+  apt:
+    packages:
+      - check
+
+script:
+  - ./autogen.sh
+  - mkdir -p build
+  - cd build
+  - ../configure
+  - make
