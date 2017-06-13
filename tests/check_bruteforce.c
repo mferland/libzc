@@ -150,7 +150,7 @@ START_TEST(test_bruteforce_password_not_found)
 
     ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
 
-    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
 }
 END_TEST
 
@@ -166,8 +166,8 @@ START_TEST(test_bruteforce_password_not_found_multicall)
 
     ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
 
-    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
-    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), -1);
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
 }
 END_TEST
 
