@@ -30,8 +30,6 @@ static const struct option long_opts[] = {
     {NULL, 0, 0, 0}
 };
 
-struct zc_ctx *ctx;
-
 static void print_help(const char *cmdname)
 {
     fprintf(stderr,

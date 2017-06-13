@@ -25,6 +25,16 @@ struct zlib_state {
     z_stream s;
 };
 
+/* to silence compiler warnings about missing prototypes */
+int inflate_new(struct zlib_state **zlib);
+void inflate_destroy(struct zlib_state *zlib);
+int inflate_buffer(struct zlib_state *zlib,
+		   unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t outlen,
+                   uint32_t original_crc);
+int test_buffer_crc(unsigned char *in, size_t inlen,
+                    uint32_t original_crc);
+
 int inflate_new(struct zlib_state **zlib)
 {
     struct zlib_state *tmp;

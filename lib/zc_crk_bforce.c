@@ -110,7 +110,7 @@ static size_t unique(char *str, size_t len)
 
 static int compare_char(const void *a, const void *b)
 {
-    return (*(char *)a - * (char *)b);
+    return (*(const char *)a - * (const char *)b);
 }
 
 static size_t sanitize_set(char *set, size_t len)

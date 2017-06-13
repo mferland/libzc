@@ -36,7 +36,7 @@ struct final {
     int len_under_test;
 };
 
-void inplace_reverse(char *str, size_t len)
+static void inplace_reverse(char *str, size_t len)
 {
     char * end = str + len - 1;
 

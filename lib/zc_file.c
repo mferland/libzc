@@ -370,11 +370,6 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
     return (file->stream != NULL);
 }
 
-struct list_head * zc_file_get_info_head(struct zc_file *file)
-{
-    return &file->info_head;
-}
-
 /**
  * read_validation_data:
  *
