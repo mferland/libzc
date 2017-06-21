@@ -47,13 +47,19 @@ struct zc_crk_ptext {
     size_t size;
     struct ka *key2;
     struct key2r *k2r;
-    uint32_t key2_final[13];
-    uint32_t key1_final[13];
-    uint32_t key0_final[13];
     uint8_t lsbk0_lookup[256][2];
     uint32_t lsbk0_count[256];
-    bool key_found;
-    struct zc_key inter_rep;     /* intermediate representation of the key */
+};
+
+struct worker {
+   uint32_t key2_final[13];
+   uint32_t key1_final[13];
+   uint32_t key0_final[13];
+   size_t offset;
+   size_t amount;
+   bool found;
+   struct zc_key inter_rep;     /* intermediate representation of the key */
+   const struct zc_crk_ptext *ptext;
 };
 
 static uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
@@ -309,34 +315,34 @@ static void compute_key1(struct zc_crk_ptext *ptext)
     }
 }
 
-static void recurse_key2(struct zc_crk_ptext *ptext, struct ka **array, uint32_t current_idx)
+static void recurse_key2(struct worker *w, struct ka **array, uint32_t current_idx)
 {
     uint8_t key3im1;
     uint8_t key3im2;
 
     if (current_idx == 1) {
-        compute_key1(ptext);
+        compute_key1(w);
         return;
     }
 
-    key3im1 = generate_key3(ptext, current_idx - 1);
-    key3im2 = generate_key3(ptext, current_idx - 2);
+    key3im1 = generate_key3(w->ptext, current_idx - 1);
+    key3im2 = generate_key3(w->ptext, current_idx - 2);
 
     /* empty array before appending new keys */
     ka_empty(array[current_idx - 1]);
 
     key2r_compute_single(k2(current_idx),
                          array[current_idx - 1],
-                         key2r_get_bits_15_2(ptext->k2r, key3im1),
-                         key2r_get_bits_15_2(ptext->k2r, key3im2),
+                         key2r_get_bits_15_2(w->ptext->k2r, key3im1),
+                         key2r_get_bits_15_2(w->ptext->k2r, key3im2),
                          KEY2_MASK_8BITS);
 
     ka_uniq(array[current_idx - 1]);
 
     for (uint32_t i = 0; i < array[current_idx - 1]->size; ++i) {
-        ptext->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
-        ptext->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
-        recurse_key2(ptext, array, current_idx - 1);
+        w->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
+        w->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
+        recurse_key2(w, array, current_idx - 1);
     }
 }
 
@@ -368,6 +374,26 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 
     ptext_final_deinit(array);
     return (ptext->key_found == true ? 0 : -1);
+}
+
+ZC_EXPORT void * worker(void *p)
+{
+   struct worker *w = (struct worker *)p;
+
+    struct ka *array[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+    if (ptext_final_init(array))
+        return -1;
+
+    for (size_t i = 0; i < w->amount; ++i) {
+       w->key2_final[12] = w->ptext->key2->array[w->offset + i];
+       recurse_key2(w, array, 12);
+       if (w->found)
+          break;                /* parent thread will collect result */
+    }
+
+    ptext_final_deinit(array);
+    return NULL;
 }
 
 ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
