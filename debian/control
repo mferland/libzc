@@ -1,8 +1,8 @@
 Source: libzc
 Priority: optional
 Maintainer: Marc Ferland <marc.ferland@gmail.com>
-Build-Depends: debhelper (>= 9), dh-autoreconf, autotools-dev, zlib1g-dev
-Standards-Version: 3.9.8
+Build-Depends: debhelper (>= 10), dh-autoreconf, autotools-dev, zlib1g-dev, check
+Standards-Version: 4.0.0
 Section: libs
 Homepage: https://github.com/mferland/libzc
 
@@ -29,7 +29,7 @@ Description: fast password cracking library for zip archives
 
 Package: yazc
 Architecture: any
-Depends: libzc3, ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Command line tool for the libzc library
  Yazc is the command line utility that comes bundled with libzc. It
  provides easy access to all of libzc attack modes namely: bruteforce,

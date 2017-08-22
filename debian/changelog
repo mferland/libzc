@@ -1,5 +1,5 @@
-libzc (0.3.1-1) unstable; urgency=low
+libzc (0.3.2-1) unstable; urgency=low
 
   * Initial release (Closes: #861582)
 
- -- Marc Ferland <marc.ferland@gmail.com>  Sat, 13 May 2017 02:00:57 +0000
+ -- Marc Ferland <marc.ferland@gmail.com>  Tue, 15 Aug 2017 02:00:57 +0000
