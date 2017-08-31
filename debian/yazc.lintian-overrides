@@ -1,2 +1,0 @@
-# The libzc package provides the yazc helper tool
-yazc: application-in-library-section libs usr/bin/yazc
