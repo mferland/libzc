@@ -29,7 +29,7 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
 LIBZC_CURRENT=3
-LIBZC_REVISION=2
+LIBZC_REVISION=3
 LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
