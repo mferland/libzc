@@ -28,6 +28,7 @@ Description: fast password cracking library for zip archives
  library as the default client.
 
 Package: yazc
+Section: utils
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Command line tool for the libzc library
