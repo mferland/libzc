@@ -1,8 +1,8 @@
 Source: libzc
 Priority: optional
 Maintainer: Marc Ferland <marc.ferland@gmail.com>
-Build-Depends: debhelper (>= 10), dh-autoreconf, autotools-dev, zlib1g-dev, check
-Standards-Version: 3.9.8
+Build-Depends: debhelper (>= 10), zlib1g-dev, check, pkg-config
+Standards-Version: 4.1.0
 Section: libs
 Homepage: https://github.com/mferland/libzc
 
