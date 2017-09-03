@@ -15,7 +15,7 @@ export DEB_CFLAGS_MAINT_APPEND  = -Ofast
 
 
 %:
-	dh $@ --with autotools_dev --with autoreconf
+	dh $@
 
 
 # dh_make generated override targets
