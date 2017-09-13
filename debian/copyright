@@ -4,9 +4,7 @@ Upstream-Contact: Marc Ferland <marc.ferland@gmail.com>
 Source: https://github.com/mferland/libzc
 
 Files: *
-Copyright: Copyright (c) 2017 Marc Ferland <marc.ferland@gmail.com>
-           Copyright (c) 2008 Steven G. Johnson <stevenj@alum.mit.edu>
-           Copyright (c) 2011 Daniel Richard G. <skunk@iSKUNK.ORG>
+Copyright: 2012-2017, Marc Ferland
 License: GPL-3+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,26 +22,9 @@ License: GPL-3+
  On Debian systems, the complete text of the GNU General
  Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
-Files: lib/qsort.h
-Copyright: Copyright (C) 1991, 1992, 1996, 1997, 1999 Free Software Foundation, Inc.
-License: LGPL-2.1
- The GNU C Library is free software; you can redistribute it and/or
- modify it under the terms of the GNU Lesser General Public
- License as published by the Free Software Foundation; either
- version 2.1 of the License, or (at your option) any later version.
- .
- The GNU C Library is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- Lesser General Public License for more details.
- .
- You should have received a copy of the GNU Lesser General Public
- License along with the GNU C Library; if not, write to the Free
- Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- 02110-1301, USA.
-
-Files: lib/pthread_barrier.*
-Copyright: Copyright (c) 2015, Aleksey Demakov
+Files: lib/pthread_barrier.c
+ lib/pthread_barrier.h
+Copyright: 2015, Aleksey Demakov
 License: BSD-2-clause
  Redistribution and use in source and binary forms, with or without
  modification, are permitted provided that the following conditions are met:
@@ -65,3 +46,51 @@ License: BSD-2-clause
  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: lib/qsort.h
+Copyright: 1991, 1992, 1996, 1997, 1999, Free Software Foundation, Inc.
+License: LGPL-2.1+
+ The GNU C Library is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 2.1 of the License, or (at your option) any later version.
+ .
+ The GNU C Library is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Lesser General Public License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public
+ License along with the GNU C Library; if not, write to the Free
+ Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ 02110-1301, USA.
+
+Files: m4/*
+Copyright: 2011, Daniel Richard G. <skunk@iSKUNK.ORG>
+ 2008, Steven G. Johnson <stevenj@alum.mit.edu>
+License: GPL-3+ with Autoconf exception
+ This program is free software: you can redistribute it and/or modify it
+ under the terms of the GNU General Public License as published by the
+ Free Software Foundation, either version 3 of the License, or (at your
+ option) any later version.
+ .
+ This program is distributed in the hope that it will be useful, but
+ WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+ Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License along
+ with this program. If not, see <https://www.gnu.org/licenses/>.
+ .
+ As a special exception, the respective Autoconf Macro's copyright owner
+ gives unlimited permission to copy, distribute and modify the configure
+ scripts that are the output of Autoconf when processing the Macro. You
+ need not follow the terms of the GNU General Public License when using
+ or distributing such scripts, even though portions of the text of the
+ Macro appear in them. The GNU General Public License (GPL) does govern
+ all other use of the material that constitutes the Autoconf Macro.
+ .
+ This special exception to the GPL applies to versions of the Autoconf
+ Macro released by the Autoconf Archive. When you make and distribute a
+ modified version of the Autoconf Macro, you may extend this special
+ exception to the GPL to apply to your modified version as well.
