@@ -69,9 +69,6 @@ libzc_la_SOURCES =\
 	inflate.c \
 	find_password.c
 include_HEADERS = libzc.h
-if OSX
-libzc_la_SOURCES += pthread_barrier.c
-endif
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
 

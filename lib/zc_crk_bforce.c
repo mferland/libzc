@@ -17,9 +17,6 @@
  */
 
 #include <pthread.h>
-#ifdef __APPLE__
-#include "pthread_barrier.h"
-#endif
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,9 +59,11 @@ struct zc_crk_bforce {
     struct pwstream **pws;
     size_t pwslen;
 
+    /* result of thread creation */
+    int pthread_create_err;
+
     struct list_head workers_head;
     struct list_head cleanup_head;
-    pthread_barrier_t barrier;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     bool found;
@@ -397,28 +396,6 @@ static void worker_cleanup_handler(void *p)
     pthread_mutex_unlock(&w->crk->mutex);
 }
 
-static void *worker(void *p)
-{
-    struct worker *w = (struct worker *)p;
-
-    pthread_cleanup_push(worker_cleanup_handler, w);
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-    pthread_barrier_wait(&w->crk->barrier);
-
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    for (size_t i = 0; i < w->crk->pwslen; ++i) {
-        if (pwstream_is_empty(w->crk->pws[i], w->id))
-            continue;
-        do_work(w, w->crk->pws[i], w->id, w->pw);
-        pthread_testcancel();
-    }
-
-    pthread_cleanup_pop(1);
-    return NULL;
-}
-
 static void dealloc_workers(struct zc_crk_bforce *crk)
 {
     struct worker *w, *wtmp;
@@ -469,18 +446,71 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
     return 0;
 }
 
-static void start_workers(struct zc_crk_bforce *crk)
+/*
+ * Returns -1 on error, 1 on success.
+ */
+static int wait_workers_created(struct zc_crk_bforce *crk)
+{
+    pthread_mutex_lock(&crk->mutex);
+    while (!crk->pthread_create_err)
+            pthread_cond_wait(&crk->cond, &crk->mutex);
+    pthread_mutex_unlock(&crk->mutex);
+    return crk->pthread_create_err;
+}
+
+static void *worker(void *p)
+{
+    struct worker *w = (struct worker *)p;
+
+    pthread_cleanup_push(worker_cleanup_handler, w);
+
+    if (wait_workers_created(w->crk) < 0)
+        goto end;
+
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+    for (size_t i = 0; i < w->crk->pwslen; ++i) {
+        if (pwstream_is_empty(w->crk->pws[i], w->id))
+            continue;
+        do_work(w, w->crk->pws[i], w->id, w->pw);
+        pthread_testcancel();
+    }
+
+end:
+    pthread_cleanup_pop(1);
+    return NULL;
+}
+
+static void broadcast_workers_err(struct zc_crk_bforce *crk, int err)
+{
+    pthread_mutex_lock(&crk->mutex);
+    crk->pthread_create_err = err;
+    pthread_cond_broadcast(&crk->cond);
+    pthread_mutex_unlock(&crk->mutex);
+}
+
+static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 {
     struct worker *w;
+    size_t created = 0;
 
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
-       if (pthread_create(&w->thread_id, NULL, worker, w)) {
-          perror("pthread_create failed");
-          exit(1);
-       }
+        if (pthread_create(&w->thread_id, NULL, worker, w)) {
+	    pthread_mutex_unlock(&crk->mutex);
+            perror("pthread_create failed");
+	    broadcast_workers_err(crk, -1); /* failure */
+            *cnt = created;
+            return -1;
+        }
+        ++created;
     }
     pthread_mutex_unlock(&crk->mutex);
+
+    broadcast_workers_err(crk, 1); /* success */
+    *cnt = created;
+
+    return 0;
 }
 
 /* called while holding mutex */
@@ -750,22 +780,16 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
        goto err2;
     }
 
-    if (pthread_barrier_init(&crk->barrier, NULL, workers)) {
-       err(crk->ctx, "pthread_barrier_init failed\n");
-       goto err3;
-    }
-
     crk->found = false;
-    start_workers(crk);
+    if (create_workers(crk, &workers))
+        err(crk->ctx, "failed to create workers\n");
+
     wait_workers(crk, workers, pw, len);
 
-    pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
     return crk->found ? 0 : 1; /* return -1 on error, 1 if not found else 0. */
 
-err3:
-    dealloc_workers(crk);
 err2:
     dealloc_pwstreams(crk);
 err1:
