@@ -151,7 +151,7 @@ START_TEST(test_zc_crk_ptext_refcount)
 }
 END_TEST
 
-Suite * basic_suite(void)
+Suite *basic_suite(void)
 {
     Suite *s;
     TCase *tc_core;

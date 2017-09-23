@@ -73,7 +73,7 @@ START_TEST(test_dict_fail)
 }
 END_TEST
 
-Suite * dict_suite(void)
+Suite *dict_suite(void)
 {
     Suite *s;
     TCase *tc_core;

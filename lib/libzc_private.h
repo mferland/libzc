@@ -179,7 +179,7 @@ struct zlib_state;
 int inflate_new(struct zlib_state **zlib);
 void inflate_destroy(struct zlib_state *zlib);
 int inflate_buffer(struct zlib_state *zlib,
-		   const unsigned char *in, size_t inlen,
+                   const unsigned char *in, size_t inlen,
                    unsigned char *out, size_t outlen,
                    uint32_t original_crc);
 int test_buffer_crc(unsigned char *in, size_t inlen,

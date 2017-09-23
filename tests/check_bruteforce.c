@@ -273,7 +273,7 @@ START_TEST(test_bruteforce_pthread_create_fail)
 }
 END_TEST
 
-Suite * bforce_suite(void)
+Suite *bforce_suite(void)
 {
     Suite *s;
     TCase *tc_core;

@@ -88,10 +88,10 @@ static int do_info(int argc, char *argv[])
     }
 
     size_t fn_max_len = 0,
-        crypt_max_len = 0,
-        offset_begin_max_len = 0,
-        offset_end_max_len = 0,
-        size_max_len = 0;
+           crypt_max_len = 0,
+           offset_begin_max_len = 0,
+           offset_end_max_len = 0,
+           size_max_len = 0;
     info = zc_file_info_next(file, NULL);
     while (info) {
         char buf[256];

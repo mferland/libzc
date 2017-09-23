@@ -138,7 +138,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     if (w->crk->cipher_is_deflated)
         err = inflate_buffer(w->zlib,
-			     &w->plaintext[12],
+                             &w->plaintext[12],
                              w->crk->cipher_size - 12,
                              w->inflate,
                              INFLATE_CHUNK,
@@ -175,10 +175,10 @@ static void do_work_recurse(struct worker *w, size_t level,
             update_keys(crk->set[p], &cache[level_count - 1], &cache[level_count]);
             if (try_decrypt(crk, &cache[level_count])) {
                 if (test_password(w, &cache[level_count])) {
-		    pw[level_count - 1] = crk->set[p];
+                    pw[level_count - 1] = crk->set[p];
                     w->found = true;
                     pthread_exit(w);
-		}
+                }
             }
         }
     } else {
@@ -220,7 +220,7 @@ static int try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
     uint8_t magic = crk->vdata[0].magic;
     for (int j = 0; j < LEN; ++j) {
         c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
-	ret |= c[j];
+        ret |= c[j];
     }
     return ret;
 }
@@ -231,8 +231,8 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     struct hash *h = &w->h;
 
     for (int i = 0; i < len; ++i) {
-	if (h->check[i])
-	    continue;
+        if (h->check[i])
+            continue;
         key.key0 = h->initk0[i];
         key.key1 = h->initk1[i];
         key.key2 = h->initk2[i];
@@ -258,7 +258,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
     out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
  */
-static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
+static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
 {
     int i = 5;
     out[i] = c;
@@ -330,9 +330,9 @@ static void do_work_recurse2(struct worker *w, size_t level,
             }
         }
 
-	/* fill the check bytes with zeros so try_decrypt2 will test
-	 * all the remaining hashes */
-	memset(w->h.check, 0, LEN);
+        /* fill the check bytes with zeros so try_decrypt2 will test
+         * all the remaining hashes */
+        memset(w->h.check, 0, LEN);
 
         ret = try_decrypt2(crk, w, pwi % LEN);
         if (ret < 0)
@@ -403,7 +403,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
         list_del(&w->workers);
         free(w->inflate);
         free(w->plaintext);
-	inflate_destroy(w->zlib);
+        inflate_destroy(w->zlib);
         free(w);
     }
 }
@@ -433,13 +433,13 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
             dealloc_workers(crk);
             return -1;
         }
-	if (inflate_new(&w->zlib) < 0) {
-	    free(w->plaintext);
+        if (inflate_new(&w->zlib) < 0) {
+            free(w->plaintext);
             free(w->inflate);
             free(w);
             dealloc_workers(crk);
             return -1;
-	}
+        }
         list_add(&w->workers, &crk->workers_head);
     }
 
@@ -453,7 +453,7 @@ static int wait_workers_created(struct zc_crk_bforce *crk)
 {
     pthread_mutex_lock(&crk->mutex);
     while (!crk->pthread_create_err)
-            pthread_cond_wait(&crk->cond, &crk->mutex);
+        pthread_cond_wait(&crk->cond, &crk->mutex);
     pthread_mutex_unlock(&crk->mutex);
     return crk->pthread_create_err;
 }
@@ -497,9 +497,9 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
         if (pthread_create(&w->thread_id, NULL, worker, w)) {
-	    pthread_mutex_unlock(&crk->mutex);
+            pthread_mutex_unlock(&crk->mutex);
             perror("pthread_create failed");
-	    broadcast_workers_err(crk, -1); /* failure */
+            broadcast_workers_err(crk, -1); /* failure */
             *cnt = created;
             return -1;
         }
@@ -519,10 +519,10 @@ static void cancel_workers(struct zc_crk_bforce *crk)
     struct worker *w;
 
     list_for_each_entry(w, &crk->workers_head, workers) {
-       if (pthread_cancel(w->thread_id)) {
-          perror("pthread_cancel failed");
-          exit(1);
-       }
+        if (pthread_cancel(w->thread_id)) {
+            perror("pthread_cancel failed");
+            exit(1);
+        }
     }
 }
 
@@ -547,7 +547,7 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, si
             }
             free(w->inflate);
             free(w->plaintext);
-	    inflate_destroy(w->zlib);
+            inflate_destroy(w->zlib);
             free(w);
             --workers_left;
         }
@@ -776,8 +776,8 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
     }
 
     if (alloc_workers(crk, workers)) {
-       err(crk->ctx, "failed to allocate workers\n");
-       goto err2;
+        err(crk->ctx, "failed to allocate workers\n");
+        goto err2;
     }
 
     crk->found = false;

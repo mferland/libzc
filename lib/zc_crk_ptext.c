@@ -250,7 +250,7 @@ static int compute_intermediate_internal_rep(struct zc_crk_ptext *ptext, struct 
 
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   struct zc_key k = { .key0 = 0x0, .key1 = 0x0, .key2 = 0x0 };
+    struct zc_key k = { .key0 = 0x0, .key1 = 0x0, .key2 = 0x0 };
 
     /* calculate key0_6{0..15} */
     k.key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;

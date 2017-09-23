@@ -134,11 +134,11 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
     crk->filename = strdup(filename);
 
     if (inflate_new(&crk->zlib) < 0) {
-	free(crk->inflate);
-	free(crk->cipher);
-	free(crk->plaintext);
-	free(crk->filename);
-	return -1;
+        free(crk->inflate);
+        free(crk->cipher);
+        free(crk->plaintext);
+        free(crk->filename);
+        return -1;
     }
 
     return 0;
@@ -168,7 +168,7 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
     int err;
     if (crk->cipher_is_deflated)
         err = inflate_buffer(crk->zlib,
-			     &crk->plaintext[12],
+                             &crk->plaintext[12],
                              crk->cipher_size - 12,
                              crk->inflate,
                              INFLATE_CHUNK,

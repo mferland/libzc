@@ -155,10 +155,10 @@ static int launch_crack(void)
     }
 
     if (stats) {
-	printf("Worker threads: %zu\n", thread_count);
-	printf("Maximum length: %lu\n", pwcfg.maxlen);
-	printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
-	printf("Filename: %s\n", filename);
+        printf("Worker threads: %zu\n", thread_count);
+        printf("Maximum length: %lu\n", pwcfg.maxlen);
+        printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
+        printf("Filename: %s\n", filename);
     }
 
     gettimeofday(&begin, NULL);
@@ -166,8 +166,8 @@ static int launch_crack(void)
     gettimeofday(&end, NULL);
 
     if (stats)
-	printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
-	       (double)(end.tv_sec - begin.tv_sec));
+        printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
+               (double)(end.tv_sec - begin.tv_sec));
 
     if (err > 0)
         printf("Password not found\n");
@@ -223,9 +223,9 @@ static int do_bruteforce(int argc, char *argv[])
         case 't':
             arg_threads = optarg;
             break;
-	case 'S':
-	    stats = true;
-	    break;
+        case 'S':
+            stats = true;
+            break;
         case 'h':
             print_help(basename(argv[0]));
             return EXIT_SUCCESS;

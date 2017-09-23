@@ -88,7 +88,7 @@ Suite *plaintext_suite()
 #ifdef EXTRACHECK
     tcase_add_test(tc_core, test_zc_crk_ptext_attack);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
-    tcase_set_timeout(tc_core, 60*60);
+    tcase_set_timeout(tc_core, 60 * 60);
 #endif
     suite_add_tcase(s, tc_core);
 
