@@ -189,7 +189,8 @@ static void ptext_final_deinit(struct ka **key2)
 static int ptext_final_init(struct ka **key2)
 {
     for (uint32_t i = 0; i < 12; ++i) {
-        if (ka_alloc(&key2[i], 64)) { /* FIXME: 64 ? */
+        /* 64: probably too much but will work everytime */
+        if (ka_alloc(&key2[i], 64)) {
             ptext_final_deinit(key2);
             return -1;
         }

@@ -152,7 +152,7 @@ void key2r_compute_single(uint32_t key2i_plus_1,
             /* save 22 most significant bits [31..10] */
             key2i_tmp = key2i_bits31_8 & 0xfffffc00;
 
-            /* save bits [15..2] with common 6 bits*/
+            /* save bits [15..2] with common 6 bits */
             key2i_tmp |= key2i_bits_15_2[i];
 
             /* save bits [1..0] */
