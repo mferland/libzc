@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "list.h"
 #include "libzc.h"
@@ -497,8 +498,8 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
         if (pthread_create(&w->thread_id, NULL, worker, w)) {
-            pthread_mutex_unlock(&crk->mutex);
             perror("pthread_create failed");
+            pthread_mutex_unlock(&crk->mutex);
             broadcast_workers_err(crk, -1); /* failure */
             *cnt = created;
             return -1;
@@ -517,12 +518,13 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 static void cancel_workers(struct zc_crk_bforce *crk)
 {
     struct worker *w;
+    int err;
 
     list_for_each_entry(w, &crk->workers_head, workers) {
-        if (pthread_cancel(w->thread_id)) {
+        err = pthread_cancel(w->thread_id);
+        if (err)
             perror("pthread_cancel failed");
-            exit(1);
-        }
+        assert(err == 0);
     }
 }
 

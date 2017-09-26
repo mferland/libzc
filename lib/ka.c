@@ -64,23 +64,24 @@ void ka_free(struct ka *a)
     free(a);
 }
 
-void ka_append(struct ka *a, uint32_t key)
+int ka_append(struct ka *a, uint32_t key)
 {
     if (a->size < a->capacity) {
         a->array[a->size] = key;
         ++a->size;
-        return;
+        return 0;
     }
 
-    a->capacity += 1024;
+    a->capacity += 4096;
     a->array = realloc(a->array, a->capacity * sizeof(uint32_t));
     if (!a->array) {
         perror("realloc failed");
-        exit(1);
+        return -1;
     }
 
     a->array[a->size] = key;
     ++a->size;
+    return 0;
 }
 
 void ka_uniq(struct ka *a)

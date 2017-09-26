@@ -111,8 +111,8 @@ static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
     return tmp;
 }
 
-static void generate_all_key2i_with_bits_1_0(struct ka *key2i_array, uint32_t key2i,
-                                             const uint16_t *key2im1_bits_15_2)
+static int generate_all_key2i_with_bits_1_0(struct ka *key2i_array, uint32_t key2i,
+                                            const uint16_t *key2im1_bits_15_2)
 
 {
     const uint32_t key2im1_bits_31_10 = (key2i << 8) ^ crc_32_invtab[key2i >> 24];
@@ -127,16 +127,19 @@ static void generate_all_key2i_with_bits_1_0(struct ka *key2i_array, uint32_t ke
             uint32_t key2im1;
             key2im1 = key2im1_bits_31_10 & 0xfffffc00;
             key2im1 |= key2im1_bits_15_2[j];
-            ka_append(key2i_array, key2i | bits_1_0_key2i(key2im1, key2i));
+            if (ka_append(key2i_array, key2i | bits_1_0_key2i(key2im1, key2i)))
+                return -1;
         }
     }
+
+    return 0;
 }
 
-void key2r_compute_single(uint32_t key2i_plus_1,
-                          struct ka *key2i,
-                          const uint16_t *key2i_bits_15_2,
-                          const uint16_t *key2im1_bits_15_2,
-                          uint32_t common_bits_mask)
+int key2r_compute_single(uint32_t key2i_plus_1,
+                         struct ka *key2i,
+                         const uint16_t *key2i_bits_15_2,
+                         const uint16_t *key2im1_bits_15_2,
+                         uint32_t common_bits_mask)
 {
     const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
     const uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
@@ -156,24 +159,30 @@ void key2r_compute_single(uint32_t key2i_plus_1,
             key2i_tmp |= key2i_bits_15_2[i];
 
             /* save bits [1..0] */
-            generate_all_key2i_with_bits_1_0(key2i, key2i_tmp, key2im1_bits_15_2);
+            if (generate_all_key2i_with_bits_1_0(key2i, key2i_tmp, key2im1_bits_15_2))
+                return -1;
         }
     }
+
+    return 0;
 }
 
-void key2r_compute_next_array(struct ka *key2i_plus_1,
-                              struct ka *key2i,
-                              const uint16_t *key2i_bits_15_2,
-                              const uint16_t *key2im1_bits_15_2,
-                              uint32_t common_bits_mask)
+int key2r_compute_next_array(struct ka *key2i_plus_1,
+                             struct ka *key2i,
+                             const uint16_t *key2i_bits_15_2,
+                             const uint16_t *key2im1_bits_15_2,
+                             uint32_t common_bits_mask)
 {
     ka_empty(key2i);
 
     for (uint32_t i = 0; i < key2i_plus_1->size; ++i) {
-        key2r_compute_single(ka_at(key2i_plus_1, i),
-                             key2i,
-                             key2i_bits_15_2,
-                             key2im1_bits_15_2,
-                             common_bits_mask);
+        if (key2r_compute_single(ka_at(key2i_plus_1, i),
+                                 key2i,
+                                 key2i_bits_15_2,
+                                 key2im1_bits_15_2,
+                                 common_bits_mask))
+            return -1;
     }
+
+    return 0;
 }
