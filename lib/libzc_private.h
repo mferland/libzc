@@ -193,7 +193,7 @@ struct ka {
 };
 int ka_alloc(struct ka **a, size_t init_size);
 void ka_free(struct ka *a);
-void ka_append(struct ka *a, uint32_t key);
+int ka_append(struct ka *a, uint32_t key);
 void ka_uniq(struct ka *a);
 void ka_squeeze(struct ka *a);
 void ka_empty(struct ka *a);
