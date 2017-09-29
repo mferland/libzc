@@ -255,7 +255,25 @@ START_TEST(test_bruteforce_pay)
 }
 END_TEST
 
-Suite * bforce_suite(void)
+START_TEST(test_bruteforce_pthread_create_fail)
+{
+    struct zc_crk_pwcfg cfg;
+    char out[7];
+
+    strcpy(cfg.set, "noradiqwerty");
+    cfg.maxlen = 6;
+    cfg.setlen = 12;
+    memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
+
+    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+
+    /* create an insane amount of threads, should return an error (not
+     * crash ...) */
+    ck_assert_int_eq(zc_crk_bforce_start(crk, 95884, out, sizeof(out)), 1);
+}
+END_TEST
+
+Suite *bforce_suite(void)
 {
     Suite *s;
     TCase *tc_core;
@@ -276,6 +294,7 @@ Suite * bforce_suite(void)
     tcase_add_test(tc_core, test_bruteforce_stored_multicall);
     tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
     tcase_add_test(tc_core, test_bruteforce_pay);
+    tcase_add_test(tc_core, test_bruteforce_pthread_create_fail);
     tcase_set_timeout(tc_core, 30);
     suite_add_tcase(s, tc_core);
 

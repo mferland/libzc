@@ -17,14 +17,12 @@
  */
 
 #include <pthread.h>
-#ifdef __APPLE__
-#include "pthread_barrier.h"
-#endif
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <assert.h>
 
 #include "list.h"
 #include "libzc.h"
@@ -62,9 +60,11 @@ struct zc_crk_bforce {
     struct pwstream **pws;
     size_t pwslen;
 
+    /* result of thread creation */
+    int pthread_create_err;
+
     struct list_head workers_head;
     struct list_head cleanup_head;
-    pthread_barrier_t barrier;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     bool found;
@@ -139,7 +139,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
     pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
     if (w->crk->cipher_is_deflated)
         err = inflate_buffer(w->zlib,
-			     &w->plaintext[12],
+                             &w->plaintext[12],
                              w->crk->cipher_size - 12,
                              w->inflate,
                              INFLATE_CHUNK,
@@ -176,10 +176,10 @@ static void do_work_recurse(struct worker *w, size_t level,
             update_keys(crk->set[p], &cache[level_count - 1], &cache[level_count]);
             if (try_decrypt(crk, &cache[level_count])) {
                 if (test_password(w, &cache[level_count])) {
-		    pw[level_count - 1] = crk->set[p];
+                    pw[level_count - 1] = crk->set[p];
                     w->found = true;
                     pthread_exit(w);
-		}
+                }
             }
         }
     } else {
@@ -221,7 +221,7 @@ static int try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
     uint8_t magic = crk->vdata[0].magic;
     for (int j = 0; j < LEN; ++j) {
         c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
-	ret |= c[j];
+        ret |= c[j];
     }
     return ret;
 }
@@ -232,8 +232,8 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     struct hash *h = &w->h;
 
     for (int i = 0; i < len; ++i) {
-	if (h->check[i])
-	    continue;
+        if (h->check[i])
+            continue;
         key.key0 = h->initk0[i];
         key.key1 = h->initk1[i];
         key.key2 = h->initk2[i];
@@ -259,7 +259,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
     out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
  */
-static void indexes_from_raw_counter(uint64_t c, const int *in, int* out)
+static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
 {
     int i = 5;
     out[i] = c;
@@ -331,9 +331,9 @@ static void do_work_recurse2(struct worker *w, size_t level,
             }
         }
 
-	/* fill the check bytes with zeros so try_decrypt2 will test
-	 * all the remaining hashes */
-	memset(w->h.check, 0, LEN);
+        /* fill the check bytes with zeros so try_decrypt2 will test
+         * all the remaining hashes */
+        memset(w->h.check, 0, LEN);
 
         ret = try_decrypt2(crk, w, pwi % LEN);
         if (ret < 0)
@@ -397,28 +397,6 @@ static void worker_cleanup_handler(void *p)
     pthread_mutex_unlock(&w->crk->mutex);
 }
 
-static void *worker(void *p)
-{
-    struct worker *w = (struct worker *)p;
-
-    pthread_cleanup_push(worker_cleanup_handler, w);
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-    pthread_barrier_wait(&w->crk->barrier);
-
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-    for (size_t i = 0; i < w->crk->pwslen; ++i) {
-        if (pwstream_is_empty(w->crk->pws[i], w->id))
-            continue;
-        do_work(w, w->crk->pws[i], w->id, w->pw);
-        pthread_testcancel();
-    }
-
-    pthread_cleanup_pop(1);
-    return NULL;
-}
-
 static void dealloc_workers(struct zc_crk_bforce *crk)
 {
     struct worker *w, *wtmp;
@@ -426,7 +404,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
         list_del(&w->workers);
         free(w->inflate);
         free(w->plaintext);
-	inflate_destroy(w->zlib);
+        inflate_destroy(w->zlib);
         free(w);
     }
 }
@@ -456,43 +434,97 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
             dealloc_workers(crk);
             return -1;
         }
-	if (inflate_new(&w->zlib) < 0) {
-	    free(w->plaintext);
+        if (inflate_new(&w->zlib) < 0) {
+            free(w->plaintext);
             free(w->inflate);
             free(w);
             dealloc_workers(crk);
             return -1;
-	}
+        }
         list_add(&w->workers, &crk->workers_head);
     }
 
     return 0;
 }
 
-static void start_workers(struct zc_crk_bforce *crk)
+/*
+ * Returns -1 on error, 1 on success.
+ */
+static int wait_workers_created(struct zc_crk_bforce *crk)
+{
+    pthread_mutex_lock(&crk->mutex);
+    while (!crk->pthread_create_err)
+        pthread_cond_wait(&crk->cond, &crk->mutex);
+    pthread_mutex_unlock(&crk->mutex);
+    return crk->pthread_create_err;
+}
+
+static void *worker(void *p)
+{
+    struct worker *w = (struct worker *)p;
+
+    pthread_cleanup_push(worker_cleanup_handler, w);
+
+    if (wait_workers_created(w->crk) < 0)
+        goto end;
+
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
+    for (size_t i = 0; i < w->crk->pwslen; ++i) {
+        if (pwstream_is_empty(w->crk->pws[i], w->id))
+            continue;
+        do_work(w, w->crk->pws[i], w->id, w->pw);
+        pthread_testcancel();
+    }
+
+end:
+    pthread_cleanup_pop(1);
+    return NULL;
+}
+
+static void broadcast_workers_err(struct zc_crk_bforce *crk, int err)
+{
+    pthread_mutex_lock(&crk->mutex);
+    crk->pthread_create_err = err;
+    pthread_cond_broadcast(&crk->cond);
+    pthread_mutex_unlock(&crk->mutex);
+}
+
+static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 {
     struct worker *w;
+    size_t created = 0;
 
     pthread_mutex_lock(&crk->mutex);
     list_for_each_entry(w, &crk->workers_head, workers) {
-       if (pthread_create(&w->thread_id, NULL, worker, w)) {
-          perror("pthread_create failed");
-          exit(1);
-       }
+        if (pthread_create(&w->thread_id, NULL, worker, w)) {
+            perror("pthread_create failed");
+            pthread_mutex_unlock(&crk->mutex);
+            broadcast_workers_err(crk, -1); /* failure */
+            *cnt = created;
+            return -1;
+        }
+        ++created;
     }
     pthread_mutex_unlock(&crk->mutex);
+
+    broadcast_workers_err(crk, 1); /* success */
+    *cnt = created;
+
+    return 0;
 }
 
 /* called while holding mutex */
 static void cancel_workers(struct zc_crk_bforce *crk)
 {
     struct worker *w;
+    int err;
 
     list_for_each_entry(w, &crk->workers_head, workers) {
-       if (pthread_cancel(w->thread_id)) {
-          perror("pthread_cancel failed");
-          exit(1);
-       }
+        err = pthread_cancel(w->thread_id);
+        if (err)
+            perror("pthread_cancel failed");
+        assert(err == 0);
     }
 }
 
@@ -517,7 +549,7 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw, si
             }
             free(w->inflate);
             free(w->plaintext);
-	    inflate_destroy(w->zlib);
+            inflate_destroy(w->zlib);
             free(w);
             --workers_left;
         }
@@ -746,26 +778,20 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
     }
 
     if (alloc_workers(crk, workers)) {
-       err(crk->ctx, "failed to allocate workers\n");
-       goto err2;
-    }
-
-    if (pthread_barrier_init(&crk->barrier, NULL, workers)) {
-       err(crk->ctx, "pthread_barrier_init failed\n");
-       goto err3;
+        err(crk->ctx, "failed to allocate workers\n");
+        goto err2;
     }
 
     crk->found = false;
-    start_workers(crk);
+    if (create_workers(crk, &workers))
+        err(crk->ctx, "failed to create workers\n");
+
     wait_workers(crk, workers, pw, len);
 
-    pthread_barrier_destroy(&crk->barrier);
     dealloc_pwstreams(crk);
 
     return crk->found ? 0 : 1; /* return -1 on error, 1 if not found else 0. */
 
-err3:
-    dealloc_workers(crk);
 err2:
     dealloc_pwstreams(crk);
 err1:

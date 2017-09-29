@@ -1,6 +1,21 @@
+# Copyright (C) 2012-2017 Marc Ferland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [0.3.2],
+        [0.3.5],
         [marc.ferland@gmail.com],
         [libzc],
         [http://github.com/mferland/libzc])
@@ -59,6 +74,7 @@ AC_ARG_ENABLE([debug],
         [], [enable_debug=no])
 AS_IF([test "x$enable_debug" = "xyes"], [
             AC_DEFINE(ENABLE_DEBUG, [1], [Debug messages.])
+            AC_DEFINE(NDEBUG, [], [Assert macro.])
 ])
 
 AC_CONFIG_HEADERS(config.h)

@@ -163,11 +163,12 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
     for (uint32_t i = start_index; i >= 12; --i) {
         key3i = generate_key3(ptext, i);
         key3im1 = generate_key3(ptext, i - 1);
-        key2r_compute_next_array(key2i_plus_1,
-                                 key2i,
-                                 key2r_get_bits_15_2(ptext->k2r, key3i),
-                                 key2r_get_bits_15_2(ptext->k2r, key3im1),
-                                 i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
+        if (key2r_compute_next_array(key2i_plus_1,
+                                     key2i,
+                                     key2r_get_bits_15_2(ptext->k2r, key3i),
+                                     key2r_get_bits_15_2(ptext->k2r, key3im1),
+                                     i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS))
+            goto err;
 
         ka_uniq(key2i);
         SWAP(key2i, key2i_plus_1);
@@ -180,6 +181,11 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
                                  * bytes for the actual attack */
     ka_free(key2i);
     return 0;
+
+err:
+    ka_free(key2i);
+    ka_free(key2i_plus_1);
+    return -1;
 }
 
 static void ptext_final_deinit(struct ka **key2)
@@ -195,7 +201,8 @@ static void ptext_final_deinit(struct ka **key2)
 static int ptext_final_init(struct ka **key2)
 {
     for (uint32_t i = 0; i < 12; ++i) {
-        if (ka_alloc(&key2[i], 64)) { /* FIXME: 64 ? */
+        /* 64: probably too much but will work everytime */
+        if (ka_alloc(&key2[i], 64)) {
             ptext_final_deinit(key2);
             return -1;
         }
@@ -256,7 +263,7 @@ static int compute_intermediate_internal_rep(struct zc_crk_ptext *ptext, struct 
 
 static void compute_key0(struct zc_crk_ptext *ptext)
 {
-   struct zc_key k = { .key0 = 0x0, .key1 = 0x0, .key2 = 0x0 };
+    struct zc_key k = { .key0 = 0x0, .key1 = 0x0, .key2 = 0x0 };
 
     /* calculate key0_6{0..15} */
     k.key0 = (k0(7) ^ crc_32_tab[k0(6) ^ plaintext(6)]) << 8;
@@ -315,14 +322,14 @@ static void compute_key1(struct zc_crk_ptext *ptext)
     }
 }
 
-static void recurse_key2(struct worker *w, struct ka **array, uint32_t current_idx)
+static int recurse_key2(struct worker *w, struct ka **array, uint32_t current_idx)
 {
     uint8_t key3im1;
     uint8_t key3im2;
 
     if (current_idx == 1) {
         compute_key1(w);
-        return;
+        return 0;
     }
 
     key3im1 = generate_key3(w->ptext, current_idx - 1);
@@ -331,11 +338,12 @@ static void recurse_key2(struct worker *w, struct ka **array, uint32_t current_i
     /* empty array before appending new keys */
     ka_empty(array[current_idx - 1]);
 
-    key2r_compute_single(k2(current_idx),
-                         array[current_idx - 1],
-                         key2r_get_bits_15_2(w->ptext->k2r, key3im1),
-                         key2r_get_bits_15_2(w->ptext->k2r, key3im2),
-                         KEY2_MASK_8BITS);
+    if (key2r_compute_single(k2(current_idx),
+                             array[current_idx - 1],
+                             key2r_get_bits_15_2(ptext->k2r, key3im1),
+                             key2r_get_bits_15_2(ptext->k2r, key3im2),
+                             KEY2_MASK_8BITS))
+        return -1;
 
     ka_uniq(array[current_idx - 1]);
 
@@ -343,7 +351,11 @@ static void recurse_key2(struct worker *w, struct ka **array, uint32_t current_i
         w->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
         w->key1_final[current_idx] = compute_key1_msb(ptext, current_idx) << 24;
         recurse_key2(w, array, current_idx - 1);
+        if (recurse_key2(ptext, array, current_idx - 1))
+            return -1;
     }
+
+    return 0;
 }
 
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
@@ -363,7 +375,8 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
     ptext->key_found = false;
     for (uint32_t i = 0; i < ptext->key2->size; ++i) {
         ptext->key2_final[12] = ptext->key2->array[i];
-        recurse_key2(ptext, array, 12);
+        if (recurse_key2(ptext, array, 12))
+            break;
         if (ptext->key_found) {
             out_key->key0 = ptext->inter_rep.key0;
             out_key->key1 = ptext->inter_rep.key1;

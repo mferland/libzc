@@ -38,7 +38,7 @@ struct final {
 
 static void inplace_reverse(char *str, size_t len)
 {
-    char * end = str + len - 1;
+    char *end = str + len - 1;
 
 #   define XOR_SWAP(a,b) do\
     {\
@@ -47,11 +47,10 @@ static void inplace_reverse(char *str, size_t len)
       a ^= b;\
     } while (0)
 
-    while (str < end)
-    {
-      XOR_SWAP(*str, *end);
-      str++;
-      end--;
+    while (str < end) {
+        XOR_SWAP(*str, *end);
+        str++;
+        end--;
     }
 #   undef XOR_SWAP
 }

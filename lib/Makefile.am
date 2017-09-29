@@ -1,3 +1,18 @@
+# Copyright (C) 2012-2017 Marc Ferland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 EXTRA_DIST =
 CLEANFILES =
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
@@ -29,7 +44,7 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
 LIBZC_CURRENT=3
-LIBZC_REVISION=2
+LIBZC_REVISION=5
 LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
@@ -54,9 +69,6 @@ libzc_la_SOURCES =\
 	inflate.c \
 	find_password.c
 include_HEADERS = libzc.h
-if OSX
-libzc_la_SOURCES += pthread_barrier.c
-endif
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
 
