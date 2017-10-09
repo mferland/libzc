@@ -18,8 +18,7 @@
 
 #include <string.h>
 
-#include "libzc.h"
-#include "libzc_private.h"
+#include "ptext_private.h"
 #include "crc32.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
@@ -410,4 +409,15 @@ found:
     memset(out, 0, len);
     memcpy(out, f.pw, ret);
     return ret;
+}
+
+ZC_EXPORT int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+                                         const struct zc_key *internal_rep,
+                                         char *out, size_t len)
+{
+    return find_password(ptext->lsbk0_lookup,
+                         ptext->lsbk0_count,
+                         internal_rep,
+                         out,
+                         len);
 }

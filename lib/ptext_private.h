@@ -16,28 +16,50 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _KEY2_REDUCE_H_
-#define _KEY2_REDUCE_H_
+#ifndef _PTEXT_PRIVATE_H_
+#define _PTEXT_PRIVATE_H_
 
 #include <stdint.h>
+
+#include "libzc.h"
+#include "libzc_private.h"
 
 #define KEY2_MASK_6BITS 0xfc00
 #define KEY2_MASK_8BITS 0xff00
 
+struct zc_crk_ptext {
+    struct zc_ctx *ctx;
+    int refcount;
+    const uint8_t *plaintext;
+    const uint8_t *ciphertext;
+    size_t size;
+    struct ka *key2;
+    struct key2r *k2r;
+    uint32_t key2_final[13];
+    uint32_t key1_final[13];
+    uint32_t key0_final[13];
+    uint8_t lsbk0_lookup[256][2];
+    uint32_t lsbk0_count[256];
+    bool key_found;
+    struct zc_key inter_rep;
+};
+
+static inline
+uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
+{
+    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
+}
+
+/* key2 reduction */
 struct key2r;
 int key2r_new(struct key2r **key2r);
 void key2r_free(struct key2r *key2r);
 uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, uint8_t key3);
 struct ka *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
-int key2r_compute_next_array(struct ka *key2i_plus_1,
-                             struct ka *key2i,
-                             const uint16_t *key2i_bits_15_2,
-                             const uint16_t *key2im1_bits_15_2,
-                             uint32_t common_bits_mask);
 int key2r_compute_single(uint32_t key2i_plus_1,
                          struct ka *key2i,
                          const uint16_t *key2i_bits_15_2,
                          const uint16_t *key2im1_bits_15_2,
                          uint32_t common_bits_mask);
 
-#endif /* _KEY2_REDUCE_H_ */
+#endif  /* _PTEXT_PRIVATE_H_ */

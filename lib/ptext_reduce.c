@@ -16,11 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "key2_reduce.h"
-#include "libzc_private.h"
-#include "crc32.h"
-
 #include <stdlib.h>
+
+#include "ptext_private.h"
 
 struct key2r {
     uint16_t *bits_15_2_cache;
@@ -167,11 +165,11 @@ int key2r_compute_single(uint32_t key2i_plus_1,
     return 0;
 }
 
-int key2r_compute_next_array(struct ka *key2i_plus_1,
-                             struct ka *key2i,
-                             const uint16_t *key2i_bits_15_2,
-                             const uint16_t *key2im1_bits_15_2,
-                             uint32_t common_bits_mask)
+static int key2r_compute_next_array(struct ka *key2i_plus_1,
+                                    struct ka *key2i,
+                                    const uint16_t *key2i_bits_15_2,
+                                    const uint16_t *key2im1_bits_15_2,
+                                    uint32_t common_bits_mask)
 {
     ka_empty(key2i);
 
@@ -185,4 +183,55 @@ int key2r_compute_next_array(struct ka *key2i_plus_1,
     }
 
     return 0;
+}
+
+#define SWAP(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
+
+ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
+{
+    struct ka *key2i_plus_1;
+    struct ka *key2i;
+    uint8_t key3i;
+    uint8_t key3im1;
+
+    /* first gen key2 */
+    key3i = generate_key3(ptext, ptext->size - 1);
+    key2i_plus_1 = key2r_compute_first_gen(key2r_get_bits_15_2(ptext->k2r, key3i));
+    if (!key2i_plus_1)
+        return -1;
+
+    /* allocate space for second array */
+    if (ka_alloc(&key2i, pow2(22))) {
+        ka_free(key2i_plus_1);
+        return -1;
+    }
+
+    /* perform reduction */
+    const uint32_t start_index = ptext->size - 2;
+    for (uint32_t i = start_index; i >= 12; --i) {
+        key3i = generate_key3(ptext, i);
+        key3im1 = generate_key3(ptext, i - 1);
+        if (key2r_compute_next_array(key2i_plus_1,
+                                     key2i,
+                                     key2r_get_bits_15_2(ptext->k2r, key3i),
+                                     key2r_get_bits_15_2(ptext->k2r, key3im1),
+                                     i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS))
+            goto err;
+
+        ka_uniq(key2i);
+        SWAP(key2i, key2i_plus_1);
+    }
+
+    ka_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
+
+    ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the array at
+                                 * index 13 (n=14) this leaves 13
+                                 * bytes for the actual attack */
+    ka_free(key2i);
+    return 0;
+
+err:
+    ka_free(key2i);
+    ka_free(key2i_plus_1);
+    return -1;
 }

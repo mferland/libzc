@@ -19,9 +19,8 @@
 #include <check.h>
 #include <stdlib.h>
 
-#include "key2_reduce.h"
+#include "ptext_private.h"
 #include "test_plaintext.h"
-#include "libzc_private.h"
 
 #define KEY3(index) test_plaintext[index] ^ test_ciphertext[index]
 
@@ -69,11 +68,15 @@ START_TEST(test_can_generate_next_array_from_plaintext)
     key2_first_gen = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
     ka_alloc(&key2_next_gen, pow2(22));
 
-    key2r_compute_next_array(key2_first_gen,
-                             key2_next_gen,
-                             key2r_get_bits_15_2(k2r, key3im1),
-                             key2r_get_bits_15_2(k2r, key3im2),
-                             KEY2_MASK_6BITS);
+    ka_empty(key2_next_gen);
+    for (uint32_t i = 0; i < key2_first_gen->size; ++i) {
+        fail_if(key2r_compute_single(ka_at(key2_first_gen, i),
+                                     key2_next_gen,
+                                     key2r_get_bits_15_2(k2r, key3im1),
+                                     key2r_get_bits_15_2(k2r, key3im2),
+                                     KEY2_MASK_6BITS) != 0);
+    }
+
     ka_uniq(key2_next_gen);
 
     fail_if(key2_next_gen->size != 2256896);
@@ -92,6 +95,7 @@ Suite *reduce_suite()
     tcase_add_test(tc_core, test_can_get_bits_15_2);
     tcase_add_test(tc_core, test_can_generate_first_gen_key2);
     tcase_add_test(tc_core, test_can_generate_next_array_from_plaintext);
+    tcase_set_timeout(tc_core, 30);
     suite_add_tcase(s, tc_core);
 
     return s;

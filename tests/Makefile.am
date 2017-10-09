@@ -52,7 +52,7 @@ pwstream_LDADD = $(top_srcdir)/lib/pwstream.lo @CHECK_LIBS@
 # reduce related functions
 reduce_SOURCES = check_reduce.c
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-reduce_LDADD = $(top_srcdir)/lib/key2_reduce.lo \
+reduce_LDADD = $(top_srcdir)/lib/ptext_reduce.lo \
 	$(top_srcdir)/lib/ka.lo \
 	@CHECK_LIBS@
 
