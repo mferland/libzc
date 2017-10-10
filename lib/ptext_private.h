@@ -44,11 +44,7 @@ struct zc_crk_ptext {
     struct zc_key inter_rep;
 };
 
-static inline
-uint8_t generate_key3(const struct zc_crk_ptext *ptext, uint32_t i)
-{
-    return (ptext->plaintext[i] ^ ptext->ciphertext[i]);
-}
+#define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])
 
 /* key2 reduction */
 struct key2r;
