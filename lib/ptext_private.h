@@ -19,6 +19,7 @@
 #ifndef _PTEXT_PRIVATE_H_
 #define _PTEXT_PRIVATE_H_
 
+#include <pthread.h>
 #include <stdint.h>
 
 #include "libzc.h"
@@ -35,13 +36,10 @@ struct zc_crk_ptext {
     size_t size;
     struct ka *key2;
     struct key2r *k2r;
-    uint32_t key2_final[13];
-    uint32_t key1_final[13];
-    uint32_t key0_final[13];
     uint8_t lsbk0_lookup[256][2];
     uint32_t lsbk0_count[256];
-    bool key_found;
-    struct zc_key inter_rep;
+    bool found;
+    pthread_mutex_t mutex;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])

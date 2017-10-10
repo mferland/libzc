@@ -77,7 +77,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
     generate_key0lsb(new);
     new->ctx = ctx;
     new->refcount = 1;
-    new->key_found = false;
+    new->found = false;
     *ptext = new;
 
     dbg(ctx, "ptext %p created\n", new);
