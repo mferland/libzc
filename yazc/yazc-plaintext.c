@@ -287,7 +287,7 @@ static int do_plaintext(int argc, char *argv[])
     printf("Attack running...");
     fflush(stdout);
     struct zc_key out_key;
-    err = zc_crk_ptext_attack(ptext, &out_key);
+    err = zc_crk_ptext_attack(ptext, &out_key, 3); // TODO
     if (err < 0) {
         printf("\n");
         yazc_err("attack failed! Wrong plaintext?\n");

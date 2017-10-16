@@ -39,7 +39,6 @@ struct zc_crk_ptext {
     uint8_t lsbk0_lookup[256][2];
     uint32_t lsbk0_count[256];
     bool found;
-    pthread_mutex_t mutex;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])
