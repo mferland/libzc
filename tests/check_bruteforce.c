@@ -295,7 +295,7 @@ Suite *bforce_suite(void)
     tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
     tcase_add_test(tc_core, test_bruteforce_pay);
     tcase_add_test(tc_core, test_bruteforce_pthread_create_fail);
-    tcase_set_timeout(tc_core, 30);
+    tcase_set_timeout(tc_core, 120);
     suite_add_tcase(s, tc_core);
 
     return s;

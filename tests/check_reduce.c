@@ -91,7 +91,10 @@ Suite *reduce_suite()
     tcase_add_checked_fixture(tc_core, setup_key2r, teardown_key2r);
     tcase_add_test(tc_core, test_can_get_bits_15_2);
     tcase_add_test(tc_core, test_can_generate_first_gen_key2);
+#ifdef EXTRACHECK
     tcase_add_test(tc_core, test_can_generate_next_array_from_plaintext);
+#endif
+    tcase_set_timeout(tc_core, 60);
     suite_add_tcase(s, tc_core);
 
     return s;

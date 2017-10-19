@@ -217,6 +217,8 @@ Suite *plaintext_password_suite()
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
     tcase_set_timeout(tc_core, 3600);
+#else
+    tcase_set_timeout(tc_core, 60);
 #endif
     tcase_add_test(tc_core, test_zc_crk_ptext_find_password_pool);
     suite_add_tcase(s, tc_core);
