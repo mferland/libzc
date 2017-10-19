@@ -294,7 +294,9 @@ Suite *bforce_suite(void)
     tcase_add_test(tc_core, test_bruteforce_stored_multicall);
     tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
     tcase_add_test(tc_core, test_bruteforce_pay);
+#ifdef EXTRACHECK
     tcase_add_test(tc_core, test_bruteforce_pthread_create_fail);
+#endif
     tcase_set_timeout(tc_core, 120);
     suite_add_tcase(s, tc_core);
 
