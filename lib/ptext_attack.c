@@ -284,6 +284,7 @@ static void *worker(void *p)
             break;
         }
     }
+    printf("Quitting\n");
     return NULL;
 }
 
@@ -296,7 +297,7 @@ static void dealloc_workers(struct list_head *head)
     }
 }
 
-static int alloc_workers(const struct zc_crk_ptext *ptext,
+static int alloc_workers(struct zc_crk_ptext *ptext,
                          struct list_head *head,
                          pthread_mutex_t *mutex,
                          uint32_t *next,
@@ -315,6 +316,7 @@ static int alloc_workers(const struct zc_crk_ptext *ptext,
         w->lsbk0_lookup = ptext->lsbk0_lookup;
         w->lsbk0_count = ptext->lsbk0_count;
         w->k2r = ptext->k2r;
+	w->ptext = ptext;
         w->mutex = mutex;
         w->next = next;
 
