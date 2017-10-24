@@ -273,6 +273,7 @@ static void *worker(void *p)
             break;
         }
         i = (*w->next)++;
+        printf("i: %d\n", i);
         pthread_mutex_unlock(w->mutex);
         w->key2_final[12] = w->ptext->key2->array[i];
         if (recurse_key2(w, array, 12))
@@ -346,6 +347,8 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
             goto end;           /* TODO: cancel the other threads */
         }
     }
+
+    /* TODO: run threads */
 
     err = -1;
     list_for_each_entry(w, &head, workers) {
