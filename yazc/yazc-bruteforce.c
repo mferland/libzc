@@ -156,7 +156,7 @@ static int launch_crack(void)
 
     if (stats) {
         printf("Worker threads: %zu\n", thread_count);
-        printf("Maximum length: %lu\n", pwcfg.maxlen);
+        printf("Maximum length: %zu\n", pwcfg.maxlen);
         printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
         printf("Filename: %s\n", filename);
     }

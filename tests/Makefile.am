@@ -47,7 +47,7 @@ dictionary_LDADD = $(top_srcdir)/lib/libzc.la @CHECK_LIBS@
 # pwstream related functions
 pwstream_SOURCES = check_pwstream.c
 pwstream_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-pwstream_LDADD = $(top_srcdir)/lib/pwstream.lo @CHECK_LIBS@
+pwstream_LDADD = $(top_srcdir)/lib/pwstream.lo @CHECK_LIBS@ -lm
 
 # reduce related functions
 reduce_SOURCES = check_reduce.c
