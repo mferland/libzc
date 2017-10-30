@@ -39,10 +39,9 @@ struct worker {
     const uint32_t *lsbk0_count;      /* points to ptext->lsbk0_count */
     const struct key2r *k2r;          /* points to ptext->k2r */
     struct zc_key inter_rep;
-    pthread_t thread_id;
+    pthread_t id;
     pthread_mutex_t *mutex;
-    uint32_t *next;
-    bool found;
+    size_t *next;
     struct zc_crk_ptext *ptext;
     struct list_head workers;
 };
@@ -93,7 +92,10 @@ static bool verify_key0(const struct worker *w, uint32_t key0,
 
 static void key_found(struct worker *w)
 {
-    w->found = true;
+    pthread_mutex_lock(w->mutex);
+    w->ptext->found = true;
+    w->ptext->found_by = pthread_self();
+    pthread_mutex_unlock(w->mutex);
 }
 
 static void compute_key0(struct worker *w)
@@ -222,69 +224,39 @@ static int ptext_final_init(struct ka **key2)
     return 0;
 }
 
-/* ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key) */
-/* { */
-/*     struct ka *array[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; */
-/*     struct worker w; */
-
-/*     if (ptext_final_init(array)) */
-/*         return -1; */
-
-/*     memset(&w, 0, sizeof(struct worker)); */
-
-/*     w.plaintext = ptext->plaintext; */
-/*     w.ciphertext = ptext->ciphertext; */
-/*     w.lsbk0_lookup = ptext->lsbk0_lookup; */
-/*     w.lsbk0_count = ptext->lsbk0_count; */
-/*     w.ptext = ptext; */
-
-/*     ptext->found = false; */
-/*     pthread_mutex_init(&ptext->mutex, NULL); */
-/*     for (uint32_t i = 0; i < ptext->key2->size; ++i) { */
-/*         w.key2_final[12] = ptext->key2->array[i]; */
-/*         if (recurse_key2(&w, array, 12)) */
-/*             break; */
-/*         if (ptext->found) { */
-/*             out_key->key0 = w.inter_rep.key0; */
-/*             out_key->key1 = w.inter_rep.key1; */
-/*             out_key->key2 = w.inter_rep.key2; */
-/*             break; */
-/*         } */
-/*     } */
-/*     pthread_mutex_destroy(&ptext->mutex); */
-
-/*     ptext_final_deinit(array); */
-/*     return (ptext->found == true ? 0 : -1); */
-/* } */
+static int get_next_index(struct worker *w, size_t *i)
+{
+    pthread_mutex_lock(w->mutex);
+    if (w->ptext->found ||
+        *w->next + 1 == w->ptext->key2->size) {
+        pthread_mutex_unlock(w->mutex);
+        return -1;
+    }
+    *i = (*w->next)++;
+    pthread_mutex_unlock(w->mutex);
+    return 0;
+}
 
 static void *worker(void *p)
 {
     struct ka *array[12];
     struct worker *w = (struct worker *)p;
-    uint32_t i;
 
     if (ptext_final_init(array))
         return NULL;
 
     while (1) {
-        pthread_mutex_lock(w->mutex);
-        if (w->ptext->found) {
-            pthread_mutex_unlock(w->mutex);
-            break;
-        }
-        i = (*w->next)++;
-        printf("i: %d\n", i);
-        pthread_mutex_unlock(w->mutex);
-        w->key2_final[12] = w->ptext->key2->array[i];
-        if (recurse_key2(w, array, 12))
-            break;
-        if (w->found) {
-            pthread_mutex_lock(w->mutex);
-            w->ptext->found = true;
-            pthread_mutex_unlock(w->mutex);
+        size_t next;
+        if (get_next_index(w, &next))
+            break;              /* nothing more to do */
+        w->key2_final[12] = w->ptext->key2->array[next];
+        if (recurse_key2(w, array, 12)) {
+            /* TODO: error report it */
             break;
         }
     }
+
+    ptext_final_deinit(array);
     return NULL;
 }
 
@@ -297,10 +269,10 @@ static void dealloc_workers(struct list_head *head)
     }
 }
 
-static int alloc_workers(const struct zc_crk_ptext *ptext,
+static int alloc_workers(struct zc_crk_ptext *ptext,
                          struct list_head *head,
                          pthread_mutex_t *mutex,
-                         uint32_t *next,
+                         size_t *next,
                          size_t count)
 {
     for (size_t i = 0; i < count; ++i) {
@@ -318,6 +290,7 @@ static int alloc_workers(const struct zc_crk_ptext *ptext,
         w->k2r = ptext->k2r;
         w->mutex = mutex;
         w->next = next;
+        w->ptext = ptext;
 
         list_add(&w->workers, head);
     }
@@ -325,11 +298,13 @@ static int alloc_workers(const struct zc_crk_ptext *ptext,
     return 0;
 }
 
-ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key, size_t count)
+ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
+                                  struct zc_key *out_key,
+                                  size_t count)
 {
     struct list_head head;
     pthread_mutex_t mutex;
-    uint32_t next = 0;
+    size_t next = 0;
     struct worker *w;
     int err;
 
@@ -342,7 +317,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
         goto end;
 
     list_for_each_entry(w, &head, workers) {
-        if (pthread_create(&w->thread_id, NULL, worker, w)) {
+        if (pthread_create(&w->id, NULL, worker, w)) {
             perror("pthread_create failed");
             goto end;           /* TODO: cancel the other threads */
         }
@@ -352,12 +327,16 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out
 
     err = -1;
     list_for_each_entry(w, &head, workers) {
-        pthread_join(w->thread_id, NULL);
-        if (w->found) {
+        pthread_join(w->id, NULL);
+        pthread_mutex_lock(&mutex);
+        if (ptext->found && ptext->found_by == w->id) {
             *out_key = w->inter_rep;
             err = 0;
         }
+        pthread_mutex_unlock(&mutex);
     }
+
+    dealloc_workers(&head);
 
 end:
     pthread_mutex_destroy(&mutex);
