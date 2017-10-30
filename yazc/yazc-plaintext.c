@@ -33,8 +33,9 @@
 #include "yazc.h"
 #include "libzc.h"
 
-static const char short_opts[] = "h";
+static const char short_opts[] = "t:h";
 static const struct option long_opts[] = {
+    {"threads", required_argument, 0, 't'},
     {"help", no_argument, 0, 'h'},
     {NULL, 0, 0, 0}
 };
@@ -53,12 +54,13 @@ struct filed {
 
 static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
+static size_t thread_count;
 
 static void print_help(const char *name)
 {
     fprintf(stderr,
             "Usage:\n"
-            "\t%s PLAIN:OFF1:OFF2 CIPHER:OFF1:OFF2:BEGIN\n"
+            "\t%s [options] PLAIN:OFF1:OFF2 CIPHER:OFF1:OFF2:BEGIN\n"
             "\n"
             "The plaintext subcommand uses a known vulnerability in the pkzip\n"
             "stream cipher to find the internal representation of the encryption\n"
@@ -74,6 +76,7 @@ static void print_help(const char *name)
             "the cipher (begins at offset 64) to get the internal representation.\n"
             "\n"
             "Options:\n"
+            "\t-t, --threads=NUM       spawn NUM threads\n"
             "\t-h, --help              show this help\n",
             name, name);
 }
@@ -205,12 +208,19 @@ static int unmap_text_buf(struct filed *file)
 
 static int do_plaintext(int argc, char *argv[])
 {
-    int c, idx, err = 0;
+    const char *arg_threads = NULL;
     struct zc_crk_ptext *ptext;
+    int err = 0;
 
-    c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-    if (c != -1) {
+    for (;;) {
+        int c, idx;
+        c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+        if (c == -1)
+            break;
         switch (c) {
+        case 't':
+            arg_threads = optarg;
+            break;
         case 'h':
             print_help(basename(argv[0]));
             return EXIT_SUCCESS;
@@ -220,11 +230,21 @@ static int do_plaintext(int argc, char *argv[])
         }
     }
 
-    if (optind + 1 >= argc) {
-        yazc_err("invalid arguments.\n");
+    if (optind >= argc) {
+        yazc_err("missing arguments.\n");
         print_help(basename(argv[0]));
         return EXIT_FAILURE;
     }
+
+    /* number of concurrent threads */
+    if (arg_threads) {
+        thread_count = atoi(arg_threads);
+        if (thread_count < 1) {
+            yazc_err("number of threads can't be less than one.\n");
+            return EXIT_FAILURE;
+        }
+    } else
+        thread_count = 1;
 
     if (parse_opt(argv[optind], 2, &plain.name,
                   &plain.txt_begin, &plain.txt_end, NULL) < 0) {
@@ -287,7 +307,7 @@ static int do_plaintext(int argc, char *argv[])
     printf("Attack running...");
     fflush(stdout);
     struct zc_key out_key;
-    err = zc_crk_ptext_attack(ptext, &out_key, 8); // TODO
+    err = zc_crk_ptext_attack(ptext, &out_key, thread_count);
     if (err < 0) {
         printf("\n");
         yazc_err("attack failed! Wrong plaintext?\n");
