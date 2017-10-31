@@ -43,6 +43,7 @@ struct worker {
     pthread_mutex_t *mutex;
     size_t *next;
     struct zc_crk_ptext *ptext;
+    int worker_err_status;
     struct list_head workers;
 };
 
@@ -251,7 +252,7 @@ static void *worker(void *p)
             break;              /* nothing more to do */
         w->key2_final[12] = w->ptext->key2->array[next];
         if (recurse_key2(w, array, 12)) {
-            /* TODO: error report it */
+            w->worker_err_status = -1;
             break;
         }
     }
@@ -329,7 +330,9 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
     list_for_each_entry(w, &head, workers) {
         pthread_join(w->id, NULL);
         pthread_mutex_lock(&mutex);
-        if (ptext->found && ptext->found_by == w->id) {
+        if (w->worker_err_status) {
+            err(ptext->ctx, "thread 0x%lx encountered a fatal error\n", w->id);
+        } else if (ptext->found && ptext->found_by == w->id) {
             *out_key = w->inter_rep;
             err = 0;
         }
