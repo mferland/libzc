@@ -44,6 +44,7 @@ struct worker {
     size_t *next;
     struct zc_crk_ptext *ptext;
     int worker_err_status;
+    int pthread_create_err;
     struct list_head workers;
 };
 
@@ -318,21 +319,21 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
         goto end;
 
     list_for_each_entry(w, &head, workers) {
-        if (pthread_create(&w->id, NULL, worker, w)) {
+        /* best effort */
+        w->pthread_create_err = pthread_create(&w->id, NULL, worker, w);
+        if (w->pthread_create_err)
             perror("pthread_create failed");
-            goto end;           /* TODO: cancel the other threads */
-        }
     }
-
-    /* TODO: run threads */
 
     err = -1;
     list_for_each_entry(w, &head, workers) {
+        if (w->pthread_create_err)
+            continue;
         pthread_join(w->id, NULL);
         pthread_mutex_lock(&mutex);
         if (w->worker_err_status) {
             err(ptext->ctx, "thread 0x%lx encountered a fatal error\n", w->id);
-        } else if (ptext->found && ptext->found_by == w->id) {
+        } else if (ptext->found && pthread_equal(ptext->found_by, w->id)) {
             *out_key = w->inter_rep;
             err = 0;
         }
