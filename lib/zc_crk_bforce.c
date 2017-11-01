@@ -231,22 +231,30 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     struct zc_key key;
     struct hash *h = &w->h;
 
+#define RESET() do \
+    { \
+        key.key0 = h->initk0[i]; \
+        key.key1 = h->initk1[i]; \
+        key.key2 = h->initk2[i]; \
+    } while (0)
+
     for (int i = 0; i < len; ++i) {
         if (h->check[i])
             continue;
-        key.key0 = h->initk0[i];
-        key.key1 = h->initk1[i];
-        key.key2 = h->initk2[i];
-        for (size_t j = 1; j < crk->vdata_size; ++j) {
+        size_t j = 1;
+        for (; j < crk->vdata_size; ++j) {
+            RESET();
             if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
-                continue;
+                break;
         }
-        key.key0 = h->initk0[i];
-        key.key1 = h->initk1[i];
-        key.key2 = h->initk2[i];
+        if (j < crk->vdata_size)
+            continue;
+        RESET();
         if (test_password(w, &key))
             return i;
     }
+
+#undef RESET
 
     return -1;
 }
