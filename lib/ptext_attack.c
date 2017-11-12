@@ -332,7 +332,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
         pthread_join(w->id, NULL);
         pthread_mutex_lock(&mutex);
         if (w->worker_err_status) {
-            err(ptext->ctx, "thread 0x%lx encountered a fatal error\n", w->id);
+            err(ptext->ctx, "worker %p encountered a fatal error\n", w);
         } else if (ptext->found && pthread_equal(ptext->found_by, w->id)) {
             *out_key = w->inter_rep;
             err = 0;
