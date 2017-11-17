@@ -61,7 +61,7 @@ actual (or an equivalent) password.
 
 Example:
 
-    yazc plaintext plain.bin:100:650 archive.zip:112:662:64
+    yazc plaintext -t8 plain.bin:100:650 archive.zip:112:662:64
 
 TODO
 ----

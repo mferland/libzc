@@ -82,6 +82,7 @@ struct worker {
     struct zlib_state *zlib;
 
     struct hash {
+	uint64_t candidate;
         uint8_t check[LEN];
         uint32_t initk0[LEN];
         uint32_t initk1[LEN];
@@ -193,10 +194,11 @@ static void do_work_recurse(struct worker *w, size_t level,
     limit[0].initial = limit[0].start;
 }
 
-static int try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
+static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
 {
-    int ret = 0;
     uint8_t *c = h->check;
+
+    h->candidate = 0;
 
     /* first pass */
     for (int i = 0; i < 11; ++i) {
@@ -221,9 +223,9 @@ static int try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
     uint8_t magic = crk->vdata[0].magic;
     for (int j = 0; j < LEN; ++j) {
         c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
-        ret |= c[j];
+        h->candidate |= c[j] ? 0 : 1 << j;
     }
-    return ret;
+    return h->candidate;
 }
 
 static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int len)
@@ -239,7 +241,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w, int l
     } while (0)
 
     for (int i = 0; i < len; ++i) {
-        if (h->check[i])
+        if (!(h->candidate & (1 << i)))
             continue;
         size_t j = 1;
         for (; j < crk->vdata_size; ++j) {
@@ -312,7 +314,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
                                 if (++pwi % LEN)
                                     continue;
 
-                                if (!try_decrypt_fast(crk, &w->h))
+                                if (try_decrypt_fast(crk, &w->h) == 0)
                                     continue;
 
                                 ret = try_decrypt2(crk, w, LEN);
