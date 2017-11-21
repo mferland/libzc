@@ -197,32 +197,40 @@ static void do_work_recurse(struct worker *w, size_t level,
 static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
 {
     uint8_t *c = h->check;
+    uint32_t *k0 = h->k0;
+    uint32_t *k1 = h->k1;
+    uint32_t *k2 = h->k2;
 
     h->candidate = 0;
 
     /* first pass */
-    for (int i = 0; i < 11; ++i) {
+    for (size_t i = 0; i < 11; ++i) {
         uint8_t header = crk->vdata[0].encryption_header[i];
+
+#pragma GCC ivdep
         for (int j = 0; j < LEN; ++j)
-            c[j] = header ^ decrypt_byte(h->k2[j]);
+            c[j] = header ^ decrypt_byte(k2[j]);
 
         /* update key0 */
+#pragma GCC ivdep
         for (int j = 0; j < LEN; ++j)
-            h->k0[j] = crc32(h->k0[j], c[j]);
+            k0[j] = crc32(k0[j], c[j]);
 
         /* update key1 */
         for (int j = 0; j < LEN; ++j)
-            h->k1[j] = (h->k1[j] + (h->k0[j] & 0xff)) * MULT + 1;
+            k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
         /* update key2 */
+#pragma GCC ivdep
         for (int j = 0; j < LEN; ++j)
-            h->k2[j] = crc32(h->k2[j], h->k1[j] >> 24);
+            k2[j] = crc32(k2[j], k1[j] >> 24);
     }
 
     uint8_t header = crk->vdata[0].encryption_header[11];
     uint8_t magic = crk->vdata[0].magic;
-    for (int j = 0; j < LEN; ++j) {
-        c[j] = header ^ decrypt_byte(h->k2[j]) ^ magic;
+#pragma GCC ivdep
+    for (size_t j = 0; j < LEN; ++j) {
+        c[j] = header ^ decrypt_byte(k2[j]) ^ magic;
         h->candidate |= c[j] ? 0 : 1 << j;
     }
     return h->candidate;
