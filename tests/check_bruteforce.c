@@ -47,7 +47,7 @@ START_TEST(test_parameter_set)
     cfg.maxlen = 5;
     memcpy(cfg.initial, "test", 5);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), -1);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
 }
 END_TEST
 
@@ -62,17 +62,17 @@ START_TEST(test_parameter_setlen)
 
     /* sanitze will correct the setlen */
     cfg.setlen = 8;
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
     ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
 
     cfg.setlen = 0;
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), -1);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
 
     cfg.setlen = ZC_CHARSET_MAXLEN;
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), -1);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
 
     cfg.setlen = ZC_CHARSET_MAXLEN + 1;
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), -1);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
 
 }
 END_TEST
@@ -87,15 +87,15 @@ START_TEST(test_parameter_init_leak)
     strcpy(cfg.initial, "a");
 
     /* first call */
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
     ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
 
     /* second call, should not leak */
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
     ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
 
     /* third call, should not leak */
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
     ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
 }
 END_TEST
@@ -110,7 +110,7 @@ START_TEST(test_bruteforce_password_found)
     cfg.setlen = 12;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
     ck_assert_str_eq(out, "noradi");
@@ -127,7 +127,7 @@ START_TEST(test_bruteforce_password_found_multicall)
     cfg.setlen = 12;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
     ck_assert_str_eq(out, "noradi");
@@ -148,7 +148,7 @@ START_TEST(test_bruteforce_password_not_found)
     cfg.setlen = 12;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
 }
@@ -164,7 +164,7 @@ START_TEST(test_bruteforce_password_not_found_multicall)
     cfg.setlen = 12;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 1);
@@ -181,7 +181,7 @@ START_TEST(test_bruteforce_stored)
     cfg.setlen = 8;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/stored.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
     ck_assert_str_eq(out, "pass");
@@ -198,7 +198,7 @@ START_TEST(test_bruteforce_stored_multicall)
     cfg.setlen = 8;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/stored.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 1, out, sizeof(out)), 0);
     ck_assert_str_eq(out, "pass");
@@ -219,7 +219,7 @@ static void test_cancel(size_t threads)
     cfg.setlen = 6;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     for (int i = 0; i < CANCEL_TESTS; ++i) {
         ck_assert_int_eq(zc_crk_bforce_start(crk, threads, out, sizeof(out)), 0);
@@ -248,7 +248,7 @@ START_TEST(test_bruteforce_pay)
     cfg.setlen = 10;
     strcpy(cfg.initial, "moaaaaaaa");
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/pay.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "pay.zip", &cfg), 0);
 
     ck_assert_int_eq(zc_crk_bforce_start(crk, 8, out, sizeof(out)), 0);
     ck_assert_str_eq(out, "morpheus!");
@@ -265,7 +265,7 @@ START_TEST(test_bruteforce_pthread_create_fail)
     cfg.setlen = 12;
     memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-    ck_assert_int_eq(zc_crk_bforce_init(crk, "../data/noradi.zip", &cfg), 0);
+    ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
 
     /* create an insane amount of threads, should return an error (not
      * crash ...) */

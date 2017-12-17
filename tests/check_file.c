@@ -48,7 +48,7 @@ END_TEST
 
 START_TEST(test_zc_file_open_existant)
 {
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
+    zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
     ck_assert(zc_file_isopened(file) == false);
     fail_if(zc_file_open(file) != 0,
             "File could not be opened.");
@@ -70,7 +70,7 @@ END_TEST
 
 START_TEST(test_zc_file_close_opened)
 {
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
+    zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
     zc_file_open(file);
     fail_if(zc_file_close(file) != 0,
             "Closing existant file failed.");
@@ -104,7 +104,7 @@ START_TEST(test_zc_file_info_encrypted)
     struct zc_info *info;
     const uint8_t *buf;
 
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
+    zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
     zc_file_open(file);
 
     int i = 0;
@@ -146,7 +146,7 @@ START_TEST(test_zc_file_info_non_encrypted)
     struct zc_info *info;
     const uint8_t *buf;
 
-    zc_file_new_from_filename(ctx, "../data/test_non_encrypted.zip", &file);
+    zc_file_new_from_filename(ctx, DATADIR "test_non_encrypted.zip", &file);
     zc_file_open(file);
 
     int i = 0;
