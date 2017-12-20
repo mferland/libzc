@@ -32,26 +32,6 @@ AC_PROG_CC
 AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
-AC_CANONICAL_HOST
-
-build_linux=no
-build_mac=no
-
-# Detect the target system
-case "${host_os}" in
-    linux*)
-        build_linux=yes
-        ;;
-    darwin*)
-        build_mac=yes
-        ;;
-    *)
-        AC_MSG_ERROR(["OS $host_os is not supported"])
-        ;;
-esac
-AM_CONDITIONAL([LINUX], [test "$build_linux" = "yes"])
-AM_CONDITIONAL([OSX], [test "$build_mac" = "yes"])
-
 AX_PTHREAD([CLIBS="$PTHREAD_LIBS $LIBS"
             CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
             LDFLAGS="$LDFLAGS $PTHREAD_CFLAGS"])
