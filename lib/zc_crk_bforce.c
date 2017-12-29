@@ -29,6 +29,7 @@
 #include "pwstream.h"
 #include "libzc_private.h"
 
+/* The length here refers to the length of the 'candidate' field. */
 #define LEN 64
 
 /* bruteforce cracker */
@@ -200,12 +201,13 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
     uint32_t *k0 = h->k0;
     uint32_t *k1 = h->k1;
     uint32_t *k2 = h->k2;
+    uint8_t header;
 
     h->candidate = 0;
 
     /* first pass */
     for (size_t i = 0; i < 11; ++i) {
-        uint8_t header = crk->vdata[0].encryption_header[i];
+	header = crk->vdata[0].encryption_header[i];
 
 #pragma GCC ivdep
         for (int j = 0; j < LEN; ++j)
@@ -226,8 +228,8 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
             k2[j] = crc32(k2[j], k1[j] >> 24);
     }
 
-    uint8_t header = crk->vdata[0].encryption_header[11];
     uint8_t magic = crk->vdata[0].magic;
+    header = crk->vdata[0].encryption_header[11];
 #pragma GCC ivdep
     for (size_t j = 0; j < LEN; ++j) {
         c[j] = header ^ decrypt_byte(k2[j]) ^ magic;
