@@ -1,4 +1,4 @@
-libzc.so.3 libzc3 #MINVER#
+libzc.so.4 libzc4 #MINVER#
  zc_crk_bforce_init@Base 0.3.1
  zc_crk_bforce_new@Base 0.3.1
  zc_crk_bforce_ref@Base 0.3.1
@@ -10,7 +10,7 @@ libzc.so.3 libzc3 #MINVER#
  zc_crk_dict_ref@Base 0.3.1
  zc_crk_dict_start@Base 0.3.1
  zc_crk_dict_unref@Base 0.3.1
- zc_crk_ptext_attack@Base 0.3.1
+ zc_crk_ptext_attack@Base 0.4.0
  zc_crk_ptext_find_internal_rep@Base 0.3.1
  zc_crk_ptext_find_password@Base 0.3.1
  zc_crk_ptext_key2_count@Base 0.3.1
