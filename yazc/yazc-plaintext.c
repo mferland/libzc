@@ -337,6 +337,7 @@ static int do_plaintext(int argc, char *argv[])
     err = zc_crk_ptext_find_password(ptext, &int_rep, pw, sizeof(pw));
     if (err < 0) {
         yazc_err(" failed!\n");
+        err = EXIT_FAILURE;
         goto error4;
     }
 
@@ -348,6 +349,8 @@ static int do_plaintext(int argc, char *argv[])
             printf("0x%x ", pw[i]);
     }
     printf("\n");
+
+    err = EXIT_SUCCESS;
 
 error4:
     zc_crk_ptext_unref(ptext);
