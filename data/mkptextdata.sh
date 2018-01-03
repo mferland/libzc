@@ -16,50 +16,52 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ZIP=$(which zip)
-EPREFIX="eptext_archive_"
-PREFIX="ptext_archive_"
-SUFFIX=".zip"
-YAZC="../yazc/yazc"
-CMD="libtool --mode=execute $YAZC"
+CMD="libtool --mode=execute ../yazc/yazc"
+
+create_dummy_files() {
+    for i in $(seq 0 2)
+    do
+        dd if=/dev/urandom of=file_${i} bs=$(($RANDOM * 10)) count=1 &>/dev/null
+    done
+}
+
+create_zip_files() {
+    FILES="file_0 file_1 file_2"
+    zip -e -P ${PW} ${E} ${FILES} &>/dev/null
+    zip ${P} ${FILES} &>/dev/null
+}
+
+cleanup() {
+    rm -f file_[0-9] [ep]_archive_*
+}
 
 if [ ! -f "${ZIP}" ]; then
     echo >&2 "error: zip not found!"
     exit 1
 fi
 
-create_dummy_files() {
-    for i in $(seq 0 2)
-    do
-        dd if=/dev/urandom of=file_${i} bs=$(($RANDOM * 50)) count=1
-    done
-}
+while true; do
+    PW=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $(($RANDOM % 10 + 1)) | head -n 1)
+    E="e_archive_${PW}.zip"
+    P="p_archive_${PW}.zip"
 
-cleanup() {
-    rm -f file_[0-9]
-}
+    cleanup
+    create_dummy_files
+    create_zip_files
 
-cleanup
-create_dummy_files
+    EINFO=$(${CMD} info ${E} | grep file_0 | sed 's/\ \+/ /g')
+    PINFO=$(${CMD} info ${P} | grep file_0 | sed 's/\ \+/ /g')
+    POFF1=$(echo ${PINFO} | cut -d' ' -f4)
+    POFF2=$(echo ${PINFO} | cut -d' ' -f5)
+    COFF1=$(echo ${EINFO} | cut -d' ' -f4)
+    COFF2=$(echo ${EINFO} | cut -d' ' -f5)
+    CBEGN=$(echo ${EINFO} | cut -d' ' -f3)
 
-FILES="file_0 file_1 file_2"
-for pw in a aa aaa
-do
-    zip -e -P ${pw} ${EPREFIX}${pw}${SUFFIX} ${FILES}
-    zip ${PREFIX}${pw}${SUFFIX} ${FILES}
+    echo libtool exe ../yazc/yazc plaintext -t8 ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}
+    if ! libtool exe ../yazc/yazc plaintext -t8 ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}; then
+	echo >&2 "ERROR"
+	exit 1
+    fi
 done
-
-EINFO=$(${CMD} info ${EPREFIX}a${SUFFIX} | grep file_0 | sed 's/\ \+/ /g')
-INFO=$(${CMD} info ${PREFIX}a${SUFFIX} | grep file_0 | sed 's/\ \+/ /g')
-PLAINOFF1=$(echo ${INFO} | cut -d' ' -f4)
-PLAINOFF2=$(echo ${INFO} | cut -d' ' -f5)
-CIPHEROFF1=$(echo ${EINFO} | cut -d' ' -f4)
-CIPHEROFF2=$(echo ${EINFO} | cut -d' ' -f5)
-CIPHERBEGIN=$(echo ${EINFO} | cut -d' ' -f3)
-
-echo $PLAINOFF1 $PLAINOFF2 $CIPHEROFF1 $CIPHEROFF2 $CIPHERBEGIN
-
-echo libtool exe ../yazc/yazc plaintext ${PREFIX}a${SUFFIX}:${PLAINOFF1}:${PLAINOFF2} ${EPREFIX}a${SUFFIX}:${CIPHEROFF1}:${CIPHEROFF2}:${CIPHERBEGIN}
-
-cleanup
 
 exit 0
