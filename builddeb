@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# Simple debian package build script
+
+D="debtest"
+PN="libzc"
+PV="0.4.0"
+PF="${PN}-${PV}"
+PE="orig.tar.gz"
+A="${PN}_${PV}.${PE}"
+
+rm -rf ${D}
+mkdir ${D}
+
+git archive --format=tar.gz --prefix=${PF}/ HEAD > ${D}/${A}
+
+cd ${D}
+tar xvf ${A}
+cd ${PF}
+
+echo debuild
+
+exit 0
