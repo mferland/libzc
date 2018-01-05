@@ -25,105 +25,105 @@
 static void uint_qsort(uint32_t *arr, uint32_t n)
 {
 #define uint_lt(a,b) ((*a)<(*b))
-    QSORT(uint32_t, arr, n, uint_lt);
+	QSORT(uint32_t, arr, n, uint_lt);
 }
 
 static void sort(struct ka *a)
 {
-    uint_qsort(a->array, a->size);
+	uint_qsort(a->array, a->size);
 }
 
 int ka_alloc(struct ka **a, size_t initial_size)
 {
-    struct ka *tmp;
+	struct ka *tmp;
 
-    if (initial_size == 0)
-        return -1;
+	if (initial_size == 0)
+		return -1;
 
-    tmp = calloc(1, sizeof(struct ka));
-    if (!tmp)
-        return -1;
+	tmp = calloc(1, sizeof(struct ka));
+	if (!tmp)
+		return -1;
 
-    tmp->array = calloc(1, initial_size * sizeof(uint32_t));
-    if (!tmp->array) {
-        free(tmp);
-        return -1;
-    }
+	tmp->array = calloc(1, initial_size * sizeof(uint32_t));
+	if (!tmp->array) {
+		free(tmp);
+		return -1;
+	}
 
-    tmp->capacity = tmp->size = initial_size;
-    *a = tmp;
+	tmp->capacity = tmp->size = initial_size;
+	*a = tmp;
 
-    return 0;
+	return 0;
 }
 
 void ka_free(struct ka *a)
 {
-    if (!a)
-        return;
-    free(a->array);
-    free(a);
+	if (!a)
+		return;
+	free(a->array);
+	free(a);
 }
 
 int ka_append(struct ka *a, uint32_t key)
 {
-    uint32_t *tmp;
+	uint32_t *tmp;
 
-    if (a->size < a->capacity) {
-        a->array[a->size] = key;
-        ++a->size;
-        return 0;
-    }
+	if (a->size < a->capacity) {
+		a->array[a->size] = key;
+		++a->size;
+		return 0;
+	}
 
-    a->capacity += 4096;
-    tmp = realloc(a->array, a->capacity * sizeof(uint32_t));
-    if (!tmp) {
-        perror("realloc failed");
-        return -1;
-    }
-    a->array = tmp;
+	a->capacity += 4096;
+	tmp = realloc(a->array, a->capacity * sizeof(uint32_t));
+	if (!tmp) {
+		perror("realloc failed");
+		return -1;
+	}
+	a->array = tmp;
 
-    a->array[a->size] = key;
-    ++a->size;
-    return 0;
+	a->array[a->size] = key;
+	++a->size;
+	return 0;
 }
 
 void ka_uniq(struct ka *a)
 {
-    size_t i = 0;
-    size_t j;
+	size_t i = 0;
+	size_t j;
 
-    if (a->size <= 1)
-        return;
+	if (a->size <= 1)
+		return;
 
-    sort(a);
+	sort(a);
 
-    /* reduce by removing duplicates */
-    for (j = 1; j < a->size; ++j) {
-        if (a->array[j] != a->array[i])
-            a->array[++i] = a->array[j];
-    }
+	/* reduce by removing duplicates */
+	for (j = 1; j < a->size; ++j) {
+		if (a->array[j] != a->array[i])
+			a->array[++i] = a->array[j];
+	}
 
-    a->size = i + 1;
+	a->size = i + 1;
 }
 
 void ka_squeeze(struct ka *a)
 {
-    if (a->size == a->capacity)
-        return;
-    a->array = realloc(a->array, a->size * sizeof(uint32_t));
-    a->capacity = a->size;
+	if (a->size == a->capacity)
+		return;
+	a->array = realloc(a->array, a->size * sizeof(uint32_t));
+	a->capacity = a->size;
 }
 
 void ka_empty(struct ka *a)
 {
-    /* future append will restart at 0 */
-    a->size = 0;
+	/* future append will restart at 0 */
+	a->size = 0;
 }
 
 #ifdef ENABLE_DEBUG
 void ka_print(struct ka *a, FILE *stream)
 {
-    for (uint32_t i = 0; i < a->size; ++i)
-        fprintf(stream, "0x%0x\n", a->array[i]);
+	for (uint32_t i = 0; i < a->size; ++i)
+		fprintf(stream, "0x%0x\n", a->array[i]);
 }
 #endif

@@ -30,80 +30,80 @@
 
 static void generate_key0lsb(struct zc_crk_ptext *ptext)
 {
-    /* reset lsb counters to 0 */
-    memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
+	/* reset lsb counters to 0 */
+	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
 
-    for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
-        uint8_t msbp = msb(p);
-        ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
-    }
+	for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
+		uint8_t msbp = msb(p);
+		ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
+	}
 }
 
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
-    if (!ptext)
-        return NULL;
-    ptext->refcount++;
-    return ptext;
+	if (!ptext)
+		return NULL;
+	ptext->refcount++;
+	return ptext;
 }
 
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 {
-    if (!ptext)
-        return NULL;
-    ptext->refcount--;
-    if (ptext->refcount > 0)
-        return ptext;
-    dbg(ptext->ctx, "ptext %p released\n", ptext);
-    ka_free(ptext->key2);
-    key2r_free(ptext->k2r);
-    free(ptext);
-    return NULL;
+	if (!ptext)
+		return NULL;
+	ptext->refcount--;
+	if (ptext->refcount > 0)
+		return ptext;
+	dbg(ptext->ctx, "ptext %p released\n", ptext);
+	ka_free(ptext->key2);
+	key2r_free(ptext->k2r);
+	free(ptext);
+	return NULL;
 }
 
 ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 {
-    struct zc_crk_ptext *new;
+	struct zc_crk_ptext *new;
 
-    new = calloc(1, sizeof(struct zc_crk_ptext));
-    if (!new)
-        return -1;
+	new = calloc(1, sizeof(struct zc_crk_ptext));
+	if (!new)
+		return -1;
 
-    if (key2r_new(&new->k2r)) {
-        free(new);
-        return -1;
-    }
+	if (key2r_new(&new->k2r)) {
+		free(new);
+		return -1;
+	}
 
-    generate_key0lsb(new);
-    new->ctx = ctx;
-    new->refcount = 1;
-    new->found = false;
-    new->force_threads = -1;
-    *ptext = new;
+	generate_key0lsb(new);
+	new->ctx = ctx;
+	new->refcount = 1;
+	new->found = false;
+	new->force_threads = -1;
+	*ptext = new;
 
-    dbg(ctx, "ptext %p created\n", new);
+	dbg(ctx, "ptext %p created\n", new);
 
-    return 0;
+	return 0;
 }
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
-                                    const uint8_t *plaintext,
-                                    const uint8_t *ciphertext,
-                                    size_t size)
+				    const uint8_t *plaintext,
+				    const uint8_t *ciphertext,
+				    size_t size)
 {
-    if (size < 13)
-        return -1;
+	if (size < 13)
+		return -1;
 
-    ptext->plaintext = plaintext;
-    ptext->ciphertext = ciphertext;
-    ptext->size = size;
+	ptext->plaintext = plaintext;
+	ptext->ciphertext = ciphertext;
+	ptext->size = size;
 
-    return 0;
+	return 0;
 }
 
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
-    if (ptext->key2)
-        return ptext->key2->size;
-    return 0;
+	if (ptext->key2)
+		return ptext->key2->size;
+	return 0;
 }

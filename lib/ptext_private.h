@@ -29,18 +29,18 @@
 #define KEY2_MASK_8BITS 0xff00
 
 struct zc_crk_ptext {
-    struct zc_ctx *ctx;
-    int refcount;
-    const uint8_t *plaintext;
-    const uint8_t *ciphertext;
-    size_t size;
-    struct ka *key2;
-    struct key2r *k2r;
-    uint8_t lsbk0_lookup[256][2];
-    uint32_t lsbk0_count[256];
-    bool found;
-    pthread_t found_by;
-    long force_threads;
+	struct zc_ctx *ctx;
+	int refcount;
+	const uint8_t *plaintext;
+	const uint8_t *ciphertext;
+	size_t size;
+	struct ka *key2;
+	struct key2r *k2r;
+	uint8_t lsbk0_lookup[256][2];
+	uint32_t lsbk0_count[256];
+	bool found;
+	pthread_t found_by;
+	long force_threads;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])
@@ -52,9 +52,9 @@ void key2r_free(struct key2r *key2r);
 uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, uint8_t key3);
 struct ka *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
 int key2r_compute_single(uint32_t key2i_plus_1,
-                         struct ka *key2i,
-                         const uint16_t *key2i_bits_15_2,
-                         const uint16_t *key2im1_bits_15_2,
-                         uint32_t common_bits_mask);
+			 struct ka *key2i,
+			 const uint16_t *key2i_bits_15_2,
+			 const uint16_t *key2im1_bits_15_2,
+			 uint32_t common_bits_mask);
 
 #endif  /* _PTEXT_PRIVATE_H_ */

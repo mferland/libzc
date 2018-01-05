@@ -16,8 +16,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 OPTIONS="\
---style=kr \
+--style=linux \
 --pad-oper \
+--indent=force-tab=8 \
+--max-code-length=80 \
 -k3 \
 -W3 \
 -m0 \

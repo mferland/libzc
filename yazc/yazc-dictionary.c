@@ -25,103 +25,103 @@
 
 static const char short_opts[] = "d:h";
 static const struct option long_opts[] = {
-    {"dictionary", required_argument, 0, 'd'},
-    {"help", no_argument, 0, 'h'},
-    {NULL, 0, 0, 0}
+	{"dictionary", required_argument, 0, 'd'},
+	{"help", no_argument, 0, 'h'},
+	{NULL, 0, 0, 0}
 };
 
 static void print_help(const char *cmdname)
 {
-    fprintf(stderr,
-            "Usage:\n"
-            "\t%s [options] filename\n"
-            "Options:\n"
-            "\t-d, --dictionary=FILE   read passwords from FILE\n"
-            "\t-h, --help              show this help\n",
-            cmdname);
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%s [options] filename\n"
+		"Options:\n"
+		"\t-d, --dictionary=FILE   read passwords from FILE\n"
+		"\t-h, --help              show this help\n",
+		cmdname);
 }
 
 static int launch_crack(const char *dict_filename, const char *zip_filename)
 {
-    struct zc_ctx *ctx;
-    struct zc_crk_dict *crk;
-    char pw[ZC_PW_MAXLEN + 1];
-    int err = -1;
+	struct zc_ctx *ctx;
+	struct zc_crk_dict *crk;
+	char pw[ZC_PW_MAXLEN + 1];
+	int err = -1;
 
-    if (zc_new(&ctx)) {
-        yazc_err("zc_new() failed!\n");
-        return -1;
-    }
+	if (zc_new(&ctx)) {
+		yazc_err("zc_new() failed!\n");
+		return -1;
+	}
 
-    if (zc_crk_dict_new(ctx, &crk)) {
-        yazc_err("zc_crk_dict_new() failed!\n");
-        goto err1;
-    }
+	if (zc_crk_dict_new(ctx, &crk)) {
+		yazc_err("zc_crk_dict_new() failed!\n");
+		goto err1;
+	}
 
-    if (zc_crk_dict_init(crk, zip_filename)) {
-        yazc_err("zc_crk_dict_init() failed!\n");
-        goto err2;
-    }
+	if (zc_crk_dict_init(crk, zip_filename)) {
+		yazc_err("zc_crk_dict_init() failed!\n");
+		goto err2;
+	}
 
-    err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
-    if (err > 0)
-        printf("Password not found\n");
-    else if (err == 0)
-        printf("Password is: %s\n", pw);
-    else
-        yazc_err("zc_crk_dict_start failed!\n");
+	err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
+	if (err > 0)
+		printf("Password not found\n");
+	else if (err == 0)
+		printf("Password is: %s\n", pw);
+	else
+		yazc_err("zc_crk_dict_start failed!\n");
 
 err2:
-    zc_crk_dict_unref(crk);
+	zc_crk_dict_unref(crk);
 
 err1:
-    zc_unref(ctx);
+	zc_unref(ctx);
 
-    return err;
+	return err;
 }
 
 static int do_dictionary(int argc, char *argv[])
 {
-    const char *dict_filename = NULL;
-    const char *zip_filename = NULL;
-    int err;
+	const char *dict_filename = NULL;
+	const char *zip_filename = NULL;
+	int err;
 
-    for (;;) {
-        int c;
-        int idx;
-        c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-        if (c == -1)
-            break;
-        switch (c) {
-        case 'd':
-            dict_filename = optarg;
-            break;
-        case 'h':
-            print_help(basename(argv[0]));
-            return EXIT_SUCCESS;
-        default:
-            yazc_err("unexpected getopt_long() value '%c'.\n", c);
-            return EXIT_FAILURE;
-        }
-    }
+	for (;;) {
+		int c;
+		int idx;
+		c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+		if (c == -1)
+			break;
+		switch (c) {
+		case 'd':
+			dict_filename = optarg;
+			break;
+		case 'h':
+			print_help(basename(argv[0]));
+			return EXIT_SUCCESS;
+		default:
+			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			return EXIT_FAILURE;
+		}
+	}
 
-    if (optind >= argc) {
-        yazc_err("missing filename.\n");
-        return EXIT_FAILURE;
-    }
+	if (optind >= argc) {
+		yazc_err("missing filename.\n");
+		return EXIT_FAILURE;
+	}
 
-    zip_filename = argv[optind];
+	zip_filename = argv[optind];
 
-    printf("Dictionary file: %s\n", !dict_filename ? "stdin" : dict_filename);
-    printf("Filename: %s\n", zip_filename);
+	printf("Dictionary file: %s\n", !dict_filename ? "stdin" : dict_filename);
+	printf("Filename: %s\n", zip_filename);
 
-    err = launch_crack(dict_filename, zip_filename);
+	err = launch_crack(dict_filename, zip_filename);
 
-    return err;
+	return err;
 }
 
 const struct yazc_cmd yazc_cmd_dictionary = {
-    .name = "dictionary",
-    .cmd = do_dictionary,
-    .help = "dictionary password cracker",
+	.name = "dictionary",
+	.cmd = do_dictionary,
+	.help = "dictionary password cracker",
 };

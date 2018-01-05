@@ -22,78 +22,78 @@
 #include <stdlib.h>
 
 struct zlib_state {
-    z_stream s;
+	z_stream s;
 };
 
 /* to silence compiler warnings about missing prototypes */
 int inflate_new(struct zlib_state **zlib);
 void inflate_destroy(struct zlib_state *zlib);
 int inflate_buffer(struct zlib_state *zlib,
-                   unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen,
-                   uint32_t original_crc);
+		   unsigned char *in, size_t inlen,
+		   unsigned char *out, size_t outlen,
+		   uint32_t original_crc);
 int test_buffer_crc(unsigned char *in, size_t inlen,
-                    uint32_t original_crc);
+		    uint32_t original_crc);
 
 int inflate_new(struct zlib_state **zlib)
 {
-    struct zlib_state *tmp;
+	struct zlib_state *tmp;
 
-    tmp = calloc(1, sizeof(struct zlib_state));
-    if (!tmp)
-        return -1;
+	tmp = calloc(1, sizeof(struct zlib_state));
+	if (!tmp)
+		return -1;
 
-    tmp->s.zalloc = Z_NULL;
-    tmp->s.zfree = Z_NULL;
-    tmp->s.opaque = Z_NULL;
-    if (inflateInit2(&tmp->s, -MAX_WBITS) != Z_OK) {
-        free(tmp);
-        return -1;
-    }
+	tmp->s.zalloc = Z_NULL;
+	tmp->s.zfree = Z_NULL;
+	tmp->s.opaque = Z_NULL;
+	if (inflateInit2(&tmp->s, -MAX_WBITS) != Z_OK) {
+		free(tmp);
+		return -1;
+	}
 
-    *zlib = tmp;
-    return 0;
+	*zlib = tmp;
+	return 0;
 }
 
 void inflate_destroy(struct zlib_state *zlib)
 {
-    inflateEnd(&zlib->s);
-    free(zlib);
+	inflateEnd(&zlib->s);
+	free(zlib);
 }
 
 int inflate_buffer(struct zlib_state *zlib,
-                   unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen,
-                   uint32_t original_crc)
+		   unsigned char *in, size_t inlen,
+		   unsigned char *out, size_t outlen,
+		   uint32_t original_crc)
 {
-    int ret;
-    uint32_t crc;
+	int ret;
+	uint32_t crc;
 
-    zlib->s.avail_in = inlen;
-    zlib->s.next_in = in;
+	zlib->s.avail_in = inlen;
+	zlib->s.next_in = in;
 
-    crc = crc32(0L, Z_NULL, 0);
+	crc = crc32(0L, Z_NULL, 0);
 
-    do {
-        zlib->s.avail_out = outlen;
-        zlib->s.next_out = out;
-        ret = inflate(&zlib->s, Z_NO_FLUSH);
-        if (ret < 0) {
-            inflateReset(&zlib->s);
-            return -1;
-        }
-        crc = crc32(crc, out, outlen - zlib->s.avail_out);
-    } while (ret != Z_STREAM_END);
+	do {
+		zlib->s.avail_out = outlen;
+		zlib->s.next_out = out;
+		ret = inflate(&zlib->s, Z_NO_FLUSH);
+		if (ret < 0) {
+			inflateReset(&zlib->s);
+			return -1;
+		}
+		crc = crc32(crc, out, outlen - zlib->s.avail_out);
+	} while (ret != Z_STREAM_END);
 
-    inflateReset(&zlib->s);
+	inflateReset(&zlib->s);
 
-    return crc == original_crc ? 0 : -1;
+	return crc == original_crc ? 0 : -1;
 }
 
 int test_buffer_crc(unsigned char *in, size_t inlen,
-                    uint32_t original_crc)
+		    uint32_t original_crc)
 {
-    uint32_t crc = crc32(0L, Z_NULL, 0);
-    crc = crc32(crc, in, inlen);
-    return crc == original_crc ? 0 : -1;
+	uint32_t crc = crc32(0L, Z_NULL, 0);
+	crc = crc32(crc, in, inlen);
+	return crc == original_crc ? 0 : -1;
 }

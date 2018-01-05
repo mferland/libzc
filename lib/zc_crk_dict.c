@@ -28,194 +28,195 @@
 #define PW_BUF_LEN 64
 
 struct zc_crk_dict {
-    struct zc_ctx *ctx;
-    int refcount;
-    char *filename;
-    struct validation_data vdata[VDATA_MAX];
-    size_t vdata_size;
-    unsigned char *cipher;
-    unsigned char *plaintext;
-    unsigned char *inflate;
-    struct zlib_state *zlib;
-    size_t cipher_size;
-    bool cipher_is_deflated;
-    uint32_t original_crc;
-    FILE *fd;
+	struct zc_ctx *ctx;
+	int refcount;
+	char *filename;
+	struct validation_data vdata[VDATA_MAX];
+	size_t vdata_size;
+	unsigned char *cipher;
+	unsigned char *plaintext;
+	unsigned char *inflate;
+	struct zlib_state *zlib;
+	size_t cipher_size;
+	bool cipher_is_deflated;
+	uint32_t original_crc;
+	FILE *fd;
 };
 
 static inline void remove_trailing_newline(char *line)
 {
-    while (*line) {
-        if (*line == '\n' || *line == '\r') {
-            *line = '\0';
-            return;
-        }
-        ++line;
-    }
-    return;
+	while (*line) {
+		if (*line == '\n' || *line == '\r') {
+			*line = '\0';
+			return;
+		}
+		++line;
+	}
+	return;
 }
 
 ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
 {
-    if (!crk)
-        return NULL;
-    crk->refcount++;
-    return crk;
+	if (!crk)
+		return NULL;
+	crk->refcount++;
+	return crk;
 }
 
 ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 {
-    if (!crk)
-        return NULL;
-    crk->refcount--;
-    if (crk->refcount > 0)
-        return crk;
-    free(crk->filename);
-    free(crk->cipher);
-    free(crk->plaintext);
-    free(crk->inflate);
-    inflate_destroy(crk->zlib);
-    free(crk);
-    return NULL;
+	if (!crk)
+		return NULL;
+	crk->refcount--;
+	if (crk->refcount > 0)
+		return crk;
+	free(crk->filename);
+	free(crk->cipher);
+	free(crk->plaintext);
+	free(crk->inflate);
+	inflate_destroy(crk->zlib);
+	free(crk);
+	return NULL;
 }
 
 ZC_EXPORT int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
 {
-    struct zc_crk_dict *tmp;
+	struct zc_crk_dict *tmp;
 
-    tmp = calloc(1, sizeof(struct zc_crk_dict));
-    if (!tmp)
-        return -1;
+	tmp = calloc(1, sizeof(struct zc_crk_dict));
+	if (!tmp)
+		return -1;
 
-    tmp->ctx = ctx;
-    tmp->refcount = 1;
+	tmp->ctx = ctx;
+	tmp->refcount = 1;
 
-    *crk = tmp;
+	*crk = tmp;
 
-    return 0;
+	return 0;
 }
 
 ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 {
-    int err;
+	int err;
 
-    crk->inflate = malloc(INFLATE_CHUNK);
-    if (!crk->inflate) {
-        err(crk->ctx, "failed to allocate memory\n");
-        return -1;
-    }
+	crk->inflate = malloc(INFLATE_CHUNK);
+	if (!crk->inflate) {
+		err(crk->ctx, "failed to allocate memory\n");
+		return -1;
+	}
 
-    err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
-    if (err < 1) {
-        err(crk->ctx, "failed to read validation data\n");
-        return -1;
-    }
+	err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+	if (err < 1) {
+		err(crk->ctx, "failed to read validation data\n");
+		return -1;
+	}
 
-    crk->vdata_size = err;
+	crk->vdata_size = err;
 
-    err = fill_test_cipher(crk->ctx,
-                           filename,
-                           &crk->cipher,
-                           &crk->cipher_size,
-                           &crk->original_crc,
-                           &crk->cipher_is_deflated);
-    if (err) {
-        err(crk->ctx, "failed to read cipher data\n");
-        return -1;
-    }
+	err = fill_test_cipher(crk->ctx,
+			       filename,
+			       &crk->cipher,
+			       &crk->cipher_size,
+			       &crk->original_crc,
+			       &crk->cipher_is_deflated);
+	if (err) {
+		err(crk->ctx, "failed to read cipher data\n");
+		return -1;
+	}
 
-    crk->plaintext = malloc(crk->cipher_size);
-    if (!crk->plaintext) {
-        free(crk->inflate);
-        free(crk->cipher);
-        return -1;
-    }
+	crk->plaintext = malloc(crk->cipher_size);
+	if (!crk->plaintext) {
+		free(crk->inflate);
+		free(crk->cipher);
+		return -1;
+	}
 
-    crk->filename = strdup(filename);
+	crk->filename = strdup(filename);
 
-    if (inflate_new(&crk->zlib) < 0) {
-        free(crk->inflate);
-        free(crk->cipher);
-        free(crk->plaintext);
-        free(crk->filename);
-        return -1;
-    }
+	if (inflate_new(&crk->zlib) < 0) {
+		free(crk->inflate);
+		free(crk->cipher);
+		free(crk->plaintext);
+		free(crk->filename);
+		return -1;
+	}
 
-    return 0;
+	return 0;
 }
 
 static bool test_password(struct zc_crk_dict *crk, const char *pw)
 {
-    struct zc_key key, base;
-    size_t i = 0;
+	struct zc_key key, base;
+	size_t i = 0;
 
-    set_default_encryption_keys(&base);
+	set_default_encryption_keys(&base);
 
-    while(pw[i] != '\0') {
-        update_keys(pw[i], &base, &base);
-        ++i;
-    }
+	while(pw[i] != '\0') {
+		update_keys(pw[i], &base, &base);
+		++i;
+	}
 
-    for (i = 0; i < crk->vdata_size; ++i) {
-        reset_encryption_keys(&base, &key);
-        if (decrypt_header(crk->vdata[i].encryption_header,
-                           &key,
-                           crk->vdata[i].magic))
-            return false;
-    }
+	for (i = 0; i < crk->vdata_size; ++i) {
+		reset_encryption_keys(&base, &key);
+		if (decrypt_header(crk->vdata[i].encryption_header,
+				   &key,
+				   crk->vdata[i].magic))
+			return false;
+	}
 
-    decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
-    int err;
-    if (crk->cipher_is_deflated)
-        err = inflate_buffer(crk->zlib,
-                             &crk->plaintext[12],
-                             crk->cipher_size - 12,
-                             crk->inflate,
-                             INFLATE_CHUNK,
-                             crk->original_crc);
-    else
-        err = test_buffer_crc(&crk->plaintext[12],
-                              crk->cipher_size - 12,
-                              crk->original_crc);
+	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
+	int err;
+	if (crk->cipher_is_deflated)
+		err = inflate_buffer(crk->zlib,
+				     &crk->plaintext[12],
+				     crk->cipher_size - 12,
+				     crk->inflate,
+				     INFLATE_CHUNK,
+				     crk->original_crc);
+	else
+		err = test_buffer_crc(&crk->plaintext[12],
+				      crk->cipher_size - 12,
+				      crk->original_crc);
 
-    return err ? false : true;
+	return err ? false : true;
 }
 
-ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw, size_t len)
+ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
+				char *pw, size_t len)
 {
-    FILE *f;
-    char pwbuf[PW_BUF_LEN];
-    int err = 1;
+	FILE *f;
+	char pwbuf[PW_BUF_LEN];
+	int err = 1;
 
-    if (len > PW_BUF_LEN || !crk->vdata_size)
-        return -1;
+	if (len > PW_BUF_LEN || !crk->vdata_size)
+		return -1;
 
-    if (dict) {
-        f = fopen(dict, "r");
-        if (!f) {
-            err(crk->ctx, "fopen() failed: %s\n", strerror(errno));
-            return -1;
-        }
-    } else
-        f = stdin;
+	if (dict) {
+		f = fopen(dict, "r");
+		if (!f) {
+			err(crk->ctx, "fopen() failed: %s\n", strerror(errno));
+			return -1;
+		}
+	} else
+		f = stdin;
 
-    while (1) {
-        char *s = fgets(pwbuf, PW_BUF_LEN, f);
-        if (!s) {
-            err = -1;
-            break;
-        }
+	while (1) {
+		char *s = fgets(pwbuf, PW_BUF_LEN, f);
+		if (!s) {
+			err = -1;
+			break;
+		}
 
-        remove_trailing_newline(s);
+		remove_trailing_newline(s);
 
-        if (test_password(crk, s)) {
-            err = 0;
-            memset(pw, 0, len);
-            strncpy(pw, s, len);
-            break;
-        }
-    }
+		if (test_password(crk, s)) {
+			err = 0;
+			memset(pw, 0, len);
+			strncpy(pw, s, len);
+			break;
+		}
+	}
 
-    fclose(f);
-    return err;
+	fclose(f);
+	return err;
 }
