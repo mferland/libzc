@@ -4,7 +4,7 @@ Upstream-Contact: Marc Ferland <marc.ferland@gmail.com>
 Source: https://github.com/mferland/libzc
 
 Files: *
-Copyright: 2012-2017, Marc Ferland
+Copyright: 2012-2018, Marc Ferland
 License: GPL-3+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
