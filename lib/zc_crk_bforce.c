@@ -237,7 +237,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 #pragma GCC ivdep
 	for (size_t j = 0; j < LEN; ++j) {
 		c[j] = header ^ decrypt_byte(k2[j]) ^ magic;
-		h->candidate |= c[j] ? 0 : 1 << j;
+		h->candidate |= c[j] ? 0 : (uint64_t)1 << j;
 	}
 	return h->candidate;
 }
@@ -256,7 +256,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w,
     } while (0)
 
 	for (int i = 0; i < len; ++i) {
-		if (!(h->candidate & (1 << i)))
+		if (!(h->candidate & ((uint64_t)1 << i)))
 			continue;
 		size_t j = 1;
 		for (; j < crk->vdata_size; ++j) {
