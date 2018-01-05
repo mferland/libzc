@@ -28,147 +28,147 @@
 
 static const char short_opts[] = "h";
 static const struct option long_opts[] = {
-    {"help", no_argument, 0, 'h'},
-    {NULL, 0, 0, 0}
+	{"help", no_argument, 0, 'h'},
+	{NULL, 0, 0, 0}
 };
 
 struct zc_ctx *ctx;
 
 static void print_help(const char *cmdname)
 {
-    fprintf(stderr,
-            "Usage:\n"
-            "\t%s [options] filename\n"
-            "Options:\n"
-            "\t-h, --help              show this help\n",
-            cmdname);
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%s [options] filename\n"
+		"Options:\n"
+		"\t-h, --help              show this help\n",
+		cmdname);
 }
 
 static int do_info(int argc, char *argv[])
 {
-    const char *filename;
-    struct zc_file *file;
-    struct zc_info *info;
-    int err = EXIT_SUCCESS, c, idx;
+	const char *filename;
+	struct zc_file *file;
+	struct zc_info *info;
+	int err = EXIT_SUCCESS, c, idx;
 
-    c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-    if (c != -1) {
-        switch (c) {
-        case 'h':
-            print_help(basename(argv[0]));
-            return EXIT_SUCCESS;
-        default:
-            yazc_err("unexpected getopt_long() value '%c'.\n", c);
-            return EXIT_FAILURE;
-        }
-    }
+	c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+	if (c != -1) {
+		switch (c) {
+		case 'h':
+			print_help(basename(argv[0]));
+			return EXIT_SUCCESS;
+		default:
+			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			return EXIT_FAILURE;
+		}
+	}
 
-    if (optind >= argc) {
-        yazc_err("missing filename.\n");
-        return EXIT_FAILURE;
-    }
+	if (optind >= argc) {
+		yazc_err("missing filename.\n");
+		return EXIT_FAILURE;
+	}
 
-    filename = argv[optind];
+	filename = argv[optind];
 
-    if (zc_new(&ctx)) {
-        yazc_err("zc_new() failed!\n");
-        return EXIT_FAILURE;
-    }
+	if (zc_new(&ctx)) {
+		yazc_err("zc_new() failed!\n");
+		return EXIT_FAILURE;
+	}
 
-    if (zc_file_new_from_filename(ctx, filename, &file)) {
-        yazc_err("zc_file_new_from_filename() failed!\n");
-        err = EXIT_FAILURE;
-        goto err1;
-    }
+	if (zc_file_new_from_filename(ctx, filename, &file)) {
+		yazc_err("zc_file_new_from_filename() failed!\n");
+		err = EXIT_FAILURE;
+		goto err1;
+	}
 
-    if (zc_file_open(file)) {
-        yazc_err("zc_file_open() failed!\n");
-        err = EXIT_FAILURE;
-        goto err2;
-    }
+	if (zc_file_open(file)) {
+		yazc_err("zc_file_open() failed!\n");
+		err = EXIT_FAILURE;
+		goto err2;
+	}
 
-    size_t fn_max_len = 0,
-           crypt_max_len = 0,
-           offset_begin_max_len = 0,
-           offset_end_max_len = 0,
-           size_max_len = 0;
-    info = zc_file_info_next(file, NULL);
-    while (info) {
-        char buf[256];
-        /* filename */
-        size_t tmp1 = strlen(zc_file_info_name(info));
-        if (tmp1 > fn_max_len)
-            fn_max_len = tmp1;
-        /* encrypted header */
-        snprintf(buf, sizeof(buf), "%li",
-                 zc_file_info_crypt_header_offset(info));
-        tmp1 = strlen(buf);
-        if (tmp1 > crypt_max_len)
-            crypt_max_len = tmp1;
-        /* offset begin */
-        snprintf(buf, sizeof(buf), "%li",
-                 zc_file_info_offset(info));
-        tmp1 = strlen(buf);
-        if (tmp1 > offset_begin_max_len)
-            offset_begin_max_len = tmp1;
-        /* offset end */
-        snprintf(buf, sizeof(buf), "%li",
-                 zc_file_info_offset(info) + zc_file_info_size(info));
-        tmp1 = strlen(buf);
-        if (tmp1 > offset_end_max_len)
-            offset_end_max_len = tmp1;
-        /* size */
-        snprintf(buf, sizeof(buf), "%u",
-                 zc_file_info_size(info));
-        tmp1 = strlen(buf);
-        if (tmp1 > size_max_len)
-            size_max_len = tmp1;
+	size_t fn_max_len = 0,
+	       crypt_max_len = 0,
+	       offset_begin_max_len = 0,
+	       offset_end_max_len = 0,
+	       size_max_len = 0;
+	info = zc_file_info_next(file, NULL);
+	while (info) {
+		char buf[256];
+		/* filename */
+		size_t tmp1 = strlen(zc_file_info_name(info));
+		if (tmp1 > fn_max_len)
+			fn_max_len = tmp1;
+		/* encrypted header */
+		snprintf(buf, sizeof(buf), "%li",
+			 zc_file_info_crypt_header_offset(info));
+		tmp1 = strlen(buf);
+		if (tmp1 > crypt_max_len)
+			crypt_max_len = tmp1;
+		/* offset begin */
+		snprintf(buf, sizeof(buf), "%li",
+			 zc_file_info_offset(info));
+		tmp1 = strlen(buf);
+		if (tmp1 > offset_begin_max_len)
+			offset_begin_max_len = tmp1;
+		/* offset end */
+		snprintf(buf, sizeof(buf), "%li",
+			 zc_file_info_offset(info) + zc_file_info_size(info));
+		tmp1 = strlen(buf);
+		if (tmp1 > offset_end_max_len)
+			offset_end_max_len = tmp1;
+		/* size */
+		snprintf(buf, sizeof(buf), "%u",
+			 zc_file_info_size(info));
+		tmp1 = strlen(buf);
+		if (tmp1 > size_max_len)
+			size_max_len = tmp1;
 
-        info = zc_file_info_next(file, info);
-    }
+		info = zc_file_info_next(file, info);
+	}
 
-    printf("%-5s %*s %*s %*s %-24s\n",
-           "INDEX",
-           (int)(-MAX(fn_max_len, 8)),
-           "NAME",
-           (int)(-(crypt_max_len +
-                   offset_begin_max_len +
-                   offset_end_max_len + 2)),
-           "OFFSETS",
-           (int)(-size_max_len),
-           "SIZE",
-           "ENCRYPTED HEADER");
+	printf("%-5s %*s %*s %*s %-24s\n",
+	       "INDEX",
+	       (int)(-MAX(fn_max_len, 8)),
+	       "NAME",
+	       (int)(-(crypt_max_len +
+		       offset_begin_max_len +
+		       offset_end_max_len + 2)),
+	       "OFFSETS",
+	       (int)(-size_max_len),
+	       "SIZE",
+	       "ENCRYPTED HEADER");
 
-    info = zc_file_info_next(file, NULL);
-    while (info) {
-        const uint8_t *ehdr = zc_file_info_enc_header(info);
-        printf("%5d %*s %*li %*li %*li %*u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-               zc_file_info_idx(info),
-               (int)(-MAX(fn_max_len, 8)),
-               zc_file_info_name(info),
-               (int)(-crypt_max_len),
-               zc_file_info_crypt_header_offset(info),
-               (int)(-offset_begin_max_len),
-               zc_file_info_offset(info),
-               (int)(-offset_end_max_len),
-               zc_file_info_offset(info) + zc_file_info_size(info),
-               (int)(-size_max_len),
-               zc_file_info_size(info),
-               ehdr[0], ehdr[1], ehdr[2], ehdr[3], ehdr[4], ehdr[5],
-               ehdr[6], ehdr[7], ehdr[8], ehdr[9], ehdr[10], ehdr[11]);
-        info = zc_file_info_next(file, info);
-    }
+	info = zc_file_info_next(file, NULL);
+	while (info) {
+		const uint8_t *ehdr = zc_file_info_enc_header(info);
+		printf("%5d %*s %*li %*li %*li %*u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		       zc_file_info_idx(info),
+		       (int)(-MAX(fn_max_len, 8)),
+		       zc_file_info_name(info),
+		       (int)(-crypt_max_len),
+		       zc_file_info_crypt_header_offset(info),
+		       (int)(-offset_begin_max_len),
+		       zc_file_info_offset(info),
+		       (int)(-offset_end_max_len),
+		       zc_file_info_offset(info) + zc_file_info_size(info),
+		       (int)(-size_max_len),
+		       zc_file_info_size(info),
+		       ehdr[0], ehdr[1], ehdr[2], ehdr[3], ehdr[4], ehdr[5],
+		       ehdr[6], ehdr[7], ehdr[8], ehdr[9], ehdr[10], ehdr[11]);
+		info = zc_file_info_next(file, info);
+	}
 
-    zc_file_close(file);
+	zc_file_close(file);
 err2:
-    zc_file_unref(file);
+	zc_file_unref(file);
 err1:
-    zc_unref(ctx);
-    return err;
+	zc_unref(ctx);
+	return err;
 }
 
 const struct yazc_cmd yazc_cmd_info = {
-    .name = "info",
-    .cmd = do_info,
-    .help = "print zip file content info",
+	.name = "info",
+	.cmd = do_info,
+	.help = "print zip file content info",
 };

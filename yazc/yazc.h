@@ -23,9 +23,9 @@
 #include "libzc.h"
 
 struct yazc_cmd {
-    const char *name;
-    int (*cmd)(int argc, char *argv[]);
-    const char *help;
+	const char *name;
+	int (*cmd)(int argc, char *argv[]);
+	const char *help;
 };
 
 #define fatal(arg...)                                           \
@@ -40,7 +40,8 @@ struct yazc_cmd {
 #  define UNUSED(x) UNUSED_ ## x
 #endif
 
-void yazc_log(const char *file, int line, const char *fn, const char *format, ...)
+void yazc_log(const char *file, int line, const char *fn, const char *format,
+	      ...)
 __attribute__((format(printf, 4, 5)));
 void yazc_err(const char *format, ...)
 __attribute__((format(printf, 1, 2)));

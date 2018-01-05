@@ -27,53 +27,53 @@ struct zc_file *file;
 
 void setup(void)
 {
-    zc_new(&ctx);
-    file = NULL;
+	zc_new(&ctx);
+	file = NULL;
 }
 
 void teardown(void)
 {
-    zc_file_unref(file);
-    zc_unref(ctx);
+	zc_file_unref(file);
+	zc_unref(ctx);
 }
 
 START_TEST(test_zc_file_new)
 {
-    zc_file_new_from_filename(ctx, "toto.zip", &file);
-    fail_if(strcmp(zc_file_get_filename(file), "toto.zip") != 0,
-            "Filename does not match.");
-    ck_assert(zc_file_isopened(file) == false);
+	zc_file_new_from_filename(ctx, "toto.zip", &file);
+	fail_if(strcmp(zc_file_get_filename(file), "toto.zip") != 0,
+		"Filename does not match.");
+	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
 
 START_TEST(test_zc_file_open_existant)
 {
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
-    ck_assert(zc_file_isopened(file) == false);
-    fail_if(zc_file_open(file) != 0,
-            "File could not be opened.");
-    ck_assert(zc_file_isopened(file) == true);
-    zc_file_close(file);
-    ck_assert(zc_file_isopened(file) == false);
+	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	ck_assert(zc_file_isopened(file) == false);
+	fail_if(zc_file_open(file) != 0,
+		"File could not be opened.");
+	ck_assert(zc_file_isopened(file) == true);
+	zc_file_close(file);
+	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
 
 START_TEST(test_zc_file_open_nonexistant)
 {
-    zc_file_new_from_filename(ctx, "doesnotexists.zip", &file);
-    ck_assert(zc_file_isopened(file) == false);
-    fail_if(zc_file_open(file) == 0,
-            "Non-existant file reported having been opened.");
-    ck_assert(zc_file_isopened(file) == false);
+	zc_file_new_from_filename(ctx, "doesnotexists.zip", &file);
+	ck_assert(zc_file_isopened(file) == false);
+	fail_if(zc_file_open(file) == 0,
+		"Non-existant file reported having been opened.");
+	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
 
 START_TEST(test_zc_file_close_opened)
 {
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
-    zc_file_open(file);
-    fail_if(zc_file_close(file) != 0,
-            "Closing existant file failed.");
+	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_open(file);
+	fail_if(zc_file_close(file) != 0,
+		"Closing existant file failed.");
 }
 END_TEST
 
@@ -87,44 +87,44 @@ END_TEST
  */
 START_TEST(test_zc_file_info_encrypted)
 {
-    const uint8_t header[4][12] = {
-        {0xf0, 0x0e, 0x35, 0x67, 0x0c, 0xf8, 0x8a, 0xa5, 0xe9, 0x8a, 0xe4, 0x77},
-        {0xb7, 0x3d, 0xc9, 0xd1, 0xb6, 0x73, 0x12, 0x69, 0x2d, 0x06, 0x9a, 0x33},
-        {0xdb, 0xe9, 0x9c, 0x24, 0xb7, 0xb0, 0x83, 0x64, 0x71, 0x78, 0x21, 0x06},
-        {0x61, 0x6f, 0x68, 0xa1, 0xe8, 0x2c, 0x05, 0x65, 0x1d, 0xc9, 0x89, 0xe8}
-    };
-    const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
-    const long info_offset[4] = {84, 1398, 2698, 4175};
-    const long info_crypt[4] = {72, 1386, 2686, 4163};
-    const char *info_filename[4] = {"lib/test_crk.c",
-                                    "lib/test_file.c",
-                                    "lib/test_pwgen.c",
-                                    "lib/test_pwdict.c"
-                                   };
-    struct zc_info *info;
-    const uint8_t *buf;
+	const uint8_t header[4][12] = {
+		{0xf0, 0x0e, 0x35, 0x67, 0x0c, 0xf8, 0x8a, 0xa5, 0xe9, 0x8a, 0xe4, 0x77},
+		{0xb7, 0x3d, 0xc9, 0xd1, 0xb6, 0x73, 0x12, 0x69, 0x2d, 0x06, 0x9a, 0x33},
+		{0xdb, 0xe9, 0x9c, 0x24, 0xb7, 0xb0, 0x83, 0x64, 0x71, 0x78, 0x21, 0x06},
+		{0x61, 0x6f, 0x68, 0xa1, 0xe8, 0x2c, 0x05, 0x65, 0x1d, 0xc9, 0x89, 0xe8}
+	};
+	const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
+	const long info_offset[4] = {84, 1398, 2698, 4175};
+	const long info_crypt[4] = {72, 1386, 2686, 4163};
+	const char *info_filename[4] = {"lib/test_crk.c",
+					"lib/test_file.c",
+					"lib/test_pwgen.c",
+					"lib/test_pwdict.c"
+				       };
+	struct zc_info *info;
+	const uint8_t *buf;
 
-    zc_file_new_from_filename(ctx, "../data/test.zip", &file);
-    zc_file_open(file);
+	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_open(file);
 
-    int i = 0;
-    info = zc_file_info_next(file, NULL);
-    do {
-        fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
-        ck_assert(zc_file_info_size(info) == info_size[i]);
-        ck_assert(zc_file_info_offset(info) == info_offset[i]);
-        ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
-        ck_assert(zc_file_info_idx(info) == i);
-        buf = zc_file_info_enc_header(info);
-        for (int j = 0; j < 12; ++j)
-            ck_assert(buf[j] == header[i][j]);
-        info = zc_file_info_next(file, info);
-        ++i;
-    } while (info);
+	int i = 0;
+	info = zc_file_info_next(file, NULL);
+	do {
+		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
+		ck_assert(zc_file_info_size(info) == info_size[i]);
+		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
+		ck_assert(zc_file_info_idx(info) == i);
+		buf = zc_file_info_enc_header(info);
+		for (int j = 0; j < 12; ++j)
+			ck_assert(buf[j] == header[i][j]);
+		info = zc_file_info_next(file, info);
+		++i;
+	} while (info);
 
-    ck_assert_int_eq(i, 4);
+	ck_assert_int_eq(i, 4);
 
-    zc_file_close(file);
+	zc_file_close(file);
 }
 END_TEST
 
@@ -137,72 +137,72 @@ END_TEST
  */
 START_TEST(test_zc_file_info_non_encrypted)
 {
-    const uint32_t info_size[3] = {2898, 2647, 31002};
-    const long info_offset[3] = {66, 1075, 1997};
-    const char *info_filename[3] = {"config.h",
-                                    "config.h.in",
-                                    "config.log"
-                                   };
-    struct zc_info *info;
-    const uint8_t *buf;
+	const uint32_t info_size[3] = {2898, 2647, 31002};
+	const long info_offset[3] = {66, 1075, 1997};
+	const char *info_filename[3] = {"config.h",
+					"config.h.in",
+					"config.log"
+				       };
+	struct zc_info *info;
+	const uint8_t *buf;
 
-    zc_file_new_from_filename(ctx, "../data/test_non_encrypted.zip", &file);
-    zc_file_open(file);
+	zc_file_new_from_filename(ctx, DATADIR "test_non_encrypted.zip", &file);
+	zc_file_open(file);
 
-    int i = 0;
-    info = zc_file_info_next(file, NULL);
-    do {
-        fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
-        ck_assert(zc_file_info_size(info) == info_size[i]);
-        ck_assert(zc_file_info_offset(info) == info_offset[i]);
-        ck_assert(zc_file_info_crypt_header_offset(info) == -1);
-        ck_assert(zc_file_info_idx(info) == i);
-        buf = zc_file_info_enc_header(info);
-        for (int j = 0; j < 12; ++j)
-            ck_assert(buf[j] == 0);
-        info = zc_file_info_next(file, info);
-        ++i;
-    } while (info);
+	int i = 0;
+	info = zc_file_info_next(file, NULL);
+	do {
+		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
+		ck_assert(zc_file_info_size(info) == info_size[i]);
+		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
+		ck_assert(zc_file_info_idx(info) == i);
+		buf = zc_file_info_enc_header(info);
+		for (int j = 0; j < 12; ++j)
+			ck_assert(buf[j] == 0);
+		info = zc_file_info_next(file, info);
+		++i;
+	} while (info);
 
-    ck_assert_int_eq(i, 3);
+	ck_assert_int_eq(i, 3);
 
-    zc_file_close(file);
+	zc_file_close(file);
 }
 END_TEST
 
 Suite *file_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
+	Suite *s;
+	TCase *tc_core;
 
-    s = suite_create("File");
+	s = suite_create("File");
 
-    tc_core = tcase_create("Core");
+	tc_core = tcase_create("Core");
 
-    tcase_add_checked_fixture(tc_core, setup, teardown);
-    tcase_add_test(tc_core, test_zc_file_new);
-    tcase_add_test(tc_core, test_zc_file_open_existant);
-    tcase_add_test(tc_core, test_zc_file_open_nonexistant);
-    tcase_add_test(tc_core, test_zc_file_close_opened);
-    tcase_add_test(tc_core, test_zc_file_info_encrypted);
-    tcase_add_test(tc_core, test_zc_file_info_non_encrypted);
-    suite_add_tcase(s, tc_core);
+	tcase_add_checked_fixture(tc_core, setup, teardown);
+	tcase_add_test(tc_core, test_zc_file_new);
+	tcase_add_test(tc_core, test_zc_file_open_existant);
+	tcase_add_test(tc_core, test_zc_file_open_nonexistant);
+	tcase_add_test(tc_core, test_zc_file_close_opened);
+	tcase_add_test(tc_core, test_zc_file_info_encrypted);
+	tcase_add_test(tc_core, test_zc_file_info_non_encrypted);
+	suite_add_tcase(s, tc_core);
 
-    return s;
+	return s;
 }
 
 int main(void)
 {
-    int number_failed;
-    Suite *s;
-    SRunner *sr;
+	int number_failed;
+	Suite *s;
+	SRunner *sr;
 
-    s = file_suite();
-    sr = srunner_create(s);
+	s = file_suite();
+	sr = srunner_create(s);
 
-    srunner_run_all(sr, CK_NORMAL);
-    number_failed = srunner_ntests_failed(sr);
-    srunner_free(sr);
+	srunner_run_all(sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed(sr);
+	srunner_free(sr);
 
-    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

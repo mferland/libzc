@@ -43,31 +43,32 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 #   increment age.
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
-LIBZC_CURRENT=3
-LIBZC_REVISION=6
+LIBZC_CURRENT=4
+LIBZC_REVISION=0
 LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
-	crc32.h \
-	libzc.c \
-	pwstream.h \
-	decrypt_byte.h \
-	libzc.h \
-	qsort.h \
-	ka.c \
-	libzc_private.h \
-	zc_crk_bforce.c \
-	key2_reduce.c \
-	list.h \
-	zc_crk_ptext.c \
-	key2_reduce.h \
-	pwstream.c \
-	zc_file.c \
 	common.c \
-	zc_crk_dict.c \
+	crc32.h \
+	decrypt_byte.h \
+	find_password.c \
 	inflate.c \
-	find_password.c
+	ka.c \
+	libzc.c \
+	libzc.h \
+	libzc_private.h \
+	list.h \
+	ptext_attack.c \
+	ptext_private.h \
+	ptext_reduce.c \
+	pwstream.c \
+	pwstream.h \
+	qsort.h \
+	zc_crk_bforce.c \
+	zc_crk_dict.c \
+	zc_crk_ptext.c \
+	zc_file.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

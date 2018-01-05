@@ -29,82 +29,82 @@ char pw[LEN];
 
 static void setup()
 {
-    zc_new(&ctx);
-    zc_crk_dict_new(ctx, &crk);
+	zc_new(&ctx);
+	zc_crk_dict_new(ctx, &crk);
 }
 
 static void teardown()
 {
-    zc_crk_dict_unref(crk);
-    zc_unref(ctx);
+	zc_crk_dict_unref(crk);
+	zc_unref(ctx);
 }
 
 START_TEST(test_init_file_not_found)
 {
-    ck_assert_int_eq(zc_crk_dict_init(crk, "doesnotexits.zip"), -1);
+	ck_assert_int_eq(zc_crk_dict_init(crk, "doesnotexits.zip"), -1);
 }
 END_TEST
 
 START_TEST(test_init_file_found)
 {
-    ck_assert_int_eq(zc_crk_dict_init(crk, "../data/noradi.zip"), 0);
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
 }
 END_TEST
 
 START_TEST(test_dict_not_found)
 {
-    zc_crk_dict_init(crk, "../data/noradi.zip");
-    ck_assert_int_eq(zc_crk_dict_start(crk, "doesnotexits", pw, LEN), -1);
+	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_start(crk, "doesnotexits", pw, LEN), -1);
 }
 END_TEST
 
 START_TEST(test_dict_success)
 {
-    zc_crk_dict_init(crk, "../data/noradi.zip");
-    ck_assert_int_eq(zc_crk_dict_start(crk, "../data/dict.txt", pw, LEN), 0);
-    ck_assert_str_eq(pw, "noradi");
+	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw, LEN), 0);
+	ck_assert_str_eq(pw, "noradi");
 }
 END_TEST
 
 START_TEST(test_dict_fail)
 {
-    zc_crk_dict_init(crk, "../data/noradi.zip");
-    ck_assert_int_eq(zc_crk_dict_start(crk, "../data/pw.txt", pw, LEN), -1);
+	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "pw.txt", pw, LEN), -1);
 }
 END_TEST
 
 Suite *dict_suite(void)
 {
-    Suite *s;
-    TCase *tc_core;
+	Suite *s;
+	TCase *tc_core;
 
-    s = suite_create("dictionary");
+	s = suite_create("dictionary");
 
-    tc_core = tcase_create("Core");
+	tc_core = tcase_create("Core");
 
-    tcase_add_checked_fixture(tc_core, setup, teardown);
-    tcase_add_test(tc_core, test_init_file_not_found);
-    tcase_add_test(tc_core, test_init_file_found);
-    tcase_add_test(tc_core, test_dict_not_found);
-    tcase_add_test(tc_core, test_dict_success);
-    tcase_add_test(tc_core, test_dict_fail);
-    suite_add_tcase(s, tc_core);
+	tcase_add_checked_fixture(tc_core, setup, teardown);
+	tcase_add_test(tc_core, test_init_file_not_found);
+	tcase_add_test(tc_core, test_init_file_found);
+	tcase_add_test(tc_core, test_dict_not_found);
+	tcase_add_test(tc_core, test_dict_success);
+	tcase_add_test(tc_core, test_dict_fail);
+	suite_add_tcase(s, tc_core);
 
-    return s;
+	return s;
 }
 
 int main(void)
 {
-    int number_failed;
-    Suite *s;
-    SRunner *sr;
+	int number_failed;
+	Suite *s;
+	SRunner *sr;
 
-    s = dict_suite();
-    sr = srunner_create(s);
+	s = dict_suite();
+	sr = srunner_create(s);
 
-    srunner_run_all(sr, CK_NORMAL);
-    number_failed = srunner_ntests_failed(sr);
-    srunner_free(sr);
+	srunner_run_all(sr, CK_NORMAL);
+	number_failed = srunner_ntests_failed(sr);
+	srunner_free(sr);
 
-    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+	return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

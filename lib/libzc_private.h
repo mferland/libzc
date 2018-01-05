@@ -59,8 +59,8 @@ zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
 #define ZC_EXPORT __attribute__ ((visibility("default")))
 
 void zc_log(struct zc_ctx *ctx,
-            int priority, const char *file, int line, const char *fn,
-            const char *format, ...)
+	    int priority, const char *file, int line, const char *fn,
+	    const char *format, ...)
 __attribute__((format(printf, 6, 7)));
 
 #define MULT 134775813u
@@ -75,121 +75,117 @@ __attribute__((format(printf, 6, 7)));
 #define INFLATE_CHUNK 16384
 
 struct validation_data {
-    uint8_t encryption_header[12];
-    uint8_t magic;
+	uint8_t encryption_header[12];
+	uint8_t magic;
 };
 
 static inline
 uint32_t pow2(uint32_t p)
 {
-    return (1 << p);
+	return (1 << p);
 }
 
 static inline
 uint32_t mask_msb(uint32_t v)
 {
-    return (v & 0xff000000);
+	return (v & 0xff000000);
 }
 
 static inline
 uint32_t mask_lsb(uint32_t v)
 {
-    return (v & 0x000000ff);
+	return (v & 0x000000ff);
 }
 
 static inline
 uint8_t msb(uint32_t v)
 {
-    return (v >> 24);
+	return (v >> 24);
 }
 
 static inline
 uint8_t lsb(uint32_t v)
 {
-    return (v & 0xff);
+	return (v & 0xff);
 }
 
 static inline
 void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
 {
-    kdst->key0 = crc32(ksrc->key0, c);
-    kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
-    kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
+	kdst->key0 = crc32(ksrc->key0, c);
+	kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
+	kdst->key2 = crc32(ksrc->key2, kdst->key1 >> 24);
 }
 
 static inline
 void set_default_encryption_keys(struct zc_key *k)
 {
-    k->key0 = KEY0;
-    k->key1 = KEY1;
-    k->key2 = KEY2;
+	k->key0 = KEY0;
+	k->key1 = KEY1;
+	k->key2 = KEY2;
 }
 
 static inline
 void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
 {
-    *k = *base;
+	*k = *base;
 }
 
-static inline uint8_t decrypt_byte(uint32_t k)
+static inline
+uint8_t decrypt_byte(uint32_t k)
 {
-    uint32_t tmp = k | 2;
-    return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
+	uint32_t tmp = k | 2;
+	return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
 }
 
 static inline
 uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 {
-    uint8_t c;
+	uint8_t c;
 
-    for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
-        c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
-        update_keys(c, k, k);
-    }
+	for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
+		c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
+		update_keys(c, k, k);
+	}
 
-    /* Returns the last byte of the decrypted header */
-    return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2] ^ magic;
+	/* Returns the last byte of the decrypted header */
+	return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 &
+									 0xffff) >> 2] ^ magic;
 }
 
 int fill_vdata(struct zc_ctx *ctx, const char *filename,
-               struct validation_data *vdata,
-               size_t nmemb);
+	       struct validation_data *vdata,
+	       size_t nmemb);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
-                     unsigned char **buf, size_t *len,
-                     uint32_t *original_crc, bool *is_deflated);
+		     unsigned char **buf, size_t *len,
+		     uint32_t *original_crc, bool *is_deflated);
 size_t read_validation_data(struct zc_file *file,
-                            struct validation_data *vdata,
-                            size_t nmemb);
+			    struct validation_data *vdata,
+			    size_t nmemb);
 bool test_one_pw(const char *pw,
-                 const struct validation_data *vdata,
-                 size_t nmemb);
+		 const struct validation_data *vdata,
+		 size_t nmemb);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
-                    size_t *len, uint32_t *original_crc, bool *is_deflated);
+		    size_t *len, uint32_t *original_crc, bool *is_deflated);
 void decrypt(const unsigned char *in, unsigned char *out,
-             size_t len, const struct zc_key *key);
-
-int find_password(const uint8_t (*lsbk0_lookup)[2],
-                  const uint32_t *lsbk0_count,
-                  const struct zc_key *internal_rep,
-                  char *out,
-                  size_t len);
+	     size_t len, const struct zc_key *key);
 
 /* zlib stuff */
 struct zlib_state;
 int inflate_new(struct zlib_state **zlib);
 void inflate_destroy(struct zlib_state *zlib);
 int inflate_buffer(struct zlib_state *zlib,
-                   const unsigned char *in, size_t inlen,
-                   unsigned char *out, size_t outlen,
-                   uint32_t original_crc);
+		   const unsigned char *in, size_t inlen,
+		   unsigned char *out, size_t outlen,
+		   uint32_t original_crc);
 int test_buffer_crc(unsigned char *in, size_t inlen,
-                    uint32_t original_crc);
+		    uint32_t original_crc);
 
 /* key array helper */
 struct ka {
-    uint32_t *array;
-    size_t size;
-    size_t capacity;
+	uint32_t *array;
+	size_t size;
+	size_t capacity;
 };
 int ka_alloc(struct ka **a, size_t init_size);
 void ka_free(struct ka *a);
@@ -205,15 +201,15 @@ void ka_print(struct ka *a, FILE *stream);
 static inline
 uint32_t ka_at(const struct ka *a, uint32_t index)
 {
-    return a->array[index];
+	return a->array[index];
 }
 
 static inline
 void ka_swap(struct ka **a1, struct ka **a2)
 {
-    struct ka *t = *a1;
-    *a1 = *a2;
-    *a2 = t;
+	struct ka *t = *a1;
+	*a1 = *a2;
+	*a2 = t;
 }
 
 #endif
