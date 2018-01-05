@@ -169,12 +169,6 @@ int read_crypt_data(struct zc_file *file, unsigned char **buf,
 void decrypt(const unsigned char *in, unsigned char *out,
              size_t len, const struct zc_key *key);
 
-int find_password(const uint8_t (*lsbk0_lookup)[2],
-                  const uint32_t *lsbk0_count,
-                  const struct zc_key *internal_rep,
-                  char *out,
-                  size_t len);
-
 /* zlib stuff */
 struct zlib_state;
 int inflate_new(struct zlib_state **zlib);

@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "ptext_private.h"
 #include "list.h"
@@ -275,9 +276,9 @@ static int alloc_workers(struct zc_crk_ptext *ptext,
                          struct list_head *head,
                          pthread_mutex_t *mutex,
                          size_t *next,
-                         size_t count)
+                         long count)
 {
-    for (size_t i = 0; i < count; ++i) {
+    for (long i = 0; i < count; ++i) {
         struct worker *w = calloc(1, sizeof(struct worker));
 
         if (!w) {
@@ -300,9 +301,23 @@ static int alloc_workers(struct zc_crk_ptext *ptext,
     return 0;
 }
 
+ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
+{
+    ptext->force_threads = w;
+}
+
+static long threads_to_create(const struct zc_crk_ptext *ptext)
+{
+    if (ptext->force_threads > 0)
+        return ptext->force_threads;
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n < 1)
+        return 1;
+    return n;
+}
+
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
-                                  struct zc_key *out_key,
-                                  size_t count)
+                                  struct zc_key *out_key)
 {
     struct list_head head;
     pthread_mutex_t mutex;
@@ -314,7 +329,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 
     INIT_LIST_HEAD(&head);
 
-    err = alloc_workers(ptext, &head, &mutex, &next, count);
+    err = alloc_workers(ptext, &head, &mutex, &next, threads_to_create(ptext));
     if (err)
         goto end;
 

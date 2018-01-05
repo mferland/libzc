@@ -78,6 +78,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
     new->ctx = ctx;
     new->refcount = 1;
     new->found = false;
+    new->force_threads = -1;
     *ptext = new;
 
     dbg(ctx, "ptext %p created\n", new);

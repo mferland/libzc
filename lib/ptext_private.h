@@ -40,6 +40,7 @@ struct zc_crk_ptext {
     uint32_t lsbk0_count[256];
     bool found;
     pthread_t found_by;
+    long force_threads;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])

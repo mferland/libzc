@@ -37,7 +37,7 @@
 
 static const char *filename;
 static struct zc_crk_pwcfg pwcfg;
-static size_t thread_count;
+static long thread_count;
 static bool stats = false;
 
 struct charset {
@@ -154,15 +154,20 @@ static int launch_crack(void)
         goto err2;
     }
 
+    zc_crk_bforce_force_threads(crk, thread_count);
+
     if (stats) {
-        printf("Worker threads: %zu\n", thread_count);
+        if (thread_count == -1)
+            puts("Worker threads: auto");
+        else
+            printf("Worker threads: %ld\n", thread_count);
         printf("Maximum length: %zu\n", pwcfg.maxlen);
         printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
         printf("Filename: %s\n", filename);
     }
 
     gettimeofday(&begin, NULL);
-    err = zc_crk_bforce_start(crk, thread_count, pw, sizeof(pw));
+    err = zc_crk_bforce_start(crk, pw, sizeof(pw));
     gettimeofday(&end, NULL);
 
     if (stats)
@@ -254,13 +259,13 @@ static int do_bruteforce(int argc, char *argv[])
 
     /* number of concurrent threads */
     if (arg_threads) {
-        thread_count = atoi(arg_threads);
+        thread_count = atol(arg_threads);
         if (thread_count < 1) {
             yazc_err("number of threads can't be less than one.\n");
             return EXIT_FAILURE;
         }
     } else
-        thread_count = 1;
+        thread_count = -1;	/* auto */
 
     /* character set */
     if (!arg_set) {

@@ -57,8 +57,8 @@ while true; do
     COFF2=$(echo ${EINFO} | cut -d' ' -f5)
     CBEGN=$(echo ${EINFO} | cut -d' ' -f3)
 
-    echo libtool exe ../yazc/yazc plaintext -t8 ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}
-    if ! libtool exe ../yazc/yazc plaintext -t8 ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}; then
+    echo libtool exe ../yazc/yazc plaintext ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}
+    if ! libtool exe ../yazc/yazc plaintext ${P}:${POFF1}:${POFF2} ${E}:${COFF1}:${COFF2}:${CBEGN}; then
 	echo >&2 "ERROR"
 	exit 1
     fi

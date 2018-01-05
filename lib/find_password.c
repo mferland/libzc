@@ -366,11 +366,11 @@ static int try_key_7_13(struct final *f)
     return -1;
 }
 
-int find_password(const uint8_t (*lsbk0_lookup)[2],
-                  const uint32_t *lsbk0_count,
-                  const struct zc_key *int_rep,
-                  char *out,
-                  size_t len)
+static int find_password(const uint8_t (*lsbk0_lookup)[2],
+                         const uint32_t *lsbk0_count,
+                         const struct zc_key *int_rep,
+                         char *out,
+                         size_t len)
 {
     struct final f;
     int ret;

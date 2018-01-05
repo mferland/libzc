@@ -54,7 +54,7 @@ struct filed {
 
 static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
-static size_t thread_count;
+static long thread_count;
 
 static void print_help(const char *name)
 {
@@ -238,13 +238,13 @@ static int do_plaintext(int argc, char *argv[])
 
     /* number of concurrent threads */
     if (arg_threads) {
-        thread_count = atoi(arg_threads);
+        thread_count = atol(arg_threads);
         if (thread_count < 1) {
             yazc_err("number of threads can't be less than one.\n");
             return EXIT_FAILURE;
         }
     } else
-        thread_count = 1;
+        thread_count = -1;	/* auto */
 
     if (parse_opt(argv[optind], 2, &plain.name,
                   &plain.txt_begin, &plain.txt_end, NULL) < 0) {
@@ -294,6 +294,8 @@ static int do_plaintext(int argc, char *argv[])
         goto error4;
     }
 
+    zc_crk_ptext_force_threads(ptext, thread_count);
+
     printf("Key2 reduction...");
     fflush(stdout);
     err = zc_crk_ptext_key2_reduction(ptext);
@@ -307,7 +309,7 @@ static int do_plaintext(int argc, char *argv[])
     printf("Attack running...");
     fflush(stdout);
     struct zc_key out_key;
-    err = zc_crk_ptext_attack(ptext, &out_key, thread_count);
+    err = zc_crk_ptext_attack(ptext, &out_key);
     if (err < 0) {
         printf("\n");
         yazc_err("attack failed! Wrong plaintext?\n");

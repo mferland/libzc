@@ -64,6 +64,8 @@ struct zc_crk_bforce {
     /* result of thread creation */
     int pthread_create_err;
 
+    long force_threads;
+
     struct list_head workers_head;
     struct list_head cleanup_head;
     pthread_mutex_t mutex;
@@ -83,7 +85,7 @@ struct worker {
     struct zlib_state *zlib;
 
     struct hash {
-	uint64_t candidate;
+        uint64_t candidate;
         uint8_t check[LEN];
         uint32_t initk0[LEN];
         uint32_t initk1[LEN];
@@ -207,7 +209,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 
     /* first pass */
     for (size_t i = 0; i < 11; ++i) {
-	header = crk->vdata[0].encryption_header[i];
+        header = crk->vdata[0].encryption_header[i];
 
 #pragma GCC ivdep
         for (int j = 0; j < LEN; ++j)
@@ -746,6 +748,7 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 
     tmp->ctx = ctx;
     tmp->refcount = 1;
+    tmp->force_threads = -1;
 
     INIT_LIST_HEAD(&tmp->workers_head);
     INIT_LIST_HEAD(&tmp->cleanup_head);
@@ -786,27 +789,45 @@ ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
     return crk->set;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, size_t workers,
-                                  char *pw, size_t len)
+ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 {
-    if (!workers || !len)
+    bforce->force_threads = w;
+}
+
+static long threads_to_create(const struct zc_crk_bforce *crk)
+{
+    if (crk->force_threads > 0)
+        return crk->force_threads;
+    long n = sysconf(_SC_NPROCESSORS_ONLN);
+    if (n < 1)
+        return 1;
+    return n;
+}
+
+ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw, size_t len)
+{
+    size_t w;
+
+    if (!len)
         return -1;
 
-    if (alloc_pwstreams(crk, workers)) {
+    w = threads_to_create(crk);
+
+    if (alloc_pwstreams(crk, w)) {
         err(crk->ctx, "failed to allocate password streams\n");
         goto err1;
     }
 
-    if (alloc_workers(crk, workers)) {
+    if (alloc_workers(crk, w)) {
         err(crk->ctx, "failed to allocate workers\n");
         goto err2;
     }
 
     crk->found = false;
-    if (create_workers(crk, &workers))
+    if (create_workers(crk, &w))
         err(crk->ctx, "failed to create workers\n");
 
-    wait_workers(crk, workers, pw, len);
+    wait_workers(crk, w, pw, len);
 
     dealloc_pwstreams(crk);
 
