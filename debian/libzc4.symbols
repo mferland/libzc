@@ -1,9 +1,10 @@
 libzc.so.4 libzc4 #MINVER#
+ zc_crk_bforce_force_threads@Base 0.4.0
  zc_crk_bforce_init@Base 0.3.1
  zc_crk_bforce_new@Base 0.3.1
  zc_crk_bforce_ref@Base 0.3.1
  zc_crk_bforce_sanitized_charset@Base 0.3.1
- zc_crk_bforce_start@Base 0.3.1
+ zc_crk_bforce_start@Base 0.4.0
  zc_crk_bforce_unref@Base 0.3.1
  zc_crk_dict_init@Base 0.3.1
  zc_crk_dict_new@Base 0.3.1
@@ -13,6 +14,7 @@ libzc.so.4 libzc4 #MINVER#
  zc_crk_ptext_attack@Base 0.4.0
  zc_crk_ptext_find_internal_rep@Base 0.3.1
  zc_crk_ptext_find_password@Base 0.3.1
+ zc_crk_ptext_force_threads@Base 0.4.0
  zc_crk_ptext_key2_count@Base 0.3.1
  zc_crk_ptext_key2_reduction@Base 0.3.1
  zc_crk_ptext_new@Base 0.3.1
