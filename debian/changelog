@@ -1,4 +1,4 @@
-libzc (0.4.0-1) UNRELEASED; urgency=low
+libzc (0.4.0-1) unstable; urgency=low
 
   * New upstream release.
   * Stop checking for host os (Closes: #884792).
