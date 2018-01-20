@@ -139,12 +139,13 @@ static int fill_header_list(struct zc_file *f)
 	while (1) {
 
 		/* read zip header signature */
-		ret = fread(&sig, 4, 1, f->stream);
-		if (ret != 1) {
+		ret = fread(buf, 4, 1, f->stream);
+		if (ret != 1)
 			return -1;
-		} else if (sig != ZIP_SIG) {
+
+		sig = get_le32_at(buf, 0);
+		if (sig != ZIP_SIG)
 			return idx == 0;
-		}
 
 		info = calloc(1, sizeof(struct zc_info));
 		if (!info)
@@ -216,9 +217,10 @@ static int fill_header_list(struct zc_file *f)
 			  uncompressed size               4 bytes
 			*/
 
-			ret = fread(&data_desc_sig, 4, 1, f->stream);
+			ret = fread(buf, 4, 1, f->stream);
 			if (ret != 1)
 				goto err2;
+			data_desc_sig = get_le32_at(buf, 0);
 			ret = fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
 			if (ret)
 				goto err2;
