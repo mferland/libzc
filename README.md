@@ -60,6 +60,7 @@ internal representation of the key has been found, we try to find the
 actual (or an equivalent) password.
 
 Example:
+Try to find archive.zip password by using plain.bin using 8 threads:
 
     yazc plaintext -t8 plain.bin:100:650 archive.zip:112:662:64
 
