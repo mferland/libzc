@@ -18,6 +18,6 @@ cd ${D}
 tar xvf ${A}
 cd ${PF}
 
-echo debuild
+echo debuild --lintian-opts --profile debian
 
 exit 0
