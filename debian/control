@@ -2,7 +2,7 @@ Source: libzc
 Priority: optional
 Maintainer: Marc Ferland <marc.ferland@gmail.com>
 Build-Depends: debhelper (>= 10), zlib1g-dev, check, pkg-config
-Standards-Version: 4.1.1
+Standards-Version: 4.1.3
 Section: libs
 Homepage: https://github.com/mferland/libzc
 
