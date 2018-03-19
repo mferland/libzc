@@ -559,7 +559,7 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 	int workers_left = workers;
 
 	/* waits for workers on the 'cleanup' list */
-	while (workers_left) {
+	do {
 		pthread_mutex_lock(&crk->mutex);
 		while (list_empty(&crk->cleanup_head))
 			pthread_cond_wait(&crk->cond, &crk->mutex);
@@ -580,7 +580,7 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 			--workers_left;
 		}
 		pthread_mutex_unlock(&crk->mutex);
-	}
+	} while (workers_left);
 }
 
 static void dealloc_pwstreams(struct zc_crk_bforce *crk)
