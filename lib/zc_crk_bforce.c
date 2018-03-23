@@ -286,12 +286,16 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w,
  */
 static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
 {
+	uint64_t tmp[6];
 	int i = 5;
-	out[i] = c;
-	for (; i >= 0; --i)
-		out[i - 1] = out[i] / in[i];
+
+	tmp[i] = c;
+	do {
+		tmp[i - 1] = tmp[i] / in[i];
+	} while (i-- > 0);
+
 	for (i = 0; i < 6; ++i)
-		out[i] %= in[i];
+		out[i] = tmp[i] %= in[i];
 }
 
 static void do_work_recurse2(struct worker *w, size_t level,
