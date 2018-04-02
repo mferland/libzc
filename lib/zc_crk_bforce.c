@@ -245,12 +245,12 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 	struct zc_key key;
 	struct hash *h = &w->h;
 
-#define RESET() do \
-    { \
-        key.key0 = h->initk0[ctz]; \
-        key.key1 = h->initk1[ctz]; \
-        key.key2 = h->initk2[ctz]; \
-    } while (0)
+#define RESET() do				\
+	{					\
+		key.key0 = h->initk0[ctz];	\
+		key.key1 = h->initk1[ctz];	\
+		key.key2 = h->initk2[ctz];	\
+	} while (0)
 
 	do {
 		int ctz = __builtin_ctzll(h->candidate);
