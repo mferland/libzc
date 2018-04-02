@@ -291,9 +291,7 @@ static int do_bruteforce(int argc, char *argv[])
 	else
 		memset(pwcfg.initial, 0, ZC_PW_MAXLEN);
 
-	int err = launch_crack();
-
-	return err;
+	return launch_crack();
 }
 
 const struct yazc_cmd yazc_cmd_bruteforce = {
