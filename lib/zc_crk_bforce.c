@@ -232,18 +232,15 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 			k2[j] = crc32(k2[j], k1[j] >> 24);
 	}
 
-	uint8_t magic = crk->vdata[0].magic;
-	header = crk->vdata[0].encryption_header[11];
+	uint8_t magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
 #pragma GCC ivdep
-	for (size_t j = 0; j < LEN; ++j) {
-		c[j] = header ^ decrypt_byte(k2[j]) ^ magic;
-		h->candidate |= c[j] ? 0 : (uint64_t)1 << j;
-	}
+	for (size_t j = 0; j < LEN; ++j)
+		h->candidate |= magic_xor_header ^ decrypt_byte(k2[j]) ? (uint64_t)0 : (uint64_t)1 << j;
+
 	return h->candidate;
 }
 
-static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w,
-			int len)
+static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 {
 	struct zc_key key;
 	struct hash *h = &w->h;
@@ -264,7 +261,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w,
 			if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
 				break;
 		}
-		if (j >= crk->vdata_size) {
+		if (j == crk->vdata_size) {
 			RESET();
 			if (test_password(w, &key))
 				return ctz;
@@ -336,7 +333,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
 								if (try_decrypt_fast(crk, &w->h) == 0)
 									continue;
 
-								ret = try_decrypt2(crk, w, LEN);
+								ret = try_decrypt2(crk, w);
 								if (ret < 0)
 									continue;
 
@@ -360,11 +357,11 @@ static void do_work_recurse2(struct worker *w, size_t level,
 			}
 		}
 
-		/* fill the check bytes with zeros so try_decrypt2 will test
-		 * all the remaining hashes */
-		memset(w->h.check, 0, LEN);
+		/* Test all remaining candidates since none of them
+		   has been filtered by try_decrypt_fast. */
+		w->h.candidate = UINT64_MAX >> (pwi % LEN);
 
-		ret = try_decrypt2(crk, w, pwi % LEN);
+		ret = try_decrypt2(crk, w);
 		if (ret < 0)
 			return;
 
