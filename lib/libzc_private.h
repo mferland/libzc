@@ -134,8 +134,8 @@ void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
 static inline
 uint8_t decrypt_byte(uint32_t k)
 {
-	uint32_t tmp = k | 2;
-	return ((tmp * (tmp ^ 1)) >> 8) & 0xff;
+	k |= 2;
+	return ((k * (k ^ 1)) >> 8) & 0xff;
 }
 
 static inline
