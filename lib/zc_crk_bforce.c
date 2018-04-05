@@ -85,14 +85,13 @@ struct worker {
 	struct zlib_state *zlib;
 
 	struct hash {
-		uint64_t candidate;
-		uint8_t check[LEN];
 		uint32_t initk0[LEN];
 		uint32_t initk1[LEN];
 		uint32_t initk2[LEN];
 		uint32_t k0[LEN];
 		uint32_t k1[LEN];
 		uint32_t k2[LEN];
+		uint64_t candidate;
 	} h;
 
 	struct zc_crk_bforce *crk;
@@ -198,29 +197,27 @@ static void do_work_recurse(struct worker *w, size_t level,
 	limit[0].initial = limit[0].start;
 }
 
-static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
-				 struct hash *h)
+static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
 {
-	uint8_t *c = h->check;
+	uint8_t check[LEN];
 	uint32_t *k0 = h->k0;
 	uint32_t *k1 = h->k1;
 	uint32_t *k2 = h->k2;
-	uint8_t header;
 
 	h->candidate = 0;
 
 	/* first pass */
 	for (size_t i = 0; i < 11; ++i) {
-		header = crk->vdata[0].encryption_header[i];
+		uint8_t header = crk->vdata[0].encryption_header[i];
 
 #pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
-			c[j] = header ^ decrypt_byte(k2[j]);
+			check[j] = header ^ decrypt_byte(k2[j]);
 
 		/* update key0 */
 #pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
-			k0[j] = crc32(k0[j], c[j]);
+			k0[j] = crc32(k0[j], check[j]);
 
 		/* update key1 */
 		for (int j = 0; j < LEN; ++j)
