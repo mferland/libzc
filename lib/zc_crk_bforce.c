@@ -44,6 +44,7 @@ struct zc_crk_bforce {
 	size_t cipher_size;
 	bool cipher_is_deflated;
 	uint32_t original_crc;
+	uint8_t pre_magic_xor_header;
 
 	/* zip filename */
 	char *filename;
@@ -200,6 +201,8 @@ static void do_work_recurse(struct worker *w, size_t level,
 static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h)
 {
 	uint8_t check[LEN];
+	uint32_t crcindex[LEN];
+	uint32_t crcshr8[LEN];
 	uint32_t *k0 = h->k0;
 	uint32_t *k1 = h->k1;
 	uint32_t *k2 = h->k2;
@@ -207,32 +210,40 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 	h->candidate = 0;
 
 	/* first pass */
-	for (size_t i = 0; i < 11; ++i) {
+	for (int i = 0; i < 11; ++i) {
 		uint8_t header = crk->vdata[0].encryption_header[i];
 
 #pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
-			check[j] = header ^ decrypt_byte(k2[j]);
+			check[j] = header ^ decrypt_byte(k2[j]) ^ k0[j];
 
 		/* update key0 */
 #pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
-			k0[j] = crc32(k0[j], check[j]);
+			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
 		/* update key1 */
+#pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
-		/* update key2 */
+		/* update key2 -- loop is in two parts */
+#pragma GCC ivdep
+		for (int j = 0; j < LEN; ++j) {
+			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
+			crcshr8[j] = k2[j] >> 8;
+		}
 #pragma GCC ivdep
 		for (int j = 0; j < LEN; ++j)
-			k2[j] = crc32(k2[j], k1[j] >> 24);
+			k2[j] = crc_32_tab[crcindex[j]] ^ crcshr8[j];
 	}
 
-	uint8_t magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
 #pragma GCC ivdep
-	for (size_t j = 0; j < LEN; ++j)
-		h->candidate |= magic_xor_header ^ decrypt_byte(k2[j]) ? (uint64_t)0 : (uint64_t)1 << j;
+	for (int j = 0; j < LEN; ++j)
+		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
+
+	for (int j = 0; j < LEN; ++j)
+		h->candidate |= check[j] ? 0 : (uint64_t)1 << j;
 
 	return h->candidate;
 }
@@ -703,6 +714,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	}
 
 	crk->vdata_size = err;
+	crk->pre_magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);
