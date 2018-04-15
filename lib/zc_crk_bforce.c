@@ -213,32 +213,41 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 	for (int i = 0; i < 11; ++i) {
 		uint8_t header = crk->vdata[0].encryption_header[i];
 
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
+#endif
 		for (int j = 0; j < LEN; ++j)
 			check[j] = header ^ decrypt_byte(k2[j]) ^ k0[j];
 
 		/* update key0 */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
+#endif
 		for (int j = 0; j < LEN; ++j)
 			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
 		/* update key1 */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
+#endif
 		for (int j = 0; j < LEN; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
 		/* update key2 -- loop is in two parts */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
+#endif
 		for (int j = 0; j < LEN; ++j) {
 			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
 			crcshr8[j] = k2[j] >> 8;
 		}
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
+#endif
 		for (int j = 0; j < LEN; ++j)
 			k2[j] = crc_32_tab[crcindex[j]] ^ crcshr8[j];
 	}
 
-#pragma GCC ivdep
 	for (int j = 0; j < LEN; ++j)
 		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
