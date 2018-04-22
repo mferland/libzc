@@ -233,7 +233,7 @@ static int get_next_index(struct worker *w, size_t *i)
 {
 	pthread_mutex_lock(w->mutex);
 	if (w->ptext->found ||
-	    *w->next + 1 == w->ptext->key2->size) {
+	    *w->next == w->ptext->key2->size) {
 		pthread_mutex_unlock(w->mutex);
 		return -1;
 	}
