@@ -121,13 +121,13 @@ static char *make_charset(int flags, char *buf, size_t buflen)
 	memset(buf, 0, buflen);
 
 	if (flags & PWSET_LOWER)
-		strncat(buf, lowercase_set.set, lowercase_set.len);
+		strncat(buf, lowercase_set.set, buflen - strlen(buf) - 1);
 	if (flags & PWSET_UPPER)
-		strncat(buf, uppercase_set.set, uppercase_set.len);
+		strncat(buf, uppercase_set.set, buflen - strlen(buf) - 1);
 	if (flags & PWSET_NUMB)
-		strncat(buf, number_set.set, number_set.len);
+		strncat(buf, number_set.set, buflen - strlen(buf) - 1);
 	if (flags & PWSET_SPEC)
-		strncat(buf, special_set.set, special_set.len);
+		strncat(buf, special_set.set, buflen - strlen(buf) - 1);
 	return buf;
 }
 
