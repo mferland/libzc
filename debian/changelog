@@ -1,10 +1,10 @@
-libzc (0.4.0-1) unstable; urgency=low
+libzc (0.4.1-1) unstable; urgency=low
 
   * New upstream release.
   * Stop checking for host os (Closes: #884792).
   * Fix tests failures on big-endian machines (Closes: #884385)
 
- -- Marc Ferland <marc.ferland@gmail.com>  Sat, 20 Jan 2018 16:01:20 -0500
+ -- Marc Ferland <marc.ferland@gmail.com>  Sat, 23 Jun 2018 21:49:20 -0500
 
 libzc (0.3.6-1) unstable; urgency=low
 
