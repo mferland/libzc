@@ -30,8 +30,7 @@ struct final {
 	const uint8_t (*lsbk0_lookup)[2];
 	const uint32_t *lsbk0_count;
 	char pw[PASS_MAX_LEN];
-	struct zc_key k[PASS_MAX_LEN +
-					     1];  /* 14 --> store the internal rep at index 0 */
+	struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
 	struct zc_key saved;
 	int len_under_test;
 };
@@ -93,10 +92,7 @@ static int compare_pw_with_key(const char *pw, size_t len,
 {
 	struct zc_key tmp;
 
-	set_default_encryption_keys(&tmp);
-
-	for (size_t i = 0; i < len; ++i)
-		update_keys(pw[i], &tmp, &tmp);
+        update_default_keys_from_array(&tmp, pw, len);
 
 	return (k->key0 == tmp.key0 &&
 		k->key1 == tmp.key1 &&

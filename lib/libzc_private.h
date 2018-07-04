@@ -126,6 +126,17 @@ void set_default_encryption_keys(struct zc_key *k)
 }
 
 static inline
+void update_default_keys_from_array(struct zc_key *out,
+                                    const char *s,
+                                    size_t len)
+{
+        set_default_encryption_keys(out);
+
+        for (size_t i = 0; i < len; ++i)
+                update_keys(s[i], out, out);
+}
+
+static inline
 void reset_encryption_keys(const struct zc_key *base, struct zc_key *k)
 {
 	*k = *base;
@@ -151,6 +162,24 @@ uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 	/* Returns the last byte of the decrypted header */
 	return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 &
 									 0xffff) >> 2] ^ magic;
+}
+
+/* TODO: rename validation data to zc_header */
+
+static inline
+bool decrypt_headers(const struct zc_key *k,
+                     const struct validation_data *v,
+                     size_t vlen)
+{
+        struct zc_key tmp;
+
+        for (size_t i = 0; i < vlen; ++i) {
+                reset_encryption_keys(k, &tmp);
+                if (decrypt_header(v[i].encryption_header, &tmp, v[i].magic))
+                        return false;
+        }
+
+        return true;
 }
 
 int fill_vdata(struct zc_ctx *ctx, const char *filename,

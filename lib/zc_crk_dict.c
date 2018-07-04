@@ -146,23 +146,12 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 static bool test_password(struct zc_crk_dict *crk, const char *pw)
 {
-	struct zc_key key, base;
-	size_t i = 0;
+	struct zc_key base;
 
-	set_default_encryption_keys(&base);
+        update_default_keys_from_array(&base, pw, strlen(pw));
 
-	while(pw[i] != '\0') {
-		update_keys(pw[i], &base, &base);
-		++i;
-	}
-
-	for (i = 0; i < crk->vdata_size; ++i) {
-		reset_encryption_keys(&base, &key);
-		if (decrypt_header(crk->vdata[i].encryption_header,
-				   &key,
-				   crk->vdata[i].magic))
-			return false;
-	}
+        if (!decrypt_headers(&base, crk->vdata, crk->vdata_size))
+           return false;
 
 	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
 	int err;
