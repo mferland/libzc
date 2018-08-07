@@ -27,9 +27,10 @@ AM_CFLAGS = \
         -Wall -Wextra  \
 	-fvisibility=hidden \
 	-ffunction-sections \
-	-fdata-sections
+	-fdata-sections \
+	${CL_CFLAGS}
 
-AM_LDFLAGS = -lm ${ZLIB_LIBS}
+AM_LDFLAGS = -lm ${ZLIB_LIBS} ${CL_LIBS}
 
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
@@ -46,6 +47,10 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 LIBZC_CURRENT=4
 LIBZC_REVISION=1
 LIBZC_AGE=0
+
+if USE_OPENCL
+OCL_SRC = zc_crk_ocl.c
+endif
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
@@ -66,6 +71,7 @@ libzc_la_SOURCES =\
 	pwstream.h \
 	qsort.h \
 	zc_crk_bforce.c \
+	$(OCL_SRC) \
 	zc_crk_dict.c \
 	zc_crk_ptext.c \
 	zc_file.c

@@ -42,6 +42,7 @@ static const struct yazc_cmd *yazc_cmds[] = {
 	&yazc_cmd_bruteforce,
 	&yazc_cmd_dictionary,
 	&yazc_cmd_plaintext,
+	&yazc_cmd_opencl,
 	&yazc_cmd_info,
 };
 

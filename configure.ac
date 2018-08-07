@@ -20,6 +20,7 @@ AC_INIT([zc],
         [libzc],
         [http://github.com/mferland/libzc])
 m4_include([m4/ax_pthread.m4])
+m4_include([m4/ax_check_cl.m4])
 AC_CONFIG_SRCDIR([lib/libzc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
 AC_SYS_LARGEFILE
@@ -41,6 +42,20 @@ PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES(ZLIB, zlib)
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [HAVE_CHECK=1], [HAVE_CHECK=0])
 AM_CONDITIONAL([USE_CHECK], [test "$HAVE_CHECK" -eq 1])
+
+AC_ARG_ENABLE([opencl],
+        AS_HELP_STRING([--disable-opencl], [disable opencl @<:@default=enabled@:>@]),
+        [], enable_opencl=yes)
+
+if test "x${enable_opencl}" == xyes; then
+    AX_CHECK_CL
+    if test "X$no_cl" == Xyes; then
+        AC_MSG_FAILURE([Cannot find the OpenCL library.])
+    fi
+    AC_DEFINE(ENABLE_OPENCL, [1], [OpenCL acceleration.])
+fi
+
+AM_CONDITIONAL([USE_OPENCL], [test x$enable_opencl = xyes])
 
 AC_ARG_ENABLE([logging],
         AS_HELP_STRING([--disable-logging], [disable system logging @<:@default=enabled@:>@]),
@@ -77,8 +92,8 @@ AC_MSG_RESULT([
         includedir:             ${includedir}
 
         compiler:               ${CC}
-        cflags:                 ${CFLAGS}
-        ldflags:                ${LIBS} ${LDFLAGS}
+        cflags:                 ${CFLAGS} ${CL_CFLAGS}
+        ldflags:                ${LIBS} ${LDFLAGS} ${CL_LIBS}
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}

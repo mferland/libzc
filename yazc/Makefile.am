@@ -14,12 +14,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 bin_PROGRAMS = yazc
+
+if USE_OPENCL
+OCL_SRC = yazc-opencl.c
+endif
+
 yazc_SOURCES = \
 	yazc.c \
 	yazc-bruteforce.c \
 	yazc-dictionary.c \
 	yazc-plaintext.c \
 	yazc-info.c \
+	$(OCL_SRC) \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_srcdir)/lib
 yazc_LDADD = $(top_builddir)/lib/libzc.la

@@ -141,6 +141,16 @@ int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
 int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 			       const struct zc_key *internal_rep,
 			       char *out, size_t len);
+
+/**
+ *
+ */
+struct zc_crk_ocl;
+int zc_crk_opencl_new(struct zc_ctx *ctx, struct zc_crk_ocl **crk);
+struct zc_crk_ocl *zc_crk_opencl_ref(struct zc_crk_ocl *crk);
+struct zc_crk_ocl *zc_crk_opencl_unref(struct zc_crk_ocl *crk);
+int zc_crk_opencl_start(struct zc_crk_ocl *crk, char *pw, size_t len);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

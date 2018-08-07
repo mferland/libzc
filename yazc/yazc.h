@@ -49,6 +49,7 @@ __attribute__((format(printf, 1, 2)));
 extern const struct yazc_cmd yazc_cmd_bruteforce;
 extern const struct yazc_cmd yazc_cmd_dictionary;
 extern const struct yazc_cmd yazc_cmd_plaintext;
+extern const struct yazc_cmd yazc_cmd_opencl;
 extern const struct yazc_cmd yazc_cmd_info;
 
 #endif /* _YAZC_H_ */
