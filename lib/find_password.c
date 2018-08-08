@@ -29,16 +29,16 @@
 struct final {
 	const uint8_t (*lsbk0_lookup)[2];
 	const uint32_t *lsbk0_count;
-	char pw[PASS_MAX_LEN];
+	uint8_t pw[PASS_MAX_LEN];
 	struct zc_key k[PASS_MAX_LEN +
 					     1];  /* 14 --> store the internal rep at index 0 */
 	struct zc_key saved;
 	int len_under_test;
 };
 
-static void inplace_reverse(char *str, size_t len)
+static void inplace_reverse(uint8_t *str, size_t len)
 {
-	char *end = str + len - 1;
+	uint8_t *end = str + len - 1;
 
 #define XOR_SWAP(a,b)				\
 	do					\
@@ -79,7 +79,7 @@ static void restore_internal_rep(struct final *f)
  * From 'k' msb and 'km1' lsb (previous key from 'k'), find the key
  * (key being the byte that went through the crc32 function).
  */
-static char recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
+static uint8_t recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
 {
 	return (lsb(km1) ^ crc_32_invtab[msb(k)] ^ 0x00) & 0xff;
 }
@@ -88,7 +88,7 @@ static char recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
  * From 'pw', calculate the internal representation of the key and
  * compare it with 'k'.
  */
-static int compare_pw_with_key(const char *pw, size_t len,
+static int compare_pw_with_key(const uint8_t *pw, size_t len,
 			       const struct zc_key *k)
 {
 	struct zc_key tmp;
@@ -103,10 +103,10 @@ static int compare_pw_with_key(const char *pw, size_t len,
 		k->key2 == tmp.key2) ? 0 : -1;
 }
 
-static int compare_revpw_with_key(const char *pw, size_t len,
+static int compare_revpw_with_key(const uint8_t *pw, size_t len,
 				  const struct zc_key *k)
 {
-	char revpw[PASS_MAX_LEN];
+	uint8_t revpw[PASS_MAX_LEN];
 
 	for (int i = len - 1, j = 0; i >= 0; --i, ++j)
 		revpw[j] = pw[i];
@@ -244,12 +244,11 @@ static void key_56_step2(struct zc_key *k, int start)
 	k[4].key2 = crc32inv(k[3].key2, 0x0);
 
 	/* recover key2_-4 (8 bits msb) */
-	k[5].key2 = crc32inv(k[4].key2,
-			     0x0); /* TODO: k[5] is already known if key is only 5 chars */
+	k[5].key2 = crc32inv(k[4].key2, 0x0); /* TODO: k[5] is already known if key is only 5 chars */
 
 	/* recover full key1 values */
 	for (int i = start; i >= 2; --i) {
-		k[i].key1 = recover_input_byte_from_crcs(prev, k[i].key2) << 24;
+		k[i].key1 = (uint32_t)recover_input_byte_from_crcs(prev, k[i].key2) << 24;
 		prev = crc32(prev, msb(k[i].key1));
 		/* do not overwrite key2_-1, since we know the full value */
 		if (i > 2)
@@ -296,7 +295,7 @@ static int try_key_5_6(struct final *f)
 	return -1;
 }
 
-static void recover_prev_key(const struct zc_key *k, char c,
+static void recover_prev_key(const struct zc_key *k, uint8_t c,
 			     struct zc_key *prev)
 {
 	prev->key2 = crc32inv(k->key2, msb(k->key1));
@@ -305,7 +304,7 @@ static void recover_prev_key(const struct zc_key *k, char c,
 }
 
 static int recurse_key_7_13(struct final *f, size_t level,
-			    struct zc_key current, char *pw)
+			    struct zc_key current, uint8_t *pw)
 {
 	/*
 	 * Try all the possible values at position key_0, key_-1, up to
