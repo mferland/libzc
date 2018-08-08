@@ -79,7 +79,7 @@ static void restore_internal_rep(struct final *f)
  * From 'k' msb and 'km1' lsb (previous key from 'k'), find the key
  * (key being the byte that went through the crc32 function).
  */
-static char recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
+static uint8_t recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
 {
 	return (lsb(km1) ^ crc_32_invtab[msb(k)] ^ 0x00) & 0xff;
 }
@@ -249,7 +249,7 @@ static void key_56_step2(struct zc_key *k, int start)
 
 	/* recover full key1 values */
 	for (int i = start; i >= 2; --i) {
-		k[i].key1 = recover_input_byte_from_crcs(prev, k[i].key2) << 24;
+		k[i].key1 = (uint32_t)recover_input_byte_from_crcs(prev, k[i].key2) << 24;
 		prev = crc32(prev, msb(k[i].key1));
 		/* do not overwrite key2_-1, since we know the full value */
 		if (i > 2)
