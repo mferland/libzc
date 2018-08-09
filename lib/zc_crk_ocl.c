@@ -309,6 +309,9 @@ ZC_EXPORT int zc_crk_opencl_start(struct zc_crk_ocl *crk, char *pw, size_t len)
 {
 	int err;
 
+	(void)pw;
+	(void)len;
+
 	err = probe_all(crk);
 	if (err)
 		return -1;
