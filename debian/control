@@ -4,6 +4,7 @@ Maintainer: Marc Ferland <marc.ferland@gmail.com>
 Build-Depends: debhelper (>= 10), zlib1g-dev, check, pkg-config
 Standards-Version: 4.1.4
 Section: libs
+Rules-Requires-Root: no
 Homepage: https://github.com/mferland/libzc
 
 Package: libzc-dev
