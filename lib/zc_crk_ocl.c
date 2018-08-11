@@ -32,6 +32,8 @@
 #include "libzc_private.h"
 #include "libzc.h"
 
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
 struct platform {
 	cl_platform_id id;
 	cl_device_id *dev;
@@ -223,7 +225,7 @@ static int device_info_cl_uint(struct zc_crk_ocl *crk, cl_device_id dev, char **
 	return 0;
 }
 
-static int print_device_info(struct zc_crk_ocl *crk, cl_device_id dev)
+static int print_device_info(struct zc_crk_ocl *crk, cl_device_id id)
 {
 	struct dev_info {
 		cl_device_info name;
@@ -259,14 +261,138 @@ static int print_device_info(struct zc_crk_ocl *crk, cl_device_id dev)
 
 	char *str;
 
-	for (size_t i = 0; i < sizeof(d)/sizeof(d[0]); ++i) {
-		if (d[i].tostr(crk, dev, &str, d[i].name))
+	for (size_t i = 0; i < ARRAY_SIZE(d); ++i) {
+		if (d[i].tostr(crk, id, &str, d[i].name))
 			return -1;
-		info(crk->ctx, "%s: %s\n", d[i].prefix, str);
+		printf("\t%s: %s\n", d[i].prefix, str);
 		free(str);
 	}
 
 	return 0;
+}
+
+static int platform_info_cl_str(struct zc_crk_ocl *crk, cl_platform_id id, char **buf,
+				cl_platform_info name)
+{
+	size_t size;
+	cl_int ret;
+
+	ret = clGetPlatformInfo(id, name, 0, NULL, &size);
+	if (OCLERR(ret)) {
+		err(crk->ctx, "clGetPlatformInfo() failed\n");
+		return -1;
+	}
+
+	char *tmp = calloc(1, size);
+	if (!tmp) {
+		err(crk->ctx, "calloc() failed: %s\n", strerror(errno));
+		return -1;
+	}
+
+	ret = clGetPlatformInfo(id, name, size, tmp, NULL);
+	if (OCLERR(ret)) {
+		err(crk->ctx, "clGetPlatformInfo() failed\n");
+		free(tmp);
+		return -1;
+	}
+
+	*buf = tmp;
+
+	return 0;
+}
+
+static int print_platform_info(struct zc_crk_ocl *crk, cl_platform_id id)
+{
+	struct plat_info {
+		cl_platform_info name;
+		char *prefix;
+		int (*tostr)(struct zc_crk_ocl *crk, cl_platform_id dev, char **buf,
+			     cl_platform_info name);
+	} p[] = {
+		{ .name = CL_PLATFORM_PROFILE,
+		  .prefix = "Platform Profile",
+		  .tostr = platform_info_cl_str },
+		{ .name = CL_PLATFORM_VERSION,
+		  .prefix = "Platform Version",
+		  .tostr = platform_info_cl_str },
+		{ .name = CL_PLATFORM_NAME,
+		  .prefix = "Platform Name",
+		  .tostr = platform_info_cl_str },
+		{ .name = CL_PLATFORM_VENDOR,
+		  .prefix = "Platform Vendor",
+		  .tostr = platform_info_cl_str },
+		{ .name = CL_PLATFORM_EXTENSIONS,
+		  .prefix = "Platform Extensions",
+		  .tostr = platform_info_cl_str },
+	};
+
+	char *str;
+
+	for (size_t i = 0; i < ARRAY_SIZE(p); ++i) {
+		if (p[i].tostr(crk, id, &str, p[i].name))
+			return -1;
+		printf("%s: %s\n", p[i].prefix, str);
+		free(str);
+	}
+
+	return 0;
+}
+
+static cl_uint get_gpu_devices_count(struct zc_crk_ocl *crk)
+{
+	cl_int err;
+	cl_device_type type;
+	cl_uint count = 0;
+
+	for (cl_uint i = 0; i < crk->platform_count; ++i) {
+		for (cl_uint j = 0; j < crk->platform[i].dev_count; ++j) {
+			err = clGetDeviceInfo(crk->platform[i].dev[j],
+					      CL_DEVICE_TYPE,
+					      sizeof(cl_device_type),
+					      &type,
+					      NULL);
+			if (OCLERR(err)) {
+				err(crk->ctx, "clGetDeviceInfo() failed\n");
+				return 0;
+			}
+
+			if (type == CL_DEVICE_TYPE_GPU)
+				count++;
+		}
+	}
+
+	return count;
+}
+
+static cl_uint get_gpu_devices(struct zc_crk_ocl *crk, cl_device_id *id, cl_uint count)
+{
+	cl_int err;
+	cl_device_type type;
+	cl_uint actual = 0;
+
+	for (cl_uint i = 0; i < crk->platform_count; ++i) {
+		for (cl_uint j = 0; j < crk->platform[i].dev_count; ++j) {
+			err = clGetDeviceInfo(crk->platform[i].dev[j],
+					      CL_DEVICE_TYPE,
+					      sizeof(cl_device_type),
+					      &type,
+					      NULL);
+			if (OCLERR(err)) {
+				err(crk->ctx, "clGetDeviceInfo() failed\n");
+				return 0;
+			}
+
+			if (actual == count) {
+				err(crk->ctx, "More gpu devices than expected?\n");
+				return 0;
+			}
+
+			if (type == CL_DEVICE_TYPE_GPU)
+				id[actual++] = crk->platform[i].dev[j];
+		}
+	}
+
+	return actual;
 }
 
 ZC_EXPORT int zc_crk_opencl_new(struct zc_ctx *ctx, struct zc_crk_ocl **crk)
@@ -316,9 +442,20 @@ ZC_EXPORT int zc_crk_opencl_start(struct zc_crk_ocl *crk, char *pw, size_t len)
 	if (err)
 		return -1;
 
-	for (cl_uint i = 0; i < crk->platform_count; ++i)
+	for (cl_uint i = 0; i < crk->platform_count; ++i) {
+		print_platform_info(crk, crk->platform[i].id);
 		for (cl_uint j = 0; j < crk->platform[i].dev_count; ++j)
 			print_device_info(crk, crk->platform[i].dev[j]);
+	}
+
+	/* get gpu devices */
+	cl_uint gpu_count = get_gpu_devices_count(crk);
+	printf("GPU Devices Count: %d\n", gpu_count);
+	cl_device_id *dev = calloc(gpu_count, sizeof(cl_device_id));
+	gpu_count = get_gpu_devices(crk, dev, gpu_count);
+	printf("GPU Devices Count: %d\n", gpu_count);
+
+	cl_context ctx = clCreateContext(0, gpu_count, dev, NULL, NULL, &err);
 
 	return 0;
 }
