@@ -38,8 +38,8 @@ struct zc_crk_bforce {
 	int refcount;
 
 	/* validation data */
-	struct validation_data vdata[VDATA_MAX];
-	size_t vdata_size;
+	struct zc_header header[HEADER_MAX];
+	size_t header_size;
 	unsigned char *cipher;
 	size_t cipher_size;
 	bool cipher_is_deflated;
@@ -159,7 +159,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 static bool try_decrypt(const struct zc_crk_bforce *crk,
 			const struct zc_key *base)
 {
-        return decrypt_headers(base, crk->vdata, crk->vdata_size);
+        return decrypt_headers(base, crk->header, crk->header_size);
 }
 
 static void do_work_recurse(struct worker *w, size_t level,
@@ -205,7 +205,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 
 	/* first pass */
 	for (int i = 0; i < 11; ++i) {
-		uint8_t header = crk->vdata[0].encryption_header[i];
+		uint8_t header = crk->header[0].encryption_header[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
@@ -267,12 +267,12 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 		int ctz = __builtin_ctzll(h->candidate);
 		h->candidate &= ~((uint64_t)1 << ctz);
 		size_t j = 1;
-		for (; j < crk->vdata_size; ++j) {
+		for (; j < crk->header_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
+			if (decrypt_header(crk->header[j].encryption_header, &key, crk->header[j].magic))
 				break;
 		}
-		if (j == crk->vdata_size) {
+		if (j == crk->header_size) {
 			RESET();
 			if (test_password(w, &key))
 				return ctz;
@@ -710,14 +710,14 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 		return -1;
 	}
 
-	err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err(crk->ctx, "failed to read validation data\n");
 		return -1;
 	}
 
-	crk->vdata_size = err;
-	crk->pre_magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
+	crk->header_size = err;
+	crk->pre_magic_xor_header = crk->header[0].magic ^ crk->header[0].encryption_header[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);

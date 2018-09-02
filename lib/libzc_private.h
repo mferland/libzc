@@ -69,12 +69,12 @@ __attribute__((format(printf, 6, 7)));
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 #define ZIP_ENCRYPTION_HEADER_LENGTH 12
-#define VDATA_MAX 5
+#define HEADER_MAX 5
 #define max(a, b) (( a > b) ? a : b)
 #define min(a, b) (( a > b) ? b : a)
 #define INFLATE_CHUNK 16384
 
-struct validation_data {
+struct zc_header {
 	uint8_t encryption_header[12];
 	uint8_t magic;
 };
@@ -168,7 +168,7 @@ uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 
 static inline
 bool decrypt_headers(const struct zc_key *k,
-                     const struct validation_data *v,
+                     const struct zc_header *v,
                      size_t vlen)
 {
         struct zc_key tmp;
@@ -182,17 +182,17 @@ bool decrypt_headers(const struct zc_key *k,
         return true;
 }
 
-int fill_vdata(struct zc_ctx *ctx, const char *filename,
-	       struct validation_data *vdata,
+int fill_header(struct zc_ctx *ctx, const char *filename,
+	       struct zc_header *header,
 	       size_t nmemb);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
 		     unsigned char **buf, size_t *len,
 		     uint32_t *original_crc, bool *is_deflated);
-size_t read_validation_data(struct zc_file *file,
-			    struct validation_data *vdata,
+size_t read_zc_header(struct zc_file *file,
+			    struct zc_header *header,
 			    size_t nmemb);
 bool test_one_pw(const char *pw,
-		 const struct validation_data *vdata,
+		 const struct zc_header *header,
 		 size_t nmemb);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
 		    size_t *len, uint32_t *original_crc, bool *is_deflated);

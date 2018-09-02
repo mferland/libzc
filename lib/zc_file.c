@@ -377,9 +377,9 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 }
 
 /**
- * read_validation_data:
+ * read_zc_header:
  *
- * Read the validation data from the file and store them in the vdata
+ * Read the validation data from the file and store them in the header
  * array. At most nmemb elements will be stored in the array.
  *
  * The file must be opened before calling this function.
@@ -387,8 +387,8 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
-			    size_t nmemb)
+size_t read_zc_header(struct zc_file *file, struct zc_header *header,
+		      size_t nmemb)
 {
 	struct zc_info *info;
 	size_t valid_files = 0;
@@ -400,8 +400,8 @@ size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
 		    !is_stored(info->header.comp_method))
 			continue;
 
-		vdata[valid_files].magic = info->magic;
-		memcpy(vdata[valid_files].encryption_header,
+		header[valid_files].magic = info->magic;
+		memcpy(header[valid_files].encryption_header,
 		       info->enc_header,
 		       ZIP_ENCRYPTION_HEADER_LENGTH);
 

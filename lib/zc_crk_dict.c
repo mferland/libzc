@@ -31,8 +31,8 @@ struct zc_crk_dict {
 	struct zc_ctx *ctx;
 	int refcount;
 	char *filename;
-	struct validation_data vdata[VDATA_MAX];
-	size_t vdata_size;
+	struct zc_header header[HEADER_MAX];
+	size_t header_size;
 	unsigned char *cipher;
 	unsigned char *plaintext;
 	unsigned char *inflate;
@@ -105,13 +105,13 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 		return -1;
 	}
 
-	err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err(crk->ctx, "failed to read validation data\n");
 		return -1;
 	}
 
-	crk->vdata_size = err;
+	crk->header_size = err;
 
 	err = fill_test_cipher(crk->ctx,
 			       filename,
@@ -150,7 +150,7 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
 
         update_default_keys_from_array(&base, (uint8_t*)pw, strlen(pw));
 
-        if (!decrypt_headers(&base, crk->vdata, crk->vdata_size))
+        if (!decrypt_headers(&base, crk->header, crk->header_size))
            return false;
 
 	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
@@ -177,7 +177,7 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 	char pwbuf[PW_BUF_LEN];
 	int err = 1;
 
-	if (len > PW_BUF_LEN || !crk->vdata_size)
+	if (len > PW_BUF_LEN || !crk->header_size)
 		return -1;
 
 	if (dict) {
