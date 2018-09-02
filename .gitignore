@@ -37,3 +37,4 @@ tests/plaintext_password
 tests/pwstream
 tests/reduce
 debtest/
+lib/kernel.h

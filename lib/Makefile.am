@@ -49,7 +49,14 @@ LIBZC_REVISION=1
 LIBZC_AGE=0
 
 if USE_OPENCL
+# https://www.gnu.org/software/automake/manual/html_node/Built-Sources-Example.html
 OCL_SRC = zc_crk_ocl.c
+BUILT_SOURCES = kernel.h
+CLEANFILES += kernel.h
+kernel.h: Makefile
+	echo "static const char *OCLSRC = \"\\n\" \\" >$@
+	cat kernel.cl | sed 's/$$/\\n\" \\/' | sed 's/^/"/'>>$@
+	echo '"\n";' >>$@
 endif
 
 lib_LTLIBRARIES = libzc.la

@@ -31,6 +31,7 @@
 
 #include "libzc_private.h"
 #include "libzc.h"
+#include "kernel.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
@@ -45,7 +46,13 @@ struct zc_crk_ocl {
 	int refcount;
 	struct platform *platform;
 	cl_uint platform_count;
-	cl_context context;
+	cl_context clctx;
+	cl_command_queue *cq;
+	cl_uint cq_count;
+	cl_program pgm;
+	cl_device_id *dev;
+	cl_uint dev_count;
+	cl_kernel kernel;
 };
 
 inline static bool OCLERR(cl_int err)
@@ -225,6 +232,40 @@ static int device_info_cl_uint(struct zc_crk_ocl *crk, cl_device_id dev, char **
 	return 0;
 }
 
+static int device_info_cl_ulong(struct zc_crk_ocl *crk, cl_device_id dev, char **buf,
+				cl_device_info name)
+{
+	cl_ulong value;
+	int ret;
+
+	ret = clGetDeviceInfo(dev, name, sizeof(value), &value, NULL);
+	if (OCLERR(ret)) {
+		err(crk->ctx, "clGetDeviceInfo() failed\n");
+		return -1;
+	}
+
+	char *tmp = calloc(1, 256); /* 256 should be enough */
+	if (!tmp) {
+		err(crk->ctx, "calloc() failed: %s\n", strerror(errno));
+		return -1;
+	}
+
+	ret = snprintf(tmp, 256, "%lu", value);
+	if (ret < 0) {
+		err(crk->ctx, "vsnprintf() failed: %s\n", strerror(errno));
+		free(tmp);
+		return -1;
+	} else if ((size_t)ret >= 256) {
+		err(crk->ctx, "vsnprintf() failed: output truncated\n");
+		free(tmp);
+		return -1;
+	}
+
+	*buf = tmp;
+
+	return 0;
+}
+
 static int print_device_info(struct zc_crk_ocl *crk, cl_device_id id)
 {
 	struct dev_info {
@@ -257,6 +298,10 @@ static int print_device_info(struct zc_crk_ocl *crk, cl_device_id id)
 		{ .name = CL_DEVICE_EXTENSIONS,
 		  .prefix = "Device Extensions",
 		  .tostr = device_info_cl_str },
+		{ .name = CL_DEVICE_MAX_MEM_ALLOC_SIZE,
+		  .prefix = "Device Max Memory Alloc Size",
+		  .tostr = device_info_cl_ulong,
+		},
 	};
 
 	char *str;
@@ -338,61 +383,109 @@ static int print_platform_info(struct zc_crk_ocl *crk, cl_platform_id id)
 	return 0;
 }
 
-static cl_uint get_gpu_devices_count(struct zc_crk_ocl *crk)
+static void ocl_notify(const char *errinfo, const void *private_info, size_t cb, void *user_data)
 {
-	cl_int err;
-	cl_device_type type;
-	cl_uint count = 0;
+	struct zc_crk_ocl *crk = (struct zc_crk_ocl*)(user_data);
+	(void)private_info;
+	(void)cb;
 
-	for (cl_uint i = 0; i < crk->platform_count; ++i) {
-		for (cl_uint j = 0; j < crk->platform[i].dev_count; ++j) {
-			err = clGetDeviceInfo(crk->platform[i].dev[j],
-					      CL_DEVICE_TYPE,
-					      sizeof(cl_device_type),
-					      &type,
-					      NULL);
-			if (OCLERR(err)) {
-				err(crk->ctx, "clGetDeviceInfo() failed\n");
-				return 0;
-			}
+	err(crk->ctx, "Error handler: %s\n", errinfo);
 
-			if (type == CL_DEVICE_TYPE_GPU)
-				count++;
-		}
-	}
-
-	return count;
+	/* TODO: private_info and cb */
 }
 
-static cl_uint get_gpu_devices(struct zc_crk_ocl *crk, cl_device_id *id, cl_uint count)
+static cl_int ocl_get_ctx_devices(struct zc_crk_ocl *crk, cl_device_id **dev, cl_uint *count)
 {
 	cl_int err;
-	cl_device_type type;
-	cl_uint actual = 0;
+	size_t size;
 
-	for (cl_uint i = 0; i < crk->platform_count; ++i) {
-		for (cl_uint j = 0; j < crk->platform[i].dev_count; ++j) {
-			err = clGetDeviceInfo(crk->platform[i].dev[j],
-					      CL_DEVICE_TYPE,
-					      sizeof(cl_device_type),
-					      &type,
-					      NULL);
-			if (OCLERR(err)) {
-				err(crk->ctx, "clGetDeviceInfo() failed\n");
-				return 0;
-			}
+	err = clGetContextInfo(crk->clctx, CL_CONTEXT_DEVICES, 0, NULL, &size);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clGetContextInfo() failed: %d\n", err);
+		return -1;
+	}
 
-			if (actual == count) {
-				err(crk->ctx, "More gpu devices than expected?\n");
-				return 0;
-			}
+	cl_device_id *tmp = calloc(1, size);
+	if (!tmp) {
+		err(crk->ctx, "calloc() failed: %s\n", strerror(errno));
+		return -1;
+	}
 
-			if (type == CL_DEVICE_TYPE_GPU)
-				id[actual++] = crk->platform[i].dev[j];
+	err = clGetContextInfo(crk->clctx, CL_CONTEXT_DEVICES, size, tmp, NULL);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clGetContextInfo() failed: %d\n", err);
+		free(tmp);
+		return -1;
+	}
+
+	*dev = tmp;
+	*count = size / sizeof(cl_device_id);
+
+	return 0;
+}
+
+static int ocl_ctx_new(struct zc_crk_ocl *crk)
+{
+	cl_context ctx;
+	cl_int err;
+
+	ctx = clCreateContextFromType(NULL, CL_DEVICE_TYPE_GPU, ocl_notify, crk, &err);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clCreateContextFromType() failed!\n");
+		return -1;
+	}
+
+	crk->clctx = ctx;
+
+	err = ocl_get_ctx_devices(crk, &crk->dev, &crk->dev_count);
+	if (OCLERR(err)) {
+		clReleaseContext(ctx);
+		crk->clctx = NULL;
+		return -1;
+	}
+
+	dbg(crk->ctx, "opencl context created.\n");
+
+	return 0;
+}
+
+static void ocl_release_cmd_queue(cl_command_queue *cq, cl_uint cq_count)
+{
+	for (cl_uint i = 0; i < cq_count; ++i) {
+		if (cq[i])
+			clReleaseCommandQueue(cq[i]);
+	}
+	free(cq);
+}
+
+static int ocl_create_cmd_queue(struct zc_crk_ocl *crk)
+{
+	cl_int err;
+
+	cl_command_queue *cq = calloc(crk->dev_count, sizeof(cl_command_queue));
+	if (!cq) {
+		err(crk->ctx, "calloc() failed: %s\n", strerror(errno));
+		return -1;
+	}
+
+	for (cl_uint i = 0; i < crk->dev_count; ++i) {
+		cq[i] = clCreateCommandQueue(crk->clctx, crk->dev[i], 0, &err);
+		if (OCLERR(err)) {
+			err(crk->ctx, "clCreateCommandQueue() failed: %d\n", err);
+			goto err1;
 		}
 	}
 
-	return actual;
+	crk->cq = cq;
+	crk->cq_count = crk->dev_count;
+
+	dbg(crk->ctx, "%u command queues created.\n", crk->dev_count);
+
+	return 0;
+
+ err1:
+	ocl_release_cmd_queue(cq, crk->dev_count);
+	return -1;
 }
 
 ZC_EXPORT int zc_crk_opencl_new(struct zc_ctx *ctx, struct zc_crk_ocl **crk)
@@ -431,6 +524,56 @@ ZC_EXPORT struct zc_crk_ocl *zc_crk_opencl_unref(struct zc_crk_ocl *crk)
 	return NULL;
 }
 
+static int ocl_build_program(struct zc_crk_ocl *crk)
+{
+	cl_int err;
+
+	err = clBuildProgram(crk->pgm, 0, NULL, NULL, NULL, NULL);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clBuildProgram() failed!\n");
+		/* TODO: Print build errors... */
+		return -1;
+	}
+
+	info(crk->ctx, "program built\n");
+
+	return 0;
+}
+
+static int ocl_create_kernel(struct zc_crk_ocl *crk)
+{
+	cl_int err;
+
+	cl_kernel tmp = clCreateKernel(crk->pgm, "square", &err);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clCreateKernel() failed!\n");
+		return -1;
+	}
+
+	crk->kernel = tmp;
+
+	info(crk->ctx, "kernel created\n");
+
+	return 0;
+}
+
+static int ocl_create_program(struct zc_crk_ocl *crk)
+{
+	cl_int err;
+
+	cl_program pgm = clCreateProgramWithSource(crk->clctx, 1, (const char **)&OCLSRC, NULL, &err);
+	if (OCLERR(err)) {
+		err(crk->ctx, "clCreateProgramWithSource() failed!\n");
+		return -1;
+	}
+
+	crk->pgm = pgm;
+
+	info(crk->ctx, "program created\n");
+
+	return 0;
+}
+
 ZC_EXPORT int zc_crk_opencl_start(struct zc_crk_ocl *crk, char *pw, size_t len)
 {
 	int err;
@@ -448,14 +591,31 @@ ZC_EXPORT int zc_crk_opencl_start(struct zc_crk_ocl *crk, char *pw, size_t len)
 			print_device_info(crk, crk->platform[i].dev[j]);
 	}
 
-	/* get gpu devices */
-	cl_uint gpu_count = get_gpu_devices_count(crk);
-	printf("GPU Devices Count: %d\n", gpu_count);
-	cl_device_id *dev = calloc(gpu_count, sizeof(cl_device_id));
-	gpu_count = get_gpu_devices(crk, dev, gpu_count);
-	printf("GPU Devices Count: %d\n", gpu_count);
+	err = ocl_ctx_new(crk);
+	if (err < 0)
+		return -1;
 
-	cl_context ctx = clCreateContext(0, gpu_count, dev, NULL, NULL, &err);
+	err = ocl_create_cmd_queue(crk);
+	if (err < 0)
+		goto err1;
+
+	err = ocl_create_program(crk);
+	if (err < 0)
+		goto err2;
+
+	err = ocl_build_program(crk);
+	if (err < 0)
+		goto err3;
+
+	err = ocl_create_kernel(crk);
+
+	clReleaseKernel(crk->kernel);
+ err3:
+	clReleaseProgram(crk->pgm);
+ err2:
+	ocl_release_cmd_queue(crk->cq, crk->cq_count);
+ err1:
+	clReleaseContext(crk->clctx);
 
 	return 0;
 }
