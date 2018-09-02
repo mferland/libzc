@@ -148,7 +148,7 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
 {
 	struct zc_key base;
 
-        update_default_keys_from_array(&base, pw, strlen(pw));
+        update_default_keys_from_array(&base, (uint8_t*)pw, strlen(pw));
 
         if (!decrypt_headers(&base, crk->vdata, crk->vdata_size))
            return false;

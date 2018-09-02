@@ -83,12 +83,15 @@ struct zc_file {
 
 static uint16_t get_le16_at(const uint8_t *b, size_t i)
 {
-	return b[i + 1] << 8 | b[i];
+	return (uint16_t)b[i + 1] << 8 | (uint16_t)b[i];
 }
 
 static uint32_t get_le32_at(const uint8_t *b, size_t i)
 {
-	return b[i + 3] << 24 | b[i + 2] << 16 | b[i + 1] << 8 | b[i];
+	return (uint32_t)b[i + 3] << 24 |
+		(uint32_t)b[i + 2] << 16 |
+		(uint32_t)b[i + 1] << 8 |
+		(uint32_t)b[i];
 }
 
 static bool is_encrypted(uint16_t flag)

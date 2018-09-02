@@ -300,7 +300,7 @@ static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
 	tmp[i] = c;
 	do {
 		tmp[i - 1] = tmp[i] / in[i];
-	} while (i-- > 0);
+	} while (--i > 0);
 
 	for (i = 0; i < 6; ++i)
 		out[i] = tmp[i] %= in[i];

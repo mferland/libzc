@@ -110,7 +110,7 @@ uint8_t lsb(uint32_t v)
 }
 
 static inline
-void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
+void update_keys(uint8_t c, struct zc_key *ksrc, struct zc_key *kdst)
 {
 	kdst->key0 = crc32(ksrc->key0, c);
 	kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
@@ -127,7 +127,7 @@ void set_default_encryption_keys(struct zc_key *k)
 
 static inline
 void update_default_keys_from_array(struct zc_key *out,
-                                    const char *s,
+                                    const uint8_t *s,
                                     size_t len)
 {
         set_default_encryption_keys(out);
