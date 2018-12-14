@@ -27,9 +27,9 @@
 #include "libzc_private.h"
 #include "list.h"
 
-#define ZIP_SIG               0x04034b50
-#define ZIP_DATA_DESC_SIG     0x08074b50
-#define ZIP_STATIC_HEADER_LEN 30
+#define SIG                   0x04034b50
+#define DATA_DESC_SIG         0x08074b50
+#define STATIC_HEADER_LEN     30
 #define GP_BIT_HAS_DATA_DESC  (1 << 3)
 #define GP_BIT_ENCRYPTION     0x1
 #define MAX_FNLENGTH          (4096 + 255)
@@ -131,7 +131,7 @@ static void clear_header_list(struct zc_file *f)
 static int fill_header_list(struct zc_file *f)
 {
 	int ret, sig, idx = 0;
-	uint8_t buf[ZIP_STATIC_HEADER_LEN - 4];
+	uint8_t buf[STATIC_HEADER_LEN - 4];
 	struct zc_info *info;
 
 	rewind(f->stream);
@@ -144,7 +144,7 @@ static int fill_header_list(struct zc_file *f)
 			return -1;
 
 		sig = get_le32_at(buf, 0);
-		if (sig != ZIP_SIG)
+		if (sig != SIG)
 			return idx == 0;
 
 		info = calloc(1, sizeof(struct zc_info));
@@ -152,7 +152,7 @@ static int fill_header_list(struct zc_file *f)
 			goto err1;
 
 		/* static header */
-		ret = fread(buf, ZIP_STATIC_HEADER_LEN - 4, 1, f->stream);
+		ret = fread(buf, STATIC_HEADER_LEN - 4, 1, f->stream);
 		if (ret != 1)
 			goto err2;
 
@@ -221,7 +221,7 @@ static int fill_header_list(struct zc_file *f)
 			if (ret != 1)
 				goto err2;
 			data_desc_sig = get_le32_at(buf, 0);
-			ret = fseek(f->stream, data_desc_sig == ZIP_DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
+			ret = fseek(f->stream, data_desc_sig == DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
 			if (ret)
 				goto err2;
 		}
