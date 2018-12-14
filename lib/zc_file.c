@@ -373,6 +373,15 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 	return (file->stream != NULL);
 }
 
+static bool consider_file(struct zc_info *info)
+{
+	if (!is_encrypted(info->header.gen_bit_flag) ||
+	    (!is_deflated(info->header.comp_method) &&
+	     !is_stored(info->header.comp_method)))
+		return false;
+	return true;
+}
+
 /**
  * read_validation_data:
  *
@@ -391,12 +400,8 @@ size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
 	size_t valid_files = 0;
 
 	list_for_each_entry(info, &file->info_head, header_list) {
-		if (!is_encrypted(info->header.gen_bit_flag))
+		if (!consider_file(info))
 			continue;
-		if (!is_deflated(info->header.comp_method) &&
-		    !is_stored(info->header.comp_method))
-			continue;
-
 		vdata[valid_files].magic = info->magic;
 		memcpy(vdata[valid_files].header,
 		       info->enc_header,
@@ -415,12 +420,8 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
 	long s = LONG_MAX;
 
 	list_for_each_entry(info, &file->info_head, header_list) {
-		if (!is_encrypted(info->header.gen_bit_flag))
+		if (!consider_file(info))
 			continue;
-		if (!is_deflated(info->header.comp_method) &&
-		    !is_stored(info->header.comp_method))
-			continue;
-
 		long tmp = info->end_offset - info->begin_offset;
 		if (tmp < s) {
 			s = tmp;
