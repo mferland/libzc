@@ -205,7 +205,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 
 	/* first pass */
 	for (int i = 0; i < 11; ++i) {
-		uint8_t header = crk->vdata[0].encryption_header[i];
+		uint8_t header = crk->vdata[0].header[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
@@ -269,7 +269,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 		size_t j = 1;
 		for (; j < crk->vdata_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
+			if (decrypt_header(crk->vdata[j].header, &key, crk->vdata[j].magic))
 				break;
 		}
 		if (j == crk->vdata_size) {
@@ -717,7 +717,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	}
 
 	crk->vdata_size = err;
-	crk->pre_magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
+	crk->pre_magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].header[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);

@@ -50,7 +50,7 @@ struct header {
 };
 
 struct zc_info {
-	uint8_t enc_header[ZIP_ENCRYPTION_HEADER_LENGTH];
+	uint8_t enc_header[ENC_HEADER_LEN];
 	uint8_t magic;
 	int idx;
 	long enc_header_offset;
@@ -189,9 +189,9 @@ static int fill_header_list(struct zc_file *f)
 		if (is_encrypted(info->header.gen_bit_flag)) {
 			info->magic = check_byte(&info->header);
 			info->enc_header_offset = ftell(f->stream);
-			info->begin_offset = info->enc_header_offset + ZIP_ENCRYPTION_HEADER_LENGTH;
+			info->begin_offset = info->enc_header_offset + ENC_HEADER_LEN;
 			info->end_offset = info->enc_header_offset + info->header.comp_size;
-			ret = fread(info->enc_header, ZIP_ENCRYPTION_HEADER_LENGTH, 1, f->stream);
+			ret = fread(info->enc_header, ENC_HEADER_LEN, 1, f->stream);
 			if (ret != 1)
 				goto err2;
 		} else {
@@ -398,9 +398,9 @@ size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
 			continue;
 
 		vdata[valid_files].magic = info->magic;
-		memcpy(vdata[valid_files].encryption_header,
+		memcpy(vdata[valid_files].header,
 		       info->enc_header,
-		       ZIP_ENCRYPTION_HEADER_LENGTH);
+		       ENC_HEADER_LEN);
 
 		if (++valid_files == nmemb)
 			break;

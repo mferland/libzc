@@ -68,14 +68,14 @@ __attribute__((format(printf, 6, 7)));
 #define KEY0 0x12345678
 #define KEY1 0x23456789
 #define KEY2 0x34567890
-#define ZIP_ENCRYPTION_HEADER_LENGTH 12
+#define ENC_HEADER_LEN 12
 #define VDATA_MAX 5
 #define max(a, b) (( a > b) ? a : b)
 #define min(a, b) (( a > b) ? b : a)
 #define INFLATE_CHUNK 16384
 
 struct validation_data {
-	uint8_t encryption_header[12];
+	uint8_t header[12];
 	uint8_t magic;
 };
 
@@ -150,21 +150,24 @@ uint8_t decrypt_byte(uint32_t k)
 }
 
 static inline
+uint8_t decrypt_byte_lookup(uint32_t k)
+{
+	return decrypt_byte_tab[(k & 0xffff) >> 2];
+}
+
+static inline
 uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 {
 	uint8_t c;
 
-	for (size_t i = 0; i < ZIP_ENCRYPTION_HEADER_LENGTH - 1; ++i) {
-		c = hdr[i] ^ decrypt_byte_tab[(k->key2 & 0xffff) >> 2];
+	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
+		c = hdr[i] ^ decrypt_byte_lookup(k->key2);
 		update_keys(c, k, k);
 	}
 
 	/* Returns the last byte of the decrypted header */
-	return hdr[ZIP_ENCRYPTION_HEADER_LENGTH - 1] ^ decrypt_byte_tab[(k->key2 &
-									 0xffff) >> 2] ^ magic;
+	return hdr[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
 }
-
-/* TODO: rename validation data to zc_header */
 
 static inline
 bool decrypt_headers(const struct zc_key *k,
@@ -175,7 +178,7 @@ bool decrypt_headers(const struct zc_key *k,
 
         for (size_t i = 0; i < vlen; ++i) {
                 reset_encryption_keys(k, &tmp);
-                if (decrypt_header(v[i].encryption_header, &tmp, v[i].magic))
+                if (decrypt_header(v[i].header, &tmp, v[i].magic))
                         return false;
         }
 
