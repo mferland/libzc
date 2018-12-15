@@ -69,12 +69,12 @@ __attribute__((format(printf, 6, 7)));
 #define KEY1 0x23456789
 #define KEY2 0x34567890
 #define ENC_HEADER_LEN 12
-#define VDATA_MAX 5
+#define HEADER_MAX 5
 #define max(a, b) (( a > b) ? a : b)
 #define min(a, b) (( a > b) ? b : a)
 #define INFLATE_CHUNK 16384
 
-struct validation_data {
+struct zc_header {
 	uint8_t header[12];
 	uint8_t magic;
 };
@@ -110,7 +110,7 @@ uint8_t lsb(uint32_t v)
 }
 
 static inline
-void update_keys(char c, struct zc_key *ksrc, struct zc_key *kdst)
+void update_keys(uint8_t c, struct zc_key *ksrc, struct zc_key *kdst)
 {
 	kdst->key0 = crc32(ksrc->key0, c);
 	kdst->key1 = (ksrc->key1 + (kdst->key0 & 0xff)) * MULT + 1;
@@ -127,7 +127,7 @@ void set_default_encryption_keys(struct zc_key *k)
 
 static inline
 void update_default_keys_from_array(struct zc_key *out,
-                                    const char *s,
+                                    const uint8_t *s,
                                     size_t len)
 {
         set_default_encryption_keys(out);
@@ -171,7 +171,7 @@ uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
 
 static inline
 bool decrypt_headers(const struct zc_key *k,
-                     const struct validation_data *v,
+                     const struct zc_header *v,
                      size_t vlen)
 {
         struct zc_key tmp;
@@ -185,17 +185,17 @@ bool decrypt_headers(const struct zc_key *k,
         return true;
 }
 
-int fill_vdata(struct zc_ctx *ctx, const char *filename,
-	       struct validation_data *vdata,
+int fill_header(struct zc_ctx *ctx, const char *filename,
+	       struct zc_header *header,
 	       size_t nmemb);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
 		     unsigned char **buf, size_t *len,
 		     uint32_t *original_crc, bool *is_deflated);
-size_t read_validation_data(struct zc_file *file,
-			    struct validation_data *vdata,
+size_t read_zc_header(struct zc_file *file,
+			    struct zc_header *header,
 			    size_t nmemb);
 bool test_one_pw(const char *pw,
-		 const struct validation_data *vdata,
+		 const struct zc_header *header,
 		 size_t nmemb);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
 		    size_t *len, uint32_t *original_crc, bool *is_deflated);

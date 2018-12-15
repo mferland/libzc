@@ -83,12 +83,15 @@ struct zc_file {
 
 static uint16_t get_le16_at(const uint8_t *b, size_t i)
 {
-	return b[i + 1] << 8 | b[i];
+	return (uint16_t)b[i + 1] << 8 | (uint16_t)b[i];
 }
 
 static uint32_t get_le32_at(const uint8_t *b, size_t i)
 {
-	return b[i + 3] << 24 | b[i + 2] << 16 | b[i + 1] << 8 | b[i];
+	return (uint32_t)b[i + 3] << 24 |
+		(uint32_t)b[i + 2] << 16 |
+		(uint32_t)b[i + 1] << 8 |
+		(uint32_t)b[i];
 }
 
 static bool is_encrypted(uint16_t flag)
@@ -383,9 +386,9 @@ static bool consider_file(struct zc_info *info)
 }
 
 /**
- * read_validation_data:
+ * read_zc_header:
  *
- * Read the validation data from the file and store them in the vdata
+ * Read the validation data from the file and store them in the header
  * array. At most nmemb elements will be stored in the array.
  *
  * The file must be opened before calling this function.
@@ -393,8 +396,8 @@ static bool consider_file(struct zc_info *info)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
-			    size_t nmemb)
+size_t read_zc_header(struct zc_file *file, struct zc_header *header,
+		      size_t nmemb)
 {
 	struct zc_info *info;
 	size_t valid_files = 0;
@@ -402,8 +405,9 @@ size_t read_validation_data(struct zc_file *file, struct validation_data *vdata,
 	list_for_each_entry(info, &file->info_head, header_list) {
 		if (!consider_file(info))
 			continue;
-		vdata[valid_files].magic = info->magic;
-		memcpy(vdata[valid_files].header,
+
+		header[valid_files].magic = info->magic;
+		memcpy(header[valid_files].header,
 		       info->enc_header,
 		       ENC_HEADER_LEN);
 

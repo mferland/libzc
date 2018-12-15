@@ -19,8 +19,8 @@
 #include "libzc_private.h"
 #include "decrypt_byte.h"
 
-int fill_vdata(struct zc_ctx *ctx, const char *filename,
-	       struct validation_data *vdata,
+int fill_header(struct zc_ctx *ctx, const char *filename,
+	       struct zc_header *header,
 	       size_t nmemb)
 {
 	struct zc_file *file;
@@ -36,7 +36,7 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
 		return -1;
 	}
 
-	int size = read_validation_data(file, vdata, nmemb);
+	int size = read_zc_header(file, header, nmemb);
 
 	zc_file_close(file);
 	zc_file_unref(file);

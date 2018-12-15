@@ -18,6 +18,13 @@ cd ${D}
 tar xvf ${A}
 cd ${PF}
 
-echo debuild --lintian-opts --profile debian
+echo "\n1. Create package:"
+echo On Ubuntu:
+echo "\tdebuild --lintian-opts --profile debian"
+echo On Debian:
+echo "\tdebuild\n"
+echo 2. Upload to mentors:
+echo "\tdput mentors ${PN}_${PV}-1_amd64.changes\n"
+echo 3. Send RFS mail to submit@bugs.debian.org
 
 exit 0
