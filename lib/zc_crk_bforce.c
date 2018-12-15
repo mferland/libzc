@@ -114,7 +114,7 @@ static size_t unique(char *str, size_t len)
 
 static int compare_char(const void *a, const void *b)
 {
-	return (*(const char *)a - * (const char *)b);
+	return (*(const char *)a - *(const char *)b);
 }
 
 static size_t sanitize_set(char *set, size_t len)
@@ -205,13 +205,13 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 
 	/* first pass */
 	for (int i = 0; i < 11; ++i) {
-		uint8_t header = crk->header[0].header[i];
+		uint8_t b = crk->header[0].buf[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
 		for (int j = 0; j < LEN; ++j)
-			check[j] = header ^ decrypt_byte(k2[j]) ^ k0[j];
+			check[j] = b ^ decrypt_byte(k2[j]) ^ k0[j];
 
 		/* update key0 */
 #if defined(__GNUC__) && !defined(__clang__)
@@ -269,7 +269,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 		size_t j = 1;
 		for (; j < crk->header_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->header[j].header, &key, crk->header[j].magic))
+			if (decrypt_header(crk->header[j].buf, &key, crk->header[j].magic))
 				break;
 		}
 		if (j == crk->header_size) {
@@ -717,7 +717,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	}
 
 	crk->header_size = err;
-	crk->pre_magic_xor_header = crk->header[0].magic ^ crk->header[0].header[11];
+	crk->pre_magic_xor_header = crk->header[0].magic ^ crk->header[0].buf[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);

@@ -407,7 +407,7 @@ size_t read_zc_header(struct zc_file *file, struct zc_header *header,
 			continue;
 
 		header[valid_files].magic = info->magic;
-		memcpy(header[valid_files].header,
+		memcpy(header[valid_files].buf,
 		       info->enc_header,
 		       ENC_HEADER_LEN);
 

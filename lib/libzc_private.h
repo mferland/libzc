@@ -75,7 +75,7 @@ __attribute__((format(printf, 6, 7)));
 #define INFLATE_CHUNK 16384
 
 struct zc_header {
-	uint8_t header[12];
+	uint8_t buf[12];
 	uint8_t magic;
 };
 
@@ -156,29 +156,29 @@ uint8_t decrypt_byte_lookup(uint32_t k)
 }
 
 static inline
-uint8_t decrypt_header(const uint8_t *hdr, struct zc_key *k, uint8_t magic)
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 {
 	uint8_t c;
 
 	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
-		c = hdr[i] ^ decrypt_byte_lookup(k->key2);
+		c = buf[i] ^ decrypt_byte_lookup(k->key2);
 		update_keys(c, k, k);
 	}
 
 	/* Returns the last byte of the decrypted header */
-	return hdr[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
+	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
 }
 
 static inline
 bool decrypt_headers(const struct zc_key *k,
-                     const struct zc_header *v,
-                     size_t vlen)
+                     const struct zc_header *h,
+                     size_t len)
 {
         struct zc_key tmp;
 
-        for (size_t i = 0; i < vlen; ++i) {
+        for (size_t i = 0; i < len; ++i) {
                 reset_encryption_keys(k, &tmp);
-                if (decrypt_header(v[i].header, &tmp, v[i].magic))
+                if (decrypt_header(h[i].buf, &tmp, h[i].magic))
                         return false;
         }
 
@@ -186,17 +186,17 @@ bool decrypt_headers(const struct zc_key *k,
 }
 
 int fill_header(struct zc_ctx *ctx, const char *filename,
-	       struct zc_header *header,
-	       size_t nmemb);
+		struct zc_header *h,
+		size_t len);
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
 		     unsigned char **buf, size_t *len,
 		     uint32_t *original_crc, bool *is_deflated);
 size_t read_zc_header(struct zc_file *file,
-			    struct zc_header *header,
-			    size_t nmemb);
+		      struct zc_header *h,
+		      size_t len);
 bool test_one_pw(const char *pw,
-		 const struct zc_header *header,
-		 size_t nmemb);
+		 const struct zc_header *h,
+		 size_t len);
 int read_crypt_data(struct zc_file *file, unsigned char **buf,
 		    size_t *len, uint32_t *original_crc, bool *is_deflated);
 void decrypt(const unsigned char *in, unsigned char *out,

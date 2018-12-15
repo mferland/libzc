@@ -20,8 +20,8 @@
 #include "decrypt_byte.h"
 
 int fill_header(struct zc_ctx *ctx, const char *filename,
-	       struct zc_header *header,
-	       size_t nmemb)
+		struct zc_header *h,
+		size_t len)
 {
 	struct zc_file *file;
 	int err;
@@ -36,7 +36,7 @@ int fill_header(struct zc_ctx *ctx, const char *filename,
 		return -1;
 	}
 
-	int size = read_zc_header(file, header, nmemb);
+	int size = read_zc_header(file, h, len);
 
 	zc_file_close(file);
 	zc_file_unref(file);
