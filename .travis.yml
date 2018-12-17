@@ -37,3 +37,6 @@ script:
   - cd build
   - ../configure
   - make check
+
+after_failure:
+  - cat tests/*.log
