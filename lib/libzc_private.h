@@ -158,10 +158,8 @@ uint8_t decrypt_byte_lookup(uint32_t k)
 static inline
 uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 {
-	uint8_t c;
-
 	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
-		c = buf[i] ^ decrypt_byte_lookup(k->key2);
+		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
 		update_keys(c, k, k);
 	}
 
