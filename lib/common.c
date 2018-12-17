@@ -77,9 +77,9 @@ void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 	struct zc_key k = *key;
 
 	for (size_t i = 0; i < len - 1; ++i) {
-		out[i] = in[i] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+		out[i] = in[i] ^ decrypt_byte_lookup(k.key2);
 		update_keys(out[i], &k, &k);
 	}
 
-	out[len - 1] = in[len - 1] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+	out[len - 1] = in[len - 1] ^ decrypt_byte_lookup(k.key2);
 }
