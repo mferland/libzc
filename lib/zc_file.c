@@ -34,8 +34,12 @@
 #define GP_BIT_ENCRYPTION     0x1
 #define MAX_FNLENGTH          (4096 + 255)
 
-/* zip file */
-struct header {
+struct zc_info {
+	/* begin and end of the entry payload */
+	long begin_offset;
+	long end_offset;
+
+	/* zip file entry info */
 	uint16_t version_needed;
 	uint16_t gen_bit_flag;
 	uint16_t comp_method;
@@ -47,17 +51,15 @@ struct header {
 	uint16_t filename_length;
 	uint16_t extra_field_length;
 	char *filename;
-};
 
-struct zc_info {
-	uint8_t enc_header[ENC_HEADER_LEN];
-	uint8_t magic;
+	/* encryption header */
+	struct zc_header header;
+	long header_offset;
+
+	/* zip file entry index */
 	int idx;
-	long enc_header_offset;
-	long begin_offset;
-	long end_offset;
-	struct header header;
-	struct list_head header_list;
+
+	struct list_head list;
 };
 
 /**
@@ -114,24 +116,24 @@ static bool is_stored(uint16_t flag)
 	return flag == 0x0;
 }
 
-static uint8_t check_byte(const struct header *h)
+static uint8_t check_byte(const struct zc_info *e)
 {
-	if (has_data_desc(h->gen_bit_flag))
-		return h->last_mod_time >> 8;
-	return h->crc32 >> 24;
+	if (has_data_desc(e->gen_bit_flag))
+		return e->last_mod_time >> 8;
+	return e->crc32 >> 24;
 }
 
-static void clear_header_list(struct zc_file *f)
+static void clear_info_list(struct zc_file *f)
 {
 	struct zc_info *i, *tmp;
-	list_for_each_entry_safe(i, tmp, &f->info_head, header_list) {
-		list_del(&i->header_list);
-		free(i->header.filename);
+	list_for_each_entry_safe(i, tmp, &f->info_head, list) {
+		list_del(&i->list);
+		free(i->filename);
 		free(i);
 	}
 }
 
-static int fill_header_list(struct zc_file *f)
+static int fill_info_list(struct zc_file *f)
 {
 	int ret, sig, idx = 0;
 	uint8_t buf[STATIC_HEADER_LEN - 4];
@@ -141,7 +143,7 @@ static int fill_header_list(struct zc_file *f)
 
 	while (1) {
 
-		/* read zip header signature */
+		/* read zip entry signature */
 		ret = fread(buf, 4, 1, f->stream);
 		if (ret != 1)
 			return -1;
@@ -159,49 +161,49 @@ static int fill_header_list(struct zc_file *f)
 		if (ret != 1)
 			goto err2;
 
-		info->header.version_needed = get_le16_at(buf, 0);
-		info->header.gen_bit_flag = get_le16_at(buf, 2);
-		info->header.comp_method = get_le16_at(buf, 4);
-		info->header.last_mod_time = get_le16_at(buf, 6);
-		info->header.last_mod_date = get_le16_at(buf, 8);
-		info->header.crc32 = get_le32_at(buf, 10);
-		info->header.comp_size = get_le32_at(buf, 14);
-		info->header.uncomp_size = get_le32_at(buf, 18);
-		info->header.filename_length = get_le16_at(buf, 22);
-		info->header.extra_field_length = get_le16_at(buf, 24);
+		info->version_needed = get_le16_at(buf, 0);
+		info->gen_bit_flag = get_le16_at(buf, 2);
+		info->comp_method = get_le16_at(buf, 4);
+		info->last_mod_time = get_le16_at(buf, 6);
+		info->last_mod_date = get_le16_at(buf, 8);
+		info->crc32 = get_le32_at(buf, 10);
+		info->comp_size = get_le32_at(buf, 14);
+		info->uncomp_size = get_le32_at(buf, 18);
+		info->filename_length = get_le16_at(buf, 22);
+		info->extra_field_length = get_le16_at(buf, 24);
 
 		/* filename (variable length) */
-		if (!info->header.filename_length ||
-		    info->header.filename_length > MAX_FNLENGTH)
+		if (!info->filename_length ||
+		    info->filename_length > MAX_FNLENGTH)
 			goto err2;
 
-		info->header.filename = calloc(1, info->header.filename_length + 1);
-		if (!info->header.filename)
+		info->filename = calloc(1, info->filename_length + 1);
+		if (!info->filename)
 			goto err2;
 
-		ret = fread(info->header.filename, info->header.filename_length, 1, f->stream);
+		ret = fread(info->filename, info->filename_length, 1, f->stream);
 		if (ret != 1)
 			goto err2;
 
 		/* skip the extra field */
-		ret = fseek(f->stream, info->header.extra_field_length, SEEK_CUR);
+		ret = fseek(f->stream, info->extra_field_length, SEEK_CUR);
 		if (ret < 0)
 			goto err2;
 
 		/* set offsets and read encrypted header */
-		if (is_encrypted(info->header.gen_bit_flag)) {
-			info->magic = check_byte(&info->header);
-			info->enc_header_offset = ftell(f->stream);
-			info->begin_offset = info->enc_header_offset + ENC_HEADER_LEN;
-			info->end_offset = info->enc_header_offset + info->header.comp_size;
-			ret = fread(info->enc_header, ENC_HEADER_LEN, 1, f->stream);
+		if (is_encrypted(info->gen_bit_flag)) {
+			info->header.magic = check_byte(info);
+			info->header_offset = ftell(f->stream);
+			info->begin_offset = info->header_offset + ENC_HEADER_LEN;
+			info->end_offset = info->header_offset + info->comp_size;
+			ret = fread(info->header.buf, ENC_HEADER_LEN, 1, f->stream);
 			if (ret != 1)
 				goto err2;
 		} else {
-			info->magic = 0;
-			info->enc_header_offset = -1;
+			info->header.magic = 0;
+			info->header_offset = -1;
 			info->begin_offset = ftell(f->stream);
-			info->end_offset = info->begin_offset + info->header.comp_size;
+			info->end_offset = info->begin_offset + info->comp_size;
 		}
 
 		/* seek to end of compressed stream */
@@ -210,7 +212,7 @@ static int fill_header_list(struct zc_file *f)
 			goto err2;
 
 		/* seek data descriptor signature */
-		if (has_data_desc(info->header.gen_bit_flag)) {
+		if (has_data_desc(info->gen_bit_flag)) {
 			int data_desc_sig;
 
 			/*
@@ -231,17 +233,17 @@ static int fill_header_list(struct zc_file *f)
 
 		info->idx = idx;
 
-		list_add_tail(&info->header_list, &f->info_head);
+		list_add_tail(&info->list, &f->info_head);
 		++idx;
 	}
 
 	return 0;
 
 err2:
-	free(info->header.filename);
+	free(info->filename);
 	free(info);
 err1:
-	clear_header_list(f);
+	clear_info_list(f);
 	return -1;
 }
 
@@ -327,7 +329,7 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
 	file->stream = stream;
 
-	if (fill_header_list(file)) {
+	if (fill_info_list(file)) {
 		err(file->ctx, "failure while reading headers.\n");
 		goto err;
 	}
@@ -352,7 +354,7 @@ ZC_EXPORT int zc_file_close(struct zc_file *file)
 	if (!zc_file_isopened(file))
 		return -1;
 
-	clear_header_list(file);
+	clear_info_list(file);
 
 	if (fclose(file->stream)) {
 		err(file->ctx, "fclose() failed: %s.\n", strerror(errno));
@@ -378,9 +380,9 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 
 static bool consider_file(struct zc_info *info)
 {
-	if (!is_encrypted(info->header.gen_bit_flag) ||
-	    (!is_deflated(info->header.comp_method) &&
-	     !is_stored(info->header.comp_method)))
+	if (!is_encrypted(info->gen_bit_flag) ||
+	    (!is_deflated(info->comp_method) &&
+	     !is_stored(info->comp_method)))
 		return false;
 	return true;
 }
@@ -396,26 +398,23 @@ static bool consider_file(struct zc_info *info)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-size_t read_zc_header(struct zc_file *file, struct zc_header *header,
-		      size_t nmemb)
+size_t read_zc_header(struct zc_file *file, struct zc_header *h, size_t len)
 {
 	struct zc_info *info;
-	size_t valid_files = 0;
+	size_t valid = 0;
 
-	list_for_each_entry(info, &file->info_head, header_list) {
+	list_for_each_entry(info, &file->info_head, list) {
 		if (!consider_file(info))
 			continue;
 
-		header[valid_files].magic = info->magic;
-		memcpy(header[valid_files].buf,
-		       info->enc_header,
-		       ENC_HEADER_LEN);
+		h[valid].magic = info->header.magic;
+		memcpy(h[valid].buf, info->header.buf, ENC_HEADER_LEN);
 
-		if (++valid_files == nmemb)
+		if (++valid == len)
 			break;
 	}
 
-	return valid_files;
+	return valid;
 }
 
 static struct zc_info *find_file_smallest(struct zc_file *file)
@@ -423,7 +422,7 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
 	struct zc_info *info, *ret = NULL;
 	long s = LONG_MAX;
 
-	list_for_each_entry(info, &file->info_head, header_list) {
+	list_for_each_entry(info, &file->info_head, list) {
 		if (!consider_file(info))
 			continue;
 		long tmp = info->end_offset - info->begin_offset;
@@ -447,9 +446,9 @@ int read_crypt_data(struct zc_file *file, unsigned char **buf,
 	if (!info)
 		return -1;
 
-	to_read = info->end_offset - info->enc_header_offset;
+	to_read = info->end_offset - info->header_offset;
 
-	err = fseek(file->stream, info->enc_header_offset, SEEK_SET);
+	err = fseek(file->stream, info->header_offset, SEEK_SET);
 	if (err) {
 		err(file->ctx, "fseek(): %s\n", strerror(errno));
 		return -1;
@@ -472,8 +471,8 @@ int read_crypt_data(struct zc_file *file, unsigned char **buf,
 
 	*buf = tmp;
 	*len = ret;
-	*original_crc = info->header.crc32;
-	*deflated = is_deflated(info->header.comp_method);
+	*original_crc = info->crc32;
+	*deflated = is_deflated(info->comp_method);
 
 	return 0;
 
@@ -488,13 +487,13 @@ ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file,
 	struct zc_info *i;
 
 	if (!info) {
-		i = list_entry((&file->info_head)->next, typeof(*i), header_list);
+		i = list_entry((&file->info_head)->next, typeof(*i), list);
 		return i;
 	}
 
-	i = list_entry(info->header_list.next, struct zc_info, header_list);
+	i = list_entry(info->list.next, struct zc_info, list);
 
-	if (&i->header_list == &file->info_head)
+	if (&i->list == &file->info_head)
 		return NULL;
 
 	return i;
@@ -502,12 +501,12 @@ ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file,
 
 ZC_EXPORT const char *zc_file_info_name(const struct zc_info *info)
 {
-	return info->header.filename;
+	return info->filename;
 }
 
 ZC_EXPORT uint32_t zc_file_info_size(const struct zc_info *info)
 {
-	return info->header.uncomp_size;
+	return info->uncomp_size;
 }
 
 ZC_EXPORT long zc_file_info_offset(const struct zc_info *info)
@@ -517,12 +516,12 @@ ZC_EXPORT long zc_file_info_offset(const struct zc_info *info)
 
 ZC_EXPORT long zc_file_info_crypt_header_offset(const struct zc_info *info)
 {
-	return info->enc_header_offset;
+	return info->header_offset;
 }
 
 ZC_EXPORT const uint8_t *zc_file_info_enc_header(const struct zc_info *info)
 {
-	return info->enc_header;
+	return info->header.buf;
 }
 
 ZC_EXPORT int zc_file_info_idx(const struct zc_info *info)
