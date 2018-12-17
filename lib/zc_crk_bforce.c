@@ -30,7 +30,7 @@
 #include "libzc_private.h"
 
 /* The length here refers to the length of the 'candidate' field. */
-#define LEN 64
+#define LEN 64UL
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -204,48 +204,48 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 	h->candidate = 0;
 
 	/* first pass */
-	for (int i = 0; i < 11; ++i) {
+	for (size_t i = 0; i < 11; ++i) {
 		uint8_t b = crk->header[0].buf[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			check[j] = b ^ decrypt_byte(k2[j]) ^ k0[j];
 
 		/* update key0 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
 		/* update key1 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
 		/* update key2 -- loop is in two parts */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j) {
+		for (size_t j = 0; j < LEN; ++j) {
 			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
 			crcshr8[j] = k2[j] >> 8;
 		}
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k2[j] = crc_32_tab[crcindex[j]] ^ crcshr8[j];
 	}
 
-	for (int j = 0; j < LEN; ++j)
+	for (size_t j = 0; j < LEN; ++j)
 		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
-	for (int j = 0; j < LEN; ++j)
+	for (size_t j = 0; j < LEN; ++j)
 		h->candidate |= check[j] ? 0 : (uint64_t)1 << j;
 
 	return h->candidate;
