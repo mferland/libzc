@@ -172,6 +172,14 @@ static int fill_info_list(struct zc_file *f)
 		info->filename_length = get_le16_at(buf, 22);
 		info->extra_field_length = get_le16_at(buf, 24);
 
+		/* encrypted files should always have a minimum
+		 * compressed size of ENC_HEADER_LEN. See APPNOTE.txt
+		 * 4.4.8. */
+		if (is_encrypted(info->gen_bit_flag) &&
+		    info->comp_size < ENC_HEADER_LEN) {
+			goto err2;
+		}
+
 		/* filename (variable length) */
 		if (!info->filename_length ||
 		    info->filename_length > MAX_FNLENGTH)
