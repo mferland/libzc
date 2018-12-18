@@ -55,7 +55,7 @@ pwstream_LDADD = $(top_builddir)/lib/pwstream.lo @CHECK_LIBS@ -lm
 reduce_SOURCES = check_reduce.c
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 reduce_LDADD = $(top_builddir)/lib/ptext_reduce.lo \
-	$(top_builddir)/lib/ka.lo \
+	$(top_builddir)/lib/kvector.lo \
 	@CHECK_LIBS@
 
 # plaintext password functions
