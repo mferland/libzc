@@ -16,114 +16,114 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libzc_private.h"
+#include "ptext_private.h"
 #include "qsort.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 
-static void uint_qsort(uint32_t *arr, uint32_t n)
+static void uint_qsort(uint32_t *buf, size_t n)
 {
 #define uint_lt(a,b) ((*a)<(*b))
-	QSORT(uint32_t, arr, n, uint_lt);
+	QSORT(uint32_t, buf, n, uint_lt);
 }
 
-static void sort(struct ka *a)
+static void sort(struct kvector *v)
 {
-	uint_qsort(a->array, a->size);
+	uint_qsort(v->buf, v->size);
 }
 
-int ka_alloc(struct ka **a, size_t initial_size)
+int kalloc(struct kvector **v, size_t init)
 {
-	struct ka *tmp;
+	struct kvector *tmp;
 
-	if (initial_size == 0)
+	if (init == 0)
 		return -1;
 
-	tmp = calloc(1, sizeof(struct ka));
+	tmp = calloc(1, sizeof(struct kvector));
 	if (!tmp)
 		return -1;
 
-	tmp->array = calloc(1, initial_size * sizeof(uint32_t));
-	if (!tmp->array) {
+	tmp->buf = calloc(1, init * sizeof(uint32_t));
+	if (!tmp->buf) {
 		free(tmp);
 		return -1;
 	}
 
-	tmp->capacity = tmp->size = initial_size;
-	*a = tmp;
+	tmp->capacity = tmp->size = init;
+	*v = tmp;
 
 	return 0;
 }
 
-void ka_free(struct ka *a)
+void kfree(struct kvector *v)
 {
-	if (!a)
+	if (!v)
 		return;
-	free(a->array);
-	free(a);
+	free(v->buf);
+	free(v);
 }
 
-int ka_append(struct ka *a, uint32_t key)
+int kappend(struct kvector *v, uint32_t key)
 {
 	uint32_t *tmp;
 
-	if (a->size < a->capacity) {
-		a->array[a->size] = key;
-		++a->size;
+	if (v->size < v->capacity) {
+		v->buf[v->size] = key;
+		++v->size;
 		return 0;
 	}
 
-	a->capacity += 4096;
-	tmp = realloc(a->array, a->capacity * sizeof(uint32_t));
+	v->capacity += 4096;
+	tmp = realloc(v->buf, v->capacity * sizeof(uint32_t));
 	if (!tmp) {
 		perror("realloc failed");
 		return -1;
 	}
-	a->array = tmp;
+	v->buf = tmp;
 
-	a->array[a->size] = key;
-	++a->size;
+	v->buf[v->size] = key;
+	++v->size;
 	return 0;
 }
 
-void ka_uniq(struct ka *a)
+void kuniq(struct kvector *v)
 {
 	size_t i = 0;
 	size_t j;
 
-	if (a->size <= 1)
+	if (v->size <= 1)
 		return;
 
-	sort(a);
+	sort(v);
 
 	/* reduce by removing duplicates */
-	for (j = 1; j < a->size; ++j) {
-		if (a->array[j] != a->array[i])
-			a->array[++i] = a->array[j];
+	for (j = 1; j < v->size; ++j) {
+		if (v->buf[j] != v->buf[i])
+			v->buf[++i] = v->buf[j];
 	}
 
-	a->size = i + 1;
+	v->size = i + 1;
 }
 
-void ka_squeeze(struct ka *a)
+void ksqueeze(struct kvector *v)
 {
-	if (a->size == a->capacity)
+	if (v->size == v->capacity)
 		return;
-	a->array = realloc(a->array, a->size * sizeof(uint32_t));
-	a->capacity = a->size;
+	v->buf = realloc(v->buf, v->size * sizeof(uint32_t));
+	v->capacity = v->size;
 }
 
-void ka_empty(struct ka *a)
+void kempty(struct kvector *v)
 {
 	/* future append will restart at 0 */
-	a->size = 0;
+	v->size = 0;
 }
 
 #ifdef ENABLE_DEBUG
-void ka_print(struct ka *a, FILE *stream)
+void kprint(struct kvector *v, FILE *stream)
 {
-	for (uint32_t i = 0; i < a->size; ++i)
-		fprintf(stream, "0x%0x\n", a->array[i]);
+	for (uint32_t i = 0; i < v->size; ++i)
+		fprintf(stream, "0x%0x\n", v->buf[i]);
 }
 #endif

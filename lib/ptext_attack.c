@@ -170,7 +170,7 @@ static uint32_t compute_key1_msb(struct worker *w, uint32_t current_idx)
 	return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key2(struct worker *w, struct ka **array,
+static int recurse_key2(struct worker *w, struct kvector **v,
 			uint32_t current_idx)
 {
 	uint8_t key3im1;
@@ -185,43 +185,43 @@ static int recurse_key2(struct worker *w, struct ka **array,
 	key3im2 = generate_key3(w, current_idx - 2);
 
 	/* empty array before appending new keys */
-	ka_empty(array[current_idx - 1]);
+	kempty(v[current_idx - 1]);
 
 	if (key2r_compute_single(k2(current_idx),
-				 array[current_idx - 1],
+				 v[current_idx - 1],
 				 key2r_get_bits_15_2(w->k2r, key3im1),
 				 key2r_get_bits_15_2(w->k2r, key3im2),
 				 KEY2_MASK_8BITS))
 		return -1;
 
-	ka_uniq(array[current_idx - 1]);
+	kuniq(v[current_idx - 1]);
 
-	for (uint32_t i = 0; i < array[current_idx - 1]->size; ++i) {
-		w->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
+	for (uint32_t i = 0; i < v[current_idx - 1]->size; ++i) {
+		w->key2_final[current_idx - 1] = kat(v[current_idx - 1], i);
 		w->key1_final[current_idx] = compute_key1_msb(w, current_idx) << 24;
-		if (recurse_key2(w, array, current_idx - 1))
+		if (recurse_key2(w, v, current_idx - 1))
 			return -1;
 	}
 
 	return 0;
 }
 
-static void ptext_final_deinit(struct ka **key2)
+static void ptext_final_deinit(struct kvector **key2)
 {
 	for (uint32_t i = 0; i < 12; ++i) {
 		if (key2[i]) {
-			ka_free(key2[i]);
+			kfree(key2[i]);
 			key2[i] = NULL;
 		}
 	}
 }
 
-static int ptext_final_init(struct ka **key2)
+static int ptext_final_init(struct kvector **key2)
 {
-	memset(key2, 0, sizeof(struct ka *));
+	memset(key2, 0, sizeof(struct kvector *));
 	for (uint32_t i = 0; i < 12; ++i) {
 		/* 64: probably too much but will work everytime */
-		if (ka_alloc(&key2[i], 64)) {
+		if (kalloc(&key2[i], 64)) {
 			ptext_final_deinit(key2);
 			return -1;
 		}
@@ -244,24 +244,24 @@ static int get_next_index(struct worker *w, size_t *i)
 
 static void *worker(void *p)
 {
-	struct ka *array[12];
+	struct kvector *v[12];
 	struct worker *w = (struct worker *)p;
 
-	if (ptext_final_init(array))
+	if (ptext_final_init(v))
 		return NULL;
 
 	while (1) {
 		size_t next;
 		if (get_next_index(w, &next))
 			break;              /* nothing more to do */
-		w->key2_final[12] = w->ptext->key2->array[next];
-		if (recurse_key2(w, array, 12)) {
+		w->key2_final[12] = w->ptext->key2->buf[next];
+		if (recurse_key2(w, v, 12)) {
 			w->worker_err_status = -1;
 			break;
 		}
 	}
 
-	ptext_final_deinit(array);
+	ptext_final_deinit(v);
 	return NULL;
 }
 

@@ -46,43 +46,43 @@ END_TEST
 
 START_TEST(test_can_generate_first_gen_key2)
 {
-	struct ka *key2_first_gen;
+	struct kvector *key2_first_gen;
 	uint16_t *bits15_2;
 
 	bits15_2 = key2r_get_bits_15_2(k2r, 0);
 	key2_first_gen = key2r_compute_first_gen(bits15_2);
-	fail_if(ka_at(key2_first_gen, 0) != 0);
-	ka_free(key2_first_gen);
+	fail_if(kat(key2_first_gen, 0) != 0);
+	kfree(key2_first_gen);
 }
 END_TEST
 
 START_TEST(test_can_generate_next_array_from_plaintext)
 {
-	struct ka *key2_first_gen;
-	struct ka *key2_next_gen;
+	struct kvector *key2_first_gen;
+	struct kvector *key2_next_gen;
 
 	uint8_t key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
 	uint8_t key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
 	uint8_t key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
 
 	key2_first_gen = key2r_compute_first_gen(key2r_get_bits_15_2(k2r, key3i));
-	ka_alloc(&key2_next_gen, pow2(22));
+	kalloc(&key2_next_gen, pow2(22));
 
-	ka_empty(key2_next_gen);
+	kempty(key2_next_gen);
 	for (uint32_t i = 0; i < key2_first_gen->size; ++i) {
-		fail_if(key2r_compute_single(ka_at(key2_first_gen, i),
+		fail_if(key2r_compute_single(kat(key2_first_gen, i),
 					     key2_next_gen,
 					     key2r_get_bits_15_2(k2r, key3im1),
 					     key2r_get_bits_15_2(k2r, key3im2),
 					     KEY2_MASK_6BITS) != 0);
 	}
 
-	ka_uniq(key2_next_gen);
+	kuniq(key2_next_gen);
 
 	fail_if(key2_next_gen->size != 2256896);
 
-	ka_free(key2_next_gen);
-	ka_free(key2_first_gen);
+	kfree(key2_next_gen);
+	kfree(key2_first_gen);
 }
 END_TEST
 

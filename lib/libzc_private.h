@@ -211,35 +211,4 @@ int inflate_buffer(struct zlib_state *zlib,
 int test_buffer_crc(unsigned char *in, size_t inlen,
 		    uint32_t original_crc);
 
-/* key array helper */
-struct ka {
-	uint32_t *array;
-	size_t size;
-	size_t capacity;
-};
-int ka_alloc(struct ka **a, size_t init_size);
-void ka_free(struct ka *a);
-int ka_append(struct ka *a, uint32_t key);
-void ka_uniq(struct ka *a);
-void ka_squeeze(struct ka *a);
-void ka_empty(struct ka *a);
-#ifdef ENABLE_DEBUG
-#include <stdio.h>
-void ka_print(struct ka *a, FILE *stream);
-#endif
-
-static inline
-uint32_t ka_at(const struct ka *a, uint32_t index)
-{
-	return a->array[index];
-}
-
-static inline
-void ka_swap(struct ka **a1, struct ka **a2)
-{
-	struct ka *t = *a1;
-	*a1 = *a2;
-	*a2 = t;
-}
-
 #endif
