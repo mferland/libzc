@@ -1,7 +1,8 @@
 #!/bin/sh
 
 TMP=$(mktemp -d)
-REV="v0.3.6
+REV="v0.4.1
+v0.3.6
 v0.3.5
 v0.3.4
 v0.3.2
@@ -31,9 +32,9 @@ do
     for i in $(seq 1 10)
     do
         if [ -x yazc/yazc ]; then
-            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe yazc/yazc bruteforce -t8 -a ${TMP}/noradi.zip
+            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe yazc/yazc bruteforce -a ${TMP}/noradi.zip
         else
-            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe bin/yazc bruteforce -t8 -a ${TMP}/noradi.zip
+            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe bin/yazc bruteforce -a ${TMP}/noradi.zip
         fi
     done
     git clean -d -X -f
