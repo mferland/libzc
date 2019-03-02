@@ -155,33 +155,12 @@ uint8_t decrypt_byte_lookup(uint32_t k)
 	return decrypt_byte_tab[(k & 0xffff) >> 2];
 }
 
-static inline
-uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
-{
-	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
-		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
-		update_keys(c, k, k);
-	}
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);
 
-	/* Returns the last byte of the decrypted header */
-	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
-}
-
-static inline
 bool decrypt_headers(const struct zc_key *k,
                      const struct zc_header *h,
-                     size_t len)
-{
-        struct zc_key tmp;
+                     size_t len);
 
-        for (size_t i = 0; i < len; ++i) {
-                reset_encryption_keys(k, &tmp);
-                if (decrypt_header(h[i].buf, &tmp, h[i].magic))
-                        return false;
-        }
-
-        return true;
-}
 void indexes_from_raw_counter(uint64_t c, const int *in, int *out, size_t len);
 
 int fill_header(struct zc_ctx *ctx, const char *filename,

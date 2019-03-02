@@ -106,3 +106,26 @@ void indexes_from_raw_counter(uint64_t c, const int *in, int *out, size_t len)
 		out[i] = tmp[i] %= in[i];
 }
 
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
+{
+	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
+		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
+		update_keys(c, k, k);
+	}
+
+	/* Returns the last byte of the decrypted header */
+	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
+}
+
+bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t len)
+{
+        struct zc_key tmp;
+
+        for (size_t i = 0; i < len; ++i) {
+                reset_encryption_keys(k, &tmp);
+                if (decrypt_header(h[i].buf, &tmp, h[i].magic))
+                        return false;
+        }
+
+        return true;
+}
