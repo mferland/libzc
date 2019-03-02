@@ -284,28 +284,6 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 	return -1;
 }
 
-/*
-    out[5] = c % in[5];
-    out[4] = (c / in[5]) % in[4];
-    out[3] = (c / in[5] / in[4]) % in[3];
-    out[2] = (c / in[5] / in[4] / in[3]) % in[2];
-    out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
-    out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
- */
-static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
-{
-	uint64_t tmp[6];
-	int i = 5;
-
-	tmp[i] = c;
-	do {
-		tmp[i - 1] = tmp[i] / in[i];
-	} while (--i > 0);
-
-	for (i = 0; i < 6; ++i)
-		out[i] = tmp[i] %= in[i];
-}
-
 static void do_work_recurse2(struct worker *w, size_t level,
 			     size_t level_count, char *pw, struct zc_key *cache,
 			     struct entry *limit)
@@ -355,7 +333,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
 								/* adjust the counter to the index of
 								 * the correct hash */
 								pwi = pwi - (LEN - 1 - ret) - 1;
-								indexes_from_raw_counter(pwi, in, out);
+								indexes_from_raw_counter(pwi, in, out, 6);
 								for (int i = 0; i < 6; ++i)
 									pw[i] = crk->set[out[i] + first[i]];
 
@@ -380,7 +358,7 @@ static void do_work_recurse2(struct worker *w, size_t level,
 			in[i] = last[i] - first[i];
 
 		pwi = pwi - ((pwi % LEN) - 1 - ret) - 1;
-		indexes_from_raw_counter(pwi, in, out);
+		indexes_from_raw_counter(pwi, in, out, 6);
 		for (int i = 0; i < 6; ++i)
 			pw[i] = crk->set[out[i] + first[i]];
 

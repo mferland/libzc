@@ -83,3 +83,26 @@ void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 
 	out[len - 1] = in[len - 1] ^ decrypt_byte_lookup(k.key2);
 }
+
+/*
+    out[5] = c % in[5];
+    out[4] = (c / in[5]) % in[4];
+    out[3] = (c / in[5] / in[4]) % in[3];
+    out[2] = (c / in[5] / in[4] / in[3]) % in[2];
+    out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
+    out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
+ */
+void indexes_from_raw_counter(uint64_t c, const int *in, int *out, size_t len)
+{
+	uint64_t tmp[len];
+	size_t i = len - 1;
+
+	tmp[i] = c;
+	do {
+		tmp[i - 1] = tmp[i] / in[i];
+	} while (--i > 0);
+
+	for (i = 0; i < len; ++i)
+		out[i] = tmp[i] %= in[i];
+}
+
