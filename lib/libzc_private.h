@@ -127,13 +127,13 @@ void set_default_encryption_keys(struct zc_key *k)
 
 static inline
 void update_default_keys_from_array(struct zc_key *out,
-                                    const uint8_t *s,
-                                    size_t len)
+				    const uint8_t *s,
+				    size_t len)
 {
-        set_default_encryption_keys(out);
+	set_default_encryption_keys(out);
 
-        for (size_t i = 0; i < len; ++i)
-                update_keys(s[i], out, out);
+	for (size_t i = 0; i < len; ++i)
+		update_keys(s[i], out, out);
 }
 
 static inline
@@ -158,8 +158,8 @@ uint8_t decrypt_byte_lookup(uint32_t k)
 uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);
 
 bool decrypt_headers(const struct zc_key *k,
-                     const struct zc_header *h,
-                     size_t len);
+		     const struct zc_header *h,
+		     size_t len);
 
 void indexes_from_raw_counter(uint64_t c, const int *in, int *out, size_t len);
 

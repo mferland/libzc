@@ -119,13 +119,13 @@ uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 
 bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t len)
 {
-        struct zc_key tmp;
+	struct zc_key tmp;
 
-        for (size_t i = 0; i < len; ++i) {
-                reset_encryption_keys(k, &tmp);
-                if (decrypt_header(h[i].buf, &tmp, h[i].magic))
-                        return false;
-        }
+	for (size_t i = 0; i < len; ++i) {
+		reset_encryption_keys(k, &tmp);
+		if (decrypt_header(h[i].buf, &tmp, h[i].magic))
+			return false;
+	}
 
-        return true;
+	return true;
 }

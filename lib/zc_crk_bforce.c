@@ -159,7 +159,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 static bool try_decrypt(const struct zc_crk_bforce *crk,
 			const struct zc_key *base)
 {
-        return decrypt_headers(base, crk->header, crk->header_size);
+	return decrypt_headers(base, crk->header, crk->header_size);
 }
 
 static void do_work_recurse(struct worker *w, size_t level,

@@ -92,7 +92,7 @@ static int compare_pw_with_key(const uint8_t *pw, size_t len,
 {
 	struct zc_key tmp;
 
-        update_default_keys_from_array(&tmp, pw, len);
+	update_default_keys_from_array(&tmp, pw, len);
 
 	return (k->key0 == tmp.key0 &&
 		k->key1 == tmp.key1 &&
@@ -240,7 +240,8 @@ static void key_56_step2(struct zc_key *k, int start)
 	k[4].key2 = crc32inv(k[3].key2, 0x0);
 
 	/* recover key2_-4 (8 bits msb) */
-	k[5].key2 = crc32inv(k[4].key2, 0x0); /* TODO: k[5] is already known if key is only 5 chars */
+	 /* TODO: k[5] is already known if key is only 5 chars */
+	k[5].key2 = crc32inv(k[4].key2, 0x0);
 
 	/* recover full key1 values */
 	for (int i = start; i >= 2; --i) {
