@@ -265,7 +265,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 
 	do {
 		int ctz = __builtin_ctzll(h->candidate);
-		h->candidate &= ~((uint64_t)1 << ctz);
+		h->candidate &= h->candidate - 1;
 		size_t j = 1;
 		for (; j < crk->header_size; ++j) {
 			RESET();
