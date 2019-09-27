@@ -246,7 +246,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
 	for (size_t j = 0; j < LEN; ++j)
-		h->candidate |= check[j] ? 0 : (uint64_t)1 << j;
+		h->candidate |= (uint64_t)(check[j] == 0) << j;
 
 	return h->candidate;
 }
