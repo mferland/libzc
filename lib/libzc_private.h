@@ -161,8 +161,6 @@ bool decrypt_headers(const struct zc_key *k,
 		     const struct zc_header *h,
 		     size_t len);
 
-void indexes_from_raw_counter(uint64_t c, const int *in, int *out, size_t len);
-
 int fill_header(struct zc_ctx *ctx, const char *filename,
 		struct zc_header *h,
 		size_t len);
