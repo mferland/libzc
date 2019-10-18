@@ -26,6 +26,7 @@
 #include "libzc.h"
 #include "crc32.h"
 #include "decrypt_byte.h"
+#include "config.h"
 
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
