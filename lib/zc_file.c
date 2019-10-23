@@ -329,7 +329,7 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
 	stream = fopen(file->filename, "r");
 	if (!stream) {
-		err(file->ctx, "open() failed: %s.\n", strerror(errno));
+		err(file->ctx, "fopen() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
