@@ -240,7 +240,7 @@ static void key_56_step2(struct zc_key *k, int start)
 	k[4].key2 = crc32inv(k[3].key2, 0x0);
 
 	/* recover key2_-4 (8 bits msb) */
-	 /* TODO: k[5] is already known if key is only 5 chars */
+	/* TODO: k[5] is already known if key is only 5 chars */
 	k[5].key2 = crc32inv(k[4].key2, 0x0);
 
 	/* recover full key1 values */
