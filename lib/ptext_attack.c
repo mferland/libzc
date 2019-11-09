@@ -36,8 +36,8 @@ struct worker {
 	uint32_t key0_final[13];
 	const uint8_t *plaintext;         /* points to ptext->plaintext */
 	const uint8_t *ciphertext;        /* points to ptext->ciphertext */
-	const uint8_t (*lsbk0_lookup)[2]; /* points to ptext->lsbk0_lookup */
-	const uint32_t *lsbk0_count;      /* points to ptext->lsbk0_count */
+	const uint8_t (*lsbk0_lookup)[4]; /* points to ptext->lsbk0_lookup */
+	const uint8_t *lsbk0_count;       /* points to ptext->lsbk0_count */
 	const struct key2r *k2r;          /* points to ptext->k2r */
 	struct zc_key inter_rep;
 	pthread_t id;
@@ -48,6 +48,35 @@ struct worker {
 	int pthread_create_err;
 	struct list_head workers;
 };
+
+static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
+{
+	/*    \  List of multiples (up to 4) that
+	 * msb \ match with the msb or (msb - 1)
+	 *      +-----+-----+-----+-----+
+	 * 00   | mul | mul | mul | mul |
+	 * 01   | mul | mul | mul | mul |
+	 * 02   | mul | mul | mul | mul |
+	 * 03   | mul | mul | mul | mul |
+	 * ..   | ... | ... | ... | ... |
+	 * ff   | mul | mul | mul | mul |
+	 *      +-----+-----+-----+-----+
+	 *
+	 * See Biham & Kocher section 3.3
+	 */
+	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
+	p->lsbk0_lookup[msb + 1][p->lsbk0_count[msb + 1]++] = mul;
+}
+
+void generate_key0lsb(struct zc_crk_ptext *ptext)
+{
+	/* reset lookup and counters to 0 */
+	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint8_t));
+	memset(ptext->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
+
+	for (int i = 0, p = 0; i < 256; ++i, p += MULTINV)
+		lsbk0_set(ptext, msb(p), i);
+}
 
 static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext,
 					     struct zc_key *k)
@@ -138,14 +167,41 @@ static void recurse_key1(struct worker *w, uint32_t current_idx)
 	uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
 	uint8_t diff = msb(rhs_step2 - (mask_msb(k1(current_idx - 2))));
 
-	for (uint32_t c = 2; c != 0; --c, --diff) {
-		for (uint32_t i = 0; i < w->lsbk0_count[diff]; ++i) {
-			uint32_t lsbkey0i = w->lsbk0_lookup[diff][i];
-			if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1))) {
-				w->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
-				w->key0_final[current_idx] = lsbkey0i;
-				recurse_key1(w, current_idx - 1);
-			}
+	/*
+	 * The difference between rhs_step2 and k1(current_idx - 2)
+	 * (which has a valid msb) is a multiple (between 0 and 255,
+	 * the value of lsb(key0)) of MULTINV.
+	 *
+	 * Use the lookup table with the difference of MSBs to find
+	 * the actual multiple (the value of lsb(key0)). Also note
+	 * that the difference between the MSBs has two possible
+	 * values. For example:
+	 *
+	 * key1i: 0xa067359a
+	 * rhs_step1: 0x69095385
+	 * rhs_step2: 0xe50280b4
+	 * diff: 0x12
+	 * mask_msb(k1(current_idx - 2)): 0xd2000000
+	 *
+	 * 0xe50280b4 - 0xd2000000 = 0x130280b4 --> msb --> 0x13 (lsb0: 0xc6)
+	 * 0xe50280b4 - 0xd2ffffff = 0x120280B5 --> msb --> 0x12 (lsb0: 0x1a, 0x70)
+	 *
+	 * LSBs to test: 0xc6, 0x1a, 0x70
+	 *
+	 * rhs_step1 - 0xc6 = 0x690952bf
+	 * rhs_step1 - 0x1a = 0x6909536b
+	 * rhs_step1 - 0x70 = 0x69095315
+	 *
+	 * 0x69095315 + 0x70 = (0xa067359a - 1) * 3645876429u
+	 *
+	 */
+
+	for (uint8_t i = 0; i < w->lsbk0_count[diff]; ++i) {
+		uint32_t lsbkey0i = w->lsbk0_lookup[diff][i];
+		if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1))) {
+			w->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
+			w->key0_final[current_idx] = lsbkey0i;
+			recurse_key1(w, current_idx - 1);
 		}
 	}
 }

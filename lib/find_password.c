@@ -27,8 +27,8 @@
 #define PASS_MAX_LEN 13
 
 struct final {
-	const uint8_t (*lsbk0_lookup)[2];
-	const uint32_t *lsbk0_count;
+	const uint8_t (*lsbk0_lookup)[4];
+	const uint8_t *lsbk0_count;
 	uint8_t pw[PASS_MAX_LEN];
 	struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
 	struct zc_key saved;
@@ -153,8 +153,8 @@ static int try_key_1_4(struct final *f)
  * key0 = 0x12345678 key1 = 0x23456789 key2 = 0x34567890
  */
 static bool recover_key1_key0lsb(struct zc_key *k,
-				 const uint8_t (*lsbk0_lookup)[2],
-				 const uint32_t *lsbk0_count,
+				 const uint8_t (*lsbk0_lookup)[4],
+				 const uint8_t *lsbk0_count,
 				 uint32_t level)
 {
 	if (level == 0)
@@ -167,15 +167,13 @@ static bool recover_key1_key0lsb(struct zc_key *k,
 	uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
 	uint8_t diff = msb(rhs_step2 - mask_msb(key1m2));
 
-	for (uint32_t c = 2; c != 0; --c, --diff) {
-		for (uint32_t i = 0; i < lsbk0_count[diff]; ++i) {
-			uint32_t lsbkey0i = lsbk0_lookup[diff][i];
-			if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
-				(k + 1)->key1 = rhs_step1 - lsbkey0i;
-				k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
-				if (recover_key1_key0lsb(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
-					return true;
-			}
+	for (uint32_t i = 0; i < lsbk0_count[diff]; ++i) {
+		uint32_t lsbkey0i = lsbk0_lookup[diff][i];
+		if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
+			(k + 1)->key1 = rhs_step1 - lsbkey0i;
+			k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
+			if (recover_key1_key0lsb(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
+				return true;
 		}
 	}
 	return false;
@@ -369,8 +367,8 @@ static int try_key_7_13(struct final *f)
 	return -1;
 }
 
-static int find_password(const uint8_t (*lsbk0_lookup)[2],
-			 const uint32_t *lsbk0_count,
+static int find_password(const uint8_t (*lsbk0_lookup)[4],
+			 const uint8_t *lsbk0_count,
 			 const struct zc_key *int_rep,
 			 char *out,
 			 size_t len)

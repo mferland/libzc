@@ -36,8 +36,8 @@ struct zc_crk_ptext {
 	size_t size;
 	struct kvector *key2;
 	struct key2r *k2r;
-	uint8_t lsbk0_lookup[256][2];
-	uint32_t lsbk0_count[256];
+	uint8_t lsbk0_lookup[256][4];
+	uint8_t lsbk0_count[256];
 	bool found;
 	pthread_t found_by;
 	long force_threads;
@@ -76,6 +76,8 @@ void kswap(struct kvector **v1, struct kvector **v2)
 	*v1 = *v2;
 	*v2 = t;
 }
+
+void generate_key0lsb(struct zc_crk_ptext *p);
 
 /* key2 reduction */
 struct key2r;
