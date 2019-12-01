@@ -141,8 +141,7 @@ int key2r_compute_single(uint32_t key2i_plus_1,
 			 const uint16_t *key2im1_bits_15_2,
 			 uint32_t common_bits_mask)
 {
-	const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1
-									    >> 24];
+	const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
 	const uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 
 	for (uint32_t i = 0; i < 64; ++i) {
