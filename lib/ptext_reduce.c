@@ -104,8 +104,7 @@ struct kvector *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
 
 static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
 {
-	uint8_t key2i_msb = key2i >> 24;
-	uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_msb];
+	uint32_t tmp = key2im1 ^ crc_32_invtab[msb(key2i)];
 	tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
 	return tmp;
 }
