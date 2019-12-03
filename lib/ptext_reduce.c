@@ -166,7 +166,7 @@ int key2r_compute_single(uint32_t key2i_plus_1,
 	return 0;
 }
 
-static int key2r_compute_next_array(struct kvector *key2i_plus_1,
+static int key2r_compute_next_array(const struct kvector *key2i_plus_1,
 				    struct kvector *key2i,
 				    const uint16_t *key2i_bits_15_2,
 				    const uint16_t *key2im1_bits_15_2,
