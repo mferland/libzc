@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <assert.h>
 
 #include "list.h"
@@ -813,16 +812,6 @@ ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 	bforce->force_threads = w;
 }
 
-static long threads_to_create(const struct zc_crk_bforce *crk)
-{
-	if (crk->force_threads > 0)
-		return crk->force_threads;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}
-
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 				  size_t len)
 {
@@ -831,7 +820,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 	if (!len)
 		return -1;
 
-	w = threads_to_create(crk);
+	w = threads_to_create(crk->force_threads);
 
 	if (alloc_pwstreams(crk, w)) {
 		err(crk->ctx, "failed to allocate password streams\n");

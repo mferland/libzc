@@ -19,7 +19,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #include "ptext_private.h"
 #include "list.h"
@@ -364,16 +363,6 @@ ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
 	ptext->force_threads = w;
 }
 
-static long threads_to_create(const struct zc_crk_ptext *ptext)
-{
-	if (ptext->force_threads > 0)
-		return ptext->force_threads;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}
-
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 				  struct zc_key *out_key)
 {
@@ -387,7 +376,8 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 
 	INIT_LIST_HEAD(&head);
 
-	err = alloc_workers(ptext, &head, &mutex, &next, threads_to_create(ptext));
+	err = alloc_workers(ptext, &head, &mutex, &next,
+			    threads_to_create(ptext->force_threads));
 	if (err)
 		goto end;
 
