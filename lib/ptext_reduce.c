@@ -226,8 +226,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 	ksqueeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
 
 	ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the array at
-                                 * index 13 (n=14) this leaves 13
-                                 * bytes for the actual attack */
+				      * index 13 (n=14) this leaves 13
+				      * bytes for the actual attack */
 	kfree(key2i);
 	return 0;
 
