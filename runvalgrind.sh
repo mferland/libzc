@@ -66,6 +66,9 @@ check_output
 $CMD dictionary --help
 check_output
 
+$CMD info data/noradi.zip
+check_output
+
 for i in `seq 2`
 do
     $CMD bruteforce -cnoradi -t${i} data/noradi.zip
