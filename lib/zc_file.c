@@ -495,14 +495,14 @@ ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file,
 	struct zc_info *i;
 
 	if (!info) {
-		i = list_entry((&file->info_head)->next, typeof(*i), list);
+		i = list_entry(file->info_head.next, struct zc_info, list);
 		return i;
 	}
 
-	i = list_entry(info->list.next, struct zc_info, list);
-
-	if (&i->list == &file->info_head)
+	if (info->list.next == &file->info_head)
 		return NULL;
+
+	i = list_entry(info->list.next, struct zc_info, list);
 
 	return i;
 }
