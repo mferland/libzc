@@ -91,26 +91,25 @@ uint16_t *key2r_get_bits_15_2(const struct key2r *k2r, uint8_t key3)
 	return &k2r->bits_15_2_cache[key3 * 64];
 }
 
-struct ka *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
+struct kvector *key2r_compute_first_gen(const uint16_t *key2_bits_15_2)
 {
-	struct ka *karray;
+	struct kvector *v;
 
-	if (ka_alloc(&karray, pow2(22)))
+	if (kalloc(&v, pow2(22)))
 		return NULL;
 
-	generate_all_key2_bits_31_2(karray->array, key2_bits_15_2);
-	return karray;
+	generate_all_key2_bits_31_2(v->buf, key2_bits_15_2);
+	return v;
 }
 
 static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
 {
-	uint8_t key2i_msb = key2i >> 24;
-	uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_msb];
+	uint32_t tmp = key2im1 ^ crc_32_invtab[msb(key2i)];
 	tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
 	return tmp;
 }
 
-static int generate_all_key2i_with_bits_1_0(struct ka *key2i_array,
+static int generate_all_key2i_with_bits_1_0(struct kvector *key2i_array,
 					    uint32_t key2i,
 					    const uint16_t *key2im1_bits_15_2)
 
@@ -127,7 +126,7 @@ static int generate_all_key2i_with_bits_1_0(struct ka *key2i_array,
 			uint32_t key2im1;
 			key2im1 = key2im1_bits_31_10 & 0xfffffc00;
 			key2im1 |= key2im1_bits_15_2[j];
-			if (ka_append(key2i_array, key2i | bits_1_0_key2i(key2im1, key2i)))
+			if (kappend(key2i_array, key2i | bits_1_0_key2i(key2im1, key2i)))
 				return -1;
 		}
 	}
@@ -136,13 +135,12 @@ static int generate_all_key2i_with_bits_1_0(struct ka *key2i_array,
 }
 
 int key2r_compute_single(uint32_t key2i_plus_1,
-			 struct ka *key2i,
+			 struct kvector *key2i,
 			 const uint16_t *key2i_bits_15_2,
 			 const uint16_t *key2im1_bits_15_2,
 			 uint32_t common_bits_mask)
 {
-	const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1
-									    >> 24];
+	const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
 	const uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 
 	for (uint32_t i = 0; i < 64; ++i) {
@@ -168,16 +166,16 @@ int key2r_compute_single(uint32_t key2i_plus_1,
 	return 0;
 }
 
-static int key2r_compute_next_array(struct ka *key2i_plus_1,
-				    struct ka *key2i,
+static int key2r_compute_next_array(const struct kvector *key2i_plus_1,
+				    struct kvector *key2i,
 				    const uint16_t *key2i_bits_15_2,
 				    const uint16_t *key2im1_bits_15_2,
 				    uint32_t common_bits_mask)
 {
-	ka_empty(key2i);
+	kempty(key2i);
 
 	for (uint32_t i = 0; i < key2i_plus_1->size; ++i) {
-		if (key2r_compute_single(ka_at(key2i_plus_1, i),
+		if (key2r_compute_single(kat(key2i_plus_1, i),
 					 key2i,
 					 key2i_bits_15_2,
 					 key2im1_bits_15_2,
@@ -192,8 +190,8 @@ static int key2r_compute_next_array(struct ka *key2i_plus_1,
 
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
-	struct ka *key2i_plus_1;
-	struct ka *key2i;
+	struct kvector *key2i_plus_1;
+	struct kvector *key2i;
 	uint8_t key3i;
 	uint8_t key3im1;
 
@@ -204,8 +202,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 		return -1;
 
 	/* allocate space for second array */
-	if (ka_alloc(&key2i, pow2(22))) {
-		ka_free(key2i_plus_1);
+	if (kalloc(&key2i, pow2(22))) {
+		kfree(key2i_plus_1);
 		return -1;
 	}
 
@@ -221,20 +219,20 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 					     i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS))
 			goto err;
 
-		ka_uniq(key2i);
+		kuniq(key2i);
 		SWAP(key2i, key2i_plus_1);
 	}
 
-	ka_squeeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
+	ksqueeze(key2i_plus_1); /* note: we swapped key2i and key2i+1 */
 
 	ptext->key2 = key2i_plus_1;  /* here, key2i_plus_1, is the array at
-                                 * index 13 (n=14) this leaves 13
-                                 * bytes for the actual attack */
-	ka_free(key2i);
+				      * index 13 (n=14) this leaves 13
+				      * bytes for the actual attack */
+	kfree(key2i);
 	return 0;
 
 err:
-	ka_free(key2i);
-	ka_free(key2i_plus_1);
+	kfree(key2i);
+	kfree(key2i_plus_1);
 	return -1;
 }

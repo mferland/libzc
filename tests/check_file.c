@@ -94,6 +94,7 @@ START_TEST(test_zc_file_info_encrypted)
 		{0x61, 0x6f, 0x68, 0xa1, 0xe8, 0x2c, 0x05, 0x65, 0x1d, 0xc9, 0x89, 0xe8}
 	};
 	const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
+	const uint32_t info_csize[4] = {1225, 1210, 1386, 1029};
 	const long info_offset[4] = {84, 1398, 2698, 4175};
 	const long info_crypt[4] = {72, 1386, 2686, 4163};
 	const char *info_filename[4] = {"lib/test_crk.c",
@@ -112,6 +113,7 @@ START_TEST(test_zc_file_info_encrypted)
 	do {
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
+		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
 		ck_assert(zc_file_info_offset(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
 		ck_assert(zc_file_info_idx(info) == i);
@@ -130,14 +132,15 @@ END_TEST
 
 /*
  * data/test_non_encrypted.zip:
- * INDEX NAME              OFFSETS        SIZE ENCRYPTED HEADER
- *     0 config.h    -1 66   2964  2898  000000000000000000000000
- *     1 config.h.in -1 1075 3722  2647  000000000000000000000000
- *     2 config.log  -1 1997 32999 31002 000000000000000000000000
+ * INDEX NAME        OFFSETS       SIZE  CSIZE ENCRYPTED HEADER
+ *     0 config.h    -1 66   2964  2898  940   000000000000000000000000
+ *     1 config.h.in -1 1075 3722  2647  854   000000000000000000000000
+ *     2 config.log  -1 1997 32999 31002 8540  000000000000000000000000
  */
 START_TEST(test_zc_file_info_non_encrypted)
 {
 	const uint32_t info_size[3] = {2898, 2647, 31002};
+	const uint32_t info_csize[3] = {940, 854, 8540};
 	const long info_offset[3] = {66, 1075, 1997};
 	const char *info_filename[3] = {"config.h",
 					"config.h.in",
@@ -154,6 +157,7 @@ START_TEST(test_zc_file_info_non_encrypted)
 	do {
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
+		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
 		ck_assert(zc_file_info_offset(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
 		ck_assert(zc_file_info_idx(info) == i);

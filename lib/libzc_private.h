@@ -26,6 +26,7 @@
 #include "libzc.h"
 #include "crc32.h"
 #include "decrypt_byte.h"
+#include "config.h"
 
 #ifdef __GNUC__
 #  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
@@ -127,13 +128,13 @@ void set_default_encryption_keys(struct zc_key *k)
 
 static inline
 void update_default_keys_from_array(struct zc_key *out,
-                                    const uint8_t *s,
-                                    size_t len)
+				    const uint8_t *s,
+				    size_t len)
 {
-        set_default_encryption_keys(out);
+	set_default_encryption_keys(out);
 
-        for (size_t i = 0; i < len; ++i)
-                update_keys(s[i], out, out);
+	for (size_t i = 0; i < len; ++i)
+		update_keys(s[i], out, out);
 }
 
 static inline
@@ -155,33 +156,13 @@ uint8_t decrypt_byte_lookup(uint32_t k)
 	return decrypt_byte_tab[(k & 0xffff) >> 2];
 }
 
-static inline
-uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
-{
-	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
-		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
-		update_keys(c, k, k);
-	}
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);
 
-	/* Returns the last byte of the decrypted header */
-	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
-}
-
-static inline
 bool decrypt_headers(const struct zc_key *k,
-                     const struct zc_header *h,
-                     size_t len)
-{
-        struct zc_key tmp;
+		     const struct zc_header *h,
+		     size_t len);
 
-        for (size_t i = 0; i < len; ++i) {
-                reset_encryption_keys(k, &tmp);
-                if (decrypt_header(h[i].buf, &tmp, h[i].magic))
-                        return false;
-        }
-
-        return true;
-}
+long threads_to_create(long forced);
 
 int fill_header(struct zc_ctx *ctx, const char *filename,
 		struct zc_header *h,
@@ -210,36 +191,5 @@ int inflate_buffer(struct zlib_state *zlib,
 		   uint32_t original_crc);
 int test_buffer_crc(unsigned char *in, size_t inlen,
 		    uint32_t original_crc);
-
-/* key array helper */
-struct ka {
-	uint32_t *array;
-	size_t size;
-	size_t capacity;
-};
-int ka_alloc(struct ka **a, size_t init_size);
-void ka_free(struct ka *a);
-int ka_append(struct ka *a, uint32_t key);
-void ka_uniq(struct ka *a);
-void ka_squeeze(struct ka *a);
-void ka_empty(struct ka *a);
-#ifdef ENABLE_DEBUG
-#include <stdio.h>
-void ka_print(struct ka *a, FILE *stream);
-#endif
-
-static inline
-uint32_t ka_at(const struct ka *a, uint32_t index)
-{
-	return a->array[index];
-}
-
-static inline
-void ka_swap(struct ka **a1, struct ka **a2)
-{
-	struct ka *t = *a1;
-	*a1 = *a2;
-	*a2 = t;
-}
 
 #endif

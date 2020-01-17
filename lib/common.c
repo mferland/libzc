@@ -16,6 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <unistd.h>
+
 #include "libzc_private.h"
 #include "decrypt_byte.h"
 
@@ -77,9 +79,43 @@ void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 	struct zc_key k = *key;
 
 	for (size_t i = 0; i < len - 1; ++i) {
-		out[i] = in[i] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+		out[i] = in[i] ^ decrypt_byte_lookup(k.key2);
 		update_keys(out[i], &k, &k);
 	}
 
-	out[len - 1] = in[len - 1] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+	out[len - 1] = in[len - 1] ^ decrypt_byte_lookup(k.key2);
+}
+
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
+{
+	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
+		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
+		update_keys(c, k, k);
+	}
+
+	/* Returns the last byte of the decrypted header */
+	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
+}
+
+bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t len)
+{
+	struct zc_key tmp;
+
+	for (size_t i = 0; i < len; ++i) {
+		reset_encryption_keys(k, &tmp);
+		if (decrypt_header(h[i].buf, &tmp, h[i].magic))
+			return false;
+	}
+
+	return true;
+}
+
+long threads_to_create(long forced)
+{
+	if (forced > 0)
+		return forced;
+	long n = sysconf(_SC_NPROCESSORS_ONLN);
+	if (n < 1)
+		return 1;
+	return n;
 }

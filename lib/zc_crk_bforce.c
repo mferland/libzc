@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <assert.h>
 
 #include "list.h"
@@ -159,7 +158,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 static bool try_decrypt(const struct zc_crk_bforce *crk,
 			const struct zc_key *base)
 {
-        return decrypt_headers(base, crk->header, crk->header_size);
+	return decrypt_headers(base, crk->header, crk->header_size);
 }
 
 static void do_work_recurse(struct worker *w, size_t level,
@@ -246,7 +245,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
 	for (size_t j = 0; j < LEN; ++j)
-		h->candidate |= check[j] ? 0 : (uint64_t)1 << j;
+		h->candidate |= (uint64_t)(check[j] == 0) << j;
 
 	return h->candidate;
 }
@@ -265,7 +264,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 
 	do {
 		int ctz = __builtin_ctzll(h->candidate);
-		h->candidate &= ~((uint64_t)1 << ctz);
+		h->candidate &= h->candidate - 1;
 		size_t j = 1;
 		for (; j < crk->header_size; ++j) {
 			RESET();
@@ -813,16 +812,6 @@ ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 	bforce->force_threads = w;
 }
 
-static long threads_to_create(const struct zc_crk_bforce *crk)
-{
-	if (crk->force_threads > 0)
-		return crk->force_threads;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}
-
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 				  size_t len)
 {
@@ -831,7 +820,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 	if (!len)
 		return -1;
 
-	w = threads_to_create(crk);
+	w = threads_to_create(crk->force_threads);
 
 	if (alloc_pwstreams(crk, w)) {
 		err(crk->ctx, "failed to allocate password streams\n");

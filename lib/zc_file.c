@@ -172,6 +172,14 @@ static int fill_info_list(struct zc_file *f)
 		info->filename_length = get_le16_at(buf, 22);
 		info->extra_field_length = get_le16_at(buf, 24);
 
+		/* encrypted files should always have a minimum
+		 * compressed size of ENC_HEADER_LEN. See APPNOTE.txt
+		 * 4.4.8. */
+		if (is_encrypted(info->gen_bit_flag) &&
+		    info->comp_size < ENC_HEADER_LEN) {
+			goto err2;
+		}
+
 		/* filename (variable length) */
 		if (!info->filename_length ||
 		    info->filename_length > MAX_FNLENGTH)
@@ -321,7 +329,7 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
 	stream = fopen(file->filename, "r");
 	if (!stream) {
-		err(file->ctx, "open() failed: %s.\n", strerror(errno));
+		err(file->ctx, "fopen() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
@@ -487,14 +495,14 @@ ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *file,
 	struct zc_info *i;
 
 	if (!info) {
-		i = list_entry((&file->info_head)->next, typeof(*i), list);
+		i = list_entry(file->info_head.next, struct zc_info, list);
 		return i;
 	}
 
-	i = list_entry(info->list.next, struct zc_info, list);
-
-	if (&i->list == &file->info_head)
+	if (info->list.next == &file->info_head)
 		return NULL;
+
+	i = list_entry(info->list.next, struct zc_info, list);
 
 	return i;
 }
@@ -507,6 +515,11 @@ ZC_EXPORT const char *zc_file_info_name(const struct zc_info *info)
 ZC_EXPORT uint32_t zc_file_info_size(const struct zc_info *info)
 {
 	return info->uncomp_size;
+}
+
+ZC_EXPORT uint32_t zc_file_info_compressed_size(const struct zc_info *info)
+{
+	return info->comp_size;
 }
 
 ZC_EXPORT long zc_file_info_offset(const struct zc_info *info)

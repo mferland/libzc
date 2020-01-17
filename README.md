@@ -13,8 +13,16 @@ What is it?
 The libzc library is a simple zip cracking library. It also comes with
 a command line tool called 'yazc' (Yet Another Zip Cracker).
 
+Dependencies
+============
+
+The following packages are required (following example is for Ubuntu):
+
+    sudo apt install -y autoconf libtool zlib1g-dev pkg-config
+
 How to install it?
 ==================
+
 Just clone, configure, compile and install.
 
     git clone https://github.com/mferland/libzc.git

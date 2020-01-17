@@ -19,7 +19,7 @@ OPTIONS="\
 --style=linux \
 --pad-oper \
 --indent=force-tab=8 \
---max-code-length=80 \
+--max-code-length=90 \
 -k3 \
 -W3 \
 -m0 \

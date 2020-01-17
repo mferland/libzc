@@ -28,17 +28,6 @@
 
 #include "ptext_private.h"
 
-static void generate_key0lsb(struct zc_crk_ptext *ptext)
-{
-	/* reset lsb counters to 0 */
-	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint32_t));
-
-	for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV) {
-		uint8_t msbp = msb(p);
-		ptext->lsbk0_lookup[msbp][ptext->lsbk0_count[msbp]++] = i;
-	}
-}
-
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
 	if (!ptext)
@@ -55,7 +44,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	if (ptext->refcount > 0)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
-	ka_free(ptext->key2);
+	kfree(ptext->key2);
 	key2r_free(ptext->k2r);
 	free(ptext);
 	return NULL;
