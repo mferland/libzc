@@ -74,8 +74,7 @@ struct zc_crk_bforce {
 };
 
 struct worker {
-	struct list_head workers;
-	struct list_head cleanup;
+	struct list_head list;
 	pthread_t thread_id;
 	size_t id;
 	char pw[ZC_PW_MAXLEN + 1];
@@ -427,8 +426,7 @@ static void worker_cleanup_handler(void *p)
 {
 	struct worker *w = (struct worker *)p;
 	pthread_mutex_lock(&w->crk->mutex);
-	list_del(&w->workers);
-	list_add(&w->cleanup, &w->crk->cleanup_head);
+	list_move(&w->list, &w->crk->cleanup_head);
 	pthread_cond_signal(&w->crk->cond);
 	pthread_mutex_unlock(&w->crk->mutex);
 }
@@ -436,8 +434,8 @@ static void worker_cleanup_handler(void *p)
 static void dealloc_workers(struct zc_crk_bforce *crk)
 {
 	struct worker *w, *wtmp;
-	list_for_each_entry_safe(w, wtmp,  &crk->workers_head, workers) {
-		list_del(&w->workers);
+	list_for_each_entry_safe(w, wtmp,  &crk->workers_head, list) {
+		list_del(&w->list);
 		free(w->inflate);
 		free(w->plaintext);
 		inflate_destroy(w->zlib);
@@ -477,7 +475,7 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
 			dealloc_workers(crk);
 			return -1;
 		}
-		list_add(&w->workers, &crk->workers_head);
+		list_add(&w->list, &crk->workers_head);
 	}
 
 	return 0;
@@ -532,7 +530,7 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 	size_t created = 0;
 
 	pthread_mutex_lock(&crk->mutex);
-	list_for_each_entry(w, &crk->workers_head, workers) {
+	list_for_each_entry(w, &crk->workers_head, list) {
 		if (pthread_create(&w->thread_id, NULL, worker, w)) {
 			perror("pthread_create failed");
 			pthread_mutex_unlock(&crk->mutex);
@@ -555,7 +553,7 @@ static void cancel_workers(struct zc_crk_bforce *crk)
 {
 	struct worker *w;
 
-	list_for_each_entry(w, &crk->workers_head, workers) {
+	list_for_each_entry(w, &crk->workers_head, list) {
 		int err = pthread_cancel(w->thread_id);
 		if (err)
 			perror("pthread_cancel failed");
@@ -573,9 +571,9 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 		pthread_mutex_lock(&crk->mutex);
 		while (list_empty(&crk->cleanup_head))
 			pthread_cond_wait(&crk->cond, &crk->mutex);
-		struct worker *w, *tempw;
-		list_for_each_entry_safe(w, tempw, &crk->cleanup_head, cleanup) {
-			list_del(&w->cleanup);
+		struct worker *w, *tmp;
+		list_for_each_entry_safe(w, tmp, &crk->cleanup_head, list) {
+			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
 			if (w->found) {
 				memset(pw, 0, len);
