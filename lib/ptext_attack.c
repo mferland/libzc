@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "ptext_private.h"
 #include "list.h"
@@ -37,7 +38,7 @@ struct worker {
 	const uint8_t *ciphertext;        /* points to ptext->ciphertext */
 	const uint8_t (*lsbk0_lookup)[4]; /* points to ptext->lsbk0_lookup */
 	const uint8_t *lsbk0_count;       /* points to ptext->lsbk0_count */
-	const struct key2r *k2r;          /* points to ptext->k2r */
+	const uint16_t *bits_15_2;        /* points to ptext->k2r */
 	struct zc_key inter_rep;
 	pthread_t id;
 	pthread_mutex_t *mutex;
@@ -45,36 +46,39 @@ struct worker {
 	struct zc_crk_ptext *ptext;
 	int worker_err_status;
 	int pthread_create_err;
+	uint32_t key2[12][64];
+	size_t key2_size[12];
 	struct list_head workers;
 };
 
-static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
+static void key2_uniq(struct worker *w, size_t i)
 {
-	/*    \  List of multiples (up to 4) that
-	 * msb \ match with the msb or (msb - 1)
-	 *      +-----+-----+-----+-----+
-	 * 00   | mul | mul | mul | mul |
-	 * 01   | mul | mul | mul | mul |
-	 * 02   | mul | mul | mul | mul |
-	 * 03   | mul | mul | mul | mul |
-	 * ..   | ... | ... | ... | ... |
-	 * ff   | mul | mul | mul | mul |
-	 *      +-----+-----+-----+-----+
-	 *
-	 * See Biham & Kocher section 3.3
-	 */
-	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
-	p->lsbk0_lookup[msb + 1][p->lsbk0_count[msb + 1]++] = mul;
+	uniq(w->key2[i], &w->key2_size[i]);
 }
 
-void generate_key0lsb(struct zc_crk_ptext *ptext)
+static void key2_reset(struct worker *w, size_t i)
 {
-	/* reset lookup and counters to 0 */
-	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint8_t));
-	memset(ptext->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
+	w->key2_size[i] = 0;
+}
 
-	for (int i = 0, p = 0; i < 256; ++i, p += MULTINV)
-		lsbk0_set(ptext, msb(p), i);
+static uint32_t *key2_get_arr(struct worker *w, size_t i)
+{
+	return w->key2[i];
+}
+
+static uint32_t key2_get_key(struct worker *w, size_t i, size_t j)
+{
+	return w->key2[i][j];
+}
+
+static void key2_set_size(struct worker *w, size_t i, size_t size)
+{
+	w->key2_size[i] = size;
+}
+
+static size_t key2_get_size(struct worker *w, size_t i)
+{
+	return w->key2_size[i];
 }
 
 static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext,
@@ -225,8 +229,7 @@ static uint32_t compute_key1_msb(struct worker *w, uint32_t current_idx)
 	return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key2(struct worker *w, struct kvector **v,
-			uint32_t current_idx)
+static int recurse_key2(struct worker *w, uint32_t current_idx)
 {
 	uint8_t key3im1;
 	uint8_t key3im2;
@@ -240,47 +243,26 @@ static int recurse_key2(struct worker *w, struct kvector **v,
 	key3im2 = generate_key3(w, current_idx - 2);
 
 	/* empty array before appending new keys */
-	kempty(v[current_idx - 1]);
+	key2_reset(w, current_idx - 1);
 
-	if (key2r_compute_single(k2(current_idx),
-				 v[current_idx - 1],
-				 key2r_get_bits_15_2(w->k2r, key3im1),
-				 key2r_get_bits_15_2(w->k2r, key3im2),
-				 KEY2_MASK_8BITS))
-		return -1;
+	size_t s = key2r_compute_single(k2(current_idx),
+					key2_get_arr(w, current_idx - 1),
+					get_bits_15_2(w->bits_15_2, key3im1),
+					get_bits_15_2(w->bits_15_2, key3im2),
+					KEY2_MASK_8BITS);
+	key2_set_size(w, current_idx - 1, s);
 
-	kuniq(v[current_idx - 1]);
+	assert(s <= 64);
 
-	for (uint32_t i = 0; i < v[current_idx - 1]->size; ++i) {
-		w->key2_final[current_idx - 1] = kat(v[current_idx - 1], i);
+	key2_uniq(w, current_idx - 1);
+
+	for (size_t i = 0; i < key2_get_size(w, current_idx - 1); ++i) {
+		w->key2_final[current_idx - 1] = key2_get_key(w, current_idx - 1, i);
 		w->key1_final[current_idx] = compute_key1_msb(w, current_idx) << 24;
-		if (recurse_key2(w, v, current_idx - 1))
+		if (recurse_key2(w, current_idx - 1))
 			return -1;
 	}
 
-	return 0;
-}
-
-static void ptext_final_deinit(struct kvector **key2)
-{
-	for (uint32_t i = 0; i < 12; ++i) {
-		if (key2[i]) {
-			kfree(key2[i]);
-			key2[i] = NULL;
-		}
-	}
-}
-
-static int ptext_final_init(struct kvector **key2)
-{
-	memset(key2, 0, sizeof(struct kvector *));
-	for (uint32_t i = 0; i < 12; ++i) {
-		/* 64: probably too much but will work everytime */
-		if (kalloc(&key2[i], 64)) {
-			ptext_final_deinit(key2);
-			return -1;
-		}
-	}
 	return 0;
 }
 
@@ -288,7 +270,7 @@ static int get_next_index(struct worker *w, size_t *i)
 {
 	pthread_mutex_lock(w->mutex);
 	if (w->ptext->found ||
-	    *w->next == w->ptext->key2->size) {
+	    *w->next == w->ptext->key2_size) {
 		pthread_mutex_unlock(w->mutex);
 		return -1;
 	}
@@ -299,24 +281,19 @@ static int get_next_index(struct worker *w, size_t *i)
 
 static void *worker(void *p)
 {
-	struct kvector *v[12];
 	struct worker *w = (struct worker *)p;
-
-	if (ptext_final_init(v))
-		return NULL;
 
 	while (1) {
 		size_t next;
 		if (get_next_index(w, &next))
 			break;              /* nothing more to do */
-		w->key2_final[12] = w->ptext->key2->buf[next];
-		if (recurse_key2(w, v, 12)) {
+		w->key2_final[12] = w->ptext->key2[next];
+		if (recurse_key2(w, 12)) {
 			w->worker_err_status = -1;
 			break;
 		}
 	}
 
-	ptext_final_deinit(v);
 	return NULL;
 }
 
@@ -347,7 +324,7 @@ static int alloc_workers(struct zc_crk_ptext *ptext,
 		w->ciphertext = ptext->ciphertext;
 		w->lsbk0_lookup = ptext->lsbk0_lookup;
 		w->lsbk0_count = ptext->lsbk0_count;
-		w->k2r = ptext->k2r;
+		w->bits_15_2 = ptext->bits_15_2;
 		w->mutex = mutex;
 		w->next = next;
 		w->ptext = ptext;

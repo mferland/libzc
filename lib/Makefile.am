@@ -54,7 +54,6 @@ libzc_la_SOURCES =\
 	decrypt_byte.h \
 	find_password.c \
 	inflate.c \
-	kvector.c \
 	libzc.c \
 	libzc.h \
 	libzc_private.h \
