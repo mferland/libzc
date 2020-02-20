@@ -27,6 +27,88 @@
 #include <stdint.h>
 
 #include "ptext_private.h"
+#include "qsort.h"
+
+static void uint_qsort(uint32_t *buf, size_t n)
+{
+#define uint_lt(a,b) ((*a)<(*b))
+	QSORT(uint32_t, buf, n, uint_lt);
+}
+
+void uniq(uint32_t *buf, size_t *n)
+{
+	size_t i = 0, j;
+
+	if (*n <= 1)
+		return;
+
+	uint_qsort(buf, *n);
+
+	/* reduce by removing duplicates */
+	for (j = 1; j < *n; ++j) {
+		if (buf[j] != buf[i])
+			buf[++i] = buf[j];
+	}
+
+	*n = i + 1;
+}
+
+static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
+{
+	/*    \  List of multiples (up to 4) that
+	 * msb \ match with the msb or (msb - 1)
+	 *      +-----+-----+-----+-----+
+	 * 00   | mul | mul | mul | mul |
+	 * 01   | mul | mul | mul | mul |
+	 * 02   | mul | mul | mul | mul |
+	 * 03   | mul | mul | mul | mul |
+	 * ..   | ... | ... | ... | ... |
+	 * ff   | mul | mul | mul | mul |
+	 *      +-----+-----+-----+-----+
+	 *
+	 * See Biham & Kocher section 3.3
+	 */
+	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
+	p->lsbk0_lookup[msb + 1][p->lsbk0_count[msb + 1]++] = mul;
+}
+
+static void generate_key0_lsb(struct zc_crk_ptext *ptext)
+{
+	/* reset lookup and counters to 0 */
+	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint8_t));
+	memset(ptext->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
+
+	for (int i = 0, p = 0; i < 256; ++i, p += MULTINV)
+		lsbk0_set(ptext, msb(p), i);
+}
+
+static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
+{
+	uint32_t valuei = 0;
+	for (uint32_t i = 0; i < pow2(16); i += 4) {
+		uint8_t key3tmp = ((i | 2) * (i | 3)) >> 8;
+		if (key3 == key3tmp) {
+			value[valuei] = i;
+			++valuei;
+		}
+	}
+}
+
+static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
+{
+	uint16_t *tmp;
+
+	tmp = malloc(256 * 64 * sizeof(uint16_t));
+	if (!tmp)
+		return -1;
+
+	for (size_t key3 = 0; key3 < 256; ++key3)
+		bits_15_2_from_key3(&tmp[key3 * 64], key3);
+
+	ptext->bits_15_2 = tmp;
+
+	return 0;
+}
 
 ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
@@ -44,8 +126,8 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	if (ptext->refcount > 0)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
-	kfree(ptext->key2);
-	key2r_free(ptext->k2r);
+	free(ptext->key2);
+	free(ptext->bits_15_2);
 	free(ptext);
 	return NULL;
 }
@@ -58,12 +140,12 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 	if (!new)
 		return -1;
 
-	if (key2r_new(&new->k2r)) {
+	if (generate_key2_bits_15_2(new)) {
 		free(new);
 		return -1;
 	}
 
-	generate_key0lsb(new);
+	generate_key0_lsb(new);
 	new->ctx = ctx;
 	new->refcount = 1;
 	new->found = false;
@@ -85,7 +167,7 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 
 	ptext->plaintext = plaintext;
 	ptext->ciphertext = ciphertext;
-	ptext->size = size;
+	ptext->text_size = size;
 
 	return 0;
 }
@@ -93,6 +175,6 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
 	if (ptext->key2)
-		return ptext->key2->size;
+		return ptext->key2_size;
 	return 0;
 }

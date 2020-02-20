@@ -31,64 +31,33 @@
 struct zc_crk_ptext {
 	struct zc_ctx *ctx;
 	int refcount;
+
+	/* plain and cipher text buffers, both have the same size */
 	const uint8_t *plaintext;
 	const uint8_t *ciphertext;
-	size_t size;
-	struct kvector *key2;
-	struct key2r *k2r;
+	size_t text_size;
+
+	uint16_t *bits_15_2;
 	uint8_t lsbk0_lookup[256][4];
 	uint8_t lsbk0_count[256];
 	bool found;
 	pthread_t found_by;
 	long force_threads;
+
+	/* reduced key2 buffer */
+	uint32_t *key2;
+	size_t key2_size;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])
+#define get_bits_15_2(bits_15_2, k3) (&bits_15_2[k3 * 64])
 
-/* key dynamic vector helper */
-struct kvector {
-	uint32_t *buf;
-	size_t size;
-	size_t capacity;
-};
-int kalloc(struct kvector **v, size_t init);
-void kfree(struct kvector *v);
-int kappend(struct kvector *v, uint32_t key);
-void kuniq(struct kvector *v);
-void ksqueeze(struct kvector *v);
-void kempty(struct kvector *v);
+void uniq(uint32_t *buf, size_t *n);
 
-#ifdef ENABLE_DEBUG
-#include <stdio.h>
-void kprint(struct kvector *v, FILE *stream);
-#endif
-
-static inline
-uint32_t kat(const struct kvector *v, uint32_t index)
-{
-	return v->buf[index];
-}
-
-static inline
-void kswap(struct kvector **v1, struct kvector **v2)
-{
-	struct kvector *t = *v1;
-	*v1 = *v2;
-	*v2 = t;
-}
-
-void generate_key0lsb(struct zc_crk_ptext *p);
-
-/* key2 reduction */
-struct key2r;
-int key2r_new(struct key2r **key2r);
-void key2r_free(struct key2r *key2r);
-uint16_t *key2r_get_bits_15_2(const struct key2r *key2r, uint8_t key3);
-struct kvector *key2r_compute_first_gen(const uint16_t *key2_bits_15_2);
-int key2r_compute_single(uint32_t key2i_plus_1,
-			 struct kvector *key2i,
-			 const uint16_t *key2i_bits_15_2,
-			 const uint16_t *key2im1_bits_15_2,
-			 uint32_t common_bits_mask);
+size_t key2r_compute_single(uint32_t key2i_plus_1,
+			    uint32_t *key2i,
+			    const uint16_t *key2i_bits_15_2,
+			    const uint16_t *key2im1_bits_15_2,
+			    uint32_t common_bits_mask);
 
 #endif  /* _PTEXT_PRIVATE_H_ */
