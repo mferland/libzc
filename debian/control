@@ -2,7 +2,7 @@ Source: libzc
 Priority: optional
 Maintainer: Marc Ferland <marc.ferland@gmail.com>
 Build-Depends: debhelper (>= 11), zlib1g-dev, check, pkg-config
-Standards-Version: 4.1.4
+Standards-Version: 4.5.0
 Section: libs
 Rules-Requires-Root: no
 Homepage: https://github.com/mferland/libzc
@@ -11,6 +11,7 @@ Package: libzc-dev
 Section: libdevel
 Architecture: any
 Depends: libzc4 (= ${binary:Version}), ${misc:Depends}
+Multi-Arch: same
 Description: fast password cracking library for zip archives (dev)
  libzc is a fast, portable and high-quality zip password cracking
  library. It is entirely written in C and uses POSIX threads for faster
@@ -22,6 +23,7 @@ Description: fast password cracking library for zip archives (dev)
 Package: libzc4
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Multi-Arch: same
 Description: fast password cracking library for zip archives
  libzc is a fast, portable and high-quality zip password cracking
  library. It is entirely written in C and uses POSIX threads for faster
