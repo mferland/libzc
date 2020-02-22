@@ -1,6 +1,8 @@
 #!/bin/sh
 
 # Simple debian package build script
+# Debian package tracker: https://tracker.debian.org/pkg/libzc
+# Debian dependencies: devscripts check zlib1g-dev pkg-config autoconf gcc libtool git
 
 D="debtest"
 PN="libzc"
