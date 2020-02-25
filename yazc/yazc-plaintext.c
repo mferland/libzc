@@ -47,8 +47,8 @@ struct filed {
 	off_t txt_begin;            /* begin offset of the plain or cipher text */
 	off_t txt_end;              /* end offset of the plain or cipher text */
 	off_t file_begin;           /* offset of the first byte for the
-                                  file we are using in the encrypted
-                                  archive */
+                                       file we are using in the encrypted
+                                       archive */
 	void *map;
 };
 
