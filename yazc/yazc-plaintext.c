@@ -33,9 +33,10 @@
 #include "yazc.h"
 #include "libzc.h"
 
-static const char short_opts[] = "t:h";
+static const char short_opts[] = "t:oh";
 static const struct option long_opts[] = {
 	{"threads", required_argument, 0, 't'},
+	{"offset", no_argument, 0, 'o'},
 	{"help", no_argument, 0, 'h'},
 	{NULL, 0, 0, 0}
 };
@@ -60,7 +61,7 @@ static void print_help(const char *name)
 {
 	fprintf(stderr,
 		"Usage:\n"
-		"\t%s [options] PLAIN:OFF1:OFF2 CIPHER:OFF1:OFF2:BEGIN\n"
+		"\t%s [options] PLAIN:{OFF1:OFF2|ENTRY} CIPHER:{OFF1:OFF2:BEGIN|ENTRY}\n"
 		"\n"
 		"The plaintext subcommand uses a known vulnerability in the pkzip\n"
 		"stream cipher to find the internal representation of the encryption\n"
@@ -68,15 +69,21 @@ static void print_help(const char *name)
 		"bytes from any file in the archive.\n"
 		"\n"
 		"Example:\n"
-		"\t %s plain.bin:100:650 archive.zip:112:662:64\n"
+		"\t %s -o plain.bin:100:650 archive.zip:112:662:64\n"
 		"\n"
 		"Use plaintext bytes 100 to 650 and map them to ciphertext bytes\n"
 		"112 to 662. Use these bytes to reduce the number of keys and perform\n"
 		"the attack. Once the intermediate key is found, decrypt the rest of\n"
 		"the cipher (begins at offset 64) to get the internal representation.\n"
 		"\n"
+		"Example:\n"
+		"\t %s file.zip:data.bin encrypted.zip:data.bin\n"
+		"\n"
+		"Use plaintext bytes from the data.bin entry in file.zip and map them\n"
+		"to data.bin from encrypted.zip.\n"
 		"Options:\n"
 		"\t-t, --threads=NUM       spawn NUM threads\n"
+		"\t-o, --offset            use offsets instead of entry names\n"
 		"\t-h, --help              show this help\n",
 		name, name);
 }
@@ -96,8 +103,39 @@ static int parse_offset(const char *tok, off_t *offset)
 	return 0;
 }
 
-static int parse_opt(char *opt, int count, const char **filename, off_t *off1,
-		     off_t *off2, off_t *off3)
+static int parse_entry_opt(char *opt, const char **filename, off_t *txt_begin, off_t *txt_end,
+			   off_t *file_begin)
+{
+	char *saveptr = NULL, *token;
+	struct zc_ctx ctx;
+	struct zc_file file;
+	int err;
+
+	if (!opt)
+		return -1;
+
+	token = strtok_r(opt, ":", &saveptr);
+	if (!token)
+		return -1;
+	*filename = token;
+
+	if (zc_new(&ctx))
+		return -1;
+
+	err = zc_file_new_from_filename(ctx, *filename, &file);
+	if (err)
+		goto err1;
+
+	/* RENDU CICICICICICI */
+err2:
+	zc_file_unref(file);
+err1:
+	zc_unref(ctx);
+	return err;
+}
+
+static int parse_offset_opt(char *opt, int count, const char **filename, off_t *off1,
+			    off_t *off2, off_t *off3)
 {
 	char *saveptr = NULL, *token;
 	int err = -1;
@@ -210,6 +248,7 @@ static int unmap_text_buf(struct filed *file)
 static int do_plaintext(int argc, char *argv[])
 {
 	const char *arg_threads = NULL;
+	bool arg_use_offsets = false;
 	struct zc_crk_ptext *ptext;
 	int err = 0;
 
@@ -219,6 +258,9 @@ static int do_plaintext(int argc, char *argv[])
 		if (c == -1)
 			break;
 		switch (c) {
+		case 'o':
+			arg_use_offsets = true;
+			break;
 		case 't':
 			arg_threads = optarg;
 			break;
@@ -247,16 +289,46 @@ static int do_plaintext(int argc, char *argv[])
 	} else
 		thread_count = -1;	/* auto */
 
-	if (parse_opt(argv[optind], 2, &plain.name,
-		      &plain.txt_begin, &plain.txt_end, NULL) < 0) {
-		yazc_err("parsing plaintext file offsets failed.\n");
-		return EXIT_FAILURE;
-	}
+	if (arg_use_offsets) {
+		/* parse raw offsets */
+		if (parse_offset_opt(argv[optind],
+				     2,
+				     &plain.name,
+				     &plain.txt_begin,
+				     &plain.txt_end,
+				     NULL) < 0) {
+			yazc_err("parsing plaintext file offsets failed.\n");
+			return EXIT_FAILURE;
+		}
 
-	if (parse_opt(argv[optind + 1], 3, &cipher.name,
-		      &cipher.txt_begin, &cipher.txt_end, &cipher.file_begin) < 0) {
-		yazc_err("parsing cipher file offsets failed.\n");
-		return EXIT_FAILURE;
+		if (parse_offset_opt(argv[optind + 1],
+				     3,
+				     &cipher.name,
+				     &cipher.txt_begin,
+				     &cipher.txt_end,
+				     &cipher.file_begin) < 0) {
+			yazc_err("parsing cipher file offsets failed.\n");
+			return EXIT_FAILURE;
+		}
+	} else {
+		/* get offsets from entry names */
+		if (parse_entry_opt(argv[optind],
+				    &plain.name,
+				    &plain.txt_begin,
+				    &plain.txt_end,
+				    NULL) < 0) {
+			yazc_err("reading plaintext offsets failed.\n");
+			return EXIT_FAILURE;
+		}
+
+		if (parse_entry_opt(argv[optind + 1],
+				    &cipher.name,
+				    &cipher.txt_begin,
+				    &cipher.txt_end,
+				    &cipher.file_begin) < 0) {
+			yazc_err("reading ciphertext offsets failed.\n");
+			return EXIT_FAILURE;
+		}
 	}
 
 	if (!validate_offsets()) {
