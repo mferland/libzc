@@ -61,31 +61,32 @@ static void print_help(const char *name)
 {
 	fprintf(stderr,
 		"Usage:\n"
-		"\t%s [options] PLAIN:{OFF1:OFF2|ENTRY} CIPHER:{OFF1:OFF2:BEGIN|ENTRY}\n"
+		"\t%s [options] PLAIN ENTRY CIPHER ENTRY\n"
+		"\t%s [options] -o PLAIN OFFSETS CIPHER OFFSETS BEGIN\n"
 		"\n"
 		"The plaintext subcommand uses a known vulnerability in the pkzip\n"
 		"stream cipher to find the internal representation of the encryption\n"
 		"key. To use this attack type you need at least 13 known plaintext\n"
 		"bytes from any file in the archive.\n"
 		"\n"
-		"Example:\n"
-		"\t %s -o plain.bin:100:650 archive.zip:112:662:64\n"
+		"Example 1:\n"
+		"\t %s -o plain.zip 100 650 cipher.zip 112 662 64\n"
 		"\n"
 		"Use plaintext bytes 100 to 650 and map them to ciphertext bytes\n"
 		"112 to 662. Use these bytes to reduce the number of keys and perform\n"
 		"the attack. Once the intermediate key is found, decrypt the rest of\n"
 		"the cipher (begins at offset 64) to get the internal representation.\n"
 		"\n"
-		"Example:\n"
-		"\t %s file.zip:data.bin encrypted.zip:data.bin\n"
+		"Example 2:\n"
+		"\t %s plain.zip file1.bin cipher.zip file2.bin\n"
 		"\n"
-		"Use plaintext bytes from the data.bin entry in file.zip and map them\n"
-		"to data.bin from encrypted.zip.\n"
+		"Use plaintext bytes from the file1.bin entry in plain.zip and map them\n"
+		"to file2.bin from cipher.zip.\n"
 		"Options:\n"
 		"\t-t, --threads=NUM       spawn NUM threads\n"
 		"\t-o, --offset            use offsets instead of entry names\n"
 		"\t-h, --help              show this help\n",
-		name, name);
+		name, name, name, name);
 }
 
 static int parse_offset(const char *tok, off_t *offset)
@@ -103,72 +104,95 @@ static int parse_offset(const char *tok, off_t *offset)
 	return 0;
 }
 
-static int parse_entry_opt(char *opt, const char **filename, off_t *txt_begin, off_t *txt_end,
-			   off_t *file_begin)
+static int parse_entry_opts(const char *argv[])
 {
-	char *saveptr = NULL, *token;
-	struct zc_ctx ctx;
-	struct zc_file file;
-	int err;
+	plain.name = argv[optind++];
+	if (parse_offset(argv[optind++], &plain.txt_begin))
+	    return -1;
+	if (parse_offset(argv[optind++], &plain.txt_end))
+	    return -1;
 
-	if (!opt)
-		return -1;
-
-	token = strtok_r(opt, ":", &saveptr);
-	if (!token)
-		return -1;
-	*filename = token;
-
-	if (zc_new(&ctx))
-		return -1;
-
-	err = zc_file_new_from_filename(ctx, *filename, &file);
-	if (err)
-		goto err1;
-
-	/* RENDU CICICICICICI */
-err2:
-	zc_file_unref(file);
-err1:
-	zc_unref(ctx);
-	return err;
-}
-
-static int parse_offset_opt(char *opt, int count, const char **filename, off_t *off1,
-			    off_t *off2, off_t *off3)
-{
-	char *saveptr = NULL, *token;
-	int err = -1;
-
-	if (!opt)
-		return -1;
-
-	token = strtok_r(opt, ":", &saveptr);
-	if (!token)
-		return -1;
-	*filename = token;
-
-	for (int i = 0; i < count; ++i) {
-		token = strtok_r(NULL, ":", &saveptr);
-		if (!token)
-			return -1;
-		switch (i) {
-		case 0:
-			err = parse_offset(token, off1);
-			break;
-		case 1:
-			err = parse_offset(token, off2);
-			break;
-		case 2:
-			err = parse_offset(token, off3);
-			break;
-		}
-		if (err)
-			return -1;
-	}
-
+	cipher.name = argv[optind++];
+	if (parse_offset(argv[optind++], &cipher.txt_begin))
+	    return -1;
+	if (parse_offset(argv[optind++], &cipher.txt_end))
+	    return -1;
+	if (parse_offset(argv[optind], &cipher.file_begin))
+	    return -1;
 	return 0;
 }
+
+static int parse_offset_opts(const char *argv[])
+{
+	/* TODO */
+}
+
+/* static int parse_entry_opt(char *opt, const char **filename, off_t *txt_begin, off_t *txt_end, */
+/* 			   off_t *file_begin) */
+/* { */
+/* 	char *saveptr = NULL, *token; */
+/* 	struct zc_ctx ctx; */
+/* 	struct zc_file file; */
+/* 	int err; */
+
+/* 	if (!opt) */
+/* 		return -1; */
+
+/* 	token = strtok_r(opt, ":", &saveptr); */
+/* 	if (!token) */
+/* 		return -1; */
+/* 	*filename = token; */
+
+/* 	if (zc_new(&ctx)) */
+/* 		return -1; */
+
+/* 	err = zc_file_new_from_filename(ctx, *filename, &file); */
+/* 	if (err) */
+/* 		goto err1; */
+
+/* 	/\* RENDU CICICICICICI *\/ */
+/* err2: */
+/* 	zc_file_unref(file); */
+/* err1: */
+/* 	zc_unref(ctx); */
+/* 	return err; */
+/* } */
+
+/* static int parse_offset_opt(char *opt, int count, const char **filename, off_t *off1, */
+/* 			    off_t *off2, off_t *off3) */
+/* { */
+/* 	char *saveptr = NULL, *token; */
+/* 	int err = -1; */
+
+/* 	if (!opt) */
+/* 		return -1; */
+
+/* 	token = strtok_r(opt, ":", &saveptr); */
+/* 	if (!token) */
+/* 		return -1; */
+/* 	*filename = token; */
+
+/* 	for (int i = 0; i < count; ++i) { */
+/* 		token = strtok_r(NULL, ":", &saveptr); */
+/* 		if (!token) */
+/* 			return -1; */
+/* 		switch (i) { */
+/* 		case 0: */
+/* 			err = parse_offset(token, off1); */
+/* 			break; */
+/* 		case 1: */
+/* 			err = parse_offset(token, off2); */
+/* 			break; */
+/* 		case 2: */
+/* 			err = parse_offset(token, off3); */
+/* 			break; */
+/* 		} */
+/* 		if (err) */
+/* 			return -1; */
+/* 	} */
+
+/* 	return 0; */
+/* } */
 
 static bool validate_offsets()
 {
@@ -273,11 +297,8 @@ static int do_plaintext(int argc, char *argv[])
 		}
 	}
 
-	if (optind >= argc) {
-		yazc_err("missing arguments.\n");
-		print_help(basename(argv[0]));
-		return EXIT_FAILURE;
-	}
+	if (optind >= argc)
+		goto missing;
 
 	/* number of concurrent threads */
 	if (arg_threads) {
@@ -291,42 +312,20 @@ static int do_plaintext(int argc, char *argv[])
 
 	if (arg_use_offsets) {
 		/* parse raw offsets */
-		if (parse_offset_opt(argv[optind],
-				     2,
-				     &plain.name,
-				     &plain.txt_begin,
-				     &plain.txt_end,
-				     NULL) < 0) {
-			yazc_err("parsing plaintext file offsets failed.\n");
-			return EXIT_FAILURE;
-		}
+		if (argc - optind < 7)
+			goto missing;
 
-		if (parse_offset_opt(argv[optind + 1],
-				     3,
-				     &cipher.name,
-				     &cipher.txt_begin,
-				     &cipher.txt_end,
-				     &cipher.file_begin) < 0) {
-			yazc_err("parsing cipher file offsets failed.\n");
+		if (parse_offset_opts(argv)) {
+			yazc_err("error parsing offsets.\n");
 			return EXIT_FAILURE;
 		}
 	} else {
 		/* get offsets from entry names */
-		if (parse_entry_opt(argv[optind],
-				    &plain.name,
-				    &plain.txt_begin,
-				    &plain.txt_end,
-				    NULL) < 0) {
-			yazc_err("reading plaintext offsets failed.\n");
-			return EXIT_FAILURE;
-		}
+		if (argc - optind < 4)
+			goto missing;
 
-		if (parse_entry_opt(argv[optind + 1],
-				    &cipher.name,
-				    &cipher.txt_begin,
-				    &cipher.txt_end,
-				    &cipher.file_begin) < 0) {
-			yazc_err("reading ciphertext offsets failed.\n");
+		if (parse_entry_opts(argv)) {
+			yazc_err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
 	}
@@ -436,6 +435,11 @@ error2:
 error1:
 	unmap_text_buf(&plain);
 	return err;
+
+missing:
+	yazc_err("missing argument.\n");
+	print_help(basename(argv[0]));
+	return EXIT_FAILURE;
 }
 
 const struct yazc_cmd yazc_cmd_plaintext = {
