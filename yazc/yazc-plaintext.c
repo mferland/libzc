@@ -181,6 +181,11 @@ static int mmap_text_buf(struct filed *file)
 		goto error;
 	}
 
+	if (file->txt_end >= filestat.st_size) {
+		yazc_err("end offset (%zu) goes past the end of the file.\n", file->txt_end);
+		goto error;
+	}
+
 	map = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (map == MAP_FAILED) {
 		yazc_err("mmap() failed: %s.\n", strerror(errno));
