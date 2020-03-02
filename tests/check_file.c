@@ -114,7 +114,7 @@ START_TEST(test_zc_file_info_encrypted)
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
 		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
-		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);
@@ -158,7 +158,7 @@ START_TEST(test_zc_file_info_non_encrypted)
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
 		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
-		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);

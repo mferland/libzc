@@ -28,7 +28,8 @@ libzc.so.4 libzc4 #MINVER#
  zc_file_info_idx@Base 0.3.1
  zc_file_info_name@Base 0.3.1
  zc_file_info_next@Base 0.3.1
- zc_file_info_offset@Base 0.3.1
+ zc_file_info_offset_begin@Base 0.4.3
+ zc_file_info_offset_end@Base 0.4.3
  zc_file_info_compressed_size@Base 0.4.2
  zc_file_info_size@Base 0.3.1
  zc_file_isopened@Base 0.3.1
