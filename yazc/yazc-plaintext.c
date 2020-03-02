@@ -182,7 +182,7 @@ static int mmap_text_buf(struct filed *file)
 	}
 
 	if (file->txt_end >= filestat.st_size) {
-		yazc_err("end offset (%zu) goes past the end of the file.\n", file->txt_end);
+		yazc_err("end offset (%lld) goes past the end of the file.\n", (long long)file->txt_end);
 		goto error;
 	}
 
