@@ -522,9 +522,14 @@ ZC_EXPORT uint32_t zc_file_info_compressed_size(const struct zc_info *info)
 	return info->comp_size;
 }
 
-ZC_EXPORT long zc_file_info_offset(const struct zc_info *info)
+ZC_EXPORT long zc_file_info_offset_begin(const struct zc_info *info)
 {
 	return info->begin_offset;
+}
+
+ZC_EXPORT long zc_file_info_offset_end(const struct zc_info *info)
+{
+	return info->end_offset;
 }
 
 ZC_EXPORT long zc_file_info_crypt_header_offset(const struct zc_info *info)
