@@ -167,28 +167,28 @@ static int mmap_text_buf(struct filed *file)
 
 	fd = open(file->name, O_RDONLY);
 	if (fd < 0) {
-		yazc_err("open() failed: %s.\n", strerror(errno));
+		err("open() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
 	if (fstat(fd, &filestat) < 0) {
-		yazc_err("fstat() failed: %s.\n", strerror(errno));
+		err("fstat() failed: %s.\n", strerror(errno));
 		goto error;
 	}
 
 	if (filestat.st_size == 0) {
-		yazc_err("file %s is empty.\n", file->name);
+		err("file %s is empty.\n", file->name);
 		goto error;
 	}
 
 	if (file->txt_end >= filestat.st_size) {
-		yazc_err("end offset (%lld) goes past the end of the file.\n", (long long)file->txt_end);
+		err("end offset (%lld) goes past the end of the file.\n", (long long)file->txt_end);
 		goto error;
 	}
 
 	map = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (map == MAP_FAILED) {
-		yazc_err("mmap() failed: %s.\n", strerror(errno));
+		err("mmap() failed: %s.\n", strerror(errno));
 		goto error;
 	}
 
@@ -199,16 +199,16 @@ static int mmap_text_buf(struct filed *file)
 
 error:
 	if (close(fd))
-		yazc_err("close() failed: %s\n", strerror(errno));
+		err("close() failed: %s\n", strerror(errno));
 	return -1;
 }
 
 static int unmap_text_buf(struct filed *file)
 {
 	if (munmap(file->map, size_of_map(file)) < 0)
-		yazc_err("munmap() failed: %s.\n", strerror(errno));
+		err("munmap() failed: %s.\n", strerror(errno));
 	if (close(file->fd))
-		yazc_err("close() failed: %s.\n", strerror(errno));
+		err("close() failed: %s.\n", strerror(errno));
 	return 0;
 }
 
@@ -231,13 +231,13 @@ static int do_plaintext(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing arguments.\n");
+		err("missing arguments.\n");
 		print_help(basename(argv[0]));
 		return EXIT_FAILURE;
 	}
@@ -246,7 +246,7 @@ static int do_plaintext(int argc, char *argv[])
 	if (arg_threads) {
 		thread_count = atol(arg_threads);
 		if (thread_count < 1) {
-			yazc_err("number of threads can't be less than one.\n");
+			err("number of threads can't be less than one.\n");
 			return EXIT_FAILURE;
 		}
 	} else
@@ -254,40 +254,40 @@ static int do_plaintext(int argc, char *argv[])
 
 	if (parse_opt(argv[optind], 2, &plain.name,
 		      &plain.txt_begin, &plain.txt_end, NULL) < 0) {
-		yazc_err("parsing plaintext file offsets failed.\n");
+		err("parsing plaintext file offsets failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (parse_opt(argv[optind + 1], 3, &cipher.name,
 		      &cipher.txt_begin, &cipher.txt_end, &cipher.file_begin) < 0) {
-		yazc_err("parsing cipher file offsets failed.\n");
+		err("parsing cipher file offsets failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (!validate_offsets()) {
-		yazc_err("offsets validation failed.\n");
+		err("offsets validation failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (mmap_text_buf(&plain) < 0) {
-		yazc_err("mapping plaintext data failed.\n");
+		err("mapping plaintext data failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (mmap_text_buf(&cipher) < 0) {
-		yazc_err("mapping ciphertext data failed.\n");
+		err("mapping ciphertext data failed.\n");
 		goto error1;
 	}
 
 	zc_new(&ctx);
 	if (!ctx) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		goto error2;
 	}
 
 	err = zc_crk_ptext_new(ctx, &ptext);
 	if (err < 0) {
-		yazc_err("zc_crk_ptext_new() failed!\n");
+		err("zc_crk_ptext_new() failed!\n");
 		goto error3;
 	}
 
@@ -296,7 +296,7 @@ static int do_plaintext(int argc, char *argv[])
 				    &((const uint8_t *)cipher.map)[cipher.txt_begin],
 				    size_of_map(&plain));
 	if (err < 0) {
-		yazc_err("zc_crk_ptext_set_text() failed!\n");
+		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
 	}
 
@@ -307,7 +307,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = zc_crk_ptext_key2_reduction(ptext);
 	if (err < 0) {
 		printf("\n");
-		yazc_err("reducing key2 candidates failed.\n");
+		err("reducing key2 candidates failed.\n");
 		goto error4;
 	}
 	printf(" done! %zu keys found.\n", zc_crk_ptext_key2_count(ptext));
@@ -318,7 +318,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = zc_crk_ptext_attack(ptext, &out_key);
 	if (err < 0) {
 		printf("\n");
-		yazc_err("attack failed! Wrong plaintext?\n");
+		err("attack failed! Wrong plaintext?\n");
 		goto error4;
 	}
 	printf(" done!\n");
@@ -332,7 +332,7 @@ static int do_plaintext(int argc, char *argv[])
 					     cipher.txt_begin - cipher.file_begin,
 					     &int_rep);
 	if (err < 0) {
-		yazc_err("finding internal representation failed.\n");
+		err("finding internal representation failed.\n");
 		goto error4;
 	}
 
@@ -344,7 +344,7 @@ static int do_plaintext(int argc, char *argv[])
 	char pw[14];
 	err = zc_crk_ptext_find_password(ptext, &int_rep, pw, sizeof(pw));
 	if (err < 0) {
-		yazc_err(" failed!\n");
+		err(" failed!\n");
 		err = EXIT_FAILURE;
 		goto error4;
 	}

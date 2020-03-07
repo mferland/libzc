@@ -49,17 +49,17 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 	int err = -1;
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return -1;
 	}
 
 	if (zc_crk_dict_new(ctx, &crk)) {
-		yazc_err("zc_crk_dict_new() failed!\n");
+		err("zc_crk_dict_new() failed!\n");
 		goto err1;
 	}
 
 	if (zc_crk_dict_init(crk, zip_filename)) {
-		yazc_err("zc_crk_dict_init() failed!\n");
+		err("zc_crk_dict_init() failed!\n");
 		goto err2;
 	}
 
@@ -69,7 +69,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		yazc_err("zc_crk_dict_start failed!\n");
+		err("zc_crk_dict_start failed!\n");
 
 err2:
 	zc_crk_dict_unref(crk);
@@ -100,13 +100,13 @@ static int do_dictionary(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 

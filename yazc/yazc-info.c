@@ -58,31 +58,31 @@ static int do_info(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 
 	filename = argv[optind];
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return EXIT_FAILURE;
 	}
 
 	if (zc_file_new_from_filename(ctx, filename, &file)) {
-		yazc_err("zc_file_new_from_filename() failed!\n");
+		err("zc_file_new_from_filename() failed!\n");
 		err = EXIT_FAILURE;
 		goto err1;
 	}
 
 	if (zc_file_open(file)) {
-		yazc_err("zc_file_open() failed!\n");
+		err("zc_file_open() failed!\n");
 		err = EXIT_FAILURE;
 		goto err2;
 	}
