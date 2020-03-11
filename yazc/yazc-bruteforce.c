@@ -140,17 +140,17 @@ static int launch_crack(void)
 	int err = -1;
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return EXIT_FAILURE;
 	}
 
 	if (zc_crk_bforce_new(ctx, &crk)) {
-		yazc_err("zc_crk_bforce_new() failed!\n");
+		err("zc_crk_bforce_new() failed!\n");
 		goto err1;
 	}
 
 	if (zc_crk_bforce_init(crk, filename, &pwcfg)) {
-		yazc_err("zc_crk_bforce_init() failed!\n");
+		err("zc_crk_bforce_init() failed!\n");
 		goto err2;
 	}
 
@@ -179,7 +179,7 @@ static int launch_crack(void)
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		yazc_err("zc_crk_bforce_start failed!\n");
+		err("zc_crk_bforce_start failed!\n");
 
 err2:
 	zc_crk_bforce_unref(crk);
@@ -235,13 +235,13 @@ static int do_bruteforce(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -251,7 +251,7 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_maxlen) {
 		pwcfg.maxlen = atoi(arg_maxlen);
 		if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
-			yazc_err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
+			err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
 				 ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
@@ -262,7 +262,7 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_threads) {
 		thread_count = atol(arg_threads);
 		if (thread_count < 1) {
-			yazc_err("number of threads can't be less than one.\n");
+			err("number of threads can't be less than one.\n");
 			return EXIT_FAILURE;
 		}
 	} else
@@ -271,12 +271,12 @@ static int do_bruteforce(int argc, char *argv[])
 	/* character set */
 	if (!arg_set) {
 		if (!arg_charset_flag) {
-			yazc_err("no character set provided or specified.\n");
+			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
 		char *tmp = make_charset(arg_charset_flag, pwcfg.set, ZC_CHARSET_MAXLEN);
 		if (!tmp) {
-			yazc_err("generating character set failed.\n");
+			err("generating character set failed.\n");
 			return EXIT_FAILURE;
 		}
 	} else

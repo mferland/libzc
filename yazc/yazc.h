@@ -20,6 +20,9 @@
 #define _YAZC_H_
 
 #include <stdlib.h>
+#include <syslog.h>
+
+#include "config.h"
 #include "libzc.h"
 
 struct yazc_cmd {
@@ -28,23 +31,19 @@ struct yazc_cmd {
 	const char *help;
 };
 
-#define fatal(arg...)                                           \
-   do {                                                         \
-      yazc_log(__FILE__, __LINE__, __FUNCTION__, ## arg);       \
-      exit(EXIT_FAILURE);                                       \
-   } while (0)
+void yazc_log(int prio, const char *format, ...) __attribute__((format(printf, 2, 3)));
 
-#ifdef __GNUC__
-#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
+static inline void __attribute__((always_inline, format(printf, 2, 3)))
+yazc_log_null(__attribute__((__unused__)) int prio, __attribute__((__unused__)) const char *format, ...) {}
+
+#define err(arg...) yazc_log(LOG_ERR, ## arg)
+#define info(arg...) yazc_log(LOG_INFO, ## arg)
+
+#ifdef ENABLE_DEBUG
+#define dbg(arg...) yazc_log(LOG_DEBUG, ## arg)
 #else
-#  define UNUSED(x) UNUSED_ ## x
+#define dbg(arg...) yazc_log_null(LOG_DEBUG, ## arg)
 #endif
-
-void yazc_log(const char *file, int line, const char *fn, const char *format,
-	      ...)
-__attribute__((format(printf, 4, 5)));
-void yazc_err(const char *format, ...)
-__attribute__((format(printf, 1, 2)));
 
 extern const struct yazc_cmd yazc_cmd_bruteforce;
 extern const struct yazc_cmd yazc_cmd_dictionary;
