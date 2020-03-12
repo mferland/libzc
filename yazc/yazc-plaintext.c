@@ -57,7 +57,7 @@ static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
 static long thread_count;
 
-static void print_help(const char *name)
+static void usage(const char *name)
 {
 	fprintf(stderr,
 		"Usage:\n"
@@ -104,7 +104,74 @@ static int parse_offset(const char *tok, off_t *offset)
 	return 0;
 }
 
-static int parse_entry_opts(const char *argv[])
+enum text_src {
+	SRC_PLAIN = 0,
+	SRC_CIPHER,
+	SRC_NUM
+};
+
+static int parse_entry_opts(char *argv[])
+{
+	struct zc_ctx *ctx;
+	struct zc_file *f;
+	char *filename, *entry;
+	int err = 0, matches = 0;
+
+	if (zc_new(&ctx))
+		return -1;
+
+	for (int src = SRC_PLAIN; src < SRC_NUM; ++src) {
+		filename = argv[optind++];
+		entry = argv[optind++];
+
+		dbg("%s: %s %s\n",
+		    src == SRC_PLAIN ? "plaintext" : "ciphertext",
+		    filename,
+		    entry);
+
+		err = zc_file_new_from_filename(ctx, filename, &f);
+		if (err)
+			goto err1;
+
+		err = zc_file_open(f);
+		if (err) {
+			zc_file_unref(f);
+			goto err1;
+		}
+
+		struct zc_info *info = zc_file_info_next(f, NULL);
+		while (info) {
+			if (strcmp(zc_file_info_name(info), entry) &&
+			    ((src == SRC_PLAIN && zc_file_info_crypt_header_offset(info) == -1) ||
+			     (src == SRC_CIPHER && zc_file_info_crypt_header_offset(info) != -1))) {
+				dbg("skipping %s\n", zc_file_info_name(info));
+				info = zc_file_info_next(f, info);
+				continue;
+			}
+
+			/* found match */
+			struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
+			fd->txt_begin = zc_file_info_offset_begin(info);
+			fd->txt_end = zc_file_info_offset_end(info);
+			fd->file_begin = zc_file_info_crypt_header_offset(info);
+			fd->name = filename;
+			matches++;
+			dbg("found match: %s %lld %lld %lld\n",
+			    entry,
+			    (long long)fd->txt_begin,
+			    (long long)fd->txt_end,
+			    (long long)fd->file_begin);
+			break;
+		}
+	}
+err1:
+	zc_unref(ctx);
+	if (err)
+		return err;
+	return matches == 2 ? 0 : -1;
+}
+
+static int parse_offset_opts(char *argv[])
 {
 	plain.name = argv[optind++];
 	if (parse_offset(argv[optind++], &plain.txt_begin))
@@ -119,80 +186,19 @@ static int parse_entry_opts(const char *argv[])
 	    return -1;
 	if (parse_offset(argv[optind], &cipher.file_begin))
 	    return -1;
+
+	dbg("plaintext: %s %lld %lld\n",
+	    plain.name,
+	    (long long)plain.txt_begin,
+	    (long long)plain.txt_end);
+	dbg("ciphertext: %s %lld %lld %lld\n",
+	    cipher.name,
+	    (long long)cipher.txt_begin,
+	    (long long)cipher.txt_end,
+	    (long long)cipher.file_begin);
+
 	return 0;
 }
-
-static int parse_offset_opts(const char *argv[])
-{
-	/* TODO */
-}
-
-/* static int parse_entry_opt(char *opt, const char **filename, off_t *txt_begin, off_t *txt_end, */
-/* 			   off_t *file_begin) */
-/* { */
-/* 	char *saveptr = NULL, *token; */
-/* 	struct zc_ctx ctx; */
-/* 	struct zc_file file; */
-/* 	int err; */
-
-/* 	if (!opt) */
-/* 		return -1; */
-
-/* 	token = strtok_r(opt, ":", &saveptr); */
-/* 	if (!token) */
-/* 		return -1; */
-/* 	*filename = token; */
-
-/* 	if (zc_new(&ctx)) */
-/* 		return -1; */
-
-/* 	err = zc_file_new_from_filename(ctx, *filename, &file); */
-/* 	if (err) */
-/* 		goto err1; */
-
-/* 	/\* RENDU CICICICICICI *\/ */
-/* err2: */
-/* 	zc_file_unref(file); */
-/* err1: */
-/* 	zc_unref(ctx); */
-/* 	return err; */
-/* } */
-
-/* static int parse_offset_opt(char *opt, int count, const char **filename, off_t *off1, */
-/* 			    off_t *off2, off_t *off3) */
-/* { */
-/* 	char *saveptr = NULL, *token; */
-/* 	int err = -1; */
-
-/* 	if (!opt) */
-/* 		return -1; */
-
-/* 	token = strtok_r(opt, ":", &saveptr); */
-/* 	if (!token) */
-/* 		return -1; */
-/* 	*filename = token; */
-
-/* 	for (int i = 0; i < count; ++i) { */
-/* 		token = strtok_r(NULL, ":", &saveptr); */
-/* 		if (!token) */
-/* 			return -1; */
-/* 		switch (i) { */
-/* 		case 0: */
-/* 			err = parse_offset(token, off1); */
-/* 			break; */
-/* 		case 1: */
-/* 			err = parse_offset(token, off2); */
-/* 			break; */
-/* 		case 2: */
-/* 			err = parse_offset(token, off3); */
-/* 			break; */
-/* 		} */
-/* 		if (err) */
-/* 			return -1; */
-/* 	} */
-
-/* 	return 0; */
-/* } */
 
 static bool validate_offsets()
 {
@@ -294,7 +300,7 @@ static int do_plaintext(int argc, char *argv[])
 			arg_threads = optarg;
 			break;
 		case 'h':
-			print_help(basename(argv[0]));
+			usage(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
 			err("unexpected getopt_long() value '%c'.\n", c);
@@ -321,7 +327,7 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 
 		if (parse_offset_opts(argv)) {
-			yazc_err("error parsing offsets.\n");
+			err("error parsing offsets.\n");
 			return EXIT_FAILURE;
 		}
 	} else {
@@ -330,7 +336,7 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 
 		if (parse_entry_opts(argv)) {
-			yazc_err("error parsing entries.\n");
+			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
 	}
@@ -442,8 +448,8 @@ error1:
 	return err;
 
 missing:
-	yazc_err("missing argument.\n");
-	print_help(basename(argv[0]));
+	err("missing argument.\n");
+	usage(basename(argv[0]));
 	return EXIT_FAILURE;
 }
 
