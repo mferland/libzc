@@ -168,6 +168,8 @@ static int parse_entry_opts(char *argv[])
 			info = zc_file_info_next(f, info);
 			continue;
 		}
+		zc_file_close(f);
+		zc_file_unref(f);
 	}
 err1:
 	zc_unref(ctx);
