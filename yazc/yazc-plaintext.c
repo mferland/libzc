@@ -141,13 +141,14 @@ static int parse_entry_opts(char *argv[])
 
 		struct zc_info *info = zc_file_info_next(f, NULL);
 		while (info) {
-			if (strcmp(zc_file_info_name(info), entry) &&
-			    ((src == SRC_PLAIN && zc_file_info_crypt_header_offset(info) == -1) ||
-			     (src == SRC_CIPHER && zc_file_info_crypt_header_offset(info) != -1))) {
-				dbg("skipping %s\n", zc_file_info_name(info));
-				info = zc_file_info_next(f, info);
-				continue;
-			}
+			if (strcmp(zc_file_info_name(info), entry) != 0)
+				/* filenames do not match */
+				goto next;
+
+			if ((src == SRC_PLAIN && zc_file_info_crypt_header_offset(info) != -1) ||
+			    (src == SRC_CIPHER && zc_file_info_crypt_header_offset(info) == -1))
+				/* plaintext is encrypted or ciphertext is not encrypted ? */
+				goto next;
 
 			/* found match */
 			struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
@@ -162,6 +163,10 @@ static int parse_entry_opts(char *argv[])
 			    (long long)fd->txt_end,
 			    (long long)fd->file_begin);
 			break;
+		next:
+			dbg("skipping %s\n", zc_file_info_name(info));
+			info = zc_file_info_next(f, info);
+			continue;
 		}
 	}
 err1:
