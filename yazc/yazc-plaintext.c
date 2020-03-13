@@ -29,14 +29,16 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <sys/time.h>
 
 #include "yazc.h"
 #include "libzc.h"
 
-static const char short_opts[] = "t:oh";
+static const char short_opts[] = "t:oSh";
 static const struct option long_opts[] = {
 	{"threads", required_argument, 0, 't'},
 	{"offset", no_argument, 0, 'o'},
+	{"stats", no_argument, 0, 'S'},
 	{"help", no_argument, 0, 'h'},
 	{NULL, 0, 0, 0}
 };
@@ -56,6 +58,7 @@ struct filed {
 static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
 static long thread_count;
+static bool stats = false;
 
 static void usage(const char *name)
 {
@@ -85,6 +88,7 @@ static void usage(const char *name)
 		"Options:\n"
 		"\t-t, --threads=NUM       spawn NUM threads\n"
 		"\t-o, --offset            use offsets instead of entry names\n"
+		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
 		name, name, name, name);
 }
@@ -292,6 +296,7 @@ static int do_plaintext(int argc, char *argv[])
 	const char *arg_threads = NULL;
 	bool arg_use_offsets = false;
 	struct zc_crk_ptext *ptext;
+	struct timeval begin, end;
 	int err = 0;
 
 	for (;;) {
@@ -305,6 +310,9 @@ static int do_plaintext(int argc, char *argv[])
 			break;
 		case 't':
 			arg_threads = optarg;
+			break;
+		case 'S':
+			stats = true;
 			break;
 		case 'h':
 			usage(basename(argv[0]));
@@ -388,6 +396,7 @@ static int do_plaintext(int argc, char *argv[])
 
 	printf("Key2 reduction...");
 	fflush(stdout);
+	gettimeofday(&begin, NULL);
 	err = zc_crk_ptext_key2_reduction(ptext);
 	if (err < 0) {
 		printf("\n");
@@ -433,6 +442,8 @@ static int do_plaintext(int argc, char *argv[])
 		goto error4;
 	}
 
+	gettimeofday(&end, NULL);
+
 	printf("\nOriginal password: ");
 	for (int i = 0; i < err; ++i) {
 		if (isprint(pw[i]))
@@ -441,6 +452,10 @@ static int do_plaintext(int argc, char *argv[])
 			printf("0x%x ", pw[i]);
 	}
 	printf("\n");
+
+	if (stats)
+		printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
+		       (double)(end.tv_sec - begin.tv_sec));
 
 	err = EXIT_SUCCESS;
 
