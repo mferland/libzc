@@ -96,7 +96,7 @@ struct worker {
 	struct zc_crk_bforce *crk;
 };
 
-static size_t unique(char *str, size_t len)
+static size_t uniq(char *str, size_t len)
 {
 	if (len <= 1)
 		return len;
@@ -118,7 +118,7 @@ static int compare_char(const void *a, const void *b)
 static size_t sanitize_set(char *set, size_t len)
 {
 	qsort(set, len, sizeof(char), compare_char);
-	size_t newlen = unique(set, len);
+	size_t newlen = uniq(set, len);
 	set[newlen] = '\0';
 	return newlen;
 }
