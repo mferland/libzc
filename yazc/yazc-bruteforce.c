@@ -40,31 +40,6 @@ static struct zc_crk_pwcfg pwcfg;
 static long thread_count;
 static bool stats = false;
 
-struct charset {
-	const char *set;
-	int len;
-};
-
-static const struct charset lowercase_set = {
-	.set = "abcdefghijklmnopqrstuvwxyz",
-	.len = 26,
-};
-
-static const struct charset uppercase_set = {
-	.set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-	.len = 26
-};
-
-static const struct charset number_set = {
-	.set = "0123456789",
-	.len = 10
-};
-
-static const struct charset special_set = {
-	.set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}",
-	.len = 32
-};
-
 static const char short_opts[] = "c:i:l:aAnsSt:h";
 static const struct option long_opts[] = {
 	{"charset", required_argument, 0, 'c'},
@@ -103,32 +78,38 @@ static void print_help(const char *name)
 		name, name);
 }
 
-static char *make_charset(int flags, char *buf, size_t buflen)
+static char *make_charset(int flags, char *out, size_t outlen)
 {
+	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
+	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const char *number_set = "0123456789";
+	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}";
 	size_t len = 0;
 
 	if (flags & PWSET_LOWER)
-		len += lowercase_set.len;
+		len += strlen(lowercase_set);
 	if (flags & PWSET_UPPER)
-		len += uppercase_set.len;
+		len += strlen(uppercase_set);
 	if (flags & PWSET_NUMB)
-		len += number_set.len;
+		len += strlen(number_set);
 	if (flags & PWSET_SPEC)
-		len += special_set.len;
+		len += strlen(special_set);
 
-	if (len > buflen)
+	if (len > outlen)
 		return NULL;
-	memset(buf, 0, buflen);
+
+	memset(out, 0, outlen);
 
 	if (flags & PWSET_LOWER)
-		strncat(buf, lowercase_set.set, buflen - strlen(buf) - 1);
+		strcat(out, lowercase_set);
 	if (flags & PWSET_UPPER)
-		strncat(buf, uppercase_set.set, buflen - strlen(buf) - 1);
+		strcat(out, uppercase_set);
 	if (flags & PWSET_NUMB)
-		strncat(buf, number_set.set, buflen - strlen(buf) - 1);
+		strcat(out, number_set);
 	if (flags & PWSET_SPEC)
-		strncat(buf, special_set.set, buflen - strlen(buf) - 1);
-	return buf;
+		strcat(out, special_set);
+
+	return out;
 }
 
 static int launch_crack(void)
