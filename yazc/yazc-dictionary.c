@@ -23,6 +23,8 @@
 #include "yazc.h"
 #include "libzc.h"
 
+#define LINE_BUF_LEN 256
+
 static const char short_opts[] = "d:h";
 static const struct option long_opts[] = {
 	{"dictionary", required_argument, 0, 'd'},
@@ -45,7 +47,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 {
 	struct zc_ctx *ctx;
 	struct zc_crk_dict *crk;
-	char pw[ZC_PW_MAXLEN + 1];
+	char pw[LINE_BUF_LEN];
 	int err = -1;
 
 	if (zc_new(&ctx)) {
