@@ -708,7 +708,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 
 	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
-		err(crk->ctx, "failed to read validation data\n");
+		err(crk->ctx, "failed to read validation data, no usable entry found\n");
 		return -1;
 	}
 
