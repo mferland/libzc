@@ -1,4 +1,4 @@
-libzc.so.4 libzc4 #MINVER#
+libzc.so.6 libzc6 #MINVER#
  zc_crk_bforce_force_threads@Base 0.4.0
  zc_crk_bforce_init@Base 0.3.1
  zc_crk_bforce_new@Base 0.3.1

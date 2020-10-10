@@ -43,9 +43,9 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 #   increment age.
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
-LIBZC_CURRENT=5
+LIBZC_CURRENT=6
 LIBZC_REVISION=0
-LIBZC_AGE=1
+LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\

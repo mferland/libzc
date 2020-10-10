@@ -6,7 +6,7 @@
 
 D="debtest"
 PN="libzc"
-PV="0.4.2"
+PV="0.4.3"
 PF="${PN}-${PV}"
 PE="orig.tar.gz"
 A="${PN}_${PV}.${PE}"

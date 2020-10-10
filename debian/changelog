@@ -1,3 +1,9 @@
+libzc (0.4.3-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Marc Ferland <marc.ferland@gmail.com>  Fri, 9 Oct 2020 23:24:44 -0500
+
 libzc (0.4.2-1) unstable; urgency=low
 
   * New upstream release.
