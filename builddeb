@@ -2,7 +2,8 @@
 
 # Simple debian package build script
 # Debian package tracker: https://tracker.debian.org/pkg/libzc
-# Debian dependencies: devscripts check zlib1g-dev pkg-config autoconf gcc libtool git
+
+set -e
 
 D="debtest"
 PN="libzc"
@@ -11,22 +12,26 @@ PF="${PN}-${PV}"
 PE="orig.tar.gz"
 A="${PN}_${PV}.${PE}"
 
-rm -rf ${D}
-mkdir ${D}
+if [ -d ${D} ]; then
+    echo "${D} directory exists, cleaning up..."
+    rm -rf ${D} && mkdir ${D}
+else
+    mkdir ${D}
+fi
 
-git archive --format=tar.gz --prefix=${PF}/ HEAD > ${D}/${A}
+echo "Generating archive..."
+if ! git archive --format=tar.gz --prefix=${PF}/ HEAD > ${D}/${A}; then
+    echo >&2 "error generating archive"
+    exit 1
+fi
 
+echo "Expanding archive..."
 cd ${D}
 tar xvf ${A}
 cd ${PF}
+cp -ra ../../debian .
 
-echo "\n1. Create package:"
-echo On Ubuntu:
-echo "\tdebuild --lintian-opts --profile debian"
-echo On Debian:
-echo "\tdebuild\n"
-echo 2. Upload to mentors:
-echo "\tdput mentors ${PN}_${PV}-1_amd64.changes\n"
-echo 3. Send RFS mail to submit@bugs.debian.org
+echo "Creating debian package..."
+debuild
 
 exit 0

@@ -1,0 +1,10 @@
+# -us: Do not sign the source package.
+# -uc: Do not sign the .buildinfo and .changes files.
+# -sa: Forces the inclusion of the original source.
+# -rfakeroot: fake root environment
+DEBUILD_DPKG_BUILDPACKAGE_OPTS="-sa -rfakeroot"
+
+# -i: Print explanatory information about each problem discovered in addition to the lintian error tags.
+# -I: Display informational (I:) tags as well
+# --show-overrides: Output tags that have been overridden.
+DEBUILD_LINTIAN_OPTS="-i -I --show-overrides"
