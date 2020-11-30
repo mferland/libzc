@@ -1,6 +1,13 @@
 libzc (0.4.3-1) unstable; urgency=low
 
   * New upstream release.
+  * New Dockerfile to simplify debian releases.
+  * Removed zc_file_info_offset() function from API.
+  * Added two new functions to the API: zc_file_info_offset_begin() and
+    zc_file_info_offset_end().
+  * Added the possibility to specify the filenames instead of the
+    offsets in the plaintext cracker in yazc tool.
+  * Added the -S option to the plaintext cracker to print time stats.
 
  -- Marc Ferland <marc.ferland@gmail.com>  Fri, 9 Oct 2020 23:24:44 -0500
 
