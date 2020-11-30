@@ -9,7 +9,7 @@ libzc (0.4.3-1) unstable; urgency=low
     offsets in the plaintext cracker in yazc tool.
   * Added the -S option to the plaintext cracker to print time stats.
 
- -- Marc Ferland <marc.ferland@gmail.com>  Fri, 9 Oct 2020 23:24:44 -0500
+ -- Marc Ferland <marc.ferland@gmail.com>  Mon, 30 Nov 2020 16:50:44 -0500
 
 libzc (0.4.2-1) unstable; urgency=low
 
