@@ -34,4 +34,8 @@ cp -ra ../../debian .
 echo "Creating debian package..."
 debuild
 
+# Next:
+# - dput mentors ${PN}_${PV}-1_amd64.changes
+# - Send RFS mail to submit@bugs.debian.org
+
 exit 0
