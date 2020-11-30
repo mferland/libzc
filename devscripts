@@ -2,7 +2,7 @@
 # -uc: Do not sign the .buildinfo and .changes files.
 # -sa: Forces the inclusion of the original source.
 # -rfakeroot: fake root environment
-DEBUILD_DPKG_BUILDPACKAGE_OPTS="-sa -rfakeroot"
+DEBUILD_DPKG_BUILDPACKAGE_OPTS="-sa"
 
 # -i: Print explanatory information about each problem discovered in addition to the lintian error tags.
 # -I: Display informational (I:) tags as well
