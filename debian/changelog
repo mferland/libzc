@@ -5,18 +5,17 @@ libzc (0.4.3-1) unstable; urgency=low
   * Removed zc_file_info_offset() function from API.
   * Added two new functions to the API: zc_file_info_offset_begin() and
     zc_file_info_offset_end().
-  * ABI change libzc4 -> libzc6
   * Added the possibility to specify the filenames instead of the
     offsets in the plaintext cracker in yazc tool.
   * Added the -S option to the plaintext cracker to print time stats.
+  * Bump SONAME - NEW package libzc6.
+  * Rules-Requires-Root set to 'no' since libzc does not require
+    fakeroot to produce the deb files.
+  * Set Multi-Arch to 'same' for libzc-dev and libzc6 packages.
+  * Bump Standards-Versions to 4.5.0.
+  * Bump debhelper compat to 11.
 
  -- Marc Ferland <marc.ferland@gmail.com>  Mon, 30 Nov 2020 16:50:44 -0500
-
-libzc (0.4.2-1) unstable; urgency=low
-
-  * New upstream release.
-
- -- Marc Ferland <marc.ferland@gmail.com>  Thu, 20 Feb 2020 22:17:36 -0500
 
 libzc (0.4.1-1) unstable; urgency=low
 
