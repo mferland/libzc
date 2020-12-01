@@ -5,6 +5,7 @@ libzc (0.4.3-1) unstable; urgency=low
   * Removed zc_file_info_offset() function from API.
   * Added two new functions to the API: zc_file_info_offset_begin() and
     zc_file_info_offset_end().
+  * ABI change libzc4 -> libzc6
   * Added the possibility to specify the filenames instead of the
     offsets in the plaintext cracker in yazc tool.
   * Added the -S option to the plaintext cracker to print time stats.
