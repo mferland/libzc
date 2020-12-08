@@ -83,7 +83,7 @@ static char *make_charset(int flags, char *out, size_t outlen)
 	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
 	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	const char *number_set = "0123456789";
-	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}";
+	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@";
 	size_t len = 0;
 
 	if (flags & PWSET_LOWER)
