@@ -25,8 +25,6 @@
 
 #include "libzc.h"
 #include "crc32.h"
-#include "decrypt_byte.h"
-#include "config.h"
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
 zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
@@ -143,12 +141,6 @@ uint8_t decrypt_byte(uint32_t k)
 {
 	k |= 2;
 	return ((k * (k ^ 1)) >> 8) & 0xff;
-}
-
-static inline
-uint8_t decrypt_byte_lookup(uint32_t k)
-{
-	return decrypt_byte_tab[(k & 0xffff) >> 2];
 }
 
 uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);

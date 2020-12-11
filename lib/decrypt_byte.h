@@ -2072,4 +2072,10 @@ static const uint8_t decrypt_byte_tab[] = {
 	0x03, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00
 };
 
+static inline
+uint8_t decrypt_byte_lookup(uint32_t k)
+{
+	return decrypt_byte_tab[(k & 0xffff) >> 2];
+}
+
 #endif  /* _DECRYPT_BYTE_H_ */
