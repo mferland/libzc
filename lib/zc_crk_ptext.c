@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "libzc_private.h"
 #include "ptext_private.h"
 #include "qsort.h"
 

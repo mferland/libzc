@@ -22,6 +22,8 @@
 #include <assert.h>
 
 #include "ptext_private.h"
+#include "libzc_private.h"
+#include "crc32.h"
 #include "list.h"
 
 #define k2(index) w->key2_final[index]

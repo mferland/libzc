@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "ptext_private.h"
+#include "libzc_private.h"
 #include "crc32.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before

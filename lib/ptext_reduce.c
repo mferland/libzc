@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 
+#include "libzc_private.h"
 #include "ptext_private.h"
 
 #define KEY2_ARRAY_LEN (1 << 22)
