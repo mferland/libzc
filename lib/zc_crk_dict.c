@@ -49,7 +49,6 @@ static inline void remove_trailing_newline(char *line)
 		}
 		++line;
 	}
-	return;
 }
 
 ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
