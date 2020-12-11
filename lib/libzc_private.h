@@ -28,14 +28,9 @@
 #include "decrypt_byte.h"
 #include "config.h"
 
-#ifdef __GNUC__
-#  define UNUSED(x) UNUSED_ ## x __attribute__((__unused__))
-#else
-#  define UNUSED(x) UNUSED_ ## x
-#endif
-
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
-zc_log_null(struct zc_ctx *UNUSED(ctx), const char *UNUSED(format), ...) {}
+zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
+	    const char *format __attribute__((__unused__)), ...) {}
 
 #define zc_log_cond(ctx, prio, arg...)                                  \
    do {                                                                 \
