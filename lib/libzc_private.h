@@ -64,8 +64,6 @@ __attribute__((format(printf, 6, 7)));
 #define KEY2 0x34567890
 #define ENC_HEADER_LEN 12
 #define HEADER_MAX 5
-#define max(a, b) (( a > b) ? a : b)
-#define min(a, b) (( a > b) ? b : a)
 #define INFLATE_CHUNK 16384
 
 struct zc_header {
