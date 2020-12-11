@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <stdlib.h>
 
 #include "yazc.h"
 #include "libzc.h"

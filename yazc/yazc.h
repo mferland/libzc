@@ -19,7 +19,6 @@
 #ifndef _YAZC_H_
 #define _YAZC_H_
 
-#include <stdlib.h>
 #include <syslog.h>
 
 struct yazc_cmd {

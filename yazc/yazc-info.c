@@ -20,6 +20,7 @@
 #include <getopt.h>
 #include <libgen.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "yazc.h"
 #include "libzc.h"
