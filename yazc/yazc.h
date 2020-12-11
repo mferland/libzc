@@ -23,7 +23,6 @@
 #include <syslog.h>
 
 #include "config.h"
-#include "libzc.h"
 
 struct yazc_cmd {
 	const char *name;

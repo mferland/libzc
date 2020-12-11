@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdbool.h>
 
 #include "yazc.h"
 #include "config.h"
