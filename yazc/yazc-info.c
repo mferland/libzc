@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 #define MAX(a, b) (( a > b) ? a : b)
 

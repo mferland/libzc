@@ -31,8 +31,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 static const char short_opts[] = "t:oSh";
 static const struct option long_opts[] = {

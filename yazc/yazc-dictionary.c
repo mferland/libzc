@@ -21,8 +21,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 #define LINE_BUF_LEN 256
 

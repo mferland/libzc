@@ -25,8 +25,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 #define PW_LEN_DEFAULT 8
 
