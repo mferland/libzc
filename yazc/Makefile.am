@@ -16,10 +16,10 @@
 bin_PROGRAMS = yazc
 yazc_SOURCES = \
 	yazc.c \
-	yazc-bruteforce.c \
-	yazc-dictionary.c \
-	yazc-plaintext.c \
-	yazc-info.c \
+	bruteforce.c \
+	dictionary.c \
+	plaintext.c \
+	info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_srcdir)/lib
 yazc_LDADD = $(top_builddir)/lib/libzc.la
