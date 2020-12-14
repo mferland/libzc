@@ -16,15 +16,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "ptext_private.h"
-#include "libzc_private.h"
 #include "crc32.h"
+#include "libzc_private.h"
 #include "list.h"
+#include "ptext_private.h"
 
 #define k2(index) w->key2_final[index]
 #define k1(index) w->key1_final[index]

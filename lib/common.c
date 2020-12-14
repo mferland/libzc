@@ -18,8 +18,8 @@
 
 #include <unistd.h>
 
-#include "libzc_private.h"
 #include "decrypt_byte.h"
+#include "libzc_private.h"
 
 int fill_header(struct zc_ctx *ctx, const char *filename,
 		struct zc_header *h,

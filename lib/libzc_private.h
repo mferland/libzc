@@ -20,11 +20,11 @@
 #define _LIBZC_PRIVATE_H_
 
 #include <stdbool.h>
-#include <syslog.h>
 #include <stdint.h>
+#include <syslog.h>
 
-#include "libzc.h"
 #include "crc32.h"
+#include "libzc.h"
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
 zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),

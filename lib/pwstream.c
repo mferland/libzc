@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdbool.h>
 #include <math.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
-#include "pwstream.h"
 #include "libzc_private.h"
+#include "pwstream.h"
 
 static const struct entry null_entry = { -1, -1, -1};
 

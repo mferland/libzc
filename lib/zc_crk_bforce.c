@@ -17,16 +17,16 @@
  */
 
 #include <pthread.h>
+#include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <assert.h>
 
-#include "list.h"
 #include "libzc.h"
-#include "pwstream.h"
 #include "libzc_private.h"
+#include "list.h"
+#include "pwstream.h"
 
 /* The length here refers to the length of the 'candidate' field. */
 #define LEN 64UL
