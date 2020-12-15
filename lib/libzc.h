@@ -147,4 +147,4 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 } /* extern "C" */
 #endif
 
-#endif
+#endif	/* _LIBZC_H_ */

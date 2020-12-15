@@ -28,7 +28,8 @@
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
 zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
-	    const char *format __attribute__((__unused__)), ...) {}
+	    const char *format __attribute__((__unused__)),
+	    ...) {}
 
 #define zc_log_cond(ctx, prio, arg...)                                  \
    do {                                                                 \
@@ -53,9 +54,12 @@ zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 #define ZC_EXPORT __attribute__ ((visibility("default")))
 
 void zc_log(struct zc_ctx *ctx,
-	    int priority, const char *file, int line, const char *fn,
-	    const char *format, ...)
-__attribute__((format(printf, 6, 7)));
+	    int priority,
+	    const char *file,
+	    int line,
+	    const char *fn,
+	    const char *format,
+	    ...) __attribute__((format(printf, 6, 7)));
 
 #define MULT 134775813u
 #define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
@@ -141,7 +145,9 @@ uint8_t decrypt_byte(uint32_t k)
 	return ((k * (k ^ 1)) >> 8) & 0xff;
 }
 
-uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);
+uint8_t decrypt_header(const uint8_t *buf,
+		       struct zc_key *k,
+		       uint8_t magic);
 
 bool decrypt_headers(const struct zc_key *k,
 		     const struct zc_header *h,
@@ -149,32 +155,49 @@ bool decrypt_headers(const struct zc_key *k,
 
 long threads_to_create(long forced);
 
-int fill_header(struct zc_ctx *ctx, const char *filename,
+int fill_header(struct zc_ctx *ctx,
+		const char *filename,
 		struct zc_header *h,
 		size_t len);
-int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
-		     unsigned char **buf, size_t *len,
-		     uint32_t *original_crc, bool *is_deflated);
+
+int fill_test_cipher(struct zc_ctx *ctx,
+		     const char *filename,
+		     unsigned char **buf,
+		     size_t *len,
+		     uint32_t *original_crc,
+		     bool *is_deflated);
+
 size_t read_zc_header(struct zc_file *file,
 		      struct zc_header *h,
 		      size_t len);
-bool test_one_pw(const char *pw,
-		 const struct zc_header *h,
-		 size_t len);
-int read_crypt_data(struct zc_file *file, unsigned char **buf,
-		    size_t *len, uint32_t *original_crc, bool *is_deflated);
-void decrypt(const unsigned char *in, unsigned char *out,
-	     size_t len, const struct zc_key *key);
+
+int read_crypt_data(struct zc_file *file,
+		    unsigned char **buf,
+		    size_t *len,
+		    uint32_t *original_crc,
+		    bool *is_deflated);
+
+void decrypt(const unsigned char *in,
+	     unsigned char *out,
+	     size_t len,
+	     const struct zc_key *key);
 
 /* zlib stuff */
 struct zlib_state;
+
 int inflate_new(struct zlib_state **zlib);
+
 void inflate_destroy(struct zlib_state *zlib);
+
 int inflate_buffer(struct zlib_state *zlib,
-		   const unsigned char *in, size_t inlen,
-		   unsigned char *out, size_t outlen,
+		   const unsigned char *in,
+		   size_t inlen,
+		   unsigned char *out,
+		   size_t outlen,
 		   uint32_t original_crc);
-int test_buffer_crc(unsigned char *in, size_t inlen,
+
+int test_buffer_crc(unsigned char *in,
+		    size_t inlen,
 		    uint32_t original_crc);
 
-#endif
+#endif	/* _LIBZC_PRIVATE_H_ */
