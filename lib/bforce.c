@@ -799,8 +799,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	return NULL;
 }
 
-ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
-						      *crk)
+ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }
