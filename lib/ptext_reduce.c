@@ -33,8 +33,7 @@ static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bit
 static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i_frag_msb)
 {
 	uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_frag_msb];
-	tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
-	return tmp;
+	return (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
 }
 
 static size_t generate_all_key2i_with_bits_1_0(uint32_t *key2i,
