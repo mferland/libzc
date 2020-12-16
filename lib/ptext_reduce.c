@@ -30,9 +30,9 @@ static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bit
 			key2[i * 64 + j] = (i << 16) | key2_bits_15_2[j];
 }
 
-static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i)
+static uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i_frag_msb)
 {
-	uint32_t tmp = key2im1 ^ crc_32_invtab[msb(key2i)];
+	uint32_t tmp = key2im1 ^ crc_32_invtab[key2i_frag_msb];
 	tmp = (tmp >> 8) & 0x3;      /* keep only bit 9 and 8 */
 	return tmp;
 }
@@ -42,7 +42,8 @@ static size_t generate_all_key2i_with_bits_1_0(uint32_t *key2i,
 					       const uint16_t *key2im1_bits_15_2)
 
 {
-	const uint32_t key2im1_bits_31_10 = (key2i_frag << 8) ^ crc_32_invtab[key2i_frag >> 24];
+	const uint32_t key2i_frag_msb = msb(key2i_frag);
+	const uint32_t key2im1_bits_31_10 = (key2i_frag << 8) ^ crc_32_invtab[key2i_frag_msb];
 	const uint32_t key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
 	size_t total = 0;
 
@@ -55,7 +56,7 @@ static size_t generate_all_key2i_with_bits_1_0(uint32_t *key2i,
 			uint32_t key2im1;
 			key2im1 = key2im1_bits_31_10 & 0xfffffc00;
 			key2im1 |= key2im1_bits_15_2[j];
-			key2i[total++] = key2i_frag | bits_1_0_key2i(key2im1, key2i_frag);
+			key2i[total++] = key2i_frag | bits_1_0_key2i(key2im1, key2i_frag_msb);
 		}
 	}
 
