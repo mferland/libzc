@@ -371,8 +371,7 @@ static int do_plaintext(int argc, char *argv[])
 		goto error1;
 	}
 
-	zc_new(&ctx);
-	if (!ctx) {
+	if (zc_new(&ctx)) {
 		err("zc_new() failed!\n");
 		goto error2;
 	}
