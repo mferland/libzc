@@ -39,21 +39,14 @@ struct final {
 static void inplace_reverse(uint8_t *str, size_t len)
 {
 	uint8_t *end = str + len - 1;
-
-#define XOR_SWAP(a,b)				\
-	do					\
-	{					\
-		a ^= b;				\
-		b ^= a;				\
-		a ^= b;				\
-	} while (0)
-
+	uint8_t tmp;
 	while (str < end) {
-		XOR_SWAP(*str, *end);
+		tmp = *str;
+		*str = *end;
+		*end = tmp;
 		str++;
 		end--;
 	}
-#undef XOR_SWAP
 }
 
 /**
