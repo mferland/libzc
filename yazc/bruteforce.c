@@ -72,7 +72,7 @@ static void print_help(const char *name)
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
 		"\t-s, --special           use special characters\n"
-		"\t-t, --threads=NUM       spawn NUM threads\n"
+		"\t-t, --threads=N         force number of threads to N\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
 		name, name);
