@@ -46,7 +46,7 @@ Set the character set to CHARSET.
 Set the initial password to STRING.
 .TP
 .BR \-l ", " \-\-length=\fINUM\fR
-Set the maximum password length to LENGTH characters.
+Set the maximum password length to NUM characters.
 .TP
 .BR \-a ", " \-\-alpha
 Use characters [a-z].
@@ -58,11 +58,12 @@ Use characters [A-Z].
 Use characters [0-9].
 .TP
 .BR \-s ", " \-\-special
-Use special characters "!:$%&/()=?{[]}+-*~#@|;".
+Use special characters " !\(dq#$%&'()*+,-./:;<=>?`[~]^_{|}@".
 .TP
 .BR \-t ", " \-\-threads=\fINUM\fR
 Distribute load to NUM threads. For maximum performance, this should
-be set to the number of logical processors available.
+be set to the number of logical processors available. If not specified,
+the library will use the number of online CPUs.
 .TP
 .BR \-h ", " \-\-help
 Display help and exit.
