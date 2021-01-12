@@ -16,16 +16,13 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libgen.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
-
-#define PW_BUF_LEN 64
 
 struct zc_crk_dict {
 	struct zc_ctx *ctx;
@@ -52,7 +49,6 @@ static inline void remove_trailing_newline(char *line)
 		}
 		++line;
 	}
-	return;
 }
 
 ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
@@ -174,10 +170,16 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 				char *pw, size_t len)
 {
 	FILE *f;
-	char pwbuf[PW_BUF_LEN];
 	int err = 1;
 
-	if (len > PW_BUF_LEN || !crk->header_size)
+	/* The fgets function reads at most one less than the number
+	 * of characters specified by n from the stream pointed to by
+	 * stream into the array pointed to by s. No additional
+	 * characters are read after a new-line character (which is
+	 * retained) or after end-of-file. A null character is written
+	 * immediately after the last character read into the
+	 * array. */
+	if (len < 3 || !crk->header_size)
 		return -1;
 
 	if (dict) {
@@ -190,7 +192,7 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 		f = stdin;
 
 	while (1) {
-		char *s = fgets(pwbuf, PW_BUF_LEN, f);
+		char *s = fgets(pw, len, f);
 		if (!s) {
 			err = -1;
 			break;
@@ -200,8 +202,6 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 
 		if (test_password(crk, s)) {
 			err = 0;
-			memset(pw, 0, len);
-			strncpy(pw, s, len);
 			break;
 		}
 	}

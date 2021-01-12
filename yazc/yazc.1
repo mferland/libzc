@@ -84,19 +84,17 @@ bytes from any file in the archive. Generally, this means that you
 need to obtain at least 13 bytes of the \fBcompressed\fR stream before
 it was encrypted.
 .PP
-The \fIplaintext\fR command expects two file arguments along with the
-corresponding offsets separated by colons. The first file argument is
-the plaintext filename and offsets:
-.PP
-.RS
-PLAINTEXT:BEGIN:END
-.RE
-.PP
-The second file argument is the encrypted archive filename and offsets
-(this time including the offset of the first byte of the cipher):
-.PP
-.RS
-CIPHERTEXT:BEGIN:END:CIPHER_BEGIN
+The \fIplaintext\fR command can be used either with the raw byte
+offsets (\-o option) or by using the zip file entry name.
+.TP
+.BR \-o ", " \-\-offset
+Use raw byte offsets instead of entry names.
+.TP
+.BR \-t ", " \-\-threads=\fINUM\fR
+Distribute load to NUM threads.
+.TP
+.BR \-h ", " \-\-help
+Display help and exit.
 .RE
 .SH INFO
 The \fIinfo\fR command lists the filenames, offsets and the encryption
@@ -131,7 +129,7 @@ password will also be recovered and printed.
 .PP
 .nf
 .RS
-yazc plaintext plain.bin:100:650 archive.zip:112:662:64
+yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
 .RE
 .fi
 .SH AUTHOR

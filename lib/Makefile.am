@@ -43,8 +43,8 @@ AM_LDFLAGS = -lm ${ZLIB_LIBS}
 #   increment age.
 # - If any interfaces have been removed or changed since the last public
 #   release, then set age to 0. 
-LIBZC_CURRENT=4
-LIBZC_REVISION=1
+LIBZC_CURRENT=6
+LIBZC_REVISION=0
 LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
@@ -64,10 +64,10 @@ libzc_la_SOURCES =\
 	pwstream.c \
 	pwstream.h \
 	qsort.h \
-	zc_crk_bforce.c \
-	zc_crk_dict.c \
-	zc_crk_ptext.c \
-	zc_file.c
+	bforce.c \
+	dict.c \
+	ptext.c \
+	file.c
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

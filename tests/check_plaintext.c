@@ -52,6 +52,7 @@ START_TEST(test_zc_ptext_set_cipher_and_plaintext)
 }
 END_TEST
 
+#ifdef EXTRACHECK
 START_TEST(test_zc_crk_ptext_attack)
 {
 	struct zc_crk_ptext *ptext;
@@ -79,6 +80,7 @@ START_TEST(test_zc_crk_ptext_find_internal_rep)
 		    internal_rep.key2 == 0xc661eb70, NULL);
 }
 END_TEST
+#endif
 
 Suite *plaintext_suite()
 {

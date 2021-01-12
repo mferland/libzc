@@ -1,4 +1,5 @@
-libzc.so.4 libzc4 #MINVER#
+libzc.so.6 libzc6 #MINVER#
+* Build-Depends-Package: libzc-dev
  zc_crk_bforce_force_threads@Base 0.4.0
  zc_crk_bforce_init@Base 0.3.1
  zc_crk_bforce_new@Base 0.3.1
@@ -28,7 +29,8 @@ libzc.so.4 libzc4 #MINVER#
  zc_file_info_idx@Base 0.3.1
  zc_file_info_name@Base 0.3.1
  zc_file_info_next@Base 0.3.1
- zc_file_info_offset@Base 0.3.1
+ zc_file_info_offset_begin@Base 0.4.3
+ zc_file_info_offset_end@Base 0.4.3
  zc_file_info_compressed_size@Base 0.4.2
  zc_file_info_size@Base 0.3.1
  zc_file_isopened@Base 0.3.1

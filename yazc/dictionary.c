@@ -16,12 +16,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
+
+#define LINE_BUF_LEN 256
 
 static const char short_opts[] = "d:h";
 static const struct option long_opts[] = {
@@ -45,21 +48,21 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 {
 	struct zc_ctx *ctx;
 	struct zc_crk_dict *crk;
-	char pw[ZC_PW_MAXLEN + 1];
+	char pw[LINE_BUF_LEN];
 	int err = -1;
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return -1;
 	}
 
 	if (zc_crk_dict_new(ctx, &crk)) {
-		yazc_err("zc_crk_dict_new() failed!\n");
+		err("zc_crk_dict_new() failed!\n");
 		goto err1;
 	}
 
 	if (zc_crk_dict_init(crk, zip_filename)) {
-		yazc_err("zc_crk_dict_init() failed!\n");
+		err("zc_crk_dict_init() failed!\n");
 		goto err2;
 	}
 
@@ -69,7 +72,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		yazc_err("zc_crk_dict_start failed!\n");
+		err("zc_crk_dict_start failed!\n");
 
 err2:
 	zc_crk_dict_unref(crk);
@@ -100,13 +103,13 @@ static int do_dictionary(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 

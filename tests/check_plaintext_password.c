@@ -163,6 +163,7 @@ START_TEST(test_zc_crk_ptext_find_password_8)
 }
 END_TEST
 
+#ifdef EXTRACHECK
 START_TEST(test_zc_crk_ptext_find_password_9)
 {
 	char pw[14];
@@ -192,6 +193,7 @@ START_TEST(test_zc_crk_ptext_find_password_11)
 	ck_assert_str_eq(pw, "aaaaaaaaaaa");
 }
 END_TEST
+#endif
 
 START_TEST(test_zc_crk_ptext_find_password_pool)
 {

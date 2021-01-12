@@ -60,11 +60,11 @@ START_TEST(test_can_generate_first_gen_key2)
 }
 END_TEST
 
+#ifdef EXTRACHECK
 START_TEST(test_can_generate_next_array_from_plaintext)
 {
-	int32_t *key2_first_gen;
-	int32_t *key2_next_gen;
-	size_t key2_first_gen_size, total;
+	uint32_t *key2_first_gen, *key2_next_gen;
+	size_t key2_first_gen_size, total = 0;
 
 	uint8_t key3i = KEY3(TEST_PLAINTEXT_SIZE - 1);
 	uint8_t key3im1 = KEY3(TEST_PLAINTEXT_SIZE - 2);
@@ -77,7 +77,7 @@ START_TEST(test_can_generate_next_array_from_plaintext)
 
 	for (size_t i = 0; i < key2_first_gen_size; ++i)
 		total += key2r_compute_single(key2_first_gen[i],
-					      key2_next_gen,
+					      &key2_next_gen[total],
 					      get_bits_15_2(ptext->bits_15_2, key3im1),
 					      get_bits_15_2(ptext->bits_15_2, key3im2),
 					      KEY2_MASK_6BITS);
@@ -90,6 +90,7 @@ START_TEST(test_can_generate_next_array_from_plaintext)
 	free(key2_first_gen);
 }
 END_TEST
+#endif
 
 Suite *reduce_suite()
 {

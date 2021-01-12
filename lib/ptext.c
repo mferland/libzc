@@ -22,10 +22,11 @@
  * http://ca.wiley.com/WileyCDA/WileyTitle/productCd-047011486X.html
  */
 
-#include <string.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "libzc_private.h"
 #include "ptext_private.h"
 #include "qsort.h"
 

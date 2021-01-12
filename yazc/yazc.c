@@ -16,15 +16,16 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <libgen.h>
-#include <string.h>
 #include <getopt.h>
-#include <stdlib.h>
+#include <libgen.h>
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "yazc.h"
 #include "config.h"
+#include "yazc.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
@@ -45,7 +46,7 @@ static const struct yazc_cmd *yazc_cmds[] = {
 	&yazc_cmd_info,
 };
 
-static int help(int UNUSED(argc), char *argv[])
+static int help(int argc __attribute__((unused)), char *argv[])
 {
 	size_t i;
 
@@ -79,26 +80,20 @@ static void print_version()
 static const struct yazc_cmd yazc_cmd_help = {
 	.name = "help",
 	.cmd = help,
-	.help = "Show help message",
+	.help = "show help message",
 };
 
-void yazc_log(const char *UNUSED(file), int UNUSED(line), const char *fn,
-	      const char *format, ...)
+void yazc_log(int prio, const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	fprintf(stderr, "yazc: %s: ", fn);
-	vfprintf(stderr, format, args);
-	va_end(args);
-}
-
-void yazc_err(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	fprintf(stderr, "Error: ");
+	if (prio == LOG_DEBUG)
+		fprintf(stderr, "dbg: ");
+	if (prio == LOG_ERR)
+		fprintf(stderr, "error: ");
+	if (prio == LOG_INFO)
+		fprintf(stderr, "info: ");
 	vfprintf(stderr, format, args);
 	va_end(args);
 }
@@ -126,13 +121,13 @@ int main(int argc, char *argv[])
 		case '?':
 			return EXIT_FAILURE;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing command.\n");
+		err("missing command.\n");
 		goto fail;
 	}
 
@@ -146,7 +141,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!found) {
-		yazc_err("invalid command '%s'.\n", cmd);
+		err("invalid command '%s'.\n", cmd);
 		goto fail;
 	}
 

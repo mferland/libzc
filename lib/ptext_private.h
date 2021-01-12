@@ -23,7 +23,6 @@
 #include <stdint.h>
 
 #include "libzc.h"
-#include "libzc_private.h"
 
 #define KEY2_MASK_6BITS 0xfc00
 #define KEY2_MASK_8BITS 0xff00

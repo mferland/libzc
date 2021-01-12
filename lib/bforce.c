@@ -17,16 +17,16 @@
  */
 
 #include <pthread.h>
+#include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <assert.h>
 
-#include "list.h"
 #include "libzc.h"
-#include "pwstream.h"
 #include "libzc_private.h"
+#include "list.h"
+#include "pwstream.h"
 
 /* The length here refers to the length of the 'candidate' field. */
 #define LEN 64UL
@@ -96,7 +96,7 @@ struct worker {
 	struct zc_crk_bforce *crk;
 };
 
-static size_t unique(char *str, size_t len)
+static size_t uniq(char *str, size_t len)
 {
 	if (len <= 1)
 		return len;
@@ -118,7 +118,7 @@ static int compare_char(const void *a, const void *b)
 static size_t sanitize_set(char *set, size_t len)
 {
 	qsort(set, len, sizeof(char), compare_char);
-	size_t newlen = unique(set, len);
+	size_t newlen = uniq(set, len);
 	set[newlen] = '\0';
 	return newlen;
 }
@@ -708,7 +708,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 
 	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
-		err(crk->ctx, "failed to read validation data\n");
+		err(crk->ctx, "failed to read validation data, no usable entry found\n");
 		return -1;
 	}
 
@@ -799,8 +799,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	return NULL;
 }
 
-ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
-						      *crk)
+ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }

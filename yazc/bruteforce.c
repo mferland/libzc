@@ -16,17 +16,17 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
+#include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <errno.h>
 #include <sys/time.h>
+#include <unistd.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 #define PW_LEN_DEFAULT 8
 
@@ -39,31 +39,6 @@ static const char *filename;
 static struct zc_crk_pwcfg pwcfg;
 static long thread_count;
 static bool stats = false;
-
-struct charset {
-	const char *set;
-	int len;
-};
-
-static const struct charset lowercase_set = {
-	.set = "abcdefghijklmnopqrstuvwxyz",
-	.len = 26,
-};
-
-static const struct charset uppercase_set = {
-	.set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-	.len = 26
-};
-
-static const struct charset number_set = {
-	.set = "0123456789",
-	.len = 10
-};
-
-static const struct charset special_set = {
-	.set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}",
-	.len = 32
-};
 
 static const char short_opts[] = "c:i:l:aAnsSt:h";
 static const struct option long_opts[] = {
@@ -103,32 +78,38 @@ static void print_help(const char *name)
 		name, name);
 }
 
-static char *make_charset(int flags, char *buf, size_t buflen)
+static char *make_charset(int flags, char *out, size_t outlen)
 {
+	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
+	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	const char *number_set = "0123456789";
+	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@";
 	size_t len = 0;
 
 	if (flags & PWSET_LOWER)
-		len += lowercase_set.len;
+		len += strlen(lowercase_set);
 	if (flags & PWSET_UPPER)
-		len += uppercase_set.len;
+		len += strlen(uppercase_set);
 	if (flags & PWSET_NUMB)
-		len += number_set.len;
+		len += strlen(number_set);
 	if (flags & PWSET_SPEC)
-		len += special_set.len;
+		len += strlen(special_set);
 
-	if (len > buflen)
+	if (len > outlen)
 		return NULL;
-	memset(buf, 0, buflen);
+
+	memset(out, 0, outlen);
 
 	if (flags & PWSET_LOWER)
-		strncat(buf, lowercase_set.set, buflen - strlen(buf) - 1);
+		strcat(out, lowercase_set);
 	if (flags & PWSET_UPPER)
-		strncat(buf, uppercase_set.set, buflen - strlen(buf) - 1);
+		strcat(out, uppercase_set);
 	if (flags & PWSET_NUMB)
-		strncat(buf, number_set.set, buflen - strlen(buf) - 1);
+		strcat(out, number_set);
 	if (flags & PWSET_SPEC)
-		strncat(buf, special_set.set, buflen - strlen(buf) - 1);
-	return buf;
+		strcat(out, special_set);
+
+	return out;
 }
 
 static int launch_crack(void)
@@ -140,17 +121,17 @@ static int launch_crack(void)
 	int err = -1;
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return EXIT_FAILURE;
 	}
 
 	if (zc_crk_bforce_new(ctx, &crk)) {
-		yazc_err("zc_crk_bforce_new() failed!\n");
+		err("zc_crk_bforce_new() failed!\n");
 		goto err1;
 	}
 
 	if (zc_crk_bforce_init(crk, filename, &pwcfg)) {
-		yazc_err("zc_crk_bforce_init() failed!\n");
+		err("zc_crk_bforce_init() failed!\n");
 		goto err2;
 	}
 
@@ -179,7 +160,7 @@ static int launch_crack(void)
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		yazc_err("zc_crk_bforce_start failed!\n");
+		err("zc_crk_bforce_start failed!\n");
 
 err2:
 	zc_crk_bforce_unref(crk);
@@ -235,13 +216,13 @@ static int do_bruteforce(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -251,7 +232,7 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_maxlen) {
 		pwcfg.maxlen = atoi(arg_maxlen);
 		if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
-			yazc_err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
+			err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
 				 ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
@@ -262,7 +243,7 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_threads) {
 		thread_count = atol(arg_threads);
 		if (thread_count < 1) {
-			yazc_err("number of threads can't be less than one.\n");
+			err("number of threads can't be less than one.\n");
 			return EXIT_FAILURE;
 		}
 	} else
@@ -271,12 +252,12 @@ static int do_bruteforce(int argc, char *argv[])
 	/* character set */
 	if (!arg_set) {
 		if (!arg_charset_flag) {
-			yazc_err("no character set provided or specified.\n");
+			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
 		char *tmp = make_charset(arg_charset_flag, pwcfg.set, ZC_CHARSET_MAXLEN);
 		if (!tmp) {
-			yazc_err("generating character set failed.\n");
+			err("generating character set failed.\n");
 			return EXIT_FAILURE;
 		}
 	} else

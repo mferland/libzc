@@ -67,10 +67,19 @@ find the internal representation of the encryption key. Once the
 internal representation of the key has been found, we try to find the
 actual (or an equivalent) password.
 
-Example:
-Try to find archive.zip password by using plain.bin using 8 threads:
+Example 1:
+Try to find archive.zip password by using plaintext bytes from
+plain.bin (map bytes 100-650 of plain.bin to bytes 112-662 of
+archive.zip, first cipher byte is at offset 64):
 
-    yazc plaintext -t8 plain.bin:100:650 archive.zip:112:662:64
+    yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
+
+Example 2:
+Try to find the password by mapping the plaintext bytes of
+document.txt from plaintext.zip to the encrypted version found in
+encrypted.zip:
+
+    yazc plaintext plaintext.zip document.txt encrypted.zip document.txt
 
 TODO
 ----
@@ -78,4 +87,3 @@ TODO
 - Add basic mangling rules to dictionary attack.
 - Review library api, should be much simpler.
 - Optionally decrypt the archive (plaintext).
-- Provide a way to benchmark libzc.
