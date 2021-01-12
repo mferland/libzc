@@ -85,6 +85,7 @@ static void usage(const char *name)
 		"\n"
 		"Use plaintext bytes from the file1.bin entry in plain.zip and map them\n"
 		"to file2.bin from cipher.zip.\n"
+		"\n"
 		"Options:\n"
 		"\t-t, --threads=NUM       spawn NUM threads\n"
 		"\t-o, --offset            use offsets instead of entry names\n"
