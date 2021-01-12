@@ -168,7 +168,7 @@ static int parse_entry_opts(char *argv[])
 			    (long long)fd->txt_end,
 			    (long long)fd->file_begin);
 			break;
-		next:
+next:
 			dbg("skipping %s\n", zc_file_info_name(info));
 			info = zc_file_info_next(f, info);
 			continue;
@@ -187,17 +187,17 @@ static int parse_offset_opts(char *argv[])
 {
 	plain.name = argv[optind++];
 	if (parse_offset(argv[optind++], &plain.txt_begin))
-	    return -1;
+		return -1;
 	if (parse_offset(argv[optind++], &plain.txt_end))
-	    return -1;
+		return -1;
 
 	cipher.name = argv[optind++];
 	if (parse_offset(argv[optind++], &cipher.txt_begin))
-	    return -1;
+		return -1;
 	if (parse_offset(argv[optind++], &cipher.txt_end))
-	    return -1;
+		return -1;
 	if (parse_offset(argv[optind], &cipher.file_begin))
-	    return -1;
+		return -1;
 
 	dbg("plaintext: %s %lld %lld\n",
 	    plain.name,

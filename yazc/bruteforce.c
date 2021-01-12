@@ -232,8 +232,9 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_maxlen) {
 		pwcfg.maxlen = atoi(arg_maxlen);
 		if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
-			err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
-				 ZC_PW_MAXLEN);
+			err("maximum password length must be between %d and %d.\n",
+			    ZC_PW_MINLEN,
+			    ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else
