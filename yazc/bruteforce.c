@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
