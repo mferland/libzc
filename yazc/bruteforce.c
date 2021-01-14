@@ -240,12 +240,16 @@ static int do_bruteforce(int argc, char *argv[])
 	} else
 		pwcfg.maxlen = PW_LEN_DEFAULT;
 
-	/* number of concurrent threads */
+	/* number of threads */
 	if (arg_threads) {
-		thread_count = atol(arg_threads);
-		if (thread_count < 1) {
-			err("number of threads can't be less than one.\n");
-			return EXIT_FAILURE;
+		if (strcmp(arg_threads, "auto") == 0)
+			thread_count = -1; /* auto */
+		else {
+			thread_count = atol(arg_threads);
+			if (thread_count < 1) {
+				err("number of threads can't be less than one.\n");
+				return EXIT_FAILURE;
+			}
 		}
 	} else
 		thread_count = -1;	/* auto */

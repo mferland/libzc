@@ -61,9 +61,8 @@ Use characters [0-9].
 Use special characters " !\(dq#$%&'()*+,-./:;<=>?`[~]^_{|}@".
 .TP
 .BR \-t ", " \-\-threads=\fINUM\fR
-Distribute load to NUM threads. For maximum performance, this should
-be set to the number of logical processors available. If not specified,
-the library will use the number of online CPUs.
+Distribute load to NUM threads. If set to "auto" (default), yazc will
+automatically use the number of logical processors available.
 .TP
 .BR \-h ", " \-\-help
 Display help and exit.
