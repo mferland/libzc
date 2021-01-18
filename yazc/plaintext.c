@@ -34,16 +34,16 @@
 #include "libzc.h"
 #include "yazc.h"
 
-static const char short_opts[] = "t:oSh";
+static const char short_opts[] = "t:oiSh";
 static const struct option long_opts[] = {
 	{"threads", required_argument, 0, 't'},
 	{"offset", no_argument, 0, 'o'},
+	{"password-from-internal-rep", no_argument, 0, 'i'},
 	{"stats", no_argument, 0, 'S'},
 	{"help", no_argument, 0, 'h'},
 	{NULL, 0, 0, 0}
 };
 
-static struct zc_ctx *ctx;
 struct filed {
 	const char *name;           /* file name */
 	int fd;                     /* file descriptor */
@@ -59,6 +59,7 @@ static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
 static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
 static long thread_count;
 static bool stats = false;
+static struct zc_key internal_rep;
 
 static void usage(const char *name)
 {
@@ -66,37 +67,51 @@ static void usage(const char *name)
 		"Usage:\n"
 		"\t%s [options] PLAIN ENTRY CIPHER ENTRY\n"
 		"\t%s [options] -o PLAIN OFFSETS CIPHER OFFSETS BEGIN\n"
+		"\t%s [options] -i KEY0 KEY1 KEY2\n"
 		"\n"
 		"The plaintext subcommand uses a known vulnerability in the pkzip\n"
 		"stream cipher to find the internal representation of the encryption\n"
 		"key. To use this attack type you need at least 13 known plaintext\n"
-		"bytes from any file in the archive.\n"
+		"bytes from any file in the archive. Examples:\n"
 		"\n"
-		"Example 1:\n"
+		"Find the password by providing offsets from the cipher and plain text\n"
+		"files:\n"
+		"\n"
 		"\t %s -o plain.zip 100 650 cipher.zip 112 662 64\n"
 		"\n"
-		"Use plaintext bytes 100 to 650 and map them to ciphertext bytes\n"
-		"112 to 662. Use these bytes to reduce the number of keys and perform\n"
-		"the attack. Once the intermediate key is found, decrypt the rest of\n"
-		"the cipher (begins at offset 64) to get the internal representation.\n"
+		"Explanation: Use plaintext bytes 100 to 650 and map them to ciphertext\n"
+		"bytes 112 to 662. Use these bytes to reduce the number of keys and\n"
+		"perform the attack. Once the intermediate key is found, decrypt the\n"
+		"rest of the cipher (begins at offset 64) to get the internal\n"
+		"representation and the original password.\n"
 		"\n"
-		"Example 2:\n"
+		"Find the password by providing the name of the entries in two zip files:\n"
+		"\n"
 		"\t %s plain.zip file1.bin cipher.zip file2.bin\n"
 		"\n"
-		"Use plaintext bytes from the file1.bin entry in plain.zip and map them\n"
-		"to file2.bin from cipher.zip.\n"
+		"Explanation: Use plaintext bytes from the file1.bin entry in plain.zip\n"
+		"and map them to file2.bin from cipher.zip. Both entries must have the\n"
+		"exact same size.\n"
+		"\n"
+		"It is also possible to find the password if you already know the internal\n"
+		"representation (96 bits key that encrypted the archive):\n"
+		"\n"
+		"\t %s -i 0x12345678 0x23456789 0x34567890\n"
 		"\n"
 		"Options:\n"
-		"\t-t, --threads=NUM       spawn NUM threads\n"
-		"\t-o, --offset            use offsets instead of entry names\n"
-		"\t-S, --stats             print statistics\n"
-		"\t-h, --help              show this help\n",
-		name, name, name, name);
+		"\t-t, --threads=NUM                  spawn NUM threads\n"
+		"\t-o, --offset                       use offsets instead of entry names\n"
+		"\t-i, --password-from-internal-rep   find password from the internal\n"
+		"\t                                   representation\n"
+		"\t-S, --stats                        print statistics\n"
+		"\t-h, --help                         show this help\n",
+		name, name, name, name, name, name);
 }
 
 static int parse_offset(const char *tok, off_t *offset)
 {
 	char *endptr;
+	errno = 0;
 	long int val = strtol(tok, &endptr, 0);
 	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
 	    (errno != 0 && val == 0))
@@ -106,6 +121,20 @@ static int parse_offset(const char *tok, off_t *offset)
 	if (val < 0)
 		return -1;
 	*offset = val;
+	return 0;
+}
+
+static int parse_single_key(const char *tok, uint32_t *key)
+{
+	char *endptr;
+	errno = 0;
+	unsigned long int val = strtoul(tok, &endptr, 0);
+	if ((errno == ERANGE && val == ULONG_MAX) ||
+	    (errno != 0 && val == 0))
+		return -1;
+	if (endptr == tok)
+		return -1;
+	*key = (uint32_t)val;
 	return 0;
 }
 
@@ -212,6 +241,23 @@ static int parse_offset_opts(char *argv[])
 	return 0;
 }
 
+static int parse_internal_rep(char *argv[])
+{
+	if (parse_single_key(argv[optind++], &internal_rep.key0))
+		return -1;
+	if (parse_single_key(argv[optind++], &internal_rep.key1))
+		return -1;
+	if (parse_single_key(argv[optind++], &internal_rep.key2))
+		return -1;
+
+	dbg("internal rep: 0x%x 0x%x 0x%x\n",
+	    internal_rep.key0,
+	    internal_rep.key1,
+	    internal_rep.key2);
+
+	return 0;
+}
+
 static bool validate_offsets()
 {
 	if (plain.txt_begin >= plain.txt_end ||
@@ -292,10 +338,75 @@ static int unmap_text_buf(struct filed *file)
 	return 0;
 }
 
+static void print_original_password(const char *pw, size_t len)
+{
+	for (size_t i = 0; i < len; ++i) {
+		if (isprint(pw[i]))
+			printf("%c ", pw[i]);
+		else
+			printf("0x%x ", pw[i]);
+	}
+	printf("\n");
+}
+
+static void print_runtime_stats(const struct timeval *begin,
+				const struct timeval *end)
+{
+	printf("Runtime: %f secs.\n", (double)(end->tv_usec - begin->tv_usec) / 1000000 +
+	       (double)(end->tv_sec - begin->tv_sec));
+}
+
+static int find_password_from_internal_rep(void)
+{
+	struct zc_ctx *ctx;
+	struct zc_crk_ptext *ptext;
+	struct timeval begin, end;
+	int len, ret = EXIT_FAILURE;
+
+	if (zc_new(&ctx)) {
+		err("zc_new() failed!\n");
+		return ret;
+	}
+
+	if (zc_crk_ptext_new(ctx, &ptext) < 0) {
+		err("zc_crk_ptext_new() failed!\n");
+		goto err1;
+	}
+
+	printf("Recovering original password...");
+	fflush(stdout);
+
+	gettimeofday(&begin, NULL);
+
+	char pw[14];
+	len = zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw));
+	if (len < 0) {
+		err(" failed!\n");
+		goto err2;
+	}
+
+	gettimeofday(&end, NULL);
+
+	printf("\nOriginal password: ");
+	print_original_password(pw, len);
+
+	if (stats)
+		print_runtime_stats(&begin, &end);
+
+	ret = EXIT_FAILURE;
+err2:
+	zc_crk_ptext_unref(ptext);
+err1:
+	zc_unref(ctx);
+	return ret;
+}
+
 static int do_plaintext(int argc, char *argv[])
 {
 	const char *arg_threads = NULL;
 	bool arg_use_offsets = false;
+	bool arg_from_internal_rep = false;
+	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
 	struct timeval begin, end;
 	int err = 0;
@@ -314,6 +425,9 @@ static int do_plaintext(int argc, char *argv[])
 			break;
 		case 'S':
 			stats = true;
+			break;
+		case 'i':
+			arg_from_internal_rep = true;
 			break;
 		case 'h':
 			usage(basename(argv[0]));
@@ -341,7 +455,25 @@ static int do_plaintext(int argc, char *argv[])
 	} else
 		thread_count = -1;	/* auto */
 
-	if (arg_use_offsets) {
+	if (arg_from_internal_rep && arg_use_offsets) {
+		err("the offset and password-from-internal-rep "
+		    "options are mutually exclusive.\n");
+		return EXIT_FAILURE;
+	}
+
+	if (arg_from_internal_rep) {
+		/* find the password from the internal representation
+		 * provided by the user */
+		if (argc - optind < 3)
+			goto missing;
+
+		if (parse_internal_rep(argv) < 0) {
+			err("error parsing interal representation.\n");
+			return EXIT_FAILURE;
+		}
+
+		return find_password_from_internal_rep();
+	} else if (arg_use_offsets) {
 		/* parse raw offsets */
 		if (argc - optind < 7)
 			goto missing;
@@ -449,17 +581,10 @@ static int do_plaintext(int argc, char *argv[])
 	gettimeofday(&end, NULL);
 
 	printf("\nOriginal password: ");
-	for (int i = 0; i < err; ++i) {
-		if (isprint(pw[i]))
-			printf("%c ", pw[i]);
-		else
-			printf("0x%x ", pw[i]);
-	}
-	printf("\n");
+	print_original_password(pw, err);
 
 	if (stats)
-		printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
-		       (double)(end.tv_sec - begin.tv_sec));
+		print_runtime_stats(&begin, &end);
 
 	err = EXIT_SUCCESS;
 

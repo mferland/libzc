@@ -90,6 +90,9 @@ offsets (\-o option) or by using the zip file entry name.
 .BR \-o ", " \-\-offset
 Use raw byte offsets instead of entry names.
 .TP
+.BR \-i ", " \-\-password-from-internal-rep
+Find the password from the provided internal representation.
+.TP
 .BR \-t ", " \-\-threads=\fINUM\fR
 Distribute load to NUM threads.
 .TP
@@ -130,6 +133,14 @@ password will also be recovered and printed.
 .nf
 .RS
 yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
+.RE
+.fi
+.PP
+Find the password using the provided internal representation:
+.PP
+.nf
+.RS
+yazc plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
 .RE
 .fi
 .SH AUTHOR
