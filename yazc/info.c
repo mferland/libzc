@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,13 +16,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
 #include <getopt.h>
 #include <libgen.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "yazc.h"
 #include "libzc.h"
+#include "yazc.h"
 
 #define MAX(a, b) (( a > b) ? a : b)
 
@@ -58,40 +59,41 @@ static int do_info(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			yazc_err("unexpected getopt_long() value '%c'.\n", c);
+			err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		yazc_err("missing filename.\n");
+		err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 
 	filename = argv[optind];
 
 	if (zc_new(&ctx)) {
-		yazc_err("zc_new() failed!\n");
+		err("zc_new() failed!\n");
 		return EXIT_FAILURE;
 	}
 
 	if (zc_file_new_from_filename(ctx, filename, &file)) {
-		yazc_err("zc_file_new_from_filename() failed!\n");
+		err("zc_file_new_from_filename() failed!\n");
 		err = EXIT_FAILURE;
 		goto err1;
 	}
 
 	if (zc_file_open(file)) {
-		yazc_err("zc_file_open() failed!\n");
+		err("zc_file_open() failed!\n");
 		err = EXIT_FAILURE;
 		goto err2;
 	}
 
 	size_t fn_max_len = 0,
-	       crypt_max_len = 0,
-	       offset_begin_max_len = 0,
-	       offset_end_max_len = 0,
-	       size_max_len = 0;
+		crypt_max_len = 0,
+		offset_begin_max_len = 0,
+		offset_end_max_len = 0,
+		size_max_len = 0,
+		csize_max_len = 0;
 	info = zc_file_info_next(file, NULL);
 	while (info) {
 		char buf[256];
@@ -107,13 +109,13 @@ static int do_info(int argc, char *argv[])
 			crypt_max_len = tmp1;
 		/* offset begin */
 		snprintf(buf, sizeof(buf), "%li",
-			 zc_file_info_offset(info));
+			 zc_file_info_offset_begin(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_begin_max_len)
 			offset_begin_max_len = tmp1;
 		/* offset end */
 		snprintf(buf, sizeof(buf), "%li",
-			 zc_file_info_offset(info) + zc_file_info_size(info));
+			 zc_file_info_offset_end(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_end_max_len)
 			offset_end_max_len = tmp1;
@@ -123,11 +125,17 @@ static int do_info(int argc, char *argv[])
 		tmp1 = strlen(buf);
 		if (tmp1 > size_max_len)
 			size_max_len = tmp1;
+		/* compressed size */
+		snprintf(buf, sizeof(buf), "%u",
+			 zc_file_info_compressed_size(info));
+		tmp1 = strlen(buf);
+		if (tmp1 > csize_max_len)
+			csize_max_len = tmp1;
 
 		info = zc_file_info_next(file, info);
 	}
 
-	printf("%-5s %*s %*s %*s %-24s\n",
+	printf("%-5s %*s %*s %*s %*s %-24s\n",
 	       "INDEX",
 	       (int)(-MAX(fn_max_len, 8)),
 	       "NAME",
@@ -137,23 +145,27 @@ static int do_info(int argc, char *argv[])
 	       "OFFSETS",
 	       (int)(-size_max_len),
 	       "SIZE",
+	       (int)(-csize_max_len),
+	       "CSIZE",
 	       "ENCRYPTED HEADER");
 
 	info = zc_file_info_next(file, NULL);
 	while (info) {
 		const uint8_t *ehdr = zc_file_info_enc_header(info);
-		printf("%5d %*s %*li %*li %*li %*u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		printf("%5d %*s %*li %*li %*li %*u %*u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 		       zc_file_info_idx(info),
 		       (int)(-MAX(fn_max_len, 8)),
 		       zc_file_info_name(info),
 		       (int)(-crypt_max_len),
 		       zc_file_info_crypt_header_offset(info),
 		       (int)(-offset_begin_max_len),
-		       zc_file_info_offset(info),
+		       zc_file_info_offset_begin(info),
 		       (int)(-offset_end_max_len),
-		       zc_file_info_offset(info) + zc_file_info_size(info),
-		       (int)(-size_max_len),
+		       zc_file_info_offset_end(info),
+		       (int)(-MAX(size_max_len, 4)),
 		       zc_file_info_size(info),
+		       (int)(-MAX(csize_max_len, 5)),
+		       zc_file_info_compressed_size(info),
 		       ehdr[0], ehdr[1], ehdr[2], ehdr[3], ehdr[4], ehdr[5],
 		       ehdr[6], ehdr[7], ehdr[8], ehdr[9], ehdr[10], ehdr[11]);
 		info = zc_file_info_next(file, info);

@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -257,6 +257,7 @@ START_TEST(test_bruteforce_pay)
 }
 END_TEST
 
+#ifdef EXTRACHECK
 START_TEST(test_bruteforce_pthread_create_fail)
 {
 	struct zc_crk_pwcfg cfg;
@@ -275,6 +276,7 @@ START_TEST(test_bruteforce_pthread_create_fail)
 	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
 }
 END_TEST
+#endif
 
 Suite *bforce_suite(void)
 {

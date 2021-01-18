@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -18,8 +18,9 @@
 
 #include <string.h>
 
-#include "ptext_private.h"
 #include "crc32.h"
+#include "libzc_private.h"
+#include "ptext_private.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
                                  * 0x12345678, found by exhaustive
@@ -27,33 +28,25 @@
 #define PASS_MAX_LEN 13
 
 struct final {
-	const uint8_t (*lsbk0_lookup)[2];
-	const uint32_t *lsbk0_count;
-	char pw[PASS_MAX_LEN];
-	struct zc_key k[PASS_MAX_LEN +
-					     1];  /* 14 --> store the internal rep at index 0 */
+	const uint8_t (*lsbk0_lookup)[4];
+	const uint8_t *lsbk0_count;
+	uint8_t pw[PASS_MAX_LEN];
+	struct zc_key k[PASS_MAX_LEN + 1];  /* 14 --> store the internal rep at index 0 */
 	struct zc_key saved;
 	int len_under_test;
 };
 
-static void inplace_reverse(char *str, size_t len)
+static void inplace_reverse(uint8_t *str, size_t len)
 {
-	char *end = str + len - 1;
-
-#define XOR_SWAP(a,b)				\
-	do					\
-	{					\
-		a ^= b;				\
-		b ^= a;				\
-		a ^= b;				\
-	} while (0)
-
+	uint8_t *end = str + len - 1;
+	uint8_t tmp;
 	while (str < end) {
-		XOR_SWAP(*str, *end);
+		tmp = *str;
+		*str = *end;
+		*end = tmp;
 		str++;
 		end--;
 	}
-#undef XOR_SWAP
 }
 
 /**
@@ -88,25 +81,22 @@ static uint8_t recover_input_byte_from_crcs(uint32_t km1, uint32_t k)
  * From 'pw', calculate the internal representation of the key and
  * compare it with 'k'.
  */
-static int compare_pw_with_key(const char *pw, size_t len,
+static int compare_pw_with_key(const uint8_t *pw, size_t len,
 			       const struct zc_key *k)
 {
 	struct zc_key tmp;
 
-	set_default_encryption_keys(&tmp);
-
-	for (size_t i = 0; i < len; ++i)
-		update_keys(pw[i], &tmp, &tmp);
+	update_default_keys_from_array(&tmp, pw, len);
 
 	return (k->key0 == tmp.key0 &&
 		k->key1 == tmp.key1 &&
 		k->key2 == tmp.key2) ? 0 : -1;
 }
 
-static int compare_revpw_with_key(const char *pw, size_t len,
+static int compare_revpw_with_key(const uint8_t *pw, size_t len,
 				  const struct zc_key *k)
 {
-	char revpw[PASS_MAX_LEN];
+	uint8_t revpw[PASS_MAX_LEN];
 
 	for (int i = len - 1, j = 0; i >= 0; --i, ++j)
 		revpw[j] = pw[i];
@@ -157,8 +147,8 @@ static int try_key_1_4(struct final *f)
  * key0 = 0x12345678 key1 = 0x23456789 key2 = 0x34567890
  */
 static bool recover_key1_key0lsb(struct zc_key *k,
-				 const uint8_t (*lsbk0_lookup)[2],
-				 const uint32_t *lsbk0_count,
+				 const uint8_t (*lsbk0_lookup)[4],
+				 const uint8_t *lsbk0_count,
 				 uint32_t level)
 {
 	if (level == 0)
@@ -171,15 +161,13 @@ static bool recover_key1_key0lsb(struct zc_key *k,
 	uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
 	uint8_t diff = msb(rhs_step2 - mask_msb(key1m2));
 
-	for (uint32_t c = 2; c != 0; --c, --diff) {
-		for (uint32_t i = 0; i < lsbk0_count[diff]; ++i) {
-			uint32_t lsbkey0i = lsbk0_lookup[diff][i];
-			if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
-				(k + 1)->key1 = rhs_step1 - lsbkey0i;
-				k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
-				if (recover_key1_key0lsb(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
-					return true;
-			}
+	for (uint32_t i = 0; i < lsbk0_count[diff]; ++i) {
+		uint32_t lsbkey0i = lsbk0_lookup[diff][i];
+		if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(key1m1)) {
+			(k + 1)->key1 = rhs_step1 - lsbkey0i;
+			k->key0 = (k->key0 & 0xffffff00) | lsbkey0i; /* set LSB */
+			if (recover_key1_key0lsb(k + 1, lsbk0_lookup, lsbk0_count, level - 1))
+				return true;
 		}
 	}
 	return false;
@@ -244,8 +232,8 @@ static void key_56_step2(struct zc_key *k, int start)
 	k[4].key2 = crc32inv(k[3].key2, 0x0);
 
 	/* recover key2_-4 (8 bits msb) */
-	k[5].key2 = crc32inv(k[4].key2,
-			     0x0); /* TODO: k[5] is already known if key is only 5 chars */
+	/* TODO: k[5] is already known if key is only 5 chars */
+	k[5].key2 = crc32inv(k[4].key2, 0x0);
 
 	/* recover full key1 values */
 	for (int i = start; i >= 2; --i) {
@@ -296,7 +284,7 @@ static int try_key_5_6(struct final *f)
 	return -1;
 }
 
-static void recover_prev_key(const struct zc_key *k, char c,
+static void recover_prev_key(const struct zc_key *k, uint8_t c,
 			     struct zc_key *prev)
 {
 	prev->key2 = crc32inv(k->key2, msb(k->key1));
@@ -305,7 +293,7 @@ static void recover_prev_key(const struct zc_key *k, char c,
 }
 
 static int recurse_key_7_13(struct final *f, size_t level,
-			    struct zc_key current, char *pw)
+			    struct zc_key current, uint8_t *pw)
 {
 	/*
 	 * Try all the possible values at position key_0, key_-1, up to
@@ -373,8 +361,8 @@ static int try_key_7_13(struct final *f)
 	return -1;
 }
 
-static int find_password(const uint8_t (*lsbk0_lookup)[2],
-			 const uint32_t *lsbk0_count,
+static int find_password(const uint8_t (*lsbk0_lookup)[4],
+			 const uint8_t *lsbk0_count,
 			 const struct zc_key *int_rep,
 			 char *out,
 			 size_t len)

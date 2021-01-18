@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,12 +16,14 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "libzc_private.h"
-#include "decrypt_byte.h"
+#include <unistd.h>
 
-int fill_vdata(struct zc_ctx *ctx, const char *filename,
-	       struct validation_data *vdata,
-	       size_t nmemb)
+#include "decrypt_byte.h"
+#include "libzc_private.h"
+
+int fill_header(struct zc_ctx *ctx, const char *filename,
+		struct zc_header *h,
+		size_t len)
 {
 	struct zc_file *file;
 	int err;
@@ -36,7 +38,7 @@ int fill_vdata(struct zc_ctx *ctx, const char *filename,
 		return -1;
 	}
 
-	int size = read_validation_data(file, vdata, nmemb);
+	int size = read_zc_header(file, h, len);
 
 	zc_file_close(file);
 	zc_file_unref(file);
@@ -77,9 +79,43 @@ void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 	struct zc_key k = *key;
 
 	for (size_t i = 0; i < len - 1; ++i) {
-		out[i] = in[i] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+		out[i] = in[i] ^ decrypt_byte_lookup(k.key2);
 		update_keys(out[i], &k, &k);
 	}
 
-	out[len - 1] = in[len - 1] ^ decrypt_byte_tab[(k.key2 & 0xffff) >> 2];
+	out[len - 1] = in[len - 1] ^ decrypt_byte_lookup(k.key2);
+}
+
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
+{
+	for (size_t i = 0; i < ENC_HEADER_LEN - 1; ++i) {
+		uint8_t c = buf[i] ^ decrypt_byte_lookup(k->key2);
+		update_keys(c, k, k);
+	}
+
+	/* Returns the last byte of the decrypted header */
+	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
+}
+
+bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t len)
+{
+	struct zc_key tmp;
+
+	for (size_t i = 0; i < len; ++i) {
+		reset_encryption_keys(k, &tmp);
+		if (decrypt_header(h[i].buf, &tmp, h[i].magic))
+			return false;
+	}
+
+	return true;
+}
+
+long threads_to_create(long forced)
+{
+	if (forced > 0)
+		return forced;
+	long n = sysconf(_SC_NPROCESSORS_ONLN);
+	if (n < 1)
+		return 1;
+	return n;
 }

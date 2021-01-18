@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -64,7 +64,9 @@ struct zc_info;
 struct zc_info *zc_file_info_next(struct zc_file *, struct zc_info *info);
 const char *zc_file_info_name(const struct zc_info *info);
 uint32_t zc_file_info_size(const struct zc_info *info);
-long zc_file_info_offset(const struct zc_info *info);
+uint32_t zc_file_info_compressed_size(const struct zc_info *info);
+long zc_file_info_offset_begin(const struct zc_info *info);
+long zc_file_info_offset_end(const struct zc_info *info);
 long zc_file_info_crypt_header_offset(const struct zc_info *info);
 const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
 int zc_file_info_idx(const struct zc_info *info);
@@ -145,4 +147,4 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 } /* extern "C" */
 #endif
 
-#endif
+#endif	/* _LIBZC_H_ */

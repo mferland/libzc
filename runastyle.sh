@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ OPTIONS="\
 --style=linux \
 --pad-oper \
 --indent=force-tab=8 \
---max-code-length=80 \
+--max-code-length=90 \
 -k3 \
 -W3 \
 -m0 \

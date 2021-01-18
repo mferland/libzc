@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdlib.h>
-#include <stdbool.h>
 #include <math.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
-#include "pwstream.h"
 #include "libzc_private.h"
+#include "pwstream.h"
 
 static const struct entry null_entry = { -1, -1, -1};
 

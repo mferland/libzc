@@ -1,0 +1,5 @@
+build: ## Build the container
+	sudo docker build -t libzcdebian .
+
+run: ## Run container
+	sudo -E docker run -it -v ${HOME}/.gnupg:/home/dev/.gnupg --mount type=bind,source="$(PWD)",target=/home/dev/libzc libzcdebian

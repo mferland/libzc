@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -79,11 +79,11 @@ END_TEST
 
 /*
  * data/test.zip:
- * INDEX NAME              OFFSETS        SIZE ENCRYPTED HEADER
- *     0 lib/test_crk.c    72   84   4742 4658 f00e35670cf88aa5e98ae477
- *     1 lib/test_file.c   1386 1398 5862 4464 b73dc9d1b67312692d069a33
- *     2 lib/test_pwgen.c  2686 2698 9577 6879 dbe99c24b7b0836471782106
- *     3 lib/test_pwdict.c 4163 4175 7340 3165 616f68a1e82c05651dc989e8
+ * INDEX NAME              OFFSETS        SIZE CSIZE ENCRYPTED HEADER
+ *     0 lib/test_crk.c    72   84   1297 4658 1225  f00e35670cf88aa5e98ae477
+ *     1 lib/test_file.c   1386 1398 2596 4464 1210  b73dc9d1b67312692d069a33
+ *     2 lib/test_pwgen.c  2686 2698 4072 6879 1386  dbe99c24b7b0836471782106
+ *     3 lib/test_pwdict.c 4163 4175 5192 3165 1029  616f68a1e82c05651dc989e8
  */
 START_TEST(test_zc_file_info_encrypted)
 {
@@ -94,6 +94,7 @@ START_TEST(test_zc_file_info_encrypted)
 		{0x61, 0x6f, 0x68, 0xa1, 0xe8, 0x2c, 0x05, 0x65, 0x1d, 0xc9, 0x89, 0xe8}
 	};
 	const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
+	const uint32_t info_csize[4] = {1225, 1210, 1386, 1029};
 	const long info_offset[4] = {84, 1398, 2698, 4175};
 	const long info_crypt[4] = {72, 1386, 2686, 4163};
 	const char *info_filename[4] = {"lib/test_crk.c",
@@ -112,7 +113,8 @@ START_TEST(test_zc_file_info_encrypted)
 	do {
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
-		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
+		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);
@@ -130,14 +132,15 @@ END_TEST
 
 /*
  * data/test_non_encrypted.zip:
- * INDEX NAME              OFFSETS        SIZE ENCRYPTED HEADER
- *     0 config.h    -1 66   2964  2898  000000000000000000000000
- *     1 config.h.in -1 1075 3722  2647  000000000000000000000000
- *     2 config.log  -1 1997 32999 31002 000000000000000000000000
+ * INDEX NAME        OFFSETS       SIZE  CSIZE ENCRYPTED HEADER
+ *     0 config.h    -1 66   1006  2898  940   000000000000000000000000
+ *     1 config.h.in -1 1075 1929  2647  854   000000000000000000000000
+ *     2 config.log  -1 1997 10537 31002 8540  000000000000000000000000
  */
 START_TEST(test_zc_file_info_non_encrypted)
 {
 	const uint32_t info_size[3] = {2898, 2647, 31002};
+	const uint32_t info_csize[3] = {940, 854, 8540};
 	const long info_offset[3] = {66, 1075, 1997};
 	const char *info_filename[3] = {"config.h",
 					"config.h.in",
@@ -154,7 +157,8 @@ START_TEST(test_zc_file_info_non_encrypted)
 	do {
 		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
-		ck_assert(zc_file_info_offset(info) == info_offset[i]);
+		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
+		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);

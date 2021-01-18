@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,13 +16,15 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <stdlib.h>
+#include <assert.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include "ptext_private.h"
+#include "crc32.h"
+#include "libzc_private.h"
 #include "list.h"
+#include "ptext_private.h"
 
 #define k2(index) w->key2_final[index]
 #define k1(index) w->key1_final[index]
@@ -36,9 +38,9 @@ struct worker {
 	uint32_t key0_final[13];
 	const uint8_t *plaintext;         /* points to ptext->plaintext */
 	const uint8_t *ciphertext;        /* points to ptext->ciphertext */
-	const uint8_t (*lsbk0_lookup)[2]; /* points to ptext->lsbk0_lookup */
-	const uint32_t *lsbk0_count;      /* points to ptext->lsbk0_count */
-	const struct key2r *k2r;          /* points to ptext->k2r */
+	const uint8_t (*lsbk0_lookup)[4]; /* points to ptext->lsbk0_lookup */
+	const uint8_t *lsbk0_count;       /* points to ptext->lsbk0_count */
+	const uint16_t *bits_15_2;        /* points to ptext->k2r */
 	struct zc_key inter_rep;
 	pthread_t id;
 	pthread_mutex_t *mutex;
@@ -46,8 +48,40 @@ struct worker {
 	struct zc_crk_ptext *ptext;
 	int worker_err_status;
 	int pthread_create_err;
+	uint32_t key2[12][64];
+	size_t key2_size[12];
 	struct list_head workers;
 };
+
+static void key2_uniq(struct worker *w, size_t i)
+{
+	uniq(w->key2[i], &w->key2_size[i]);
+}
+
+static void key2_reset(struct worker *w, size_t i)
+{
+	w->key2_size[i] = 0;
+}
+
+static uint32_t *key2_get_arr(struct worker *w, size_t i)
+{
+	return w->key2[i];
+}
+
+static uint32_t key2_get_key(struct worker *w, size_t i, size_t j)
+{
+	return w->key2[i][j];
+}
+
+static void key2_set_size(struct worker *w, size_t i, size_t size)
+{
+	w->key2_size[i] = size;
+}
+
+static size_t key2_get_size(struct worker *w, size_t i)
+{
+	return w->key2_size[i];
+}
 
 static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext,
 					     struct zc_key *k)
@@ -138,14 +172,41 @@ static void recurse_key1(struct worker *w, uint32_t current_idx)
 	uint32_t rhs_step2 = (rhs_step1 - 1) * MULTINV;
 	uint8_t diff = msb(rhs_step2 - (mask_msb(k1(current_idx - 2))));
 
-	for (uint32_t c = 2; c != 0; --c, --diff) {
-		for (uint32_t i = 0; i < w->lsbk0_count[diff]; ++i) {
-			uint32_t lsbkey0i = w->lsbk0_lookup[diff][i];
-			if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1))) {
-				w->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
-				w->key0_final[current_idx] = lsbkey0i;
-				recurse_key1(w, current_idx - 1);
-			}
+	/*
+	 * The difference between rhs_step2 and k1(current_idx - 2)
+	 * (which has a valid msb) is a multiple (between 0 and 255,
+	 * the value of lsb(key0)) of MULTINV.
+	 *
+	 * Use the lookup table with the difference of MSBs to find
+	 * the actual multiple (the value of lsb(key0)). Also note
+	 * that the difference between the MSBs has two possible
+	 * values. For example:
+	 *
+	 * key1i: 0xa067359a
+	 * rhs_step1: 0x69095385
+	 * rhs_step2: 0xe50280b4
+	 * diff: 0x12
+	 * mask_msb(k1(current_idx - 2)): 0xd2000000
+	 *
+	 * 0xe50280b4 - 0xd2000000 = 0x130280b4 --> msb --> 0x13 (lsb0: 0xc6)
+	 * 0xe50280b4 - 0xd2ffffff = 0x120280B5 --> msb --> 0x12 (lsb0: 0x1a, 0x70)
+	 *
+	 * LSBs to test: 0xc6, 0x1a, 0x70
+	 *
+	 * rhs_step1 - 0xc6 = 0x690952bf
+	 * rhs_step1 - 0x1a = 0x6909536b
+	 * rhs_step1 - 0x70 = 0x69095315
+	 *
+	 * 0x69095315 + 0x70 = (0xa067359a - 1) * 3645876429u
+	 *
+	 */
+
+	for (uint8_t i = 0; i < w->lsbk0_count[diff]; ++i) {
+		uint32_t lsbkey0i = w->lsbk0_lookup[diff][i];
+		if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1))) {
+			w->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
+			w->key0_final[current_idx] = lsbkey0i;
+			recurse_key1(w, current_idx - 1);
 		}
 	}
 }
@@ -170,8 +231,7 @@ static uint32_t compute_key1_msb(struct worker *w, uint32_t current_idx)
 	return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key2(struct worker *w, struct ka **array,
-			uint32_t current_idx)
+static int recurse_key2(struct worker *w, uint32_t current_idx)
 {
 	uint8_t key3im1;
 	uint8_t key3im2;
@@ -185,47 +245,26 @@ static int recurse_key2(struct worker *w, struct ka **array,
 	key3im2 = generate_key3(w, current_idx - 2);
 
 	/* empty array before appending new keys */
-	ka_empty(array[current_idx - 1]);
+	key2_reset(w, current_idx - 1);
 
-	if (key2r_compute_single(k2(current_idx),
-				 array[current_idx - 1],
-				 key2r_get_bits_15_2(w->k2r, key3im1),
-				 key2r_get_bits_15_2(w->k2r, key3im2),
-				 KEY2_MASK_8BITS))
-		return -1;
+	size_t s = key2r_compute_single(k2(current_idx),
+					key2_get_arr(w, current_idx - 1),
+					get_bits_15_2(w->bits_15_2, key3im1),
+					get_bits_15_2(w->bits_15_2, key3im2),
+					KEY2_MASK_8BITS);
+	key2_set_size(w, current_idx - 1, s);
 
-	ka_uniq(array[current_idx - 1]);
+	assert(s <= 64);
 
-	for (uint32_t i = 0; i < array[current_idx - 1]->size; ++i) {
-		w->key2_final[current_idx - 1] = ka_at(array[current_idx - 1], i);
+	key2_uniq(w, current_idx - 1);
+
+	for (size_t i = 0; i < key2_get_size(w, current_idx - 1); ++i) {
+		w->key2_final[current_idx - 1] = key2_get_key(w, current_idx - 1, i);
 		w->key1_final[current_idx] = compute_key1_msb(w, current_idx) << 24;
-		if (recurse_key2(w, array, current_idx - 1))
+		if (recurse_key2(w, current_idx - 1))
 			return -1;
 	}
 
-	return 0;
-}
-
-static void ptext_final_deinit(struct ka **key2)
-{
-	for (uint32_t i = 0; i < 12; ++i) {
-		if (key2[i]) {
-			ka_free(key2[i]);
-			key2[i] = NULL;
-		}
-	}
-}
-
-static int ptext_final_init(struct ka **key2)
-{
-	memset(key2, 0, sizeof(struct ka *));
-	for (uint32_t i = 0; i < 12; ++i) {
-		/* 64: probably too much but will work everytime */
-		if (ka_alloc(&key2[i], 64)) {
-			ptext_final_deinit(key2);
-			return -1;
-		}
-	}
 	return 0;
 }
 
@@ -233,7 +272,7 @@ static int get_next_index(struct worker *w, size_t *i)
 {
 	pthread_mutex_lock(w->mutex);
 	if (w->ptext->found ||
-	    *w->next == w->ptext->key2->size) {
+	    *w->next == w->ptext->key2_size) {
 		pthread_mutex_unlock(w->mutex);
 		return -1;
 	}
@@ -244,24 +283,19 @@ static int get_next_index(struct worker *w, size_t *i)
 
 static void *worker(void *p)
 {
-	struct ka *array[12];
 	struct worker *w = (struct worker *)p;
-
-	if (ptext_final_init(array))
-		return NULL;
 
 	while (1) {
 		size_t next;
 		if (get_next_index(w, &next))
 			break;              /* nothing more to do */
-		w->key2_final[12] = w->ptext->key2->array[next];
-		if (recurse_key2(w, array, 12)) {
+		w->key2_final[12] = w->ptext->key2[next];
+		if (recurse_key2(w, 12)) {
 			w->worker_err_status = -1;
 			break;
 		}
 	}
 
-	ptext_final_deinit(array);
 	return NULL;
 }
 
@@ -292,7 +326,7 @@ static int alloc_workers(struct zc_crk_ptext *ptext,
 		w->ciphertext = ptext->ciphertext;
 		w->lsbk0_lookup = ptext->lsbk0_lookup;
 		w->lsbk0_count = ptext->lsbk0_count;
-		w->k2r = ptext->k2r;
+		w->bits_15_2 = ptext->bits_15_2;
 		w->mutex = mutex;
 		w->next = next;
 		w->ptext = ptext;
@@ -308,16 +342,6 @@ ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
 	ptext->force_threads = w;
 }
 
-static long threads_to_create(const struct zc_crk_ptext *ptext)
-{
-	if (ptext->force_threads > 0)
-		return ptext->force_threads;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}
-
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 				  struct zc_key *out_key)
 {
@@ -331,7 +355,8 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 
 	INIT_LIST_HEAD(&head);
 
-	err = alloc_workers(ptext, &head, &mutex, &next, threads_to_create(ptext));
+	err = alloc_workers(ptext, &head, &mutex, &next,
+			    threads_to_create(ptext->force_threads));
 	if (err)
 		goto end;
 

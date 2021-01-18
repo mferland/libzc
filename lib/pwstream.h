@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -25,13 +25,24 @@ struct entry {
 };
 
 int pwstream_new(struct pwstream **pws);
+
 void pwstream_free(struct pwstream *pws);
-int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
-		      size_t streams, const size_t *initial);
-const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
+
+int pwstream_generate(struct pwstream *pws,
+		      size_t pool_len,
+		      size_t pw_len,
+		      size_t streams,
+		      const size_t *initial);
+
+const struct entry *pwstream_get_entry(struct pwstream *pws,
+				       size_t stream,
 				       size_t pos);
+
 size_t pwstream_get_pwlen(const struct pwstream *pws);
+
 size_t pwstream_get_stream_count(const struct pwstream *pws);
-bool pwstream_is_empty(struct pwstream *pws, unsigned int stream);
+
+bool pwstream_is_empty(struct pwstream *pws,
+		       unsigned int stream);
 
 #endif  /* _PWSTREAM_H_ */

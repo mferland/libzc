@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
 bin_PROGRAMS = yazc
 yazc_SOURCES = \
 	yazc.c \
-	yazc-bruteforce.c \
-	yazc-dictionary.c \
-	yazc-plaintext.c \
-	yazc-info.c \
+	bruteforce.c \
+	dictionary.c \
+	plaintext.c \
+	info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_srcdir)/lib
 yazc_LDADD = $(top_builddir)/lib/libzc.la

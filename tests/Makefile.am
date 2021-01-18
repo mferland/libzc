@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ check_PROGRAMS = basic \
 	plaintext_password \
 	plaintext
 
-AM_CPPFLAGS = -DDATADIR='"$(top_srcdir)/data/"' @CPPFLAGS@
+AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(top_srcdir)/data/"' @CPPFLAGS@
 
 # basic functions test
 basic_SOURCES = check_basic.c
@@ -54,9 +54,7 @@ pwstream_LDADD = $(top_builddir)/lib/pwstream.lo @CHECK_LIBS@ -lm
 # reduce related functions
 reduce_SOURCES = check_reduce.c
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-reduce_LDADD = $(top_builddir)/lib/ptext_reduce.lo \
-	$(top_builddir)/lib/ka.lo \
-	@CHECK_LIBS@
+reduce_LDADD = $(top_builddir)/lib/ptext.lo $(top_builddir)/lib/libzc.lo @CHECK_LIBS@
 
 # plaintext password functions
 plaintext_password_SOURCES = check_plaintext_password.c

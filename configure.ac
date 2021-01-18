@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 AC_PREREQ(2.60)
 AC_INIT([zc],
-        [0.4.1],
+        [0.4.3],
         [marc.ferland@gmail.com],
         [libzc],
         [http://github.com/mferland/libzc])

@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -2071,5 +2071,11 @@ static const uint8_t decrypt_byte_tab[] = {
 	0x0e, 0x0c, 0x0b, 0x09, 0x08, 0x06, 0x05, 0x04,
 	0x03, 0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00
 };
+
+static inline
+uint8_t decrypt_byte_lookup(uint32_t k)
+{
+	return decrypt_byte_tab[(k & 0xffff) >> 2];
+}
 
 #endif  /* _DECRYPT_BYTE_H_ */

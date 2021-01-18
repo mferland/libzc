@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,23 +16,20 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <libgen.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
-
-#define PW_BUF_LEN 64
 
 struct zc_crk_dict {
 	struct zc_ctx *ctx;
 	int refcount;
 	char *filename;
-	struct validation_data vdata[VDATA_MAX];
-	size_t vdata_size;
+	struct zc_header header[HEADER_MAX];
+	size_t header_size;
 	unsigned char *cipher;
 	unsigned char *plaintext;
 	unsigned char *inflate;
@@ -52,7 +49,6 @@ static inline void remove_trailing_newline(char *line)
 		}
 		++line;
 	}
-	return;
 }
 
 ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
@@ -105,13 +101,13 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 		return -1;
 	}
 
-	err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err(crk->ctx, "failed to read validation data\n");
 		return -1;
 	}
 
-	crk->vdata_size = err;
+	crk->header_size = err;
 
 	err = fill_test_cipher(crk->ctx,
 			       filename,
@@ -146,23 +142,12 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 static bool test_password(struct zc_crk_dict *crk, const char *pw)
 {
-	struct zc_key key, base;
-	size_t i = 0;
+	struct zc_key base;
 
-	set_default_encryption_keys(&base);
+	update_default_keys_from_array(&base, (uint8_t *)pw, strlen(pw));
 
-	while(pw[i] != '\0') {
-		update_keys(pw[i], &base, &base);
-		++i;
-	}
-
-	for (i = 0; i < crk->vdata_size; ++i) {
-		reset_encryption_keys(&base, &key);
-		if (decrypt_header(crk->vdata[i].encryption_header,
-				   &key,
-				   crk->vdata[i].magic))
-			return false;
-	}
+	if (!decrypt_headers(&base, crk->header, crk->header_size))
+		return false;
 
 	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
 	int err;
@@ -185,10 +170,16 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 				char *pw, size_t len)
 {
 	FILE *f;
-	char pwbuf[PW_BUF_LEN];
 	int err = 1;
 
-	if (len > PW_BUF_LEN || !crk->vdata_size)
+	/* The fgets function reads at most one less than the number
+	 * of characters specified by n from the stream pointed to by
+	 * stream into the array pointed to by s. No additional
+	 * characters are read after a new-line character (which is
+	 * retained) or after end-of-file. A null character is written
+	 * immediately after the last character read into the
+	 * array. */
+	if (len < 3 || !crk->header_size)
 		return -1;
 
 	if (dict) {
@@ -201,7 +192,7 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 		f = stdin;
 
 	while (1) {
-		char *s = fgets(pwbuf, PW_BUF_LEN, f);
+		char *s = fgets(pw, len, f);
 		if (!s) {
 			err = -1;
 			break;
@@ -211,8 +202,6 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 
 		if (test_password(crk, s)) {
 			err = 0;
-			memset(pw, 0, len);
-			strncpy(pw, s, len);
 			break;
 		}
 	}

@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,20 +17,19 @@
  */
 
 #include <pthread.h>
+#include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <assert.h>
 
-#include "list.h"
 #include "libzc.h"
-#include "pwstream.h"
 #include "libzc_private.h"
+#include "list.h"
+#include "pwstream.h"
 
 /* The length here refers to the length of the 'candidate' field. */
-#define LEN 64
+#define LEN 64UL
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
@@ -38,8 +37,8 @@ struct zc_crk_bforce {
 	int refcount;
 
 	/* validation data */
-	struct validation_data vdata[VDATA_MAX];
-	size_t vdata_size;
+	struct zc_header header[HEADER_MAX];
+	size_t header_size;
 	unsigned char *cipher;
 	size_t cipher_size;
 	bool cipher_is_deflated;
@@ -75,8 +74,7 @@ struct zc_crk_bforce {
 };
 
 struct worker {
-	struct list_head workers;
-	struct list_head cleanup;
+	struct list_head list;
 	pthread_t thread_id;
 	size_t id;
 	char pw[ZC_PW_MAXLEN + 1];
@@ -98,7 +96,7 @@ struct worker {
 	struct zc_crk_bforce *crk;
 };
 
-static size_t unique(char *str, size_t len)
+static size_t uniq(char *str, size_t len)
 {
 	if (len <= 1)
 		return len;
@@ -114,13 +112,13 @@ static size_t unique(char *str, size_t len)
 
 static int compare_char(const void *a, const void *b)
 {
-	return (*(const char *)a - * (const char *)b);
+	return (*(const char *)a - *(const char *)b);
 }
 
 static size_t sanitize_set(char *set, size_t len)
 {
 	qsort(set, len, sizeof(char), compare_char);
-	size_t newlen = unique(set, len);
+	size_t newlen = uniq(set, len);
 	set[newlen] = '\0';
 	return newlen;
 }
@@ -159,13 +157,7 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 static bool try_decrypt(const struct zc_crk_bforce *crk,
 			const struct zc_key *base)
 {
-	struct zc_key key;
-	for (size_t i = 0; i < crk->vdata_size; ++i) {
-		reset_encryption_keys(base, &key);
-		if (decrypt_header(crk->vdata[i].encryption_header, &key, crk->vdata[i].magic))
-			return false;
-	}
-	return true;
+	return decrypt_headers(base, crk->header, crk->header_size);
 }
 
 static void do_work_recurse(struct worker *w, size_t level,
@@ -210,49 +202,49 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk, struct hash *h
 	h->candidate = 0;
 
 	/* first pass */
-	for (int i = 0; i < 11; ++i) {
-		uint8_t header = crk->vdata[0].encryption_header[i];
+	for (size_t i = 0; i < 11; ++i) {
+		uint8_t b = crk->header[0].buf[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
-			check[j] = header ^ decrypt_byte(k2[j]) ^ k0[j];
+		for (size_t j = 0; j < LEN; ++j)
+			check[j] = b ^ decrypt_byte(k2[j]) ^ k0[j];
 
 		/* update key0 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
 		/* update key1 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
 		/* update key2 -- loop is in two parts */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j) {
+		for (size_t j = 0; j < LEN; ++j) {
 			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
 			crcshr8[j] = k2[j] >> 8;
 		}
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (int j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < LEN; ++j)
 			k2[j] = crc_32_tab[crcindex[j]] ^ crcshr8[j];
 	}
 
-	for (int j = 0; j < LEN; ++j)
+	for (size_t j = 0; j < LEN; ++j)
 		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
-	for (int j = 0; j < LEN; ++j)
-		h->candidate |= check[j] ? 0 : (uint64_t)1 << j;
+	for (size_t j = 0; j < LEN; ++j)
+		h->candidate |= (uint64_t)(check[j] == 0) << j;
 
 	return h->candidate;
 }
@@ -271,14 +263,14 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 
 	do {
 		int ctz = __builtin_ctzll(h->candidate);
-		h->candidate &= ~((uint64_t)1 << ctz);
+		h->candidate &= h->candidate - 1;
 		size_t j = 1;
-		for (; j < crk->vdata_size; ++j) {
+		for (; j < crk->header_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->vdata[j].encryption_header, &key, crk->vdata[j].magic))
+			if (decrypt_header(crk->header[j].buf, &key, crk->header[j].magic))
 				break;
 		}
-		if (j == crk->vdata_size) {
+		if (j == crk->header_size) {
 			RESET();
 			if (test_password(w, &key))
 				return ctz;
@@ -434,8 +426,7 @@ static void worker_cleanup_handler(void *p)
 {
 	struct worker *w = (struct worker *)p;
 	pthread_mutex_lock(&w->crk->mutex);
-	list_del(&w->workers);
-	list_add(&w->cleanup, &w->crk->cleanup_head);
+	list_move(&w->list, &w->crk->cleanup_head);
 	pthread_cond_signal(&w->crk->cond);
 	pthread_mutex_unlock(&w->crk->mutex);
 }
@@ -443,8 +434,8 @@ static void worker_cleanup_handler(void *p)
 static void dealloc_workers(struct zc_crk_bforce *crk)
 {
 	struct worker *w, *wtmp;
-	list_for_each_entry_safe(w, wtmp,  &crk->workers_head, workers) {
-		list_del(&w->workers);
+	list_for_each_entry_safe(w, wtmp,  &crk->workers_head, list) {
+		list_del(&w->list);
 		free(w->inflate);
 		free(w->plaintext);
 		inflate_destroy(w->zlib);
@@ -484,7 +475,7 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
 			dealloc_workers(crk);
 			return -1;
 		}
-		list_add(&w->workers, &crk->workers_head);
+		list_add(&w->list, &crk->workers_head);
 	}
 
 	return 0;
@@ -539,7 +530,7 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 	size_t created = 0;
 
 	pthread_mutex_lock(&crk->mutex);
-	list_for_each_entry(w, &crk->workers_head, workers) {
+	list_for_each_entry(w, &crk->workers_head, list) {
 		if (pthread_create(&w->thread_id, NULL, worker, w)) {
 			perror("pthread_create failed");
 			pthread_mutex_unlock(&crk->mutex);
@@ -561,10 +552,9 @@ static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 static void cancel_workers(struct zc_crk_bforce *crk)
 {
 	struct worker *w;
-	int err;
 
-	list_for_each_entry(w, &crk->workers_head, workers) {
-		err = pthread_cancel(w->thread_id);
+	list_for_each_entry(w, &crk->workers_head, list) {
+		int err = pthread_cancel(w->thread_id);
 		if (err)
 			perror("pthread_cancel failed");
 		assert(err == 0);
@@ -581,9 +571,9 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 		pthread_mutex_lock(&crk->mutex);
 		while (list_empty(&crk->cleanup_head))
 			pthread_cond_wait(&crk->cond, &crk->mutex);
-		struct worker *w, *tempw;
-		list_for_each_entry_safe(w, tempw, &crk->cleanup_head, cleanup) {
-			list_del(&w->cleanup);
+		struct worker *w, *tmp;
+		list_for_each_entry_safe(w, tmp, &crk->cleanup_head, list) {
+			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
 			if (w->found) {
 				memset(pw, 0, len);
@@ -716,14 +706,14 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 		return -1;
 	}
 
-	err = fill_vdata(crk->ctx, filename, crk->vdata, VDATA_MAX);
+	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
-		err(crk->ctx, "failed to read validation data\n");
+		err(crk->ctx, "failed to read validation data, no usable entry found\n");
 		return -1;
 	}
 
-	crk->vdata_size = err;
-	crk->pre_magic_xor_header = crk->vdata[0].magic ^ crk->vdata[0].encryption_header[11];
+	crk->header_size = err;
+	crk->pre_magic_xor_header = crk->header[0].magic ^ crk->header[0].buf[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);
@@ -809,8 +799,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	return NULL;
 }
 
-ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
-						      *crk)
+ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }
@@ -818,16 +807,6 @@ ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce
 ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 {
 	bforce->force_threads = w;
-}
-
-static long threads_to_create(const struct zc_crk_bforce *crk)
-{
-	if (crk->force_threads > 0)
-		return crk->force_threads;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
 }
 
 ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
@@ -838,7 +817,7 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 	if (!len)
 		return -1;
 
-	w = threads_to_create(crk);
+	w = threads_to_create(crk->force_threads);
 
 	if (alloc_pwstreams(crk, w)) {
 		err(crk->ctx, "failed to allocate password streams\n");

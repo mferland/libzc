@@ -13,8 +13,16 @@ What is it?
 The libzc library is a simple zip cracking library. It also comes with
 a command line tool called 'yazc' (Yet Another Zip Cracker).
 
+Dependencies
+============
+
+The following packages are required (following example is for Ubuntu):
+
+    sudo apt install -y autoconf libtool zlib1g-dev pkg-config
+
 How to install it?
 ==================
+
 Just clone, configure, compile and install.
 
     git clone https://github.com/mferland/libzc.git
@@ -59,15 +67,52 @@ find the internal representation of the encryption key. Once the
 internal representation of the key has been found, we try to find the
 actual (or an equivalent) password.
 
-Example:
-Try to find archive.zip password by using plain.bin using 8 threads:
+Example 1:
+Try to find archive.zip password by using plaintext bytes from
+plain.bin (map bytes 100-650 of plain.bin to bytes 112-662 of
+archive.zip, first cipher byte is at offset 64):
 
-    yazc plaintext -t8 plain.bin:100:650 archive.zip:112:662:64
+    yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
 
-TODO
+Example 2:
+Try to find the password by mapping the plaintext bytes of
+document.txt from plaintext.zip to the encrypted version found in
+encrypted.zip:
+
+    yazc plaintext plaintext.zip document.txt encrypted.zip document.txt
+
+Info
 ----
-- Support for GPU bruteforce cracking.
-- Add basic mangling rules to dictionary attack.
-- Review library api, should be much simpler.
-- Optionally decrypt the archive (plaintext).
-- Provide a way to benchmark libzc.
+The `info` sub-command lists the content of the zip file. It can help
+you get the needed information needed for the plaintext or other
+attack modes. Example:
+
+    yazc info data/noradi.zip
+
+Result:
+
+    INDEX NAME      OFFSETS     SIZE CSIZE ENCRYPTED HEADER
+        0 TEXT1.TXT 39  51  155 110  116   875dee36d843e98819faae48
+        1 TEXT2.TXT 194 206 302 99   108   4fa3648cd55cdbdc071bfae1
+        2 TEXT3.TXT 341 353 439 88   98    0d9507f1cd95d217c8cadb11
+
+- The first column (INDEX) is the index of the file in the archive.
+- The second column (NAME) is the name of the file taken from the zip
+  header.
+- The third column (OFFSETS) are some interesting indexes for the
+  plaintext attack (when using the offset '-o' option). The first
+  number is the index of the first byte of the encrypted header, the
+  second number is the first byte of the compressed file and the third
+  number is the index of the last byte of the compressed file.
+- The fourth column (SIZE) is the original file size in bytes.
+- The fifth column (CSIZE) is the compressed file size _including_ the
+  encrypted header (always 12 bytes).
+- The sixth column (ENCRYPTED HEADER) is the encrypted header.
+
+License
+=======
+Distributed under the GPLv3+ license. See `COPYING` for more information.
+
+Contact
+=======
+Marc Ferland - marc.ferland@gmail.com

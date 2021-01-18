@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,10 +16,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "libzc.h"
 #include "libzc_private.h"
@@ -56,8 +56,10 @@ void zc_log(struct zc_ctx *ctx,
 	va_end(args);
 }
 
-static void log_stderr(struct zc_ctx *UNUSED(ctx),
-		       int UNUSED(priority), const char *UNUSED(file), int UNUSED(line),
+static void log_stderr(struct zc_ctx *ctx __attribute__((__unused__)),
+		       int priority __attribute__((__unused__)),
+		       const char *file __attribute__((__unused__)),
+		       int line __attribute__((__unused__)),
 		       const char *fn,
 		       const char *format, va_list args)
 {
