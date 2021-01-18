@@ -69,8 +69,9 @@ static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
 	 *
 	 * See Biham & Kocher section 3.3
 	 */
+	uint8_t nextmsb = (msb + 1) % 0xff;
 	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
-	p->lsbk0_lookup[msb + 1][p->lsbk0_count[msb + 1]++] = mul;
+	p->lsbk0_lookup[nextmsb][p->lsbk0_count[nextmsb]++] = mul;
 }
 
 static void generate_key0_lsb(struct zc_crk_ptext *ptext)
