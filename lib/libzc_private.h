@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <syslog.h>
 
+#include "config.h"
 #include "crc32.h"
 #include "libzc.h"
 

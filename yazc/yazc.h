@@ -21,6 +21,8 @@
 
 #include <syslog.h>
 
+#include "config.h"
+
 struct yazc_cmd {
 	const char *name;
 	int (*cmd)(int argc, char *argv[]);
