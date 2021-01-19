@@ -90,7 +90,13 @@ check_output
 $CMD plaintext --help
 check_output
 
-$CMD plaintext data/archive_ptext.zip:64:1808 data/archivec.zip:76:1820:64
+$CMD plaintext -o data/archive_ptext.zip 64 1808 data/archivec.zip 76 1820 64
+check_output
+
+$CMD plaintext data/archive_ptext.zip cv.tex data/archivec.zip cv.tex
+check_output
+
+$CMD plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
 check_output
 
 exit 0
