@@ -98,13 +98,13 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 	crk->inflate = malloc(INFLATE_CHUNK);
 	if (!crk->inflate) {
 		err(crk->ctx, "failed to allocate memory\n");
-		return -1;
+		goto err1;
 	}
 
 	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err(crk->ctx, "failed to read validation data\n");
-		return -1;
+		goto err2;
 	}
 
 	crk->header_size = err;
@@ -117,27 +117,31 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 			       &crk->cipher_is_deflated);
 	if (err) {
 		err(crk->ctx, "failed to read cipher data\n");
-		return -1;
+		goto err2;
 	}
 
 	crk->plaintext = malloc(crk->cipher_size);
 	if (!crk->plaintext) {
-		free(crk->inflate);
-		free(crk->cipher);
-		return -1;
+		goto err3;
 	}
 
 	crk->filename = strdup(filename);
 
-	if (inflate_new(&crk->zlib) < 0) {
-		free(crk->inflate);
-		free(crk->cipher);
-		free(crk->plaintext);
-		free(crk->filename);
-		return -1;
-	}
+	if (inflate_new(&crk->zlib) < 0)
+		goto err4;
 
 	return 0;
+err4:
+	free(crk->filename);
+	crk->filename = NULL;
+err3:
+	free(crk->cipher);
+	crk->cipher = NULL;
+err2:
+	free(crk->inflate);
+	crk->inflate = NULL;
+err1:
+	return -1;
 }
 
 static bool test_password(struct zc_crk_dict *crk, const char *pw)
