@@ -70,7 +70,8 @@ ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 	free(crk->cipher);
 	free(crk->plaintext);
 	free(crk->inflate);
-	inflate_destroy(crk->zlib);
+	if (crk->zlib)
+		inflate_destroy(crk->zlib);
 	free(crk);
 	return NULL;
 }
