@@ -97,7 +97,7 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->inflate = malloc(INFLATE_CHUNK);
 	if (!crk->inflate) {
-		err(crk->ctx, "failed to allocate memory\n");
+		err(crk->ctx, "malloc() failed: %s\n", strerror(errno));
 		goto err1;
 	}
 
