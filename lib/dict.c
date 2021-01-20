@@ -121,9 +121,8 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 	}
 
 	crk->plaintext = malloc(crk->cipher_size);
-	if (!crk->plaintext) {
+	if (!crk->plaintext)
 		goto err3;
-	}
 
 	crk->filename = strdup(filename);
 
