@@ -443,42 +443,39 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
 	}
 }
 
-static int alloc_workers(struct zc_crk_bforce *crk, size_t workers)
+static int alloc_workers(struct zc_crk_bforce *crk, size_t count)
 {
-	for (size_t i = 0; i < workers; ++i) {
-		struct worker *w = calloc(1, sizeof(struct worker));
-		if (!w) {
-			dealloc_workers(crk);
-			return -1;
-		}
+	struct worker *w;
+
+	for (size_t i = 0; i < count; ++i) {
+		w = calloc(1, sizeof(struct worker));
+		if (!w)
+			goto err1;
 
 		w->found = false;
 		w->crk = crk;
 		w->id = i;
 		w->inflate = malloc(INFLATE_CHUNK);
-		if (!w->inflate) {
-			free(w);
-			dealloc_workers(crk);
-			return -1;
-		}
+		if (!w->inflate)
+			goto err2;
 		w->plaintext = malloc(crk->cipher_size);
-		if (!w->plaintext) {
-			free(w->inflate);
-			free(w);
-			dealloc_workers(crk);
-			return -1;
-		}
-		if (inflate_new(&w->zlib) < 0) {
-			free(w->plaintext);
-			free(w->inflate);
-			free(w);
-			dealloc_workers(crk);
-			return -1;
-		}
+		if (!w->plaintext)
+			goto err3;
+		if (inflate_new(&w->zlib) < 0)
+			goto err4;
 		list_add(&w->list, &crk->workers_head);
 	}
 
 	return 0;
+err4:
+	free(w->plaintext);
+err3:
+	free(w->inflate);
+err2:
+	free(w);
+err1:
+	dealloc_workers(crk);
+	return -1;
 }
 
 /*
