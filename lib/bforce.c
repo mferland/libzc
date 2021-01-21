@@ -461,7 +461,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
 }
 
 static int alloc_workers(struct zc_crk_bforce *crk,
-			 size_t workers)
+			 size_t count)
 {
 	struct worker *w;
 
