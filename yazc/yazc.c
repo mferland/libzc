@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "config.h"
 #include "yazc.h"
@@ -75,6 +76,14 @@ static void print_version()
 		"This is free software: you are free to change and redistribute it.\n"
 		"There is NO WARRANTY, to the extent permitted by law.\n"
 		"Report bugs to: "PACKAGE_BUGREPORT"\n");
+}
+
+int print_runtime_stats(const struct timeval *begin,
+			const struct timeval *end)
+{
+	return printf("Runtime: %f secs.\n",
+		      (double)(end->tv_usec - begin->tv_usec) / 1000000 +
+		      (double)(end->tv_sec - begin->tv_sec));
 }
 
 static const struct yazc_cmd yazc_cmd_help = {

@@ -44,6 +44,9 @@ yazc_log_null(__attribute__((__unused__)) int prio,
 #define dbg(arg...) yazc_log_null(LOG_DEBUG, ## arg)
 #endif
 
+int print_runtime_stats(const struct timeval *begin,
+			const struct timeval *end);
+
 extern const struct yazc_cmd yazc_cmd_bruteforce;
 extern const struct yazc_cmd yazc_cmd_dictionary;
 extern const struct yazc_cmd yazc_cmd_plaintext;

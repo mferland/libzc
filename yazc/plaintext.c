@@ -349,13 +349,6 @@ static void print_original_password(const char *pw, size_t len)
 	printf("\n");
 }
 
-static void print_runtime_stats(const struct timeval *begin,
-				const struct timeval *end)
-{
-	printf("Runtime: %f secs.\n", (double)(end->tv_usec - begin->tv_usec) / 1000000 +
-	       (double)(end->tv_sec - begin->tv_sec));
-}
-
 static int find_password_from_internal_rep(void)
 {
 	struct zc_ctx *ctx;

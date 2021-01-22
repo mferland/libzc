@@ -152,8 +152,7 @@ static int launch_crack(void)
 	gettimeofday(&end, NULL);
 
 	if (stats)
-		printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
-		       (double)(end.tv_sec - begin.tv_sec));
+		print_runtime_stats(&begin, &end);
 
 	if (err > 0)
 		printf("Password not found\n");
