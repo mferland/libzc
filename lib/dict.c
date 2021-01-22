@@ -198,7 +198,16 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 	while (1) {
 		char *s = fgets(pw, len, f);
 		if (!s) {
-			err = -1;
+			int tmp = errno;
+			if (feof(f))
+				err = 1;
+			else if (ferror(f)) {
+				err(crk->ctx, "fgets() failed: %s\n", strerror(tmp));
+				err = -1;
+			} else {
+				err(crk->ctx, "unknown failure, errno: %d\n", tmp);
+				err = -1;
+			}
 			break;
 		}
 
