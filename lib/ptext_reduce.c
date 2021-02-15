@@ -138,7 +138,6 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 		free(key2ip1);
 		return -1;
 	}
-	key2i_size = 0;
 
 	/* perform reduction */
 	const size_t start_index = ptext->text_size - 2;
