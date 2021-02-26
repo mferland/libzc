@@ -1,5 +1,25 @@
-build: ## Build the container
-	sudo docker build -t libzcdebian .
+LIBZC_GCC="libzc-gcc-latest"
+LIBZC_CLANG="libzc-clang-latest"
+LIBZC_DEB="libzc-deb"
 
-run: ## Run container
-	sudo -E docker run -it -v ${HOME}/.gnupg:/home/dev/.gnupg --mount type=bind,source="$(PWD)",target=/home/dev/libzc libzcdebian
+all-build: deb-build gcc-build clang-build
+
+tests: gcc-run clang-run
+
+deb-build:
+	docker build -t $(LIBZC_DEB) -f Dockerfile.deb .
+
+deb-run:
+	docker run -it --rm -f Dockerfile.deb -v ${HOME}/.gnupg:/home/dev/.gnupg --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_DEB)
+
+gcc-build:
+	docker build -t $(LIBZC_GCC) -f Dockerfile.gcc .
+
+gcc-run:
+	docker run -it --rm --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_GCC)
+
+clang-build:
+	docker build -t $(LIBZC_CLANG) -f Dockerfile.clang .
+
+clang-run:
+	docker run -it --rm --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_CLANG)
