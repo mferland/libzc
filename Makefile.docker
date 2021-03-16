@@ -4,6 +4,8 @@ LIBZC_DEB="libzc-deb"
 
 all-build: deb-build gcc-build clang-build
 
+tests-build: gcc-build clang-build
+
 tests: gcc-run clang-run
 
 deb-build:
