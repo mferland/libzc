@@ -109,13 +109,3 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t l
 
 	return true;
 }
-
-long threads_to_create(long forced)
-{
-	if (forced > 0)
-		return forced;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}

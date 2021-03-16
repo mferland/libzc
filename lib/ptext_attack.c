@@ -337,11 +337,6 @@ static int alloc_workers(struct zc_crk_ptext *ptext,
 	return 0;
 }
 
-ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
-{
-	ptext->force_threads = w;
-}
-
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 				  struct zc_key *out_key)
 {
