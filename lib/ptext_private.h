@@ -36,12 +36,23 @@ struct zc_crk_ptext {
 	const uint8_t *ciphertext;
 	size_t text_size;
 
+	/* key2 bits 15-2 cache */
 	uint16_t *bits_15_2;
+
+	/* key2i and key2i+1  */
+	uint32_t *key2ip1, *key2i;
+	size_t key2ip1_size, key2i_size;
+
+	/* key0 LSB lookup table */
 	uint8_t lsbk0_lookup[256][4];
 	uint8_t lsbk0_count[256];
+
+	/* threading */
 	bool found;
 	pthread_t found_by;
 	long force_threads;
+	struct threadpool *pool;
+	pthread_mutex_t mutex;
 
 	/* reduced key2 buffer */
 	uint32_t *key2;

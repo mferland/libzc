@@ -61,11 +61,15 @@ libzc_la_SOURCES =\
 	ptext_reduce.c \
 	pwstream.c \
 	pwstream.h \
+	pool.c \
+	pool.h \
 	qsort.h \
 	bforce.c \
 	dict.c \
 	ptext.c \
-	file.c
+	file.c \
+	sys.c
+
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)

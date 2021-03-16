@@ -28,6 +28,7 @@
 
 #include "libzc_private.h"
 #include "ptext_private.h"
+#include "pool.h"
 #include "qsort.h"
 
 static void uint_qsort(uint32_t *buf, size_t n)
@@ -128,6 +129,8 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	if (ptext->refcount > 0)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
+	threadpool_destroy(ptext->pool);
+	pthread_mutex_destroy(&ptext->mutex);
 	free(ptext->key2);
 	free(ptext->bits_15_2);
 	free(ptext);
@@ -142,21 +145,34 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 	if (!new)
 		return -1;
 
-	if (generate_key2_bits_15_2(new)) {
-		free(new);
-		return -1;
-	}
+	if (threadpool_new(&new->pool))
+		goto err1;
+
+	if (generate_key2_bits_15_2(new))
+		goto err2;
 
 	generate_key0_lsb(new);
 	new->ctx = ctx;
 	new->refcount = 1;
 	new->found = false;
 	new->force_threads = -1;
+	pthread_mutex_init(&new->mutex, NULL);
 	*ptext = new;
 
 	dbg(ctx, "ptext %p created\n", new);
 
 	return 0;
+
+err2:
+	threadpool_destroy(new->pool);
+err1:
+	free(new);
+	return -1;
+}
+
+ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
+{
+	ptext->force_threads = w;
 }
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,

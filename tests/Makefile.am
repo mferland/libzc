@@ -13,11 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS = basic file pwstream bruteforce dictionary reduce plaintext_password plaintext
+TESTS = basic file pwstream pool bruteforce dictionary reduce plaintext_password plaintext
 
 check_PROGRAMS = basic \
 	file \
 	pwstream \
+	pool \
 	bruteforce \
 	dictionary \
 	reduce \
@@ -51,10 +52,21 @@ pwstream_SOURCES = check_pwstream.c
 pwstream_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 pwstream_LDADD = $(top_builddir)/lib/pwstream.lo @CHECK_LIBS@ -lm
 
+# pool related functions
+pool_SOURCES = check_pool.c
+pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+pool_LDADD = $(top_builddir)/lib/pool.lo \
+	$(top_builddir)/lib/libzc.lo \
+	@CHECK_LIBS@
+
 # reduce related functions
 reduce_SOURCES = check_reduce.c
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-reduce_LDADD = $(top_builddir)/lib/ptext.lo $(top_builddir)/lib/libzc.lo @CHECK_LIBS@
+reduce_LDADD = $(top_builddir)/lib/libzc.la \
+	$(top_builddir)/lib/ptext.lo \
+	$(top_builddir)/lib/pool.lo \
+	$(top_builddir)/lib/sys.lo \
+	@CHECK_LIBS@
 
 # plaintext password functions
 plaintext_password_SOURCES = check_plaintext_password.c
