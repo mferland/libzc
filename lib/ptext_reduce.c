@@ -148,7 +148,8 @@ static int key2r_compute_next_array(struct threadpool *pool,
 			total += nbkeys_per_thread;
 			if (rem) {
 				u[i].key2ip1_size++;
-				total++; rem--;
+				total++;
+				rem--;
 			}
 		}
 	}

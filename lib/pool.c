@@ -191,7 +191,7 @@ static void *worker(void *p)
 	if (ret == TPECANCELSIBLINGS)
 		w->cancel_siblings = 1;
 
- end:
+end:
 	pthread_cleanup_pop(1);
 	return NULL;
 }
@@ -276,13 +276,13 @@ int threadpool_new(struct threadpool **p)
 
 	return 0;
 
- err4:
+err4:
 	pthread_mutex_destroy(&tmp->work_mutex);
- err3:
+err3:
 	pthread_cond_destroy(&tmp->cond);
- err2:
+err2:
 	pthread_mutex_destroy(&tmp->mutex);
- err1:
+err1:
 	free(tmp);
 	return err;
 }
@@ -350,8 +350,8 @@ int threadpool_start(struct threadpool *p, struct threadpool_ops *ops, size_t nb
 		if (pthread_create(&w->thread_id, NULL, worker, w)) {
 			fputs("pthread_create() failed", stderr);
 			pthread_mutex_unlock(&p->mutex);
-			 /* failure, other workers will call their
-			    cleanup function */
+			/* failure, other workers will call their
+			   cleanup function */
 			broadcast_workers_err(p, -1);
 			start_fail_cleanup(p);
 			return -1;

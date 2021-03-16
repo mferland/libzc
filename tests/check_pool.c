@@ -70,10 +70,12 @@ static int do_work1(void *data, struct list_head *list)
 START_TEST(test_start_submit_wait1)
 {
 	struct threadpool *pool = NULL;
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker1,
-				      .dealloc_worker = dealloc_worker1,
-				      .do_work = do_work1,
-				      .in = NULL };
+	struct threadpool_ops ops = {
+		.alloc_worker = alloc_worker1,
+		.dealloc_worker = dealloc_worker1,
+		.do_work = do_work1,
+		.in = NULL
+	};
 	int err;
 	err = threadpool_new(&pool);
 	ck_assert_int_eq(err, 0);
@@ -113,7 +115,7 @@ static void dealloc_worker3(void *data)
 static int do_work3(void *data, struct list_head *list)
 {
 	struct work3 *e = list_entry(list, struct work3, list);
-	int *d = (int*)data;
+	int *d = (int *)data;
 	for (int i = 0; i < 64; ++i)
 		ck_assert_int_eq(d[i], i);
 	return e->id == e->target ? TPECANCELSIBLINGS : TPEMORE;
@@ -169,10 +171,12 @@ static int not_called(void *data, struct list_head *list)
 
 START_TEST(test_alloc_fail)
 {
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker_fail,
-				      .dealloc_worker = dealloc_worker3,
-				      .do_work = not_called,
-				      .in = NULL };
+	struct threadpool_ops ops = {
+		.alloc_worker = alloc_worker_fail,
+		.dealloc_worker = dealloc_worker3,
+		.do_work = not_called,
+		.in = NULL
+	};
 	struct threadpool *pool = NULL;
 	int err;
 
@@ -187,10 +191,12 @@ END_TEST
 
 START_TEST(test_start_submit_wait_less)
 {
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker3,
-				      .dealloc_worker = dealloc_worker3,
-				      .do_work = do_work3,
-				      .in = NULL };
+	struct threadpool_ops ops = {
+		.alloc_worker = alloc_worker3,
+		.dealloc_worker = dealloc_worker3,
+		.do_work = do_work3,
+		.in = NULL
+	};
 	test_start_submit_wait(3, 4, &ops);
 }
 END_TEST
@@ -200,17 +206,20 @@ START_TEST(test_start_submit_wait_equal)
 	struct threadpool_ops ops = { .alloc_worker = alloc_worker3,
 				      .dealloc_worker = dealloc_worker3,
 				      .do_work = do_work3,
-				      .in = NULL };
+				      .in = NULL
+	};
 	test_start_submit_wait(3, 8, &ops);
 }
 END_TEST
 
 START_TEST(test_start_submit_wait_more)
 {
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker3,
-				      .dealloc_worker = dealloc_worker3,
-				      .do_work = do_work3,
-				      .in = NULL };
+	struct threadpool_ops ops = {
+		.alloc_worker = alloc_worker3,
+		.dealloc_worker = dealloc_worker3,
+		.do_work = do_work3,
+		.in = NULL
+	};
 	test_start_submit_wait(3, 16, &ops);
 }
 END_TEST
@@ -239,7 +248,7 @@ static void dealloc_worker_wait(void *data)
 static int do_work_wait(void *data, struct list_head *list)
 {
 	(void)list;
-	int *d = (int*)data;
+	int *d = (int *)data;
 	for (int i = 0; i < 64; ++i)
 		ck_assert_int_eq(d[i], i);
 	return TPEMORE;
@@ -247,10 +256,12 @@ static int do_work_wait(void *data, struct list_head *list)
 
 START_TEST(test_wait_idle)
 {
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker_wait,
-				      .dealloc_worker = dealloc_worker_wait,
-				      .do_work = do_work_wait,
-				      .in = NULL };
+	struct threadpool_ops ops = {
+		.alloc_worker = alloc_worker_wait,
+		.dealloc_worker = dealloc_worker_wait,
+		.do_work = do_work_wait,
+		.in = NULL
+	};
 	struct threadpool *pool = NULL;
 	struct work_wait **tmp;
 	int err;
