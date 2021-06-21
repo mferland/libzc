@@ -37,18 +37,18 @@ void teardown_ptext()
 START_TEST(test_zc_ptext_new)
 {
 	struct zc_crk_ptext *ptext;
-	fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
-	fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+	ck_assert(zc_crk_ptext_new(ctx, &ptext) == 0);
+	ck_assert(zc_crk_ptext_unref(ptext) == 0);
 }
 END_TEST
 
 START_TEST(test_zc_ptext_set_cipher_and_plaintext)
 {
 	struct zc_crk_ptext *ptext;
-	fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
-	fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
-					  TEST_PLAINTEXT_SIZE) == 0, NULL);
-	fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+	ck_assert(zc_crk_ptext_new(ctx, &ptext) == 0);
+	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
+					TEST_PLAINTEXT_SIZE) == 0);
+	ck_assert(zc_crk_ptext_unref(ptext) == 0);
 }
 END_TEST
 
@@ -57,15 +57,15 @@ START_TEST(test_zc_crk_ptext_attack)
 {
 	struct zc_crk_ptext *ptext;
 	struct zc_key out_key;
-	fail_unless(zc_crk_ptext_new(ctx, &ptext) == 0, NULL);
-	fail_unless(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
-					  TEST_PLAINTEXT_SIZE) == 0, NULL);
-	fail_unless(zc_crk_ptext_key2_reduction(ptext) == 0, NULL);
-	fail_unless(zc_crk_ptext_attack(ptext, &out_key) == 0, NULL);
-	fail_unless(out_key.key0 == 0x6b1e4593 &&
+	ck_assert(zc_crk_ptext_new(ctx, &ptext) == 0);
+	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
+					  TEST_PLAINTEXT_SIZE) == 0);
+	ck_assert(zc_crk_ptext_key2_reduction(ptext) == 0);
+	ck_assert(zc_crk_ptext_attack(ptext, &out_key) == 0);
+	ck_assert(out_key.key0 == 0x6b1e4593 &&
 		    out_key.key1 == 0xd81e41ed &&
-		    out_key.key2 == 0x9a616e02, NULL);
-	fail_unless(zc_crk_ptext_unref(ptext) == 0, NULL);
+		    out_key.key2 == 0x9a616e02);
+	ck_assert(zc_crk_ptext_unref(ptext) == 0);
 }
 END_TEST
 
