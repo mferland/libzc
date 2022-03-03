@@ -127,12 +127,13 @@ struct zc_key {
 struct zc_crk_ptext;
 struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
 struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext);
+int zc_crk_ptext_new(struct zc_ctx *ctx,
+		     struct zc_crk_ptext **ptext,
+		     long force_threads);
 int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 			  const uint8_t *plaintext,
 			  const uint8_t *ciphertext,
 			  size_t size);
-void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
 size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext);
 int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);

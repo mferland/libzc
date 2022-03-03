@@ -26,6 +26,66 @@
 #include "pool.h"
 
 #define KEY2_ARRAY_LEN (1 << 22)
+#define swap(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
+
+struct reduc_work_unit {
+	const uint16_t *key2i_bits_15_2;
+	const uint16_t *key2im1_bits_15_2;
+	uint32_t common_bits_mask;
+	const uint32_t *key2ip1;	/* keys to process */
+	size_t key2ip1_size;		/* number of keys to process */
+	struct list_head list;
+};
+
+/* TODO: maybe create a reduce_private structure */
+/* struct reduce_private { */
+	
+/* } */
+
+struct input_data {
+	struct zc_crk_ptext *ptext;
+	uint32_t **key;
+};
+
+int input_data_alloc(struct input_data **data,
+		     size_t nbbuffers)
+{
+	struct input_data *tmp;
+
+	tmp = calloc(1, sizeof(*tmp));
+	if (!tmp)
+		return -1;
+
+	tmp->key = calloc(sizeof(uint32_t *), nbbuffers);
+	if (!tmp->key)
+		goto err1;
+
+	for (size_t i = 0; i < nbbuffers; ++i) {
+		tmp->key[i] = calloc(sizeof(uint32_t), KEY2_ARRAY_LEN);
+		if (!tmp->key[i])
+			goto err2;
+	}
+
+	*data = tmp;
+
+	return 0;
+ err2:
+	for (size_t i = 0; i < nbbuffers; ++i)
+		free(tmp->key[i]);
+	free(tmp->key);
+ err1:
+	free(tmp);
+	return -1;
+}
+
+void input_data_dealloc(struct input_data *data,
+			size_t nbbuffers)
+{
+	for (size_t i = 0; i < nbbuffers; ++i)
+		free(data->key[i]);
+	free(data->key);
+	free(data);
+}
 
 static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bits_15_2)
 {
@@ -99,15 +159,6 @@ size_t key2r_compute_single(uint32_t key2i_plus_1,
 	return total;
 }
 
-struct reduc_work_unit {
-	const uint16_t *key2i_bits_15_2;
-	const uint16_t *key2im1_bits_15_2;
-	uint32_t common_bits_mask;
-	const uint32_t *key2ip1;	/* keys to process */
-	size_t key2ip1_size;		/* number of keys to process */
-	struct list_head list;
-};
-
 static int key2r_compute_next_array(struct threadpool *pool,
 				    const uint32_t *key2ip1,
 				    size_t key2ip1_size,
@@ -165,68 +216,31 @@ static int key2r_compute_next_array(struct threadpool *pool,
 	return 0;
 }
 
-struct reduc_data {
-	uint32_t *tmp;	              /* temporary key2 buffer */
-	struct zc_crk_ptext *ptext;
-};
-
-static int alloc_reduc(void *in, void **data)
+static int do_work_reduc(void *in, struct list_head *list, int id)
 {
-	struct reduc_data *d;
-
-	d = calloc(1, sizeof(struct reduc_data));
-	if (!d) {
-		perror("calloc() failed");
-		return -1;
-	}
-
-	d->tmp = calloc(KEY2_ARRAY_LEN, sizeof(uint32_t));
-	if (!d->tmp) {
-		perror("calloc() failed");
-		free(d);
-		return -1;
-	}
-
-	/* worker's input parameters */
-	d->ptext = in;
-
-	*data = d;
-
-	return 0;
-}
-
-static void dealloc_reduc(void *data)
-{
-	struct reduc_data *d = (struct reduc_data *)data;
-	free(d->tmp);
-	free(d);
-}
-
-static int do_work_reduc(void *data, struct list_head *list)
-{
-	struct reduc_data *d = (struct reduc_data *)data;
+	struct input_data *input = (struct input_data *)in;
 	struct reduc_work_unit *unit = list_entry(list, struct reduc_work_unit, list);
 	size_t total = 0;
 
 	for (size_t i = 0; i < unit->key2ip1_size; ++i)
 		total += key2r_compute_single(unit->key2ip1[i],
-					      &d->tmp[total],
+					      &input->key[id][total],
 					      unit->key2i_bits_15_2,
 					      unit->key2im1_bits_15_2,
 					      unit->common_bits_mask);
 
 	/* copy back results to final shared buffer */
-	pthread_mutex_lock(&d->ptext->mutex);
-	size_t current = d->ptext->key2i_size;
-	d->ptext->key2i_size += total;
-	pthread_mutex_unlock(&d->ptext->mutex);
+	pthread_mutex_lock(&input->ptext->mutex);
+	size_t current = input->ptext->key2i_size;
+	input->ptext->key2i_size += total;
+	pthread_mutex_unlock(&input->ptext->mutex);
 
-	memcpy(&d->ptext->key2i[current], d->tmp, total * sizeof(uint32_t));
+	memcpy(&input->ptext->key2i[current], input->key[id], total * sizeof(uint32_t));
 
 	return TPEMORE;
 }
 
-int reduce_alloc(struct zc_crk_ptext *ptext)
+static int reduce_alloc(struct zc_crk_ptext *ptext)
 {
 	uint32_t *tmp1, *tmp2;
 
@@ -250,18 +264,18 @@ err1:
 	return -1;
 }
 
-void reduce_dealloc(struct zc_crk_ptext *ptext)
+static void reduce_dealloc(struct zc_crk_ptext *ptext)
 {
 	free(ptext->key2i);
 	free(ptext->key2ip1);
 }
 
-#define SWAP(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
-
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
 	uint8_t key3i, key3im1;
 	struct threadpool_ops ops;
+	struct input_data *input_data;
+	size_t nbthreads = threadpool_get_nbthreads(ptext->pool);
 	int err = 0;
 
 	err = reduce_alloc(ptext);
@@ -275,16 +289,14 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 				    get_bits_15_2(ptext->bits_15_2, key3i));
 	ptext->key2ip1_size = KEY2_ARRAY_LEN;
 
-	ops.in = ptext;
-	ops.alloc_worker = alloc_reduc;
-	ops.dealloc_worker = dealloc_reduc;
-	ops.do_work = do_work_reduc;
-
-	err = threadpool_start(ptext->pool,
-			       &ops,
-			       threads_to_create(ptext->force_threads));
+	err = input_data_alloc(&input_data, nbthreads);
 	if (err)
-		goto err1;
+		return err;
+	input_data->ptext = ptext;
+
+	ops.in = input_data;
+	ops.do_work = do_work_reduc;
+	threadpool_set_ops(ptext->pool, &ops);
 
 	size_t start_index = ptext->text_size - 2;
 	for (size_t i = start_index; i >= 12; --i) {
@@ -297,7 +309,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 					 get_bits_15_2(ptext->bits_15_2, key3im1),
 					 i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
 		uniq(ptext->key2i, &ptext->key2i_size);
-		SWAP(ptext->key2i, ptext->key2ip1);
+		swap(ptext->key2i, ptext->key2ip1);
 		ptext->key2ip1_size = ptext->key2i_size;
 		ptext->key2i_size = 0;
 	}
@@ -305,12 +317,12 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 	ptext->key2 = realloc(ptext->key2ip1,
 			      ptext->key2ip1_size * sizeof(uint32_t));
 	ptext->key2_size = ptext->key2ip1_size;
+
 	/* make sure not to free key2ip1 buffer */
 	ptext->key2ip1 = NULL;
 
-	threadpool_cancel(ptext->pool);
-
-err1:
+	input_data_dealloc(input_data, nbthreads);
 	reduce_dealloc(ptext);
+
 	return err;
 }

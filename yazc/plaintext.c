@@ -361,7 +361,8 @@ static int find_password_from_internal_rep(void)
 		return ret;
 	}
 
-	if (zc_crk_ptext_new(ctx, &ptext) < 0) {
+	/* TODO: pass nbthreads here! */
+	if (zc_crk_ptext_new(ctx, &ptext, 1) < 0) {
 		err("zc_crk_ptext_new() failed!\n");
 		goto err1;
 	}
@@ -506,7 +507,7 @@ static int do_plaintext(int argc, char *argv[])
 		goto error2;
 	}
 
-	err = zc_crk_ptext_new(ctx, &ptext);
+	err = zc_crk_ptext_new(ctx, &ptext, thread_count);
 	if (err < 0) {
 		err("zc_crk_ptext_new() failed!\n");
 		goto error3;
@@ -520,8 +521,6 @@ static int do_plaintext(int argc, char *argv[])
 		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
 	}
-
-	zc_crk_ptext_force_threads(ptext, thread_count);
 
 	printf("Key2 reduction...");
 	fflush(stdout);

@@ -137,7 +137,9 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	return NULL;
 }
 
-ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
+ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx,
+			       struct zc_crk_ptext **ptext,
+			       long force_threads)
 {
 	struct zc_crk_ptext *new;
 
@@ -145,7 +147,7 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 	if (!new)
 		return -1;
 
-	if (threadpool_new(&new->pool))
+	if (threadpool_new(&new->pool, force_threads))
 		goto err1;
 
 	if (generate_key2_bits_15_2(new))
@@ -155,8 +157,8 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 	new->ctx = ctx;
 	new->refcount = 1;
 	new->found = false;
-	new->force_threads = -1;
 	pthread_mutex_init(&new->mutex, NULL);
+
 	*ptext = new;
 
 	dbg(ctx, "ptext %p created\n", new);
@@ -168,11 +170,6 @@ err2:
 err1:
 	free(new);
 	return -1;
-}
-
-ZC_EXPORT void zc_crk_ptext_force_threads(struct zc_crk_ptext *ptext, long w)
-{
-	ptext->force_threads = w;
 }
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,

@@ -18,7 +18,7 @@
 
 #include <unistd.h>
 
-long threads_to_create(long forced)
+size_t threads_to_create(long forced)
 {
 	if (forced > 0)
 		return forced;

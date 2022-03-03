@@ -25,62 +25,68 @@
 #include "libzc_private.h"
 #include "list.h"
 #include "ptext_private.h"
+#include "pool.h"
 
-#define k2(index) w->key2_final[index]
-#define k1(index) w->key1_final[index]
-#define k0(index) w->key0_final[index]
-#define cipher(index) w->ciphertext[index]
-#define plaintext(index) w->plaintext[index]
+#define k2(index) priv->key2_final[index]
+#define k1(index) priv->key1_final[index]
+#define k0(index) priv->key0_final[index]
+#define plaintext(index) priv->ptext->plaintext[index]
+#define cipher(index) priv->ptext->ciphertext[index]
+#define lsbk0_lookup(index) priv->ptext->lsbk0_lookup[index]
+#define lsbk0_count(index) priv->ptext->lsbk0_count[index]
+#define bits_15_2(index) priv->ptext->bits_15_2[index]
 
-struct worker {
+#define KEY2_GEN_MAX 64		/* The maximum number of keys we could
+				 * generate from a single key2 */
+
+struct attack_private {
 	uint32_t key2_final[13];
 	uint32_t key1_final[13];
 	uint32_t key0_final[13];
-	const uint8_t *plaintext;         /* points to ptext->plaintext */
-	const uint8_t *ciphertext;        /* points to ptext->ciphertext */
-	const uint8_t (*lsbk0_lookup)[4]; /* points to ptext->lsbk0_lookup */
-	const uint8_t *lsbk0_count;       /* points to ptext->lsbk0_count */
-	const uint16_t *bits_15_2;        /* points to ptext->k2r */
-	struct zc_key inter_rep;
-	pthread_t id;
-	pthread_mutex_t *mutex;
-	size_t *next;
-	struct zc_crk_ptext *ptext;
-	int worker_err_status;
-	int pthread_create_err;
-	uint32_t key2[12][64];
+	uint32_t key2[12][KEY2_GEN_MAX];
 	size_t key2_size[12];
-	struct list_head workers;
+	const struct zc_crk_ptext *ptext;
+	bool found;
+	pthread_t found_by;
+	struct zc_key *inter_rep;
 };
 
-static void key2_uniq(struct worker *w, size_t i)
+struct attack_work_unit {
+	const uint32_t *key2_final;
+	size_t key2_final_size;
+	struct zc_key inter_rep;
+	bool found;
+	struct list_head list;
+};
+
+static void key2_uniq(struct attack_private *priv, size_t i)
 {
-	uniq(w->key2[i], &w->key2_size[i]);
+	uniq(priv->key2[i], &priv->key2_size[i]);
 }
 
-static void key2_reset(struct worker *w, size_t i)
+static void key2_reset(struct attack_private *priv, size_t i)
 {
-	w->key2_size[i] = 0;
+	priv->key2_size[i] = 0;
 }
 
-static uint32_t *key2_get_arr(struct worker *w, size_t i)
+static uint32_t *key2_get_arr(struct attack_private *priv, size_t i)
 {
-	return w->key2[i];
+	return priv->key2[i];
 }
 
-static uint32_t key2_get_key(struct worker *w, size_t i, size_t j)
+static uint32_t key2_get_key(struct attack_private *priv, size_t i, size_t j)
 {
-	return w->key2[i][j];
+	return priv->key2[i][j];
 }
 
-static void key2_set_size(struct worker *w, size_t i, size_t size)
+static void key2_set_size(struct attack_private *priv, size_t i, size_t size)
 {
-	w->key2_size[i] = size;
+	priv->key2_size[i] = size;
 }
 
-static size_t key2_get_size(struct worker *w, size_t i)
+static size_t key2_get_size(struct attack_private *priv, size_t i)
 {
-	return w->key2_size[i];
+	return priv->key2_size[i];
 }
 
 static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext,
@@ -94,7 +100,8 @@ static void compute_one_intermediate_int_rep(uint8_t cipher, uint8_t *plaintext,
 	k->key0 = crc32inv(k->key0, *plaintext);
 }
 
-static int compute_intermediate_internal_rep(struct worker *w, struct zc_key *k)
+static int compute_intermediate_internal_rep(struct attack_private *priv,
+					     struct zc_key *k)
 {
 	uint32_t i = 4;
 
@@ -111,13 +118,13 @@ static int compute_intermediate_internal_rep(struct worker *w, struct zc_key *k)
 	} while (i > 0);
 
 	if (i == 0) {
-		w->inter_rep = *k;
+		*priv->inter_rep = *k;
 		return 0;
 	}
 	return -1;
 }
 
-static bool verify_key0(const struct worker *w, uint32_t key0,
+static bool verify_key0(const struct attack_private *priv, uint32_t key0,
 			uint32_t start, uint32_t stop)
 {
 	for (uint32_t i = start; i < stop; ++i) {
@@ -128,15 +135,13 @@ static bool verify_key0(const struct worker *w, uint32_t key0,
 	return true;
 }
 
-static void key_found(struct worker *w)
+static void key_found(struct attack_private *priv)
 {
-	pthread_mutex_lock(w->mutex);
-	w->ptext->found = true;
-	w->ptext->found_by = pthread_self();
-	pthread_mutex_unlock(w->mutex);
+	priv->found = true;
+	priv->found_by = pthread_self();
 }
 
-static void compute_key0(struct worker *w)
+static void compute_key0(struct attack_private *priv)
 {
 	struct zc_key k = { .key0 = 0x0, .key1 = 0x0, .key2 = 0x0 };
 
@@ -153,17 +158,17 @@ static void compute_key0(struct worker *w)
 	k.key0 = (k.key0 | k0(4));
 
 	/* verify against known bytes */
-	if (!verify_key0(w, k.key0, 4, 12))
+	if (!verify_key0(priv, k.key0, 4, 12))
 		return;
 
-	if (compute_intermediate_internal_rep(w, &k) == 0)
-		key_found(w);
+	if (compute_intermediate_internal_rep(priv, &k) == 0)
+		key_found(priv);
 }
 
-static void recurse_key1(struct worker *w, uint32_t current_idx)
+static void recurse_key1(struct attack_private *priv, uint32_t current_idx)
 {
 	if (current_idx == 3) {
-		compute_key0(w);
+		compute_key0(priv);
 		return;
 	}
 
@@ -201,191 +206,157 @@ static void recurse_key1(struct worker *w, uint32_t current_idx)
 	 *
 	 */
 
-	for (uint8_t i = 0; i < w->lsbk0_count[diff]; ++i) {
-		uint32_t lsbkey0i = w->lsbk0_lookup[diff][i];
+	for (uint8_t i = 0; i < lsbk0_count(diff); ++i) {
+		uint32_t lsbkey0i = lsbk0_lookup(diff)[i];
 		if (mask_msb(rhs_step1 - lsbkey0i) == mask_msb(k1(current_idx - 1))) {
-			w->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
-			w->key0_final[current_idx] = lsbkey0i;
-			recurse_key1(w, current_idx - 1);
+			priv->key1_final[current_idx - 1] = rhs_step1 - lsbkey0i;
+			priv->key0_final[current_idx] = lsbkey0i;
+			recurse_key1(priv, current_idx - 1);
 		}
 	}
 }
 
-static void compute_key1(struct worker *w)
+static void compute_key1(struct attack_private *priv)
 {
 	/* find matching msb, section 3.3 from Biham & Kocher */
 	for (uint32_t i = 0; i < pow2(24); ++i) {
 		const uint32_t key1_12_tmp = mask_msb(k1(12)) | i;
 		const uint32_t key1_11_tmp = (key1_12_tmp - 1) * MULTINV;
 		if (mask_msb(key1_11_tmp) == mask_msb(k1(11))) {
-			w->key1_final[12] = key1_12_tmp;
-			recurse_key1(w, 12);
+			priv->key1_final[12] = key1_12_tmp;
+			recurse_key1(priv, 12);
 		}
 	}
 }
 
-static uint32_t compute_key1_msb(struct worker *w, uint32_t current_idx)
+static uint32_t compute_key1_msb(struct attack_private *priv, uint32_t current_idx)
 {
 	const uint32_t key2i = k2(current_idx);
 	const uint32_t key2im1 = k2(current_idx - 1);
 	return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key2(struct worker *w, uint32_t current_idx)
+static int recurse_key2(struct attack_private *priv, uint32_t current_idx)
 {
 	uint8_t key3im1;
 	uint8_t key3im2;
 
 	if (current_idx == 1) {
-		compute_key1(w);
+		compute_key1(priv);
 		return 0;
 	}
 
-	key3im1 = generate_key3(w, current_idx - 1);
-	key3im2 = generate_key3(w, current_idx - 2);
+	key3im1 = generate_key3(priv->ptext, current_idx - 1);
+	key3im2 = generate_key3(priv->ptext, current_idx - 2);
 
 	/* empty array before appending new keys */
-	key2_reset(w, current_idx - 1);
+	key2_reset(priv, current_idx - 1);
 
 	size_t s = key2r_compute_single(k2(current_idx),
-					key2_get_arr(w, current_idx - 1),
-					get_bits_15_2(w->bits_15_2, key3im1),
-					get_bits_15_2(w->bits_15_2, key3im2),
+					key2_get_arr(priv, current_idx - 1),
+					get_bits_15_2(priv->ptext->bits_15_2, key3im1),
+					get_bits_15_2(priv->ptext->bits_15_2, key3im2),
 					KEY2_MASK_8BITS);
-	key2_set_size(w, current_idx - 1, s);
+	key2_set_size(priv, current_idx - 1, s);
 
 	assert(s <= 64);
 
-	key2_uniq(w, current_idx - 1);
+	key2_uniq(priv, current_idx - 1);
 
-	for (size_t i = 0; i < key2_get_size(w, current_idx - 1); ++i) {
-		w->key2_final[current_idx - 1] = key2_get_key(w, current_idx - 1, i);
-		w->key1_final[current_idx] = compute_key1_msb(w, current_idx) << 24;
-		if (recurse_key2(w, current_idx - 1))
-			return -1;
+	for (size_t i = 0; i < key2_get_size(priv, current_idx - 1); ++i) {
+		priv->key2_final[current_idx - 1] = key2_get_key(priv, current_idx - 1, i);
+		priv->key1_final[current_idx] = compute_key1_msb(priv, current_idx) << 24;
+		if (recurse_key2(priv, current_idx - 1))
+			return -1; /* TODO: ? */
 	}
 
 	return 0;
 }
 
-static int get_next_index(struct worker *w, size_t *i)
+static int do_work_attack(void *in, struct list_head *list, int id)
 {
-	pthread_mutex_lock(w->mutex);
-	if (w->ptext->found ||
-	    *w->next == w->ptext->key2_size) {
-		pthread_mutex_unlock(w->mutex);
-		return -1;
-	}
-	*i = (*w->next)++;
-	pthread_mutex_unlock(w->mutex);
-	return 0;
-}
+	struct attack_work_unit *unit = list_entry(list, struct attack_work_unit, list);
+	struct attack_private priv;
+	(void)id;
 
-static void *worker(void *p)
-{
-	struct worker *w = (struct worker *)p;
+	priv.ptext = in;
+	priv.inter_rep = &unit->inter_rep;
+	priv.found = false;
 
-	while (1) {
-		size_t next;
-		if (get_next_index(w, &next))
-			break;              /* nothing more to do */
-		w->key2_final[12] = w->ptext->key2[next];
-		if (recurse_key2(w, 12)) {
-			w->worker_err_status = -1;
+	for (size_t i = 0; i < unit->key2_final_size; ++i) {
+		priv.key2_final[12] = unit->key2_final[i];
+		if (recurse_key2(&priv, 12))
+			break;
+		if (priv.found) {
+			unit->found = true;
 			break;
 		}
 	}
 
-	return NULL;
-}
-
-static void dealloc_workers(struct list_head *head)
-{
-	struct worker *w, *tmp;
-	list_for_each_entry_safe(w, tmp, head, workers) {
-		list_del(&w->workers);
-		free(w);
-	}
-}
-
-static int alloc_workers(struct zc_crk_ptext *ptext,
-			 struct list_head *head,
-			 pthread_mutex_t *mutex,
-			 size_t *next,
-			 long count)
-{
-	for (long i = 0; i < count; ++i) {
-		struct worker *w = calloc(1, sizeof(struct worker));
-
-		if (!w) {
-			dealloc_workers(head);
-			return -1;
-		}
-
-		w->plaintext = ptext->plaintext;
-		w->ciphertext = ptext->ciphertext;
-		w->lsbk0_lookup = ptext->lsbk0_lookup;
-		w->lsbk0_count = ptext->lsbk0_count;
-		w->bits_15_2 = ptext->bits_15_2;
-		w->mutex = mutex;
-		w->next = next;
-		w->ptext = ptext;
-
-		list_add(&w->workers, head);
-	}
-
-	return 0;
+	/* TODO */
+	return TPEEXIT;
 }
 
 ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 				  struct zc_key *out_key)
 {
-	struct list_head head;
-	pthread_mutex_t mutex;
-	size_t next = 0;
-	struct worker *w;
-	int err;
+	size_t nbthreads = threadpool_get_nbthreads(ptext->pool);
+	size_t nbunits = ptext->key2_size < nbthreads ? ptext->key2_size : nbthreads;
+	size_t nbkeys_per_thread = ptext->key2_size / nbunits;
+	size_t rem = ptext->key2_size % nbunits;
+	struct threadpool_ops ops;
+	int err = -1;
 
-	pthread_mutex_init(&mutex, NULL);
+	ops.in = ptext;
+	ops.do_work = do_work_attack;
+	threadpool_set_ops(ptext->pool, &ops);
 
-	INIT_LIST_HEAD(&head);
-
-	err = alloc_workers(ptext, &head, &mutex, &next,
-			    threads_to_create(ptext->force_threads));
-	if (err)
-		goto end;
-
-	list_for_each_entry(w, &head, workers) {
-		/* best effort */
-		w->pthread_create_err = pthread_create(&w->id, NULL, worker, w);
-		if (w->pthread_create_err)
-			perror("pthread_create failed");
+	struct attack_work_unit *u = calloc(nbunits, sizeof(struct attack_work_unit));
+	if (!u) {
+		perror("calloc() failed");
+		return -1;
 	}
 
-	err = -1;
-	list_for_each_entry(w, &head, workers) {
-		if (w->pthread_create_err)
-			continue;
-		pthread_join(w->id, NULL);
-		pthread_mutex_lock(&mutex);
-		if (w->worker_err_status) {
-			err(ptext->ctx, "worker %p encountered a fatal error\n", w);
-		} else if (ptext->found && pthread_equal(ptext->found_by, w->id)) {
-			*out_key = w->inter_rep;
-			err = 0;
+	if (!rem) {
+		for (size_t i = 0; i < nbunits; ++i) {
+			u[i].key2_final = &ptext->key2[i * nbkeys_per_thread];
+			u[i].key2_final_size = nbkeys_per_thread;
 		}
-		pthread_mutex_unlock(&mutex);
+	} else {
+		size_t total = 0;
+		for (size_t i = 0; i < nbunits; ++i) {
+			u[i].key2_final = &ptext->key2[total];
+			u[i].key2_final_size = nbkeys_per_thread;
+			total += nbkeys_per_thread;
+			if (rem) {
+				u[i].key2_final_size++;
+				total++;
+				rem--;
+			}
+		}
 	}
 
-	dealloc_workers(&head);
+	for (size_t i = 0; i < nbunits; ++i)
+		threadpool_submit_work(ptext->pool, &u[i].list);
 
-end:
-	pthread_mutex_destroy(&mutex);
+	threadpool_wait_idle(ptext->pool);
+
+	for (size_t i = 0; i < nbunits; ++i) {
+		if (u[i].found) {
+			*out_key = u[i].inter_rep;
+			err = 0;
+			break;
+		}
+	}
+
+	free(u);
+
 	return err;
 }
 
 ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
-					     const uint8_t *ciphertext, size_t size,
+					     const uint8_t *ciphertext,
+					     size_t size,
 					     struct zc_key *internal_rep)
 {
 	struct zc_key k;

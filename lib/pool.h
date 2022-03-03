@@ -51,16 +51,16 @@ struct threadpool_ops {
 	/*
 	 * Function called to do the actual work.
 	 */
-	int (*do_work)(void *data, struct list_head *list);
+	int (*do_work)(void *data, struct list_head *list, int id);
 };
 
-int threadpool_new(struct threadpool **p);
+int threadpool_new(struct threadpool **p, long nbthreads);
 
 size_t threadpool_get_nbthreads(const struct threadpool *p);
 
-void threadpool_destroy(struct threadpool *p);
+void threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops);
 
-int threadpool_start(struct threadpool *p, struct threadpool_ops *ops, size_t nbthreads);
+void threadpool_destroy(struct threadpool *p);
 
 void threadpool_cancel(struct threadpool *p);
 
@@ -68,6 +68,6 @@ void threadpool_wait(struct threadpool *p);
 
 void threadpool_wait_idle(struct threadpool *p);
 
-int threadpool_submit_work(struct threadpool *p, struct list_head *list);
+void threadpool_submit_work(struct threadpool *p, struct list_head *list);
 
 #endif	/* _POOL_H_ */

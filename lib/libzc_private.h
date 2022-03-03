@@ -154,7 +154,7 @@ bool decrypt_headers(const struct zc_key *k,
 		     const struct zc_header *h,
 		     size_t len);
 
-long threads_to_create(long forced);
+size_t threads_to_create(long forced);
 
 int fill_header(struct zc_ctx *ctx,
 		const char *filename,

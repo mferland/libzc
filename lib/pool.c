@@ -25,6 +25,7 @@
 
 #include "list.h"
 #include "pool.h"
+#include "libzc_private.h"
 
 struct threadpool {
 	/*
@@ -60,11 +61,11 @@ struct threadpool {
 	struct threadpool_ops *ops;
 
 	/*
-	 * Number of threads we were asked to created. 0 is a special
+	 * Number of threads we were asked to created. <=0 is a special
 	 * value here and means automatic (basically, get the number
 	 * of online cpus).
 	 */
-	size_t nbthreads;
+	long nbthreads;
 
 	/*
 	 * The actual number of threads created. This number can be
@@ -72,7 +73,7 @@ struct threadpool {
 	 * limited on the number of threads that can be created or the
 	 * user passed 0 (automatic) when creating the thread pool.
 	 */
-	size_t nbthreads_created;
+	long nbthreads_created;
 
 	/*
 	 * State of thread creation.
@@ -95,7 +96,7 @@ struct worker {
 	/*
 	 * Data/buffers used by each worker.
 	 */
-	void *data;
+	/* void *data; */
 
 	pthread_t thread_id;
 	struct threadpool *pool;
@@ -185,7 +186,7 @@ static void *worker(void *p)
 		pthread_cond_broadcast(&w->pool->work_cond);
 		pthread_mutex_unlock(&w->pool->work_mutex);
 
-		ret = w->pool->ops->do_work(w->data, work);
+		ret = w->pool->ops->do_work(w->pool->ops->in, work, w->id);
 	} while (ret == TPEMORE);
 
 	if (ret == TPECANCELSIBLINGS)
@@ -201,7 +202,6 @@ static void dealloc_workers(struct threadpool *p)
 	struct worker *w, *tmp;
 	list_for_each_entry_safe(w, tmp, &p->idle_head, list) {
 		list_del(&w->list);
-		p->ops->dealloc_worker(w->data);
 		free(w);
 	}
 }
@@ -216,7 +216,7 @@ static void broadcast_workers_err(struct threadpool *p, int err)
 
 static void start_fail_cleanup(struct threadpool *p)
 {
-	size_t left = p->nbthreads_created;
+	long left = p->nbthreads_created;
 
 	while (left) {
 		pthread_mutex_lock(&p->mutex);
@@ -226,7 +226,7 @@ static void start_fail_cleanup(struct threadpool *p)
 		list_for_each_entry_safe(w, tmp, &p->cleanup_head, list) {
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
-			p->ops->dealloc_worker(w->data);
+			/* p->ops->dealloc_worker(w->data); */
 			free(w);
 			--left;
 		}
@@ -240,9 +240,10 @@ static void start_fail_cleanup(struct threadpool *p)
 /**
  * Allocate new thread pool.
  */
-int threadpool_new(struct threadpool **p)
+int threadpool_new(struct threadpool **p, long nbthreads)
 {
 	struct threadpool *tmp;
+	struct worker *w;
 	int err;
 
 	tmp = calloc(1, sizeof(struct threadpool));
@@ -271,6 +272,42 @@ int threadpool_new(struct threadpool **p)
 	INIT_LIST_HEAD(&tmp->cleanup_head);
 	INIT_LIST_HEAD(&tmp->idle_head);
 	INIT_LIST_HEAD(&tmp->work_head);
+
+	tmp->nbthreads = threads_to_create(nbthreads);
+
+	/* allocate workers */
+	for (long i = 0; i < tmp->nbthreads; ++i) {
+		w = calloc(1, sizeof(struct worker));
+		if (!w) {
+			perror("calloc() failed");
+			dealloc_workers(tmp);
+			goto err4;
+		}
+		w->pool = tmp;
+		w->cancel_siblings = 0;
+		w->id = i;
+		/* workers start off idle */
+		list_add(&w->list, &tmp->idle_head);
+	}
+
+	/* all workers structures allocated, now create the threads */
+	pthread_mutex_lock(&tmp->mutex);
+	list_for_each_entry(w, &tmp->idle_head, list) {
+		if (pthread_create(&w->thread_id, NULL, worker, w)) {
+			fputs("pthread_create() failed", stderr);
+			pthread_mutex_unlock(&tmp->mutex);
+			/* failure, other workers will call their
+			   cleanup function */
+			broadcast_workers_err(tmp, -1);
+			start_fail_cleanup(tmp);
+			return -1;
+		}
+		++tmp->nbthreads_created;
+	}
+	pthread_mutex_unlock(&tmp->mutex);
+
+	/* success, workers will proceed and go wait for work */
+	broadcast_workers_err(tmp, 1);
 
 	*p = tmp;
 
@@ -306,64 +343,14 @@ void threadpool_destroy(struct threadpool *p)
 	free(p);
 }
 
-/**
- * Start thread pool.
- *
- * Allocate resources for each worker by calling the alloc_worker()
- * function and start the worker threads. Note: each thread is started
- * in the idle queue.
- */
-int threadpool_start(struct threadpool *p, struct threadpool_ops *ops, size_t nbthreads)
+void threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
 {
-	struct worker *w;
-	void *data;
-	int err;
+	threadpool_wait_idle(p);
 
+	/* now that threads are all waiting for work, change the ops
+	   pointer so that the next round of work units will use these
+	   new ops. */
 	p->ops = ops;
-	p->nbthreads = nbthreads;
-
-	/* allocate workers */
-	for (size_t i = 0; i < p->nbthreads; ++i) {
-		w = calloc(1, sizeof(struct worker));
-		if (!w) {
-			perror("calloc() failed");
-			dealloc_workers(p);
-			return -1;
-		}
-		err = p->ops->alloc_worker(p->ops->in, &data);
-		if (err) {
-			free(w);
-			dealloc_workers(p);
-			return -1;
-		}
-		w->data = data;
-		w->pool = p;
-		w->cancel_siblings = 0;
-		w->id = i;
-		/* workers start off idle */
-		list_add(&w->list, &p->idle_head);
-	}
-
-	/* all workers allocated, now create the threads */
-	pthread_mutex_lock(&p->mutex);
-	list_for_each_entry(w, &p->idle_head, list) {
-		if (pthread_create(&w->thread_id, NULL, worker, w)) {
-			fputs("pthread_create() failed", stderr);
-			pthread_mutex_unlock(&p->mutex);
-			/* failure, other workers will call their
-			   cleanup function */
-			broadcast_workers_err(p, -1);
-			start_fail_cleanup(p);
-			return -1;
-		}
-		++p->nbthreads_created;
-	}
-	pthread_mutex_unlock(&p->mutex);
-
-	/* success, workers will proceed */
-	broadcast_workers_err(p, 1);
-
-	return 0;
 }
 
 /**
@@ -405,7 +392,7 @@ void threadpool_cancel(struct threadpool *p)
  */
 void threadpool_wait(struct threadpool *p)
 {
-	size_t left = p->nbthreads_created;
+	long left = p->nbthreads_created;
 
 	while (left) {
 		pthread_mutex_lock(&p->mutex);
@@ -417,7 +404,7 @@ void threadpool_wait(struct threadpool *p)
 			pthread_join(w->thread_id, NULL);
 			if (w->cancel_siblings && left > 1)
 				cancel(p);
-			p->ops->dealloc_worker(w->data);
+			/* p->ops->dealloc_worker(w->data); */
 			free(w);
 			--left;
 		}
@@ -446,11 +433,10 @@ void threadpool_wait_idle(struct threadpool *p)
 /**
  * Submit work to the thread pool.
  */
-int threadpool_submit_work(struct threadpool *p, struct list_head *list)
+void threadpool_submit_work(struct threadpool *p, struct list_head *list)
 {
 	pthread_mutex_lock(&p->work_mutex);
 	list_add_tail(list, &p->work_head);
 	pthread_cond_signal(&p->work_cond);
 	pthread_mutex_unlock(&p->work_mutex);
-	return 0;
 }
