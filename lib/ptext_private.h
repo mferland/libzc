@@ -19,7 +19,6 @@
 #ifndef _PTEXT_PRIVATE_H_
 #define _PTEXT_PRIVATE_H_
 
-#include <pthread.h>
 #include <stdint.h>
 
 #include "libzc.h"
@@ -37,31 +36,17 @@ struct zc_crk_ptext {
 	size_t text_size;
 
 	/* key2 bits 15-2 cache */
-	uint16_t *bits_15_2;
-
-	/* key2i and key2i+1  */
-	/* TODO: should be in struct reduce_private */
-	uint32_t *key2ip1, *key2i;
-	size_t key2ip1_size, key2i_size;
+	const uint16_t *bits_15_2;
 
 	/* key0 LSB lookup table */
 	uint8_t lsbk0_lookup[256][4];
 	uint8_t lsbk0_count[256];
 
-	/* threading */
-	/* TODO: most of these should go away */
-	bool found;
-	pthread_t found_by;
-	long force_threads;
 	struct threadpool *pool;
-	pthread_mutex_t mutex;
 
 	/* final reduced key2 buffer */
-	uint32_t *key2;
+	const uint32_t *key2;
 	size_t key2_size;
-
-	/* internal representation */
-	struct zc_key inter_rep;
 };
 
 #define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])

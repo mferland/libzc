@@ -29,9 +29,10 @@ START_TEST(test_new_destroy)
 	struct threadpool *pool = NULL;
 	int err;
 
-	err = threadpool_new(&pool);
+	err = threadpool_new(&pool, -1);
 	ck_assert_int_eq(err, 0);
 	ck_assert(pool != NULL);
+	threadpool_cancel(pool);
 	threadpool_destroy(pool);
 }
 END_TEST
@@ -41,24 +42,10 @@ struct work1 {
 	struct list_head list;
 };
 
-static int alloc_worker1(void *in, void **data)
+static int do_work1(void *in, struct list_head *list, int id)
 {
 	(void)in;
-	int *tmp = malloc(64 * sizeof(int));
-	for (int i = 0; i < 64; ++i)
-		tmp[i] = i;
-	*data = tmp;
-	return 0;
-}
-
-static void dealloc_worker1(void *data)
-{
-	free(data);
-}
-
-static int do_work1(void *data, struct list_head *list)
-{
-	(void)data;
+	(void)id;
 	static int do_work1_count = 0;
 	do_work1_count++;
 	ck_assert_int_eq(do_work1_count, 1); 	/* should be called once */
@@ -71,19 +58,19 @@ START_TEST(test_start_submit_wait1)
 {
 	struct threadpool *pool = NULL;
 	struct threadpool_ops ops = {
-		.alloc_worker = alloc_worker1,
-		.dealloc_worker = dealloc_worker1,
 		.do_work = do_work1,
 		.in = NULL
 	};
 	int err;
-	err = threadpool_new(&pool);
+
+	err = threadpool_new(&pool, 1);
 	ck_assert_int_eq(err, 0);
 	ck_assert(pool != NULL);
-	err = threadpool_start(pool, &ops, 1);
-	ck_assert_int_eq(err, 0);
-	struct work1 *work1 = malloc(sizeof(struct work1));
+
+	struct work1 *work1 = calloc(1, sizeof(struct work1));
 	work1->i = 42;
+
+	threadpool_set_ops(pool, &ops);
 	threadpool_submit_work(pool, &work1->list);
 	threadpool_wait(pool);
 	threadpool_destroy(pool);
@@ -97,27 +84,11 @@ struct work3 {
 	struct list_head list;
 };
 
-static int alloc_worker3(void *in, void **data)
+static int do_work3(void *in, struct list_head *list, int id)
 {
 	(void)in;
-	int *tmp = malloc(64 * sizeof(int));
-	for (int i = 0; i < 64; ++i)
-		tmp[i] = i;
-	*data = tmp;
-	return 0;
-}
-
-static void dealloc_worker3(void *data)
-{
-	free(data);
-}
-
-static int do_work3(void *data, struct list_head *list)
-{
+	(void)id;
 	struct work3 *e = list_entry(list, struct work3, list);
-	int *d = (int *)data;
-	for (int i = 0; i < 64; ++i)
-		ck_assert_int_eq(d[i], i);
 	return e->id == e->target ? TPECANCELSIBLINGS : TPEMORE;
 }
 
@@ -130,70 +101,31 @@ static void test_start_submit_wait(size_t nb_workers,
 	int err;
 
 	tmp = calloc(nb_units, sizeof(struct work3 *));
-	err = threadpool_new(&pool);
+
+	err = threadpool_new(&pool, nb_workers);
 	ck_assert_int_eq(err, 0);
 	ck_assert(pool != NULL);
-	err = threadpool_start(pool, ops, nb_workers);
-	ck_assert_int_eq(err, 0);
+
+	threadpool_set_ops(pool, ops);
+
 	for (size_t i = 0; i < nb_units; ++i) {
 		tmp[i] = malloc(sizeof(struct work3));
 		tmp[i]->id = i;
 		tmp[i]->target = nb_units - 1;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
+
 	threadpool_wait(pool);
 	threadpool_destroy(pool);
+
 	for (size_t i = 0; i < nb_units; ++i)
 		free(tmp[i]);
 	free(tmp);
 }
 
-static int alloc_worker_fail(void *in, void **data)
-{
-	(void)in;
-	static int i = 0;
-	if (i++ > 0)
-		return -1;
-	int *tmp = malloc(64 * sizeof(int));
-	for (int i = 0; i < 64; ++i)
-		tmp[i] = i;
-	*data = tmp;
-	return 0;
-}
-
-static int not_called(void *data, struct list_head *list)
-{
-	(void)data;
-	(void)list;
-	ck_assert_int_eq(0, 1);
-	return 0;
-}
-
-START_TEST(test_alloc_fail)
-{
-	struct threadpool_ops ops = {
-		.alloc_worker = alloc_worker_fail,
-		.dealloc_worker = dealloc_worker3,
-		.do_work = not_called,
-		.in = NULL
-	};
-	struct threadpool *pool = NULL;
-	int err;
-
-	err = threadpool_new(&pool);
-	ck_assert_int_eq(err, 0);
-	ck_assert(pool != NULL);
-	err = threadpool_start(pool, &ops, 3);
-	ck_assert_int_eq(err, -1);
-	threadpool_destroy(pool);
-}
-END_TEST
-
 START_TEST(test_start_submit_wait_less)
 {
 	struct threadpool_ops ops = {
-		.alloc_worker = alloc_worker3,
-		.dealloc_worker = dealloc_worker3,
 		.do_work = do_work3,
 		.in = NULL
 	};
@@ -203,10 +135,9 @@ END_TEST
 
 START_TEST(test_start_submit_wait_equal)
 {
-	struct threadpool_ops ops = { .alloc_worker = alloc_worker3,
-				      .dealloc_worker = dealloc_worker3,
-				      .do_work = do_work3,
-				      .in = NULL
+	struct threadpool_ops ops = {
+		.do_work = do_work3,
+		.in = NULL
 	};
 	test_start_submit_wait(3, 8, &ops);
 }
@@ -215,8 +146,6 @@ END_TEST
 START_TEST(test_start_submit_wait_more)
 {
 	struct threadpool_ops ops = {
-		.alloc_worker = alloc_worker3,
-		.dealloc_worker = dealloc_worker3,
 		.do_work = do_work3,
 		.in = NULL
 	};
@@ -226,39 +155,22 @@ END_TEST
 
 struct work_wait {
 	int id;
-	int target;
 	struct list_head list;
 };
 
-static int alloc_worker_wait(void *in, void **data)
+static int do_work_wait(void *in, struct list_head *list, int id)
 {
+	(void)id;
 	(void)in;
-	int *tmp = malloc(64 * sizeof(int));
-	for (int i = 0; i < 64; ++i)
-		tmp[i] = i;
-	*data = tmp;
-	return 0;
-}
-
-static void dealloc_worker_wait(void *data)
-{
-	free(data);
-}
-
-static int do_work_wait(void *data, struct list_head *list)
-{
-	(void)list;
-	int *d = (int *)data;
-	for (int i = 0; i < 64; ++i)
-		ck_assert_int_eq(d[i], i);
+	struct work_wait *w = list_entry(list, struct work_wait, list);
+	ck_assert_int_lt(w->id, 64);
+	ck_assert_int_ge(w->id, 0);
 	return TPEMORE;
 }
 
 START_TEST(test_wait_idle)
 {
 	struct threadpool_ops ops = {
-		.alloc_worker = alloc_worker_wait,
-		.dealloc_worker = dealloc_worker_wait,
 		.do_work = do_work_wait,
 		.in = NULL
 	};
@@ -267,19 +179,23 @@ START_TEST(test_wait_idle)
 	int err;
 
 	tmp = calloc(64, sizeof(struct work_wait *));
-	err = threadpool_new(&pool);
+
+	err = threadpool_new(&pool, -1);
 	ck_assert_int_eq(err, 0);
 	ck_assert(pool != NULL);
-	err = threadpool_start(pool, &ops, 8);
-	ck_assert_int_eq(err, 0);
+
+	threadpool_set_ops(pool,  &ops);
+
 	for (size_t i = 0; i < 64; ++i) {
 		tmp[i] = malloc(sizeof(struct work_wait));
 		tmp[i]->id = i;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
+
 	threadpool_wait_idle(pool);
 	threadpool_cancel(pool);
 	threadpool_destroy(pool);
+
 	for (int i = 0; i < 64; ++i)
 		free(tmp[i]);
 	free(tmp);
@@ -296,7 +212,6 @@ Suite *threadpool_suite()
 	tcase_add_test(tc_core, test_start_submit_wait_less);
 	tcase_add_test(tc_core, test_start_submit_wait_equal);
 	tcase_add_test(tc_core, test_start_submit_wait_more);
-	tcase_add_test(tc_core, test_alloc_fail);
 	tcase_add_test(tc_core, test_wait_idle);
 	suite_add_tcase(s, tc_core);
 

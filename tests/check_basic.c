@@ -133,7 +133,7 @@ START_TEST(test_zc_crk_ptext_refcount)
 	struct zc_crk_ptext *p, *tmp;
 	int ret;
 
-	ret = zc_crk_ptext_new(ctx, &p);
+	ret = zc_crk_ptext_new(ctx, &p, -1);
 	ck_assert_int_eq(ret, 0);
 
 	tmp = zc_crk_ptext_ref(p);

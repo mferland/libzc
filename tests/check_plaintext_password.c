@@ -65,7 +65,7 @@ struct test_pool pool[POOL_LEN] = {
 void setup_ptext()
 {
 	zc_new(&ctx);
-	zc_crk_ptext_new(ctx, &ptext);
+	zc_crk_ptext_new(ctx, &ptext, -1);
 }
 
 void teardown_ptext()

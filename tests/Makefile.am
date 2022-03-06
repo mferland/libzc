@@ -56,6 +56,7 @@ pwstream_LDADD = $(top_builddir)/lib/pwstream.lo @CHECK_LIBS@ -lm
 pool_SOURCES = check_pool.c
 pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 pool_LDADD = $(top_builddir)/lib/pool.lo \
+	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/libzc.lo \
 	@CHECK_LIBS@
 

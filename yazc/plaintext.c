@@ -361,8 +361,7 @@ static int find_password_from_internal_rep(void)
 		return ret;
 	}
 
-	/* TODO: pass nbthreads here! */
-	if (zc_crk_ptext_new(ctx, &ptext, 1) < 0) {
+	if (zc_crk_ptext_new(ctx, &ptext, thread_count) < 0) {
 		err("zc_crk_ptext_new() failed!\n");
 		goto err1;
 	}

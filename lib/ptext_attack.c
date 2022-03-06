@@ -17,6 +17,7 @@
  */
 
 #include <assert.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +35,6 @@
 #define cipher(index) priv->ptext->ciphertext[index]
 #define lsbk0_lookup(index) priv->ptext->lsbk0_lookup[index]
 #define lsbk0_count(index) priv->ptext->lsbk0_count[index]
-#define bits_15_2(index) priv->ptext->bits_15_2[index]
 
 #define KEY2_GEN_MAX 64		/* The maximum number of keys we could
 				 * generate from a single key2 */
@@ -236,14 +236,14 @@ static uint32_t compute_key1_msb(struct attack_private *priv, uint32_t current_i
 	return (key2i << 8) ^ crc_32_invtab[key2i >> 24] ^ key2im1;
 }
 
-static int recurse_key2(struct attack_private *priv, uint32_t current_idx)
+static void recurse_key2(struct attack_private *priv, uint32_t current_idx)
 {
 	uint8_t key3im1;
 	uint8_t key3im2;
 
 	if (current_idx == 1) {
 		compute_key1(priv);
-		return 0;
+		return;
 	}
 
 	key3im1 = generate_key3(priv->ptext, current_idx - 1);
@@ -266,11 +266,8 @@ static int recurse_key2(struct attack_private *priv, uint32_t current_idx)
 	for (size_t i = 0; i < key2_get_size(priv, current_idx - 1); ++i) {
 		priv->key2_final[current_idx - 1] = key2_get_key(priv, current_idx - 1, i);
 		priv->key1_final[current_idx] = compute_key1_msb(priv, current_idx) << 24;
-		if (recurse_key2(priv, current_idx - 1))
-			return -1; /* TODO: ? */
+		recurse_key2(priv, current_idx - 1);
 	}
-
-	return 0;
 }
 
 static int do_work_attack(void *in, struct list_head *list, int id)
@@ -285,8 +282,7 @@ static int do_work_attack(void *in, struct list_head *list, int id)
 
 	for (size_t i = 0; i < unit->key2_final_size; ++i) {
 		priv.key2_final[12] = unit->key2_final[i];
-		if (recurse_key2(&priv, 12))
-			break;
+		recurse_key2(&priv, 12);
 		if (priv.found) {
 			unit->found = true;
 			break;

@@ -99,9 +99,7 @@ static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
 
 static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 {
-	uint16_t *tmp;
-
-	tmp = malloc(256 * 64 * sizeof(uint16_t));
+	uint16_t *tmp = malloc(256 * 64 * sizeof(uint16_t));
 	if (!tmp)
 		return -1;
 
@@ -129,10 +127,10 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	if (ptext->refcount > 0)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
+	threadpool_cancel(ptext->pool);
 	threadpool_destroy(ptext->pool);
-	pthread_mutex_destroy(&ptext->mutex);
-	free(ptext->key2);
-	free(ptext->bits_15_2);
+	free((void*)ptext->key2);
+	free((void*)ptext->bits_15_2);
 	free(ptext);
 	return NULL;
 }
@@ -156,8 +154,6 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx,
 	generate_key0_lsb(new);
 	new->ctx = ctx;
 	new->refcount = 1;
-	new->found = false;
-	pthread_mutex_init(&new->mutex, NULL);
 
 	*ptext = new;
 
