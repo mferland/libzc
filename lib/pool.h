@@ -39,16 +39,6 @@ struct threadpool_ops {
 	void *in;
 
 	/*
-	 * Allocate resources for a single worker thread.
-	 */
-	int (*alloc_worker)(void *in, void **out);
-
-	/*
-	 * Deallocate resources for a single worker thread.
-	 */
-	void (*dealloc_worker)(void *data);
-
-	/*
 	 * Function called to do the actual work.
 	 */
 	int (*do_work)(void *data, struct list_head *list, int id);

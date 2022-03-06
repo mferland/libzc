@@ -226,7 +226,6 @@ static void start_fail_cleanup(struct threadpool *p)
 		list_for_each_entry_safe(w, tmp, &p->cleanup_head, list) {
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
-			/* p->ops->dealloc_worker(w->data); */
 			free(w);
 			--left;
 		}
@@ -404,7 +403,6 @@ void threadpool_wait(struct threadpool *p)
 			pthread_join(w->thread_id, NULL);
 			if (w->cancel_siblings && left > 1)
 				cancel(p);
-			/* p->ops->dealloc_worker(w->data); */
 			free(w);
 			--left;
 		}
