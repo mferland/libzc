@@ -29,8 +29,6 @@ AM_CFLAGS = \
 	-ffunction-sections \
 	-fdata-sections
 
-AM_LDFLAGS = -lm ${ZLIB_LIBS}
-
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
 #   of your software. More frequent updates are unnecessary, and only
@@ -71,6 +69,7 @@ libzc_la_SOURCES =\
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
+libzc_la_LIBADD = -lm ${ZLIB_LIBS}
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libzc.pc
