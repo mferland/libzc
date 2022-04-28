@@ -25,6 +25,7 @@ yazc/yazc plaintext -S -i 0x6d060bfe 0xc76ff413 0x7388dade
 
 # 8
 yazc/yazc plaintext -S -i 0x60dd88de 0xcf040cb6 0x6ac3a828
+yazc/yazc plaintext -S -i 0x6c0c6c36 0x4c8d85db 0xdf01fc4f
 
 # 9
 yazc/yazc plaintext -S -i 0x5bbe7395 0xe446ee78 0x92b84d33
@@ -34,5 +35,9 @@ yazc/yazc plaintext -S -i 0xba8b8876 0xf00562a7 0x02ff2b47
 
 # 11
 yazc/yazc plaintext -S -i 0x83690e4f 0x3ed1c6cf 0x29db36b3
+yazc/yazc plaintext -S -i 0xd9a4f37e 0x671cc039 0xe1c65a02
+
+# 12
+yazc/yazc plaintext -S -i 0x9986f7db 0x67338fae 0x131eb6d7
 
 exit 0
