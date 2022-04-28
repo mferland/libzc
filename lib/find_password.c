@@ -385,7 +385,7 @@ static int recover_8(void *in, struct list_head *list, int id)
 		recover_prev_key(&recovered[0], c, &recovered[1]);
 		for (int i = 0; i < 256; ++i) {
 			pw[1] = i;
-			recover_prev_key(&recovered[1], c, &recovered[2]);
+			recover_prev_key(&recovered[1], i, &recovered[2]);
 			if (recover(recovered,
 				    pw,
 				    2,
