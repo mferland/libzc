@@ -289,7 +289,8 @@ static int do_work_attack(void *in, struct list_head *list, int id)
 		}
 	}
 
-	/* TODO */
+	/* TODO: We should quit the thread as soon as another thread
+	 * finds the key. This */
 	return TPEEXIT;
 }
 

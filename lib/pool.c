@@ -167,6 +167,10 @@ static void *worker(void *p)
 	if (wait_workers_created(w->pool) < 0)
 		goto end;
 
+	/* TODO: implement thread cancelling, when cancelling threads,
+	 * restart them automatically. */
+	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 	do {
 		pthread_mutex_lock(&w->pool->work_mutex);
 		while (list_empty(&w->pool->work_head)) {
@@ -186,7 +190,9 @@ static void *worker(void *p)
 		pthread_cond_broadcast(&w->pool->work_cond);
 		pthread_mutex_unlock(&w->pool->work_mutex);
 
+		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 		ret = w->pool->ops->do_work(w->pool->ops->in, work, w->id);
+		pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 	} while (ret == TPEMORE);
 
 	if (ret == TPECANCELSIBLINGS)
