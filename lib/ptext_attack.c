@@ -285,12 +285,12 @@ static int do_work_attack(void *in, struct list_head *list, int id)
 		recurse_key2(&priv, 12);
 		if (priv.found) {
 			unit->found = true;
-			break;
+			/* key found cancel siblings */
+			return TPECANCELSIBLINGS;
 		}
 	}
 
-	/* TODO: We should quit the thread as soon as another thread
-	 * finds the key. This */
+	/* all units processed, key not found */
 	return TPEEXIT;
 }
 
@@ -336,7 +336,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 	for (size_t i = 0; i < nbunits; ++i)
 		threadpool_submit_work(ptext->pool, &u[i].list);
 
-	threadpool_wait_idle(ptext->pool);
+	threadpool_wait(ptext->pool);
 
 	for (size_t i = 0; i < nbunits; ++i) {
 		if (u[i].found) {

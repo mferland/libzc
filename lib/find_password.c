@@ -31,6 +31,7 @@
                                  * 0x12345678, found by exhaustive
                                  * search */
 #define PASS_MAX_LEN 13
+#define RECOVERED_KEYS_BUF_LEN (PASS_MAX_LEN + 2) /* includes internal rep and PREKEY1 */
 #define NB_WORK_UNITS 256
 
 struct final_private {
@@ -339,7 +340,7 @@ static void recover_prev_key(const struct zc_key *k, uint8_t c,
 
 static int recover_7(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -366,12 +367,12 @@ static int recover_7(void *in, struct list_head *list, int id)
 		}
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_8(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -403,12 +404,12 @@ static int recover_8(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_9(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -444,12 +445,12 @@ static int recover_9(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_10(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -489,12 +490,12 @@ static int recover_10(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_11(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -538,12 +539,12 @@ static int recover_11(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_12(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -591,12 +592,12 @@ static int recover_12(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static int recover_13(void *in, struct list_head *list, int id)
 {
-	struct zc_key recovered[PASS_MAX_LEN + 1];
+	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
 	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
@@ -648,7 +649,7 @@ static int recover_13(void *in, struct list_head *list, int id)
 		c++;
 	} while (c < c_end);
 
-	return TPEMORE;
+	return TPEEXIT;
 }
 
 static void init_work_units(struct final_work_unit *unit,
@@ -717,12 +718,8 @@ static int try_key(struct final_private *final, int i)
 	for (size_t i = 0; i < nbunits; ++i)
 		threadpool_submit_work(final->pool, &u[i].list);
 
-	threadpool_wait_idle(final->pool);
-	/* TODO: ideally, we would have a function that checks if:
-	 * - the cleanup queue is NOT-empty, threads have finished executing
-	 * - if cancel flag is set, kill all other threads
-	 * in the mean time use threadpool_wait_idle();
-	 */
+	threadpool_wait(final->pool);
+
 	pthread_mutex_destroy(&final->mutex);
 
 	return final->found ? i : -1;
@@ -730,9 +727,16 @@ static int try_key(struct final_private *final, int i)
 
 static int try_key_7_13(struct final_private *f)
 {
-	for (int i = 7; i <= 13; ++i)
-		if (try_key(f, i) == i)
+	int ret;
+
+	for (int i = 7; i <= 13; ++i) {
+		ret = try_key(f, i);
+		if (ret == i)
 			return i;
+		else if (ret < 0)
+			continue;
+	}
+
 	return -1;
 }
 

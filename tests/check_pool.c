@@ -32,7 +32,6 @@ START_TEST(test_new_destroy)
 	err = threadpool_new(&pool, -1);
 	ck_assert_int_eq(err, 0);
 	ck_assert(pool != NULL);
-	threadpool_cancel(pool);
 	threadpool_destroy(pool);
 }
 END_TEST
@@ -193,7 +192,6 @@ START_TEST(test_wait_idle)
 	}
 
 	threadpool_wait_idle(pool);
-	threadpool_cancel(pool);
 	threadpool_destroy(pool);
 
 	for (int i = 0; i < 64; ++i)
