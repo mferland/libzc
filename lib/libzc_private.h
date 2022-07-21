@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <syslog.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "config.h"
 #include "crc32.h"
@@ -61,6 +63,17 @@ void zc_log(struct zc_ctx *ctx,
 	    const char *fn,
 	    const char *format,
 	    ...) __attribute__((format(printf, 6, 7)));
+
+static inline void fatal(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	exit(EXIT_FAILURE);
+}
 
 #define MULT 134775813u
 #define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */

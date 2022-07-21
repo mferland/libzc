@@ -223,6 +223,7 @@ static void broadcast_workers_err(struct threadpool *p, int err)
 static void start_fail_cleanup(struct threadpool *p)
 {
 	long left = p->nbthreads_created;
+	int err;
 
 	while (left) {
 		pthread_mutex_lock(&p->mutex);
@@ -231,7 +232,10 @@ static void start_fail_cleanup(struct threadpool *p)
 		struct worker *w, *tmp;
 		list_for_each_entry_safe(w, tmp, &p->cleanup_head, list) {
 			list_del(&w->list);
-			pthread_join(w->thread_id, NULL);
+			err = pthread_join(w->thread_id, NULL);
+			if (err)
+				fatal("pthread_join() failed: %s\n",
+				      strerror(err));
 			free(w);
 			--left;
 		}
@@ -374,8 +378,6 @@ static void cancel(struct threadpool *p)
 
 /**
  * Destroy the thread pool.
- *
- * Call only when threadpool_wait() or threadpool_cancel() has returned.
  */
 void threadpool_destroy(struct threadpool *p)
 {
@@ -392,14 +394,18 @@ void threadpool_destroy(struct threadpool *p)
 	free(p);
 }
 
-void threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
+int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
 {
+	if (!ops->do_work)
+		return -1;
+
 	threadpool_wait_idle(p);
 
 	/* now that threads are all waiting for work, change the ops
 	   pointer so that the next round of work units will use these
 	   new ops. */
 	p->ops = ops;
+	return 0;
 }
 
 /**
@@ -407,7 +413,7 @@ void threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
  * executing or where cancelled) and join them. The function returns
  * once all threads in the pool have been joined.
  */
-int threadpool_wait(struct threadpool *p)
+void threadpool_wait(struct threadpool *p)
 {
 	long left = p->nbthreads_created;
 
@@ -418,7 +424,9 @@ int threadpool_wait(struct threadpool *p)
 		struct worker *w, *tmp;
 		list_for_each_entry_safe(w, tmp, &p->cleanup_head, list) {
 			list_del(&w->list);
-			pthread_join(w->thread_id, NULL);
+			int err = pthread_join(w->thread_id, NULL);
+			if (err)
+				fatal("pthread_join() failed: %s\n", strerror(err));
 			if (w->cancel_siblings && left > 1)
 				cancel(p);
 			free(w);
@@ -428,7 +436,6 @@ int threadpool_wait(struct threadpool *p)
 	}
 
 	p->nbthreads_created = 0;
-	return 0;
 }
 
 /**
@@ -480,8 +487,10 @@ void threadpool_wait_idle(struct threadpool *p)
  */
 void threadpool_submit_work(struct threadpool *p, struct list_head *list)
 {
-	if (!p->nbthreads_created)
-		threadpool_restart(p);
+	if (!p->nbthreads_created) {
+		if (threadpool_restart(p))
+			fatal("threadpool_submit_work() failed\n");
+	}
 	pthread_mutex_lock(&p->work_mutex);
 	list_add_tail(list, &p->work_head);
 	pthread_cond_signal(&p->work_cond);

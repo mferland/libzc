@@ -48,13 +48,13 @@ int threadpool_new(struct threadpool **p, long nbthreads);
 
 size_t threadpool_get_nbthreads(const struct threadpool *p);
 
-void threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops);
+int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops);
 
 void threadpool_destroy(struct threadpool *p);
 
 int threadpool_restart(struct threadpool *p);
 
-int threadpool_wait(struct threadpool *p);
+void threadpool_wait(struct threadpool *p);
 
 void threadpool_wait_idle(struct threadpool *p);
 

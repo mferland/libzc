@@ -36,6 +36,169 @@ START_TEST(test_new_destroy)
 }
 END_TEST
 
+START_TEST(test_get_nbthreads_auto)
+{
+	struct threadpool *pool = NULL;
+	int err;
+
+	err = threadpool_new(&pool, -1);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+	ck_assert(threadpool_get_nbthreads(pool) > 0);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_get_nbthreads_1)
+{
+	struct threadpool *pool = NULL;
+	int err;
+
+	err = threadpool_new(&pool, 1);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+	ck_assert(threadpool_get_nbthreads(pool) == 1);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_get_nbthreads_2)
+{
+	struct threadpool *pool = NULL;
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+	ck_assert(threadpool_get_nbthreads(pool) == 2);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_restart_fail)
+{
+	struct threadpool *pool = NULL;
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+	ck_assert(threadpool_restart(pool) == -1);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+struct work_restart {
+	int dummy;
+	struct list_head list;
+};
+
+static int do_work_cancel_siblings(void *in, struct list_head *list, int id)
+{
+	(void)in;
+	(void)id;
+	(void)list;
+	return TPECANCELSIBLINGS;
+}
+
+START_TEST(test_restart_success)
+{
+	struct threadpool *pool = NULL;
+	struct threadpool_ops ops = {
+		.in = NULL,
+		.do_work = do_work_cancel_siblings,
+	};
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+
+	struct work_restart *work = calloc(1, sizeof(struct work_restart));
+	work->dummy = 54;
+
+	threadpool_set_ops(pool, &ops);
+	threadpool_submit_work(pool, &work->list);
+	threadpool_wait(pool);
+	ck_assert(threadpool_restart(pool) == 0);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_restart_fail_before_wait)
+{
+	struct threadpool *pool = NULL;
+	struct threadpool_ops ops = {
+		.in = NULL,
+		.do_work = do_work_cancel_siblings,
+	};
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+
+	struct work_restart *work = calloc(1, sizeof(struct work_restart));
+	work->dummy = 54;
+
+	threadpool_set_ops(pool, &ops);
+	threadpool_submit_work(pool, &work->list);
+	/* threads are still running here, not joined yet */
+	ck_assert(threadpool_restart(pool) == -1);
+	threadpool_wait(pool);
+	ck_assert(threadpool_restart(pool) == 0);
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_restart_inside_submit_work)
+{
+	struct threadpool *pool = NULL;
+	struct threadpool_ops ops = {
+		.in = NULL,
+		.do_work = do_work_cancel_siblings,
+	};
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+
+	struct work_restart *work = calloc(1, sizeof(struct work_restart));
+	work->dummy = 54;
+
+	threadpool_set_ops(pool, &ops);
+
+	threadpool_submit_work(pool, &work->list);
+	threadpool_wait(pool);
+
+	threadpool_submit_work(pool, &work->list);
+	threadpool_wait(pool);
+
+	threadpool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_invalid_set_ops)
+{
+	struct threadpool *pool = NULL;
+	struct threadpool_ops ops = {
+		.in = NULL,
+		.do_work = NULL,
+	};
+	int err;
+
+	err = threadpool_new(&pool, 2);
+	ck_assert_int_eq(err, 0);
+	ck_assert(pool != NULL);
+
+	err = threadpool_set_ops(pool, &ops);
+	ck_assert_int_eq(err, -1);
+
+	threadpool_destroy(pool);
+}
+END_TEST
+
 struct work1 {
 	int i;
 	struct list_head list;
@@ -206,6 +369,14 @@ Suite *threadpool_suite()
 
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_test(tc_core, test_new_destroy);
+	tcase_add_test(tc_core, test_get_nbthreads_auto);
+	tcase_add_test(tc_core, test_get_nbthreads_1);
+	tcase_add_test(tc_core, test_get_nbthreads_2);
+	tcase_add_test(tc_core, test_restart_fail);
+	tcase_add_test(tc_core, test_restart_success);
+	tcase_add_test(tc_core, test_restart_fail_before_wait);
+	tcase_add_test(tc_core, test_restart_inside_submit_work);
+	tcase_add_test(tc_core, test_invalid_set_ops);
 	tcase_add_test(tc_core, test_start_submit_wait1);
 	tcase_add_test(tc_core, test_start_submit_wait_less);
 	tcase_add_test(tc_core, test_start_submit_wait_equal);
