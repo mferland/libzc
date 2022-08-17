@@ -118,7 +118,9 @@ START_TEST(test_restart_success)
 	work->dummy = 54;
 
 	threadpool_set_ops(pool, &ops);
+	threadpool_submit_start(pool);
 	threadpool_submit_work(pool, &work->list);
+	threadpool_submit_end(pool);
 	threadpool_wait(pool);
 	ck_assert(threadpool_restart(pool) == 0);
 	threadpool_destroy(pool);
@@ -142,7 +144,9 @@ START_TEST(test_restart_fail_before_wait)
 	work->dummy = 54;
 
 	threadpool_set_ops(pool, &ops);
+	threadpool_submit_start(pool);
 	threadpool_submit_work(pool, &work->list);
+	threadpool_submit_end(pool);
 	/* threads are still running here, not joined yet */
 	ck_assert(threadpool_restart(pool) == -1);
 	threadpool_wait(pool);
@@ -169,10 +173,14 @@ START_TEST(test_restart_inside_submit_work)
 
 	threadpool_set_ops(pool, &ops);
 
+	threadpool_submit_start(pool);
 	threadpool_submit_work(pool, &work->list);
+	threadpool_submit_end(pool);
 	threadpool_wait(pool);
 
+	threadpool_submit_start(pool);
 	threadpool_submit_work(pool, &work->list);
+	threadpool_submit_end(pool);
 	threadpool_wait(pool);
 
 	threadpool_destroy(pool);
@@ -233,7 +241,9 @@ START_TEST(test_start_submit_wait1)
 	work1->i = 42;
 
 	threadpool_set_ops(pool, &ops);
+	threadpool_submit_start(pool);
 	threadpool_submit_work(pool, &work1->list);
+	threadpool_submit_end(pool);
 	threadpool_wait(pool);
 	threadpool_destroy(pool);
 	free(work1);
@@ -270,12 +280,14 @@ static void test_start_submit_wait(size_t nb_workers,
 
 	threadpool_set_ops(pool, ops);
 
+	threadpool_submit_start(pool);
 	for (size_t i = 0; i < nb_units; ++i) {
 		tmp[i] = malloc(sizeof(struct work3));
 		tmp[i]->id = i;
 		tmp[i]->target = nb_units - 1;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
+	threadpool_submit_end(pool);
 
 	threadpool_wait(pool);
 	threadpool_destroy(pool);
@@ -348,11 +360,13 @@ START_TEST(test_wait_idle)
 
 	threadpool_set_ops(pool,  &ops);
 
+	threadpool_submit_start(pool);
 	for (size_t i = 0; i < 64; ++i) {
 		tmp[i] = malloc(sizeof(struct work_wait));
 		tmp[i]->id = i;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
+	threadpool_submit_end(pool);
 
 	threadpool_wait_idle(pool);
 	threadpool_destroy(pool);
