@@ -214,4 +214,28 @@ int test_buffer_crc(unsigned char *in,
 		    size_t inlen,
 		    uint32_t original_crc);
 
+#if defined(__x86_64__)
+void uint32_qsort_avx2(uint32_t *x, long long n);
+#endif
+
+void uint32_qsort_portable(uint32_t *x, long long n);
+
+static inline void uint32_qsort(uint32_t *x, long long n)
+{
+#if defined(__x86_64__)
+	/* proceed to cpu features detection */
+	if (__builtin_cpu_supports("avx2")) {
+		static int t = 0;
+		if (!t)
+			printf("Calling avx sort....\n");
+		t = 1;
+		uint32_qsort_avx2(x, n);
+	} else
+		uint32_qsort_portable(x, n);
+#else
+	/* just call standard function here */
+		uint32_qsort_portable(x, n);
+#endif
+}
+
 #endif	/* _LIBZC_PRIVATE_H_ */

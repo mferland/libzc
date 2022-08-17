@@ -29,13 +29,6 @@
 #include "libzc_private.h"
 #include "ptext_private.h"
 #include "pool.h"
-#include "qsort.h"
-
-static void uint_qsort(uint32_t *buf, size_t n)
-{
-#define uint_lt(a,b) ((*a)<(*b))
-	QSORT(uint32_t, buf, n, uint_lt);
-}
 
 void uniq(uint32_t *buf, size_t *n)
 {
@@ -44,7 +37,7 @@ void uniq(uint32_t *buf, size_t *n)
 	if (*n <= 1)
 		return;
 
-	uint_qsort(buf, *n);
+	uint32_qsort(buf, *n);
 
 	/* reduce by removing duplicates */
 	for (j = 1; j < *n; ++j) {

@@ -68,7 +68,8 @@ libzc_la_SOURCES =\
 	dict.c \
 	ptext.c \
 	file.c \
-	sys.c
+	sys.c \
+	qsort.c
 
 include_HEADERS = libzc.h
 
