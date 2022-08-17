@@ -87,7 +87,6 @@ struct threadpool {
 
 	pthread_mutex_t mutex;
 	pthread_cond_t cond;
-	pthread_cond_t empty_cond;
 };
 
 /*
@@ -188,11 +187,7 @@ static void *worker(void *p)
 		/* remove work from the queue */
 		struct list_head *work = w->pool->work_head.next;
 		list_del(w->pool->work_head.next);
-
-		/* only signal when list is empty here */
-		if (list_empty(&w->pool->work_head))
-			pthread_cond_signal(&w->pool->empty_cond);
-
+		pthread_cond_broadcast(&w->pool->work_cond);
 		pthread_mutex_unlock(&w->pool->work_mutex);
 
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -316,17 +311,13 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 	if (err)
 		goto err2;
 
-	err = pthread_cond_init(&tmp->empty_cond, NULL);
+	err = pthread_mutex_init(&tmp->work_mutex, NULL);
 	if (err)
 		goto err3;
 
-	err = pthread_mutex_init(&tmp->work_mutex, NULL);
-	if (err)
-		goto err4;
-
 	err = pthread_cond_init(&tmp->work_cond, NULL);
 	if (err)
-		goto err5;
+		goto err4;
 
 	INIT_LIST_HEAD(&tmp->active_head);
 	INIT_LIST_HEAD(&tmp->cleanup_head);
@@ -337,7 +328,7 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 
 	err = allocate_workers(tmp);
 	if (err)
-		goto err5;
+		goto err4;
 
 	err = create_threads(tmp);
 	if (err) {
@@ -349,10 +340,8 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 
 	return 0;
 
-err5:
-	pthread_mutex_destroy(&tmp->work_mutex);
 err4:
-	pthread_cond_destroy(&tmp->empty_cond);
+	pthread_mutex_destroy(&tmp->work_mutex);
 err3:
 	pthread_cond_destroy(&tmp->cond);
 err2:
@@ -401,7 +390,6 @@ void threadpool_destroy(struct threadpool *p)
 	pthread_cond_destroy(&p->work_cond);
 	pthread_mutex_destroy(&p->work_mutex);
 	pthread_cond_destroy(&p->cond);
-	pthread_cond_destroy(&p->empty_cond);
 	pthread_mutex_destroy(&p->mutex);
 	free(p);
 }
@@ -484,7 +472,7 @@ void threadpool_wait_idle(struct threadpool *p)
 	/* wait for work queue to be empty */
 	pthread_mutex_lock(&p->work_mutex);
 	while (!list_empty(&p->work_head))
-		pthread_cond_wait(&p->empty_cond, &p->work_mutex);
+		pthread_cond_wait(&p->work_cond, &p->work_mutex);
 	pthread_mutex_unlock(&p->work_mutex);
 
 	/* wait for workers that are still working to finish */
