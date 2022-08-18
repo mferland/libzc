@@ -13,12 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_PREREQ(2.60)
-AC_INIT([zc],
-        [0.4.3],
-        [marc.ferland@gmail.com],
-        [libzc],
-        [http://github.com/mferland/libzc])
+AC_PREREQ([2.71])
+AC_INIT([zc],[0.4.3],[marc.ferland@gmail.com],[libzc],[http://github.com/mferland/libzc])
 m4_include([m4/ax_pthread.m4])
 AC_CONFIG_SRCDIR([lib/libzc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
@@ -29,7 +25,6 @@ LT_INIT([disable-static pic-only])
 AC_PREFIX_DEFAULT([/usr])
 
 AC_PROG_CC
-AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
 AX_PTHREAD([CLIBS="$PTHREAD_LIBS $LIBS"
