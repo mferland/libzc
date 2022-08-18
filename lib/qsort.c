@@ -975,10 +975,13 @@ void int32_sort(int32_t *x, long long n)
 
 	if (q <= 128) { /* n <= 256 */
 		int32x8 y[32];
-		for (i = q >> 3; i < q >> 2; ++i) y[i] = _mm256_set1_epi32(0x7fffffff);
-		for (i = 0; i < n; ++i) i[(int32_t *) y] = x[i];
+		for (i = q >> 3; i < q >> 2; ++i)
+			y[i] = _mm256_set1_epi32(0x7fffffff);
+		for (i = 0; i < n; ++i)
+			i[(int32_t *) y] = x[i];
 		int32_sort_2power((int32_t *) y, 2 * q, 0);
-		for (i = 0; i < n; ++i) x[i] = i[(int32_t *) y];
+		for (i = 0; i < n; ++i)
+			x[i] = i[(int32_t *) y];
 		return;
 	}
 
