@@ -234,7 +234,7 @@ static inline void uint32_qsort(uint32_t *x, long long n)
 		uint32_qsort_portable(x, n);
 #else
 	/* just call standard function here */
-		uint32_qsort_portable(x, n);
+	uint32_qsort_portable(x, n);
 #endif
 }
 
