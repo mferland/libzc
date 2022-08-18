@@ -23,7 +23,7 @@
 
 #include <stdint.h>
 
-#if defined(__x86_64__)
+#if defined(__AVX2__)
 
 #include <immintrin.h>
 
@@ -1238,8 +1238,9 @@ void uint32_qsort_avx2(uint32_t *buf, long long n)
 		buf[j] ^= 0x80000000;
 }
 
-#endif	/* x86_64 */
+#else
 
+#include <stddef.h>
 #include "qsort.h"
 
 void uint32_qsort_portable(uint32_t *buf, size_t n)
@@ -1247,3 +1248,5 @@ void uint32_qsort_portable(uint32_t *buf, size_t n)
 #define uint_lt(a,b) ((*a)<(*b))
 	QSORT(uint32_t, buf, n, uint_lt);
 }
+
+#endif	/* defined(__AVX2__) */

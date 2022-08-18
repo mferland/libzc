@@ -63,12 +63,12 @@ libzc_la_SOURCES =\
 	pwstream.h \
 	pool.c \
 	pool.h \
-	qsort.h \
 	bforce.c \
 	dict.c \
 	ptext.c \
 	file.c \
 	sys.c \
+	qsort.h \
 	qsort.c
 
 include_HEADERS = libzc.h
