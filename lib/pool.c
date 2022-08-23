@@ -29,8 +29,8 @@
 
 struct threadpool {
 	/*
-	 * Queue of active threads. These threads are actively
-	 * processing work units.
+	 * Queue of active threads. These threads are ready
+	 * or are currently processing work.
 	 */
 	struct list_head active_head;
 
@@ -42,16 +42,14 @@ struct threadpool {
 	struct list_head cleanup_head;
 
 	/*
-	 * Queue of idling threads. These threads are waiting for
-	 * work, maybe the work queue has not been filled yet, or no
-	 * more work is available.
+	 * Queue of work units waiting to be processed.
 	 */
-	struct list_head idle_head;
+	struct list_head waiting_head;
 
 	/*
-	 * Queue of work units to be processed.
+	 * Queue of work units to have been processed.
 	 */
-	struct list_head work_head;
+	size_t waiting_cnt;
 	pthread_mutex_t work_mutex;
 	pthread_cond_t work_cond;
 
@@ -123,11 +121,6 @@ static void to_active_queue(struct worker *w)
 	to_queue(w, &w->pool->active_head);
 }
 
-static void to_idle_queue(struct worker *w)
-{
-	to_queue(w, &w->pool->idle_head);
-}
-
 static void to_cleanup_queue(struct worker *w)
 {
 	to_queue(w, &w->pool->cleanup_head);
@@ -173,21 +166,25 @@ static void *worker(void *p)
 
 	do {
 		pthread_mutex_lock(&w->pool->work_mutex);
-		while (list_empty(&w->pool->work_head)) {
-			/* no work --> idle */
-			to_idle_queue(w);
+		if (w->pool->waiting_cnt &&
+		    --w->pool->waiting_cnt == 0) {
+			/* TODO: shouldnt be work_cond.....  */
+			pthread_cond_broadcast(&w->pool->work_cond);
+		}
+		while (list_empty(&w->pool->waiting_head)) {
+			/* wait for more work */
 			pthread_cleanup_push(unlock_work_mutex, w);
-			pthread_cond_wait(&w->pool->work_cond, &w->pool->work_mutex);
+			pthread_cond_wait(&w->pool->work_cond,
+					  &w->pool->work_mutex);
 			pthread_cleanup_pop(0);
 		}
 
 		/* work --> active */
 		to_active_queue(w);
 
-		/* remove work from the queue */
-		struct list_head *work = w->pool->work_head.next;
-		list_del(w->pool->work_head.next);
-		pthread_cond_broadcast(&w->pool->work_cond);
+		/* remove work from the waiting queue */
+		struct list_head *work = w->pool->waiting_head.next;
+		list_del(w->pool->waiting_head.next);
 		pthread_mutex_unlock(&w->pool->work_mutex);
 
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -206,7 +203,7 @@ end:
 static void dealloc_workers(struct threadpool *p)
 {
 	struct worker *w, *tmp;
-	list_for_each_entry_safe(w, tmp, &p->idle_head, list) {
+	list_for_each_entry_safe(w, tmp, &p->active_head, list) {
 		list_del(&w->list);
 		free(w);
 	}
@@ -253,7 +250,7 @@ static int create_threads(struct threadpool *p)
 	p->nbthreads_created = 0;
 
 	pthread_mutex_lock(&p->mutex);
-	list_for_each_entry(w, &p->idle_head, list) {
+	list_for_each_entry(w, &p->active_head, list) {
 		if (pthread_create(&w->thread_id, NULL, worker, w)) {
 			fputs("pthread_create() failed", stderr);
 			pthread_mutex_unlock(&p->mutex);
@@ -283,8 +280,8 @@ static int allocate_workers(struct threadpool *p)
 		w->pool = p;
 		w->cancel_siblings = 0;
 		w->id = i;
-		/* workers start off idle */
-		list_add(&w->list, &p->idle_head);
+		/* workers start off active */
+		list_add(&w->list, &p->active_head);
 	}
 	return 0;
 }
@@ -321,8 +318,7 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 
 	INIT_LIST_HEAD(&tmp->active_head);
 	INIT_LIST_HEAD(&tmp->cleanup_head);
-	INIT_LIST_HEAD(&tmp->idle_head);
-	INIT_LIST_HEAD(&tmp->work_head);
+	INIT_LIST_HEAD(&tmp->waiting_head);
 
 	tmp->nbthreads = threads_to_create(nbthreads);
 
@@ -365,11 +361,6 @@ static void cancel(struct threadpool *p)
 	struct worker *w;
 
 	/* workers are either idle or active */
-	list_for_each_entry(w, &p->idle_head, list) {
-		if (pthread_cancel(w->thread_id))
-			fputs("pthread_cancel() failed", stderr);
-	}
-
 	list_for_each_entry(w, &p->active_head, list) {
 		if (pthread_cancel(w->thread_id))
 			fputs("pthread_cancel() failed", stderr);
@@ -377,43 +368,11 @@ static void cancel(struct threadpool *p)
 }
 
 /**
- * Destroy the thread pool.
- */
-void threadpool_destroy(struct threadpool *p)
-{
-	pthread_mutex_lock(&p->mutex);
-	cancel(p);
-	pthread_mutex_unlock(&p->mutex);
-
-	threadpool_wait(p);
-
-	pthread_cond_destroy(&p->work_cond);
-	pthread_mutex_destroy(&p->work_mutex);
-	pthread_cond_destroy(&p->cond);
-	pthread_mutex_destroy(&p->mutex);
-	free(p);
-}
-
-int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
-{
-	if (!ops->do_work)
-		return -1;
-
-	threadpool_wait_idle(p);
-
-	/* now that threads are all waiting for work, change the ops
-	   pointer so that the next round of work units will use these
-	   new ops. */
-	p->ops = ops;
-	return 0;
-}
-
-/**
  * Wait for threads to appear on the cleanup queue (they finished
  * executing or where cancelled) and join them. The function returns
  * once all threads in the pool have been joined.
  */
-void threadpool_wait(struct threadpool *p)
+static void threadpool_wait(struct threadpool *p)
 {
 	long left = p->nbthreads_created;
 
@@ -464,24 +423,6 @@ int threadpool_restart(struct threadpool *p)
 	return 0;
 }
 
-/**
- * Wait for all threads to become idle.
- */
-void threadpool_wait_idle(struct threadpool *p)
-{
-	/* wait for work queue to be empty */
-	pthread_mutex_lock(&p->work_mutex);
-	while (!list_empty(&p->work_head))
-		pthread_cond_wait(&p->work_cond, &p->work_mutex);
-	pthread_mutex_unlock(&p->work_mutex);
-
-	/* wait for workers that are still working to finish */
-	pthread_mutex_lock(&p->mutex);
-	while (!list_empty(&p->active_head))
-		pthread_cond_wait(&p->cond, &p->mutex);
-	pthread_mutex_unlock(&p->mutex);
-}
-
 void threadpool_submit_start(struct threadpool *p)
 {
 	if (!p->nbthreads_created) {
@@ -489,6 +430,7 @@ void threadpool_submit_start(struct threadpool *p)
 			fatal("threadpool_submit_work() failed\n");
 	}
 	pthread_mutex_lock(&p->work_mutex);
+	p->waiting_cnt = 0;
 }
 
 /**
@@ -496,11 +438,53 @@ void threadpool_submit_start(struct threadpool *p)
  */
 void threadpool_submit_work(struct threadpool *p, struct list_head *list)
 {
-	list_add_tail(list, &p->work_head);
+	list_add_tail(list, &p->waiting_head);
+	p->waiting_cnt++;
 }
 
-void threadpool_submit_end(struct threadpool *p)
+void threadpool_submit_wait(struct threadpool *p)
 {
 	pthread_cond_broadcast(&p->work_cond);
 	pthread_mutex_unlock(&p->work_mutex);
+	threadpool_wait(p);
+}
+
+void threadpool_submit_wait_idle(struct threadpool *p)
+{
+	pthread_cond_broadcast(&p->work_cond);
+	while (p->waiting_cnt > 0) {
+		/* TODO: use another cond signal */
+		pthread_cond_wait(&p->work_cond, &p->work_mutex);
+	}
+	pthread_mutex_unlock(&p->work_mutex);
+}
+
+int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
+{
+	if (!ops->do_work)
+		return -1;
+
+	/* now that threads are all waiting for work, change the ops
+	   pointer so that the next round of work units will use these
+	   new ops. */
+	p->ops = ops;
+	return 0;
+}
+
+/**
+ * Destroy the thread pool.
+ */
+void threadpool_destroy(struct threadpool *p)
+{
+	pthread_mutex_lock(&p->mutex);
+	cancel(p);
+	pthread_mutex_unlock(&p->mutex);
+
+	threadpool_wait(p);
+
+	pthread_cond_destroy(&p->work_cond);
+	pthread_mutex_destroy(&p->work_mutex);
+	pthread_cond_destroy(&p->cond);
+	pthread_mutex_destroy(&p->mutex);
+	free(p);
 }

@@ -188,9 +188,7 @@ static int key2r_compute_next_array(struct zc_crk_ptext *ptext,
 	threadpool_submit_start(ptext->pool);
 	for (size_t i = 0; i < nbunits; ++i)
 		threadpool_submit_work(ptext->pool, &u[i].list);
-	threadpool_submit_end(ptext->pool);
-
-	threadpool_wait_idle(ptext->pool);
+	threadpool_submit_wait_idle(ptext->pool);
 
 	free(u);
 
