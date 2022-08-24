@@ -47,11 +47,26 @@ struct threadpool {
 	struct list_head waiting_head;
 
 	/*
-	 * Queue of work units to have been processed.
+	 * Number of work units waiting to be processed.
 	 */
 	size_t waiting_cnt;
+
+	/*
+	 * Work queue mutex. Used when adding/removing work units.
+	 */
 	pthread_mutex_t work_mutex;
+
+	/*
+	 * Work queue condition variable, used to signal new work
+	 * units on the queue.
+	 */
 	pthread_cond_t work_cond;
+
+	/*
+	 * Wait condition variable, used to signal the main thread
+	 * when all work has finished being processed.
+	 */
+	pthread_cond_t wait_cond;
 
 	/*
 	 * Function pointers.
@@ -116,11 +131,6 @@ static void to_queue(struct worker *w, struct list_head *dest)
 	pthread_mutex_unlock(&w->pool->mutex);
 }
 
-static void to_active_queue(struct worker *w)
-{
-	to_queue(w, &w->pool->active_head);
-}
-
 static void to_cleanup_queue(struct worker *w)
 {
 	to_queue(w, &w->pool->cleanup_head);
@@ -160,17 +170,18 @@ static void *worker(void *p)
 	if (wait_workers_created(w->pool) < 0)
 		goto end;
 
-	/* TODO: implement thread cancelling, when cancelling threads,
-	 * restart them automatically. */
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	do {
 		pthread_mutex_lock(&w->pool->work_mutex);
+
+		/* Note: waiting_cnt will always be zero when starting
+		 * the worker thread. */
 		if (w->pool->waiting_cnt &&
 		    --w->pool->waiting_cnt == 0) {
-			/* TODO: shouldnt be work_cond.....  */
-			pthread_cond_broadcast(&w->pool->work_cond);
+			pthread_cond_signal(&w->pool->wait_cond);
 		}
+
 		while (list_empty(&w->pool->waiting_head)) {
 			/* wait for more work */
 			pthread_cleanup_push(unlock_work_mutex, w);
@@ -179,14 +190,12 @@ static void *worker(void *p)
 			pthread_cleanup_pop(0);
 		}
 
-		/* work --> active */
-		to_active_queue(w);
-
 		/* remove work from the waiting queue */
 		struct list_head *work = w->pool->waiting_head.next;
 		list_del(w->pool->waiting_head.next);
 		pthread_mutex_unlock(&w->pool->work_mutex);
 
+		/* run ! */
 		pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
 		ret = w->pool->ops->do_work(w->pool->ops->in, work, w->id);
 		pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
@@ -316,6 +325,10 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 	if (err)
 		goto err4;
 
+	err = pthread_cond_init(&tmp->wait_cond, NULL);
+	if (err)
+		goto err5;
+
 	INIT_LIST_HEAD(&tmp->active_head);
 	INIT_LIST_HEAD(&tmp->cleanup_head);
 	INIT_LIST_HEAD(&tmp->waiting_head);
@@ -324,18 +337,22 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 
 	err = allocate_workers(tmp);
 	if (err)
-		goto err4;
+		goto err6;
 
 	err = create_threads(tmp);
 	if (err) {
 		dealloc_workers(tmp);
-		return err;
+		goto err6;
 	}
 
 	*p = tmp;
 
 	return 0;
 
+err6:
+	pthread_cond_destroy(&tmp->wait_cond);
+err5:
+	pthread_cond_destroy(&tmp->work_cond);
 err4:
 	pthread_mutex_destroy(&tmp->work_mutex);
 err3:
@@ -353,14 +370,12 @@ size_t threadpool_get_nbthreads(const struct threadpool *pool)
 }
 
 /**
- * Cancel all threads from the idle and active queues. Lock the pool
- * mutex before calling.
+ * Cancel all threads.
  */
 static void cancel(struct threadpool *p)
 {
 	struct worker *w;
 
-	/* workers are either idle or active */
 	list_for_each_entry(w, &p->active_head, list) {
 		if (pthread_cancel(w->thread_id))
 			fputs("pthread_cancel() failed", stderr);
@@ -452,10 +467,8 @@ void threadpool_submit_wait(struct threadpool *p)
 void threadpool_submit_wait_idle(struct threadpool *p)
 {
 	pthread_cond_broadcast(&p->work_cond);
-	while (p->waiting_cnt > 0) {
-		/* TODO: use another cond signal */
-		pthread_cond_wait(&p->work_cond, &p->work_mutex);
-	}
+	while (p->waiting_cnt > 0)
+		pthread_cond_wait(&p->wait_cond, &p->work_mutex);
 	pthread_mutex_unlock(&p->work_mutex);
 }
 
@@ -483,6 +496,7 @@ void threadpool_destroy(struct threadpool *p)
 	threadpool_wait(p);
 
 	pthread_cond_destroy(&p->work_cond);
+	pthread_cond_destroy(&p->wait_cond);
 	pthread_mutex_destroy(&p->work_mutex);
 	pthread_cond_destroy(&p->cond);
 	pthread_mutex_destroy(&p->mutex);
