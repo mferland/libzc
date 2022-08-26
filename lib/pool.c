@@ -36,8 +36,8 @@ struct threadpool {
 
 	/*
 	 * Queue of threads that are done executing. These threads are
-	 * waiting to be destroyed. The threadpool_wait() function
-	 * waits for threads to appear on this queue.
+	 * waiting to be joined. The threadpool_wait() function waits
+	 * for threads to appear on this queue.
 	 */
 	struct list_head cleanup_head;
 
@@ -415,7 +415,7 @@ static void threadpool_wait(struct threadpool *p)
 /**
  * Restart thread pool.
  */
-int threadpool_restart(struct threadpool *p)
+static int threadpool_restart(struct threadpool *p)
 {
 	int err;
 
