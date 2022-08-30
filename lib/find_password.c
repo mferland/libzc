@@ -724,6 +724,8 @@ static int try_key(struct final_private *final, int i)
 
 	pthread_mutex_destroy(&final->mutex);
 
+	free(u);
+
 	return final->found ? i : -1;
 }
 
