@@ -1,6 +1,6 @@
 # libzc clang build environment
 
-FROM silkeh/clang:11
+FROM silkeh/clang:12
 MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \

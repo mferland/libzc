@@ -19,5 +19,5 @@ CMD cd /home/dev/libzc \
     && ./autogen.sh \
     && (([ -f Makefile ] && make distclean) || true) \
     && cd build-gcc \
-    && ../configure CC="gcc" CFLAGS="-g -O2 -fno-sanitize-recover=undefined,address"\
+    && ../configure CC="gcc" CFLAGS="-g -Ofast -fsanitize=address -fno-sanitize-recover=undefined,address"\
     && make -j4 check
