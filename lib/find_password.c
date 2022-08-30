@@ -49,6 +49,8 @@ struct final_private {
 
 static void inplace_reverse(uint8_t *str, size_t len)
 {
+	if (len < 2)
+		return;
 	uint8_t *end = &str[len - 1];
 	while (str < end) {
 		uint8_t tmp = *str;
