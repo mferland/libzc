@@ -9,6 +9,8 @@ PERF_DATA=./perf/perf.data
 PERF_SCRIPT=./perf/perf.script
 PERF_FOLDED=./perf/perf.folded
 PERF_SVG=./perf/perf.svg
+CMD="libtool exe yazc/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64"
+
 
 echo "Starting perf script..."
 
@@ -94,20 +96,30 @@ echo "Configure..."
 echo "Compile..."
 make -j24
 
-# sudo ${PERF} stat libtool exe yazc/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64
-# exit 0
+case "${1}" in
 
-echo "Recording samples..."
-sudo ${PERF} record -g -o ${PERF_DATA} libtool exe yazc/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64
-sudo chown marc:marc ${PERF_DATA}
+    "flamegraph")
+	echo "Recording samples..."
+	sudo ${PERF} record -g -o ${PERF_DATA} ${CMD}
+	sudo chown marc:marc ${PERF_DATA}
 
-echo "Convert to script..."
-${PERF} script -i ${PERF_DATA} -k ${VMLINUX} > ${PERF_SCRIPT}
+	echo "Convert to script..."
+	${PERF} script -i ${PERF_DATA} -k ${VMLINUX} > ${PERF_SCRIPT}
 
-echo "Fold..."
-${SCBIN} ${PERF_SCRIPT} > ${PERF_FOLDED}
+	echo "Fold..."
+	${SCBIN} ${PERF_SCRIPT} > ${PERF_FOLDED}
 
-echo "FlameGraph..."
-${FGBIN} ${PERF_FOLDED} > ${PERF_SVG}
+	echo "FlameGraph..."
+	${FGBIN} ${PERF_FOLDED} > ${PERF_SVG}
+	;;
+
+    "stat")
+	sudo ${PERF} stat ${CMD}
+	;;
+
+    *)
+	echo &>1 "Unknown command: ${1}"
+	exit 1
+esac
 
 exit 0
