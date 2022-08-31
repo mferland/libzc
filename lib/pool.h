@@ -52,7 +52,7 @@ int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops);
 
 void threadpool_destroy(struct threadpool *p);
 
-void threadpool_submit_start(struct threadpool *p);
+void threadpool_submit_start(struct threadpool *p, bool support_cancel);
 
 void threadpool_submit_work(struct threadpool *p, struct list_head *list);
 

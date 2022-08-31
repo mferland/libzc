@@ -717,7 +717,7 @@ static int try_key(struct final_private *final, int i)
 	pthread_mutex_init(&final->mutex, NULL);
 	init_work_units(u, nbunits);
 
-	threadpool_submit_start(final->pool);
+	threadpool_submit_start(final->pool, true);
 	for (size_t i = 0; i < nbunits; ++i)
 		threadpool_submit_work(final->pool, &u[i].list);
 	threadpool_submit_wait(final->pool);

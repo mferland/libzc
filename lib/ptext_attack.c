@@ -333,7 +333,7 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 		}
 	}
 
-	threadpool_submit_start(ptext->pool);
+	threadpool_submit_start(ptext->pool, true);
 	for (size_t i = 0; i < nbunits; ++i)
 		threadpool_submit_work(ptext->pool, &u[i].list);
 	threadpool_submit_wait(ptext->pool);

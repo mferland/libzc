@@ -58,6 +58,7 @@ pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 pool_LDADD = $(top_builddir)/lib/pool.lo \
 	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/libzc.lo \
+	$(top_builddir)/lib/bitmap.lo \
 	@CHECK_LIBS@
 
 # reduce related functions
@@ -66,6 +67,7 @@ reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 reduce_LDADD = $(top_builddir)/lib/libzc.la \
 	$(top_builddir)/lib/ptext.lo \
 	$(top_builddir)/lib/pool.lo \
+	$(top_builddir)/lib/bitmap.lo \
 	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/qsort.lo \
 	@CHECK_LIBS@
