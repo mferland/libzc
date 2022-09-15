@@ -155,7 +155,8 @@ static int do_work3(void *in, struct list_head *list, int id)
 
 static void test_start_submit_wait(size_t nb_workers,
 				   size_t nb_units,
-				   struct threadpool_ops *ops)
+				   struct threadpool_ops *ops,
+				   bool cancel)
 {
 	struct threadpool *pool = NULL;
 	struct work3 **tmp;
@@ -169,7 +170,7 @@ static void test_start_submit_wait(size_t nb_workers,
 
 	threadpool_set_ops(pool, ops);
 
-	threadpool_submit_start(pool, true);
+	threadpool_submit_start(pool, cancel);
 	for (size_t i = 0; i < nb_units; ++i) {
 		tmp[i] = malloc(sizeof(struct work3));
 		tmp[i]->id = i;
@@ -192,7 +193,8 @@ START_TEST(test_start_submit_wait_less)
 		.do_work = do_work3,
 		.in = NULL
 	};
-	test_start_submit_wait(3, 4, &ops);
+	test_start_submit_wait(3, 2, &ops, true);
+	test_start_submit_wait(3, 2, &ops, false);
 }
 END_TEST
 
@@ -202,7 +204,8 @@ START_TEST(test_start_submit_wait_equal)
 		.do_work = do_work3,
 		.in = NULL
 	};
-	test_start_submit_wait(3, 8, &ops);
+	test_start_submit_wait(3, 3, &ops, true);
+	test_start_submit_wait(3, 3, &ops, false);
 }
 END_TEST
 
@@ -212,7 +215,8 @@ START_TEST(test_start_submit_wait_more)
 		.do_work = do_work3,
 		.in = NULL
 	};
-	test_start_submit_wait(3, 16, &ops);
+	test_start_submit_wait(3, 16, &ops, true);
+	test_start_submit_wait(3, 16, &ops, false);
 }
 END_TEST
 

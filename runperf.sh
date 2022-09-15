@@ -11,7 +11,6 @@ PERF_FOLDED=./perf/perf.folded
 PERF_SVG=./perf/perf.svg
 CMD="libtool exe yazc/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64"
 
-
 echo "Starting perf script..."
 
 if [ ! -x ${FGBIN} ]; then
