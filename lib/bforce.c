@@ -512,6 +512,7 @@ static void *worker(void *p)
 {
 	struct worker *w = (struct worker *)p;
 
+	/* https://gcc.gnu.org/bugzilla//show_bug.cgi?id=82109 */
 	pthread_cleanup_push(worker_cleanup_handler, w);
 
 	if (wait_workers_created(w->crk) < 0)

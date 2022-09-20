@@ -257,6 +257,7 @@ static void *work_cancel(struct worker *w)
 	struct threadpool *pool = w->pool;
 	int ret;
 
+	/* https://gcc.gnu.org/bugzilla//show_bug.cgi?id=82109 */
 	pthread_cleanup_push(worker_cleanup_handler, w);
 
 	if (wait_workers_created(pool) < 0)
