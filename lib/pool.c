@@ -221,12 +221,28 @@ static void *__work(struct worker *w)
 			/* mark thread as idle */
 			set_bit(pool->idle_bitmap, w->id);
 
-			/* TODO: not good */
 			if (work && all_workers_idle(pool))
-				/* if we are here, all other threads
-				 * have set the idle bit _and_ have
-				 * called pthread_cond_wait() */
+				/*
+				 * - We have the mutex;
+				 * - The list is empty;
+				 * - All other threads are idling;
+				 * - We finished processing the last element (work != NULL);
+				 *
+				 * Signal the main thread that
+				 * processing is finished.
+				 *
+				 * Note: A worker might have been
+				 * woken up but never actually
+				 * processed any work items. In such a
+				 * case, the worker will wake up from
+				 * cond_wait, retest the conditions
+				 * and go back to sleep (without
+				 * sending the signal since the work
+				 * pointer is NULL).
+				 */
 				pthread_cond_signal(&pool->wait_cond);
+
+			work = NULL;
 
 			pthread_cond_wait(&pool->work_cond,
 					  &pool->work_mutex);
