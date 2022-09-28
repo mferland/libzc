@@ -7,7 +7,7 @@ set -e
 
 D="debtest"
 PN="libzc"
-PV="0.4.3"
+PV="0.4.4"
 PF="${PN}-${PV}"
 PE="orig.tar.gz"
 A="${PN}_${PV}.${PE}"
