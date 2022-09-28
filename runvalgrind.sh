@@ -99,4 +99,7 @@ check_output
 $CMD plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
 check_output
 
+$CMD plaintext -i 0x12345678 0x23456789 0x34567890
+check_output
+
 exit 0
