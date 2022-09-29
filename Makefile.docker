@@ -12,7 +12,7 @@ deb-build:
 	docker build -t $(LIBZC_DEB) -f Dockerfile.deb .
 
 deb-run:
-	docker run -it --rm -f Dockerfile.deb -v ${HOME}/.gnupg:/home/dev/.gnupg --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_DEB)
+	docker run -it --rm -v ${HOME}/.gnupg:/home/dev/.gnupg --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_DEB)
 
 gcc-build:
 	docker build -t $(LIBZC_GCC) -f Dockerfile.gcc .
