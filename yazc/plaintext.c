@@ -461,7 +461,7 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 
 		if (parse_internal_rep(argv) < 0) {
-			err("error parsing interal representation.\n");
+			err("error parsing internal representation.\n");
 			return EXIT_FAILURE;
 		}
 
