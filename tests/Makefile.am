@@ -70,6 +70,7 @@ reduce_LDADD = $(top_builddir)/lib/libzc.la \
 	$(top_builddir)/lib/bitmap.lo \
 	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/qsort.lo \
+	$(top_builddir)/lib/libzc.lo \
 	@CHECK_LIBS@
 
 # plaintext password functions
