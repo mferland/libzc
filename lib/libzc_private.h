@@ -34,28 +34,6 @@ zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 	    const char *format __attribute__((__unused__)),
 	    ...) {}
 
-#define zc_log_cond(ctx, prio, arg...)                                  \
-   do {                                                                 \
-      if (zc_get_log_priority(ctx) >= prio)                             \
-         zc_log(ctx, prio, __FILE__, __LINE__, __FUNCTION__, ## arg);   \
-   } while (0)
-
-#ifdef ENABLE_LOGGING
-#  ifdef ENABLE_DEBUG
-#    define dbg(ctx, arg...) zc_log_cond(ctx, LOG_DEBUG, ## arg)
-#  else
-#    define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#  endif
-#  define info(ctx, arg...) zc_log_cond(ctx, LOG_INFO, ## arg)
-#  define err(ctx, arg...) zc_log_cond(ctx, LOG_ERR, ## arg)
-#else
-#  define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define info(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define err(ctx, arg...) zc_log_null(ctx, ## arg)
-#endif
-
-#define ZC_EXPORT __attribute__ ((visibility("default")))
-
 void zc_log(struct zc_ctx *ctx,
 	    int priority,
 	    const char *file,
@@ -63,6 +41,42 @@ void zc_log(struct zc_ctx *ctx,
 	    const char *fn,
 	    const char *format,
 	    ...) __attribute__((format(printf, 6, 7)));
+
+void zc_trace(const char *file,
+	      int line,
+	      const char *fn,
+	      const char *format,
+	      ...) __attribute__((format(printf, 4,5)));
+
+#define zc_log_cond(ctx, prio, arg...)                                  \
+	do {								\
+		if (zc_get_log_priority(ctx) >= prio)			\
+			zc_log(ctx, prio, __FILE__, __LINE__, __FUNCTION__, ## arg); \
+	} while (0)
+
+#define zc_log_trace(arg...)						\
+	do {								\
+		zc_trace(__FILE__, __LINE__, __FUNCTION__, arg);	\
+	} while (0)
+
+#ifdef ENABLE_LOGGING
+#  ifdef ENABLE_DEBUG
+#    define dbg(ctx, arg...) zc_log_cond(ctx, LOG_DEBUG, ## arg)
+#    define trace(arg...) zc_log_trace(arg)
+#  else
+#    define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
+#    define trace(arg...) zc_log_null(NULL, ## arg)
+#  endif
+#  define info(ctx, arg...) zc_log_cond(ctx, LOG_INFO, ## arg)
+#  define err(ctx, arg...) zc_log_cond(ctx, LOG_ERR, ## arg)
+#else
+#  define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define info(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define err(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define trace(arg...) zc_log_null(NULL, ## arg)
+#endif
+
+#define ZC_EXPORT __attribute__ ((visibility("default")))
 
 static inline void fatal(const char *format, ...)
 {

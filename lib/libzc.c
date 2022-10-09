@@ -56,6 +56,17 @@ void zc_log(struct zc_ctx *ctx,
 	va_end(args);
 }
 
+void zc_trace(const char *file, int line, const char *fn,
+	      const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	fprintf(stderr, "trace: %s:%d:%s: ", file, line, fn);
+	vfprintf(stderr, format, args);
+	va_end(args);
+}
+
 static void log_stderr(struct zc_ctx *ctx __attribute__((__unused__)),
 		       int priority __attribute__((__unused__)),
 		       const char *file __attribute__((__unused__)),
