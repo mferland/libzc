@@ -306,8 +306,11 @@ static void *__work_cancel(struct worker *w)
 	ret = pool->ops->do_work(pool->ops->in, work, w->id);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 
-	if (ret == TPECANCELSIBLINGS)
+	if (ret == TPECANCELSIBLINGS) {
+		pthread_mutex_lock(&pool->mutex);
 		w->cancel_siblings = 1;
+		pthread_mutex_unlock(&pool->mutex);
+	}
 
 	pthread_cleanup_pop(1);
 
