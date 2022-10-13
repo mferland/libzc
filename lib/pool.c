@@ -514,8 +514,10 @@ static void wait_and_join(struct threadpool *p)
 			int err = pthread_join(w->thread_id, NULL);
 			if (err)
 				fatal("pthread_join() failed: %s\n", strerror(err));
-			if (w->cancel_siblings && left > 1)
+			if (w->cancel_siblings && left > 1) {
+				w->cancel_siblings = 0;
 				cancel(p);
+			}
 			free(w);
 			--left;
 		}
