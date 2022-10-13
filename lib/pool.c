@@ -375,6 +375,7 @@ static int create_threads(struct threadpool *p)
 	struct worker *w;
 
 	p->nbthreads_created = 0;
+	p->pthread_create_err = 0;
 
 	pthread_mutex_lock(&p->mutex);
 	list_for_each_entry(w, &p->active_head, list) {
