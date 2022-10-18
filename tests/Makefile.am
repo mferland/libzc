@@ -62,7 +62,7 @@ pool_LDADD = $(top_builddir)/lib/pool.lo \
 	@CHECK_LIBS@
 
 # reduce related functions
-reduce_SOURCES = check_reduce.c
+reduce_SOURCES = check_reduce.c test_plaintext.h
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 reduce_LDADD = $(top_builddir)/lib/libzc.la \
 	$(top_builddir)/lib/ptext.lo \
