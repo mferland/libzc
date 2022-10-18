@@ -3,9 +3,9 @@
        src="https://scan.coverity.com/projects/7176/badge.svg"/>
 </a>
 
-<a href="https://travis-ci.org/mferland/libzc">
+<a href="https://github.com/mferland/libzc/actions">
    <img alt="Build Status"
-        src="https://travis-ci.org/mferland/libzc.svg?branch=master"/>
+        src="https://github.com/mferland/libzc/actions/workflows/check.yml/badge.svg"/>
 </a>
 
 What is it?
