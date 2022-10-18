@@ -1,12 +1,13 @@
 LIBZC_GCC="libzc-gcc-latest"
 LIBZC_CLANG="libzc-clang-latest"
 LIBZC_DEB="libzc-deb"
+LIBZC_DEBIAN="libzc-debian"
 
-all-build: deb-build gcc-build clang-build
+all-build: deb-build gcc-build clang-build debian-build
 
-tests-build: gcc-build clang-build
+tests-build: gcc-build clang-build debian-build
 
-tests: gcc-run clang-run
+tests: gcc-run clang-run debian-run
 
 deb-build:
 	docker build -t $(LIBZC_DEB) -f Dockerfile.deb .
@@ -25,3 +26,9 @@ clang-build:
 
 clang-run:
 	docker run -it --rm --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_CLANG)
+
+debian-build:
+	docker build -t $(LIBZC_DEBIAN) -f Dockerfile.debian .
+
+debian-run:
+	docker run -it --rm --mount type=bind,source="$(PWD)",target=/home/dev/libzc $(LIBZC_DEBIAN)
