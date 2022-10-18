@@ -25,7 +25,7 @@ check_PROGRAMS = basic \
 	plaintext_password \
 	plaintext
 
-AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(top_srcdir)/data/"' @CPPFLAGS@
+AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(abs_top_srcdir)/../data/"' @CPPFLAGS@
 
 # basic functions test
 basic_SOURCES = check_basic.c
