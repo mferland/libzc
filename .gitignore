@@ -38,3 +38,4 @@ tests/pwstream
 tests/reduce
 tests/pool
 debtest/
+libzc-*.tar.gz
