@@ -117,7 +117,7 @@ case "${1}" in
 	;;
 
     *)
-	echo &>1 "Unknown command: ${1}"
+	echo >&2 "Unknown command: ${1}"
 	exit 1
 esac
 
