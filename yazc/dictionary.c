@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,13 +20,16 @@
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "libzc.h"
 #include "yazc.h"
 
 #define LINE_BUF_LEN 256
 
-static const char short_opts[] = "d:h";
+static bool stats = false;
+
+static const char short_opts[] = "d:hS";
 static const struct option long_opts[] = {
 	{"dictionary", required_argument, 0, 'd'},
 	{"help", no_argument, 0, 'h'},
@@ -40,6 +43,7 @@ static void print_help(const char *cmdname)
 		"\t%s [options] filename\n"
 		"Options:\n"
 		"\t-d, --dictionary=FILE   read passwords from FILE\n"
+		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
 		cmdname);
 }
@@ -49,6 +53,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 	struct zc_ctx *ctx;
 	struct zc_crk_dict *crk;
 	char pw[LINE_BUF_LEN];
+	struct timeval begin, end;
 	int err = -1;
 
 	if (zc_new(&ctx)) {
@@ -66,7 +71,13 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 		goto err2;
 	}
 
+	gettimeofday(&begin, NULL);
 	err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
+	gettimeofday(&end, NULL);
+
+	if (stats)
+		print_runtime_stats(&begin, &end);
+
 	if (err > 0)
 		printf("Password not found\n");
 	else if (err == 0)
@@ -99,6 +110,9 @@ static int do_dictionary(int argc, char *argv[])
 		case 'd':
 			dict_filename = optarg;
 			break;
+		case 'S':
+			stats = true;
+			break;
 		case 'h':
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
@@ -115,8 +129,10 @@ static int do_dictionary(int argc, char *argv[])
 
 	zip_filename = argv[optind];
 
-	printf("Dictionary file: %s\n", !dict_filename ? "stdin" : dict_filename);
-	printf("Filename: %s\n", zip_filename);
+	if (stats) {
+		printf("Dictionary: %s\n", !dict_filename ? "stdin" : dict_filename);
+		printf("Filename: %s\n", zip_filename);
+	}
 
 	err = launch_crack(dict_filename, zip_filename);
 

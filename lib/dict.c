@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@ ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 	free(crk->cipher);
 	free(crk->plaintext);
 	free(crk->inflate);
-	inflate_destroy(crk->zlib);
+	if (crk->zlib)
+		inflate_destroy(crk->zlib);
 	free(crk);
 	return NULL;
 }
@@ -97,14 +98,14 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->inflate = malloc(INFLATE_CHUNK);
 	if (!crk->inflate) {
-		err(crk->ctx, "failed to allocate memory\n");
-		return -1;
+		err(crk->ctx, "malloc() failed: %s\n", strerror(errno));
+		goto err1;
 	}
 
 	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err(crk->ctx, "failed to read validation data\n");
-		return -1;
+		goto err2;
 	}
 
 	crk->header_size = err;
@@ -117,27 +118,30 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 			       &crk->cipher_is_deflated);
 	if (err) {
 		err(crk->ctx, "failed to read cipher data\n");
-		return -1;
+		goto err2;
 	}
 
 	crk->plaintext = malloc(crk->cipher_size);
-	if (!crk->plaintext) {
-		free(crk->inflate);
-		free(crk->cipher);
-		return -1;
-	}
+	if (!crk->plaintext)
+		goto err3;
 
 	crk->filename = strdup(filename);
 
-	if (inflate_new(&crk->zlib) < 0) {
-		free(crk->inflate);
-		free(crk->cipher);
-		free(crk->plaintext);
-		free(crk->filename);
-		return -1;
-	}
+	if (inflate_new(&crk->zlib) < 0)
+		goto err4;
 
 	return 0;
+err4:
+	free(crk->filename);
+	crk->filename = NULL;
+err3:
+	free(crk->cipher);
+	crk->cipher = NULL;
+err2:
+	free(crk->inflate);
+	crk->inflate = NULL;
+err1:
+	return -1;
 }
 
 static bool test_password(struct zc_crk_dict *crk, const char *pw)
@@ -194,7 +198,16 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 	while (1) {
 		char *s = fgets(pw, len, f);
 		if (!s) {
-			err = -1;
+			int tmp = errno;
+			if (feof(f))
+				err = 1;
+			else if (ferror(f)) {
+				err(crk->ctx, "fgets() failed: %s\n", strerror(tmp));
+				err = -1;
+			} else {
+				err(crk->ctx, "unknown failure, errno: %d\n", tmp);
+				err = -1;
+			}
 			break;
 		}
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -90,7 +90,16 @@ check_output
 $CMD plaintext --help
 check_output
 
-$CMD plaintext data/archive_ptext.zip:64:1808 data/archivec.zip:76:1820:64
+$CMD plaintext -o data/archive_ptext.zip 64 1808 data/archivec.zip 76 1820 64
+check_output
+
+$CMD plaintext data/archive_ptext.zip cv.tex data/archivec.zip cv.tex
+check_output
+
+$CMD plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
+check_output
+
+$CMD plaintext -i 0x12345678 0x23456789 0x34567890
 check_output
 
 exit 0

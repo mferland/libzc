@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ START_TEST(test_zc_crk_ptext_refcount)
 	struct zc_crk_ptext *p, *tmp;
 	int ret;
 
-	ret = zc_crk_ptext_new(ctx, &p);
+	ret = zc_crk_ptext_new(ctx, &p, -1);
 	ck_assert_int_eq(ret, 0);
 
 	tmp = zc_crk_ptext_ref(p);

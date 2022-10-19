@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #include "config.h"
 #include "yazc.h"
@@ -70,11 +71,19 @@ static void print_version()
 {
 	fprintf(stderr,
 		"yazc " PACKAGE_VERSION "\n"
-		"Copyright (C) 2012-2018 Marc Ferland\n"
+		"Copyright (C) 2012-2021 Marc Ferland\n"
 		"License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
 		"This is free software: you are free to change and redistribute it.\n"
 		"There is NO WARRANTY, to the extent permitted by law.\n"
 		"Report bugs to: "PACKAGE_BUGREPORT"\n");
+}
+
+int print_runtime_stats(const struct timeval *begin,
+			const struct timeval *end)
+{
+	return printf("Runtime: %f secs.\n",
+		      (double)(end->tv_usec - begin->tv_usec) / 1000000 +
+		      (double)(end->tv_sec - begin->tv_sec));
 }
 
 static const struct yazc_cmd yazc_cmd_help = {

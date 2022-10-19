@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,6 +53,17 @@ void zc_log(struct zc_ctx *ctx,
 
 	va_start(args, format);
 	ctx->log_fn(ctx, priority, file, line, fn, format, args);
+	va_end(args);
+}
+
+void zc_trace(const char *file, int line, const char *fn,
+	      const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	fprintf(stderr, "trace: %s:%d:%s: ", file, line, fn);
+	vfprintf(stderr, format, args);
 	va_end(args);
 }
 

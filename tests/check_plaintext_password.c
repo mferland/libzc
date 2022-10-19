@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ struct test_pool pool[POOL_LEN] = {
 void setup_ptext()
 {
 	zc_new(&ctx);
-	zc_crk_ptext_new(ctx, &ptext);
+	zc_crk_ptext_new(ctx, &ptext, -1);
 }
 
 void teardown_ptext()
@@ -163,7 +163,6 @@ START_TEST(test_zc_crk_ptext_find_password_8)
 }
 END_TEST
 
-#ifdef EXTRACHECK
 START_TEST(test_zc_crk_ptext_find_password_9)
 {
 	char pw[14];
@@ -174,6 +173,7 @@ START_TEST(test_zc_crk_ptext_find_password_9)
 }
 END_TEST
 
+#ifdef EXTRACHECK
 START_TEST(test_zc_crk_ptext_find_password_10)
 {
 	char pw[14];
@@ -226,8 +226,8 @@ Suite *plaintext_password_suite()
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_6);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_7);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_8);
-#ifdef EXTRACHECK
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_9);
+#ifdef EXTRACHECK
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
 	tcase_set_timeout(tc_core, 3600);

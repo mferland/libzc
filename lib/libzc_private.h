@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,7 +22,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <syslog.h>
+#include <stdio.h>
+#include <stdlib.h>
 
+#include "config.h"
 #include "crc32.h"
 #include "libzc.h"
 
@@ -31,28 +34,6 @@ zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 	    const char *format __attribute__((__unused__)),
 	    ...) {}
 
-#define zc_log_cond(ctx, prio, arg...)                                  \
-   do {                                                                 \
-      if (zc_get_log_priority(ctx) >= prio)                             \
-         zc_log(ctx, prio, __FILE__, __LINE__, __FUNCTION__, ## arg);   \
-   } while (0)
-
-#ifdef ENABLE_LOGGING
-#  ifdef ENABLE_DEBUG
-#    define dbg(ctx, arg...) zc_log_cond(ctx, LOG_DEBUG, ## arg)
-#  else
-#    define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#  endif
-#  define info(ctx, arg...) zc_log_cond(ctx, LOG_INFO, ## arg)
-#  define err(ctx, arg...) zc_log_cond(ctx, LOG_ERR, ## arg)
-#else
-#  define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define info(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define err(ctx, arg...) zc_log_null(ctx, ## arg)
-#endif
-
-#define ZC_EXPORT __attribute__ ((visibility("default")))
-
 void zc_log(struct zc_ctx *ctx,
 	    int priority,
 	    const char *file,
@@ -60,6 +41,53 @@ void zc_log(struct zc_ctx *ctx,
 	    const char *fn,
 	    const char *format,
 	    ...) __attribute__((format(printf, 6, 7)));
+
+void zc_trace(const char *file,
+	      int line,
+	      const char *fn,
+	      const char *format,
+	      ...) __attribute__((format(printf, 4,5)));
+
+#define zc_log_cond(ctx, prio, arg...)                                  \
+	do {								\
+		if (zc_get_log_priority(ctx) >= prio)			\
+			zc_log(ctx, prio, __FILE__, __LINE__, __FUNCTION__, ## arg); \
+	} while (0)
+
+#define zc_log_trace(arg...)						\
+	do {								\
+		zc_trace(__FILE__, __LINE__, __FUNCTION__, arg);	\
+	} while (0)
+
+#ifdef ENABLE_LOGGING
+#  ifdef ENABLE_DEBUG
+#    define dbg(ctx, arg...) zc_log_cond(ctx, LOG_DEBUG, ## arg)
+#    define trace(arg...) zc_log_trace(arg)
+#  else
+#    define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
+#    define trace(arg...) zc_log_null(NULL, ## arg)
+#  endif
+#  define info(ctx, arg...) zc_log_cond(ctx, LOG_INFO, ## arg)
+#  define err(ctx, arg...) zc_log_cond(ctx, LOG_ERR, ## arg)
+#else
+#  define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define info(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define err(ctx, arg...) zc_log_null(ctx, ## arg)
+#  define trace(arg...) zc_log_null(NULL, ## arg)
+#endif
+
+#define ZC_EXPORT __attribute__ ((visibility("default")))
+
+static inline void fatal(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	exit(EXIT_FAILURE);
+}
 
 #define MULT 134775813u
 #define MULTINV 3645876429u  /* modular multiplicative inverse mod2^32 */
@@ -153,7 +181,7 @@ bool decrypt_headers(const struct zc_key *k,
 		     const struct zc_header *h,
 		     size_t len);
 
-long threads_to_create(long forced);
+size_t threads_to_create(long forced);
 
 int fill_header(struct zc_ctx *ctx,
 		const char *filename,
@@ -199,5 +227,20 @@ int inflate_buffer(struct zlib_state *zlib,
 int test_buffer_crc(unsigned char *in,
 		    size_t inlen,
 		    uint32_t original_crc);
+
+#if defined(__AVX2__)
+void uint32_qsort_avx2(uint32_t *x, long long n);
+#else
+void uint32_qsort_portable(uint32_t *x, long long n);
+#endif
+
+static inline void uint32_qsort(uint32_t *x, long long n)
+{
+#if defined(__AVX2__)
+	uint32_qsort_avx2(x, n);
+#else
+	uint32_qsort_portable(x, n);
+#endif
+}
 
 #endif	/* _LIBZC_PRIVATE_H_ */

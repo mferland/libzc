@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifndef _PTEXT_PRIVATE_H_
 #define _PTEXT_PRIVATE_H_
 
-#include <pthread.h>
 #include <stdint.h>
 
 #include "libzc.h"
@@ -36,15 +35,17 @@ struct zc_crk_ptext {
 	const uint8_t *ciphertext;
 	size_t text_size;
 
-	uint16_t *bits_15_2;
+	/* key2 bits 15-2 cache */
+	const uint16_t *bits_15_2;
+
+	/* key0 LSB lookup table */
 	uint8_t lsbk0_lookup[256][4];
 	uint8_t lsbk0_count[256];
-	bool found;
-	pthread_t found_by;
-	long force_threads;
 
-	/* reduced key2 buffer */
-	uint32_t *key2;
+	struct threadpool *pool;
+
+	/* final reduced key2 buffer */
+	const uint32_t *key2;
 	size_t key2_size;
 };
 

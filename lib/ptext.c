@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,13 +28,7 @@
 
 #include "libzc_private.h"
 #include "ptext_private.h"
-#include "qsort.h"
-
-static void uint_qsort(uint32_t *buf, size_t n)
-{
-#define uint_lt(a,b) ((*a)<(*b))
-	QSORT(uint32_t, buf, n, uint_lt);
-}
+#include "pool.h"
 
 void uniq(uint32_t *buf, size_t *n)
 {
@@ -43,7 +37,7 @@ void uniq(uint32_t *buf, size_t *n)
 	if (*n <= 1)
 		return;
 
-	uint_qsort(buf, *n);
+	uint32_qsort(buf, *n);
 
 	/* reduce by removing duplicates */
 	for (j = 1; j < *n; ++j) {
@@ -69,8 +63,9 @@ static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
 	 *
 	 * See Biham & Kocher section 3.3
 	 */
+	uint8_t nextmsb = (msb + 1) % 256;
 	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
-	p->lsbk0_lookup[msb + 1][p->lsbk0_count[msb + 1]++] = mul;
+	p->lsbk0_lookup[nextmsb][p->lsbk0_count[nextmsb]++] = mul;
 }
 
 static void generate_key0_lsb(struct zc_crk_ptext *ptext)
@@ -97,9 +92,7 @@ static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
 
 static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 {
-	uint16_t *tmp;
-
-	tmp = malloc(256 * 64 * sizeof(uint16_t));
+	uint16_t *tmp = malloc(256 * 64 * sizeof(uint16_t));
 	if (!tmp)
 		return -1;
 
@@ -127,13 +120,16 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	if (ptext->refcount > 0)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
-	free(ptext->key2);
-	free(ptext->bits_15_2);
+	threadpool_destroy(ptext->pool);
+	free((void *)ptext->key2);
+	free((void *)ptext->bits_15_2);
 	free(ptext);
 	return NULL;
 }
 
-ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
+ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx,
+			       struct zc_crk_ptext **ptext,
+			       long force_threads)
 {
 	struct zc_crk_ptext *new;
 
@@ -141,21 +137,27 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext)
 	if (!new)
 		return -1;
 
-	if (generate_key2_bits_15_2(new)) {
-		free(new);
-		return -1;
-	}
+	if (threadpool_new(&new->pool, force_threads))
+		goto err1;
+
+	if (generate_key2_bits_15_2(new))
+		goto err2;
 
 	generate_key0_lsb(new);
 	new->ctx = ctx;
 	new->refcount = 1;
-	new->found = false;
-	new->force_threads = -1;
+
 	*ptext = new;
 
 	dbg(ctx, "ptext %p created\n", new);
 
 	return 0;
+
+err2:
+	threadpool_destroy(new->pool);
+err1:
+	free(new);
+	return -1;
 }
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,

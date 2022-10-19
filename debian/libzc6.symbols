@@ -15,7 +15,6 @@ libzc.so.6 libzc6 #MINVER#
  zc_crk_ptext_attack@Base 0.4.0
  zc_crk_ptext_find_internal_rep@Base 0.3.1
  zc_crk_ptext_find_password@Base 0.3.1
- zc_crk_ptext_force_threads@Base 0.4.0
  zc_crk_ptext_key2_count@Base 0.3.1
  zc_crk_ptext_key2_reduction@Base 0.3.1
  zc_crk_ptext_new@Base 0.3.1

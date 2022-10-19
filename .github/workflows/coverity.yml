@@ -1,0 +1,24 @@
+name: coverity
+
+on:
+  push:
+    branches: ["coverity_scan"]
+
+jobs:
+  coverity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          sudo apt install -y make automake libtool autoconf zlib1g-dev pkg-config git check
+      - name: autogen
+        run: ./autogen.sh
+      - name: configure
+        run: ./configure
+      - uses: vapier/coverity-scan-action@v1
+        with:
+          email: marc.ferland@gmail.com
+          project: mferland/libzc
+          token: ${{ secrets.COVERITY_SCAN_TOKEN }}
+          command: make

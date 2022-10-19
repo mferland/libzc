@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -40,8 +40,8 @@ void teardown(void)
 START_TEST(test_zc_file_new)
 {
 	zc_file_new_from_filename(ctx, "toto.zip", &file);
-	fail_if(strcmp(zc_file_get_filename(file), "toto.zip") != 0,
-		"Filename does not match.");
+	ck_assert_msg(strcmp(zc_file_get_filename(file), "toto.zip") == 0,
+		      "Filename does not match.");
 	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
@@ -50,8 +50,8 @@ START_TEST(test_zc_file_open_existant)
 {
 	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
 	ck_assert(zc_file_isopened(file) == false);
-	fail_if(zc_file_open(file) != 0,
-		"File could not be opened.");
+	ck_assert_msg(zc_file_open(file) == 0,
+		      "File could not be opened.");
 	ck_assert(zc_file_isopened(file) == true);
 	zc_file_close(file);
 	ck_assert(zc_file_isopened(file) == false);
@@ -62,8 +62,8 @@ START_TEST(test_zc_file_open_nonexistant)
 {
 	zc_file_new_from_filename(ctx, "doesnotexists.zip", &file);
 	ck_assert(zc_file_isopened(file) == false);
-	fail_if(zc_file_open(file) == 0,
-		"Non-existant file reported having been opened.");
+	ck_assert_msg(zc_file_open(file) != 0,
+		      "Non-existant file reported having been opened.");
 	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
@@ -72,8 +72,8 @@ START_TEST(test_zc_file_close_opened)
 {
 	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
 	zc_file_open(file);
-	fail_if(zc_file_close(file) != 0,
-		"Closing existant file failed.");
+	ck_assert_msg(zc_file_close(file) == 0,
+		      "Closing existant file failed.");
 }
 END_TEST
 

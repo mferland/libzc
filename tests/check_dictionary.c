@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -66,10 +66,10 @@ START_TEST(test_dict_success)
 }
 END_TEST
 
-START_TEST(test_dict_fail)
+START_TEST(test_dict_password_not_found)
 {
 	zc_crk_dict_init(crk, DATADIR "noradi.zip");
-	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "pw.txt", pw, LEN), -1);
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "pw.txt", pw, LEN), 1);
 }
 END_TEST
 
@@ -87,7 +87,7 @@ Suite *dict_suite(void)
 	tcase_add_test(tc_core, test_init_file_found);
 	tcase_add_test(tc_core, test_dict_not_found);
 	tcase_add_test(tc_core, test_dict_success);
-	tcase_add_test(tc_core, test_dict_fail);
+	tcase_add_test(tc_core, test_dict_password_not_found);
 	suite_add_tcase(s, tc_core);
 
 	return s;

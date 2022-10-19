@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ struct zc_crk_ptext *ptext;
 void setup_reduce()
 {
 	zc_new(&ctx);
-	zc_crk_ptext_new(ctx, &ptext);
+	zc_crk_ptext_new(ctx, &ptext, -1);
 }
 
 void teardown_reduce()
@@ -50,7 +50,7 @@ END_TEST
 START_TEST(test_can_generate_first_gen_key2)
 {
 	uint32_t *key2_first_gen;
-	uint16_t *bits15_2;
+	const uint16_t *bits15_2;
 
 	bits15_2 = get_bits_15_2(ptext->bits_15_2, 0);
 	key2_first_gen = calloc((1 << 22), sizeof(uint32_t));

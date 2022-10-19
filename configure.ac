@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,12 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_PREREQ(2.60)
-AC_INIT([zc],
-        [0.4.3],
-        [marc.ferland@gmail.com],
-        [libzc],
-        [http://github.com/mferland/libzc])
+AC_PREREQ([2.69])
+AC_INIT([zc],[0.4.4],[marc.ferland@gmail.com],[libzc],[http://github.com/mferland/libzc])
 m4_include([m4/ax_pthread.m4])
 AC_CONFIG_SRCDIR([lib/libzc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
@@ -29,7 +25,6 @@ LT_INIT([disable-static pic-only])
 AC_PREFIX_DEFAULT([/usr])
 
 AC_PROG_CC
-AC_PROG_CC_C99
 AM_PROG_CC_C_O
 
 AX_PTHREAD([CLIBS="$PTHREAD_LIBS $LIBS"
@@ -39,7 +34,7 @@ AX_PTHREAD([CLIBS="$PTHREAD_LIBS $LIBS"
 PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(ZLIB, zlib)
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4], [HAVE_CHECK=1], [HAVE_CHECK=0])
+PKG_CHECK_MODULES([CHECK], [check >= 0.15.2], [HAVE_CHECK=1], [HAVE_CHECK=0])
 AM_CONDITIONAL([USE_CHECK], [test "$HAVE_CHECK" -eq 1])
 
 AC_ARG_ENABLE([logging],

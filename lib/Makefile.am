@@ -1,4 +1,4 @@
-# Copyright (C) 2012-2018 Marc Ferland
+# Copyright (C) 2012-2021 Marc Ferland
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,8 +29,6 @@ AM_CFLAGS = \
 	-ffunction-sections \
 	-fdata-sections
 
-AM_LDFLAGS = -lm ${ZLIB_LIBS}
-
 # - Start with version information of '0:0:0' for each libtool library.
 # - Update the version information only immediately before a public release
 #   of your software. More frequent updates are unnecessary, and only
@@ -49,6 +47,8 @@ LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
+	bitmap.c \
+	bitmap.h \
 	common.c \
 	crc32.h \
 	decrypt_byte.h \
@@ -63,14 +63,20 @@ libzc_la_SOURCES =\
 	ptext_reduce.c \
 	pwstream.c \
 	pwstream.h \
-	qsort.h \
+	pool.c \
+	pool.h \
 	bforce.c \
 	dict.c \
 	ptext.c \
-	file.c
+	file.c \
+	sys.c \
+	qsort.h \
+	qsort.c
+
 include_HEADERS = libzc.h
 
 libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
+libzc_la_LIBADD = -lm ${ZLIB_LIBS}
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libzc.pc

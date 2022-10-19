@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #define _YAZC_H_
 
 #include <syslog.h>
+
+#include "config.h"
 
 struct yazc_cmd {
 	const char *name;
@@ -41,6 +43,9 @@ yazc_log_null(__attribute__((__unused__)) int prio,
 #else
 #define dbg(arg...) yazc_log_null(LOG_DEBUG, ## arg)
 #endif
+
+int print_runtime_stats(const struct timeval *begin,
+			const struct timeval *end);
 
 extern const struct yazc_cmd yazc_cmd_bruteforce;
 extern const struct yazc_cmd yazc_cmd_dictionary;

@@ -1,6 +1,6 @@
 /*
  *  zc - zip crack library
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -108,14 +108,4 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t l
 	}
 
 	return true;
-}
-
-long threads_to_create(long forced)
-{
-	if (forced > 0)
-		return forced;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
 }

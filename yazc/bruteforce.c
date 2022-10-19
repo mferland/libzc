@@ -1,6 +1,6 @@
 /*
  *  yazc - Yet Another Zip Cracker
- *  Copyright (C) 2012-2018 Marc Ferland
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -152,8 +152,7 @@ static int launch_crack(void)
 	gettimeofday(&end, NULL);
 
 	if (stats)
-		printf("Runtime: %f secs.\n", (double)(end.tv_usec - begin.tv_usec) / 1000000 +
-		       (double)(end.tv_sec - begin.tv_sec));
+		print_runtime_stats(&begin, &end);
 
 	if (err > 0)
 		printf("Password not found\n");
@@ -232,19 +231,24 @@ static int do_bruteforce(int argc, char *argv[])
 	if (arg_maxlen) {
 		pwcfg.maxlen = atoi(arg_maxlen);
 		if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
-			err("maximum password length must be between %d and %d.\n", ZC_PW_MINLEN,
-				 ZC_PW_MAXLEN);
+			err("maximum password length must be between %d and %d.\n",
+			    ZC_PW_MINLEN,
+			    ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else
 		pwcfg.maxlen = PW_LEN_DEFAULT;
 
-	/* number of concurrent threads */
+	/* number of threads */
 	if (arg_threads) {
-		thread_count = atol(arg_threads);
-		if (thread_count < 1) {
-			err("number of threads can't be less than one.\n");
-			return EXIT_FAILURE;
+		if (strcmp(arg_threads, "auto") == 0)
+			thread_count = -1; /* auto */
+		else {
+			thread_count = atol(arg_threads);
+			if (thread_count < 1) {
+				err("number of threads can't be less than one.\n");
+				return EXIT_FAILURE;
+			}
 		}
 	} else
 		thread_count = -1;	/* auto */

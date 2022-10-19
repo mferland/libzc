@@ -36,4 +36,5 @@ tests/plaintext
 tests/plaintext_password
 tests/pwstream
 tests/reduce
+tests/pool
 debtest/
