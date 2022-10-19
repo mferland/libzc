@@ -25,7 +25,15 @@ check_PROGRAMS = basic \
 	plaintext_password \
 	plaintext
 
-AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(abs_top_srcdir)/../data/"' @CPPFLAGS@
+AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(srcdir)/"' @CPPFLAGS@
+
+EXTRA_DIST = noradi.zip \
+	pay.zip \
+	pw.txt \
+	stored.zip \
+	test_non_encrypted.zip \
+	test.zip \
+	dict.txt
 
 # basic functions test
 basic_SOURCES = check_basic.c
