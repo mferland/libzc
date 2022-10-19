@@ -375,9 +375,9 @@ static int create_threads(struct threadpool *p)
 	struct worker *w;
 
 	p->nbthreads_created = 0;
-	p->pthread_create_err = 0;
 
 	pthread_mutex_lock(&p->mutex);
+	p->pthread_create_err = 0;
 	list_for_each_entry(w, &p->active_head, list) {
 		if (pthread_create(&w->thread_id, NULL, work, w)) {
 			fputs("pthread_create() failed", stderr);
