@@ -144,11 +144,11 @@ enum text_src {
 	SRC_NUM
 };
 
-static int parse_entry_opts(char *argv[])
+static int parse_entry_opts(const char *argv[])
 {
 	struct zc_ctx *ctx;
 	struct zc_file *f;
-	char *filename, *entry;
+	const char *filename, *entry;
 	int err = 0, matches = 0;
 
 	if (zc_new(&ctx))
