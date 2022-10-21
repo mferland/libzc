@@ -682,7 +682,7 @@ static void init_work_units(struct final_work_unit *unit,
 	}
 }
 
-static int try_key(struct final_private *final, int i)
+static int try_key(struct final_private *final, int len)
 {
 	struct threadpool_ops ops;
 	struct final_work_unit *u;
@@ -693,7 +693,7 @@ static int try_key(struct final_private *final, int i)
 
 	ops.in = final;
 
-	switch (i) {
+	switch (len) {
 	case 7: ops.do_work = recover_7; break;
 	case 8: ops.do_work = recover_8; break;
 	case 9: ops.do_work = recover_9; break;
@@ -726,7 +726,7 @@ static int try_key(struct final_private *final, int i)
 
 	free(u);
 
-	return final->found ? i : -1;
+	return final->found ? len : -1;
 }
 
 static int try_key_7_13(struct final_private *f)
