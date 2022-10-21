@@ -46,7 +46,7 @@ void zc_trace(const char *file,
 	      int line,
 	      const char *fn,
 	      const char *format,
-	      ...) __attribute__((format(printf, 4,5)));
+	      ...) __attribute__((format(printf, 4, 5)));
 
 #define zc_log_cond(ctx, prio, arg...)                                  \
 	do {								\

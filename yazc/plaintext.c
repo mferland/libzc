@@ -480,7 +480,7 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 4)
 			goto missing;
 
-		if (parse_entry_opts((const char**)argv)) {
+		if (parse_entry_opts((const char **)argv)) {
 			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
