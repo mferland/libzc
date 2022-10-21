@@ -731,10 +731,8 @@ static int try_key(struct final_private *final, int i)
 
 static int try_key_7_13(struct final_private *f)
 {
-	int ret;
-
 	for (int i = 7; i <= 13; ++i) {
-		ret = try_key(f, i);
+		int ret = try_key(f, i);
 		if (ret == i)
 			return i;
 		else if (ret < 0)
