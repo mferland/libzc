@@ -311,7 +311,7 @@ static void save_final_key2(struct zc_crk_ptext *ptext,
 
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
-	uint8_t key3i, key3im1;
+	uint8_t key3i;
 	struct threadpool_ops ops;
 	struct reduce_private *priv;
 	size_t nbthreads = threadpool_get_nbthreads(ptext->pool);
@@ -335,7 +335,7 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 	size_t start_index = ptext->text_size - 2;
 	for (size_t i = start_index; i >= 12; --i) {
 		key3i = generate_key3(ptext, i);
-		key3im1 = generate_key3(ptext, i - 1);
+		uint8_t key3im1 = generate_key3(ptext, i - 1);
 		key2r_compute_next_array(ptext,
 					 priv->key2ip1,
 					 priv->key2ip1_size,
