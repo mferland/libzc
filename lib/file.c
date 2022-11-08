@@ -133,7 +133,8 @@ static void clear_info_list(struct zc_file *f)
 	}
 }
 
-static int fill_info_list(struct zc_file *f)
+
+static int fill_info_list_local(struct zc_file *f)
 {
 	int ret, sig, idx = 0;
 	uint8_t buf[STATIC_HEADER_LEN - 4];
@@ -329,7 +330,9 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
 	stream = fopen(file->filename, "r");
 	if (!stream) {
-		err(file->ctx, "fopen() failed: %s.\n", strerror(errno));
+		err(file->ctx, "fopen(%s) failed: %s.\n",
+		    file->filename,
+		    strerror(errno));
 		return -1;
 	}
 
@@ -337,7 +340,7 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 
 	file->stream = stream;
 
-	if (fill_info_list(file)) {
+	if (fill_info_list_local(file)) {
 		err(file->ctx, "failure while reading headers.\n");
 		goto err;
 	}
