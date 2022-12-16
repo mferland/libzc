@@ -199,7 +199,7 @@ static bool all_workers_idle(const struct threadpool *pool)
 static void *__work(struct worker *w)
 {
 	struct threadpool *pool = w->pool;
-	struct list_head *work = NULL;
+	struct list_head *work_head = NULL;
 	int ret;
 
 	if (wait_workers_created(pool) < 0)
@@ -221,12 +221,12 @@ static void *__work(struct worker *w)
 			/* mark thread as idle */
 			set_bit(pool->idle_bitmap, w->id);
 
-			if (work && all_workers_idle(pool))
+			if (work_head && all_workers_idle(pool))
 				/*
 				 * - We have the mutex;
 				 * - The list is empty;
 				 * - All other threads are idling;
-				 * - We finished processing the last element (work != NULL);
+				 * - We finished processing the last element (work_head != NULL);
 				 *
 				 * Signal the main thread that
 				 * processing is finished.
@@ -242,7 +242,7 @@ static void *__work(struct worker *w)
 				 */
 				pthread_cond_signal(&pool->wait_cond);
 
-			work = NULL;
+			work_head = NULL;
 
 			pthread_cond_wait(&pool->work_cond,
 					  &pool->work_mutex);
@@ -251,12 +251,12 @@ static void *__work(struct worker *w)
 			clear_bit(pool->idle_bitmap, w->id);
 		}
 
-		work = pool->waiting_head.next;
+		work_head = pool->waiting_head.next;
 		list_del(pool->waiting_head.next);
 		clear_bit(pool->idle_bitmap, w->id); /* got work - unmark thread */
 		pthread_mutex_unlock(&pool->work_mutex);
 
-		ret = pool->ops->do_work(pool->ops->in, work, w->id);
+		ret = pool->ops->do_work(pool->ops->in, work_head, w->id);
 	} while (ret == TPEMORE);
 
 	to_cleanup_queue(w);
@@ -298,12 +298,12 @@ static void *__work_cancel(struct worker *w)
 		pthread_cleanup_pop(0);
 	}
 
-	struct list_head *work = pool->waiting_head.next;
+	struct list_head *work_head = pool->waiting_head.next;
 	list_del(pool->waiting_head.next);
 	pthread_mutex_unlock(&pool->work_mutex);
 
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
-	ret = pool->ops->do_work(pool->ops->in, work, w->id);
+	ret = pool->ops->do_work(pool->ops->in, work_head, w->id);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 
 	if (ret == TPECANCELSIBLINGS) {

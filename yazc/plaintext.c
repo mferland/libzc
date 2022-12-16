@@ -144,11 +144,11 @@ enum text_src {
 	SRC_NUM
 };
 
-static int parse_entry_opts(char *argv[])
+static int parse_entry_opts(const char *argv[])
 {
 	struct zc_ctx *ctx;
 	struct zc_file *f;
-	char *filename, *entry;
+	const char *filename, *entry;
 	int err = 0, matches = 0;
 
 	if (zc_new(&ctx))
@@ -480,7 +480,7 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 4)
 			goto missing;
 
-		if (parse_entry_opts(argv)) {
+		if (parse_entry_opts((const char **)argv)) {
 			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
