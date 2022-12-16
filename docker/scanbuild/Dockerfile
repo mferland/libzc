@@ -1,6 +1,6 @@
 # libzc clang build environment
 
-FROM silkeh/clang:14
+FROM silkeh/clang:15-bullseye
 MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \
@@ -21,4 +21,4 @@ CMD cd /home/dev/libzc \
     && ./autogen.sh \
     && cd build-clang \
     && ../configure CC="clang" CFLAGS="-g -O2" \
-    && make -j8 check
+    && CCC_CC=clang scan-build -o ./output make
