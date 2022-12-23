@@ -402,7 +402,8 @@ static int allocate_workers(struct threadpool *p)
 		struct worker *w = calloc(1, sizeof(struct worker));
 		if (!w) {
 			perror("calloc() failed");
-			dealloc_workers(p);
+			if (i > 0)
+				dealloc_workers(p);
 			return -1;
 		}
 		w->pool = p;
