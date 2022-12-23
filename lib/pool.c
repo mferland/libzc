@@ -556,10 +556,8 @@ static int restart(struct threadpool *p, bool support_cancel)
 		return err;
 
 	err = create_threads(p);
-	if (err) {
-		dealloc_workers(p);
+	if (err)
 		return err;
-	}
 
 	return 0;
 }
