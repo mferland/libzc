@@ -20,5 +20,5 @@ CMD cd /home/dev/libzc \
     && (([ -f Makefile ] && make distclean) || true) \
     && ./autogen.sh \
     && cd build-clang \
-    && ../configure CC="clang" CFLAGS="-g -O2" \
+    && ../configure CC="clang" CFLAGS="-g -O0" \
     && CCC_CC=clang scan-build -o ./output make
