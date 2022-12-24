@@ -20,5 +20,5 @@ CMD cd /home/dev/libzc \
     && (([ -f Makefile ] && make distclean) || true) \
     && ./autogen.sh \
     && cd build-gcc \
-    && ../configure CC="gcc" CFLAGS="-g -O0 -fanalyzer" \
+    && ../configure CC="gcc" CFLAGS="-g -O2" \
     && make -j8 check
