@@ -21,4 +21,4 @@ CMD cd /home/dev/libzc \
     && ./autogen.sh \
     && cd build-clang \
     && ../configure CC="clang" CFLAGS="-g -O0" \
-    && CCC_CC=clang scan-build -o ./output make
+    && CCC_CC=clang scan-build -o ./output make check

@@ -25,3 +25,8 @@ services:
     build: ./docker/scanbuild
     volumes:
       - ./:/home/dev/libzc
+  gccanalyzer:
+    # will build with gcc and the -fanalyzer
+    build: ./docker/gccanalyzer
+    volumes:
+      - ./:/home/dev/libzc
