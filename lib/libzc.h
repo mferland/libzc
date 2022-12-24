@@ -63,11 +63,11 @@ bool zc_file_isopened(struct zc_file *file);
 struct zc_info;
 struct zc_info *zc_file_info_next(struct zc_file *, struct zc_info *info);
 const char *zc_file_info_name(const struct zc_info *info);
-uint32_t zc_file_info_size(const struct zc_info *info);
-uint32_t zc_file_info_compressed_size(const struct zc_info *info);
-long zc_file_info_offset_begin(const struct zc_info *info);
-long zc_file_info_offset_end(const struct zc_info *info);
-long zc_file_info_crypt_header_offset(const struct zc_info *info);
+uint64_t zc_file_info_size(const struct zc_info *info);
+uint64_t zc_file_info_compressed_size(const struct zc_info *info);
+off_t zc_file_info_offset_begin(const struct zc_info *info);
+off_t zc_file_info_offset_end(const struct zc_info *info);
+off_t zc_file_info_crypt_header_offset(const struct zc_info *info);
 const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
 int zc_file_info_idx(const struct zc_info *info);
 
