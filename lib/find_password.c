@@ -98,8 +98,8 @@ static int compare_revpw_with_key(const uint8_t *pw, size_t len,
 {
 	uint8_t revpw[PASS_MAX_LEN];
 
-	for (int i = len - 1, j = 0; i >= 0; --i, ++j)
-		revpw[j] = pw[i];
+	for (size_t i = len, j = 0; i > 0; --i, ++j)
+		revpw[j] = pw[i - 1];
 
 	return compare_pw_with_key(revpw, len, k);
 }

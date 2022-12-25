@@ -296,17 +296,20 @@ static void reduce_private_dealloc(struct reduce_private *priv)
 	free(priv);
 }
 
-static void save_final_key2(struct zc_crk_ptext *ptext,
-			    struct reduce_private *priv)
+static int save_final_key2(struct zc_crk_ptext *ptext,
+			   struct reduce_private *priv)
 {
 	/*
 	 * save final key2 array -- not using realloc since key2ip1 is
 	 * inside a larder malloced block.
 	 */
 	uint32_t *k = calloc(priv->key2ip1_size, sizeof(uint32_t));
+	if (!k)
+		return -1;
 	memcpy(k, priv->key2ip1, priv->key2ip1_size * sizeof(uint32_t));
 	ptext->key2 = k;
 	ptext->key2_size = priv->key2ip1_size;
+	return 0;
 }
 
 ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
@@ -348,7 +351,8 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 		priv->key2i_size = 0;
 	}
 
-	save_final_key2(ptext, priv);
+	err = save_final_key2(ptext, priv);
+
 	reduce_private_dealloc(priv);
 
 	return err;
