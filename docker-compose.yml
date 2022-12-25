@@ -1,0 +1,32 @@
+version: '3'
+services:
+  gcc:
+    # will build libzc with gcc
+    build: ./docker/gcc
+    volumes:
+      - ./:/home/dev/libzc
+  clang:
+    # will build libzc with clang
+    build: ./docker/clang
+    volumes:
+      - ./:/home/dev/libzc
+  debian:
+    # will build with debian
+    build: ./docker/debian
+    volumes:
+      - ./:/home/dev/libzc
+  deb:
+    # will build the deb package
+    build: ./docker/deb
+    volumes:
+      - ./:/home/dev/libzc
+  scanbuild:
+    # will build with clang and run scan-build
+    build: ./docker/scanbuild
+    volumes:
+      - ./:/home/dev/libzc
+  gccanalyzer:
+    # will build with gcc and the -fanalyzer
+    build: ./docker/gccanalyzer
+    volumes:
+      - ./:/home/dev/libzc
