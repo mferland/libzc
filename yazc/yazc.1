@@ -102,7 +102,41 @@ Display help and exit.
 .SH INFO
 The \fIinfo\fR command lists the filenames, offsets and the encryption
 header for each file in the archive. This is useful to determine what
-configuration to pass to the \fIplaintext\fR command.
+configuration to pass to the \fIplaintext\fR command. The output lists
+one file per line with the following columns:
+.
+.
+.TP
+.I INDEX
+is the index of the file (0-based) from the zip headers
+.
+.
+.TP
+.I NAME
+is the name of the file
+.
+.
+.TP
+.I OFFSETS
+are the three offsets that are typically used with the
+\fI\-\-offset\fR option from the \fIplaintext\fR command. These are:
+the first encryption header byte (-1 if file is not encrypted), first
+data byte and the last data byte offsets (resp.)
+.
+.
+.TP
+.I SIZE
+is the uncompressed size of the file
+.
+.
+.TP
+.I CSIZE
+is the compressed size of the file
+.
+.
+.TP
+.I ENCRYPTED HEADER
+is the 12-bytes encryption header (all 0s if the file is not encrypted)
 .SH EXAMPLES
 Use a \fIbruteforce\fR attack on file archive.zip using only lower case
 letters and distribute the load to 8 threads:
