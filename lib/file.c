@@ -90,10 +90,8 @@ static uint16_t get_le16_at(const uint8_t *b, size_t i)
 
 static uint32_t get_le32_at(const uint8_t *b, size_t i)
 {
-	return (uint32_t)b[i + 3] << 24 |
-		(uint32_t)b[i + 2] << 16 |
-		(uint32_t)b[i + 1] << 8 |
-		(uint32_t)b[i];
+	return (uint32_t)b[i + 3] << 24 | (uint32_t)b[i + 2] << 16 |
+	       (uint32_t)b[i + 1] << 8 | (uint32_t)b[i];
 }
 
 static bool is_encrypted(uint16_t flag)
@@ -143,7 +141,6 @@ static int fill_info_list_local(struct zc_file *f)
 	rewind(f->stream);
 
 	while (1) {
-
 		/* read zip entry signature */
 		ret = fread(buf, 4, 1, f->stream);
 		if (ret != 1)
@@ -190,7 +187,8 @@ static int fill_info_list_local(struct zc_file *f)
 		if (!info->filename)
 			goto err2;
 
-		ret = fread(info->filename, info->filename_length, 1, f->stream);
+		ret = fread(info->filename, info->filename_length, 1,
+			    f->stream);
 		if (ret != 1)
 			goto err2;
 
@@ -203,9 +201,12 @@ static int fill_info_list_local(struct zc_file *f)
 		if (is_encrypted(info->gen_bit_flag)) {
 			info->header.magic = check_byte(info);
 			info->header_offset = ftell(f->stream);
-			info->begin_offset = info->header_offset + ENC_HEADER_LEN;
-			info->end_offset = info->header_offset + info->comp_size;
-			ret = fread(info->header.buf, ENC_HEADER_LEN, 1, f->stream);
+			info->begin_offset =
+				info->header_offset + ENC_HEADER_LEN;
+			info->end_offset =
+				info->header_offset + info->comp_size;
+			ret = fread(info->header.buf, ENC_HEADER_LEN, 1,
+				    f->stream);
 			if (ret != 1)
 				goto err2;
 		} else {
@@ -235,7 +236,9 @@ static int fill_info_list_local(struct zc_file *f)
 			if (ret != 1)
 				goto err2;
 			data_desc_sig = get_le32_at(buf, 0);
-			ret = fseek(f->stream, data_desc_sig == DATA_DESC_SIG ? 12 : 8, SEEK_CUR);
+			ret = fseek(f->stream,
+				    data_desc_sig == DATA_DESC_SIG ? 12 : 8,
+				    SEEK_CUR);
 			if (ret)
 				goto err2;
 		}
@@ -287,7 +290,8 @@ ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *file)
  * @retval -1     Error
  */
 ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx,
-					const char *filename, struct zc_file **file)
+					const char *filename,
+					struct zc_file **file)
 {
 	struct zc_file *newfile;
 
@@ -328,7 +332,22 @@ ZC_EXPORT int zc_file_open(struct zc_file *file)
 	if (zc_file_isopened(file))
 		return -1;
 
-	stream = fopen(file->filename, "r");
+	/*
+	 * Regarding the 'b' (from manpages):
+	 *
+	 * The mode string can also include the letter 'b' either as a
+	 * last character or as a character between the characters in
+	 * any of the two-character strings described above.  This is
+	 * strictly for compatibility with C89 and has no effect; the
+	 * 'b' is ignored on all POSIX conforming systems, including
+	 * Linux.  (Other systems may treat text files and binary
+	 * files differently, and adding the 'b' may be a good idea if
+	 * you do I/O to a binary file and expect that your program
+	 * may be ported to non-UNIX environments.)
+	 *
+	 * Required for the Windows (minmgw64) build.
+	 */
+	stream = fopen(file->filename, "rb");
 	if (!stream) {
 		err(file->ctx, "fopen(%s) failed: %s.\n",
 		    file->filename,
@@ -392,8 +411,7 @@ ZC_EXPORT bool zc_file_isopened(struct zc_file *file)
 static bool consider_file(struct zc_info *info)
 {
 	if (!is_encrypted(info->gen_bit_flag) ||
-	    (!is_deflated(info->comp_method) &&
-	     !is_stored(info->comp_method)))
+	    (!is_deflated(info->comp_method) && !is_stored(info->comp_method)))
 		return false;
 	return true;
 }
@@ -446,8 +464,8 @@ static struct zc_info *find_file_smallest(struct zc_file *file)
 	return ret;
 }
 
-int read_crypt_data(struct zc_file *file, unsigned char **buf,
-		    size_t *len, uint32_t *original_crc, bool *deflated)
+int read_crypt_data(struct zc_file *file, unsigned char **buf, size_t *len,
+		    uint32_t *original_crc, bool *deflated)
 {
 	struct zc_info *info;
 	size_t to_read;

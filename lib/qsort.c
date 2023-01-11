@@ -27,35 +27,33 @@
 
 #include <immintrin.h>
 
-#define int32_MINMAX(a,b)				\
-	do {						\
-		int32_t temp1;				\
-		asm(					\
-			"cmpl %1,%0\n\t"		\
-			"mov %0,%2\n\t"			\
-			"cmovg %1,%0\n\t"		\
-			"cmovg %2,%1\n\t"		\
-			: "+r"(a), "+r"(b), "=r"(temp1) \
-			:				\
-			: "cc"				\
-			);				\
-	} while(0)
+#define int32_MINMAX(a, b)                          \
+	do {                                        \
+		int32_t temp1;                      \
+		asm("cmpl %1,%0\n\t"                \
+		    "mov %0,%2\n\t"                 \
+		    "cmovg %1,%0\n\t"               \
+		    "cmovg %2,%1\n\t"               \
+		    : "+r"(a), "+r"(b), "=r"(temp1) \
+		    :                               \
+		    : "cc");                        \
+	} while (0)
 
 typedef __m256i int32x8;
-#define int32x8_load(z) _mm256_loadu_si256((__m256i *) (z))
-#define int32x8_store(z,i) _mm256_storeu_si256((__m256i *) (z),(i))
-#define int32x8_min _mm256_min_epi32
-#define int32x8_max _mm256_max_epi32
+#define int32x8_load(z)	    _mm256_loadu_si256((__m256i *)(z))
+#define int32x8_store(z, i) _mm256_storeu_si256((__m256i *)(z), (i))
+#define int32x8_min	    _mm256_min_epi32
+#define int32x8_max	    _mm256_max_epi32
 
-#define int32x8_MINMAX(a,b)			\
-	do {					\
-		int32x8 c = int32x8_min(a,b);	\
-		b = int32x8_max(a,b);		\
-		a = c;				\
-	} while(0)
+#define int32x8_MINMAX(a, b)                   \
+	do {                                   \
+		int32x8 c = int32x8_min(a, b); \
+		b = int32x8_max(a, b);         \
+		a = c;                         \
+	} while (0)
 
-__attribute__((noinline))
-static void minmax_vector(int32_t *x, int32_t *y, long long n)
+__attribute__((noinline)) static void minmax_vector(int32_t *x, int32_t *y,
+						    long long n)
 {
 	if (n < 8) {
 		while (n > 0) {
@@ -83,12 +81,12 @@ static void minmax_vector(int32_t *x, int32_t *y, long long n)
 		x += 8;
 		y += 8;
 		n -= 8;
-	} while(n);
+	} while (n);
 }
 
 /* stages 8,4,2,1 of size-16 bitonic merging */
-__attribute__((noinline))
-static void merge16_finish(int32_t *x, int32x8 x0, int32x8 x1, int flagdown)
+__attribute__((noinline)) static void merge16_finish(int32_t *x, int32x8 x0,
+						     int32x8 x1, int flagdown)
 {
 	int32x8 b0, b1, c0, c1, mask;
 
@@ -129,8 +127,8 @@ static void merge16_finish(int32_t *x, int32x8 x0, int32x8 x1, int flagdown)
 }
 
 /* stages 64,32 of bitonic merging; n is multiple of 128 */
-__attribute__((noinline))
-static void int32_twostages_32(int32_t *x, long long n)
+__attribute__((noinline)) static void int32_twostages_32(int32_t *x,
+							 long long n)
 {
 	long long i;
 
@@ -157,8 +155,8 @@ static void int32_twostages_32(int32_t *x, long long n)
 }
 
 /* stages 4q,2q,q of bitonic merging */
-__attribute__((noinline))
-static long long int32_threestages(int32_t *x, long long n, long long q)
+__attribute__((noinline)) static long long
+int32_threestages(int32_t *x, long long n, long long q)
 {
 	long long k, i;
 
@@ -200,8 +198,8 @@ static long long int32_threestages(int32_t *x, long long n, long long q)
 }
 
 /* n is a power of 2; n >= 8; if n == 8 then flagdown */
-__attribute__((noinline))
-static void int32_sort_2power(int32_t *x, long long n, int flagdown)
+__attribute__((noinline)) static void int32_sort_2power(int32_t *x, long long n,
+							int flagdown)
 {
 	long long p, q, i, j, k;
 	int32x8 mask;
@@ -326,8 +324,10 @@ static void int32_sort_2power(int32_t *x, long long n, int flagdown)
 		x1 = _mm256_unpackhi_epi64(b0, b1); /* B01234567 */
 
 		mask = _mm256_set1_epi32(-1);
-		if (flagdown) x1 ^= mask;
-		else x0 ^= mask;
+		if (flagdown)
+			x1 ^= mask;
+		else
+			x0 ^= mask;
 
 		merge16_finish(x, x0, x1, flagdown);
 		return;
@@ -544,7 +544,8 @@ static void int32_sort_2power(int32_t *x, long long n, int flagdown)
 				flip ^= flipflip;
 			}
 
-			if (p << 4 == n) break;
+			if (p << 4 == n)
+				break;
 			p <<= 1;
 		}
 	}
@@ -970,7 +971,8 @@ void int32_sort(int32_t *x, long long n)
 	}
 
 	q = 8;
-	while (q < n - q) q += q;
+	while (q < n - q)
+		q += q;
 	/* n > q >= 8 */
 
 	if (q <= 128) { /* n <= 256 */
@@ -978,10 +980,10 @@ void int32_sort(int32_t *x, long long n)
 		for (i = q >> 3; i < q >> 2; ++i)
 			y[i] = _mm256_set1_epi32(0x7fffffff);
 		for (i = 0; i < n; ++i)
-			i[(int32_t *) y] = x[i];
-		int32_sort_2power((int32_t *) y, 2 * q, 0);
+			i[(int32_t *)y] = x[i];
+		int32_sort_2power((int32_t *)y, 2 * q, 0);
 		for (i = 0; i < n; ++i)
-			x[i] = i[(int32_t *) y];
+			x[i] = i[(int32_t *)y];
 		return;
 	}
 
@@ -1232,7 +1234,7 @@ void uint32_qsort_avx2(uint32_t *buf, long long n)
 	for (j = 0; j < n; ++j)
 		buf[j] ^= 0x80000000;
 
-	int32_sort((int32_t *) buf, n);
+	int32_sort((int32_t *)buf, n);
 
 	for (j = 0; j < n; ++j)
 		buf[j] ^= 0x80000000;
@@ -1245,8 +1247,8 @@ void uint32_qsort_avx2(uint32_t *buf, long long n)
 
 void uint32_qsort_portable(uint32_t *buf, size_t n)
 {
-#define uint_lt(a,b) ((*a)<(*b))
+#define uint_lt(a, b) ((*a) < (*b))
 	QSORT(uint32_t, buf, n, uint_lt);
 }
 
-#endif	/* defined(__AVX2__) */
+#endif /* defined(__AVX2__) */

@@ -60,4 +60,4 @@ void threadpool_submit_wait(struct threadpool *p);
 
 void threadpool_submit_wait_idle(struct threadpool *p);
 
-#endif	/* _POOL_H_ */
+#endif /* _POOL_H_ */

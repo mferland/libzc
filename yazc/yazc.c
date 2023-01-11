@@ -31,20 +31,15 @@
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 static const char options_s[] = "+hV";
-static const struct option options[] = {
-	{"help", no_argument, NULL, 'h' },
-	{"version", no_argument, NULL, 'V' },
-	{NULL, 0, 0, 0}
-};
+static const struct option options[] = { { "help", no_argument, NULL, 'h' },
+					 { "version", no_argument, NULL, 'V' },
+					 { NULL, 0, 0, 0 } };
 
 static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
-	&yazc_cmd_help,
-	&yazc_cmd_bruteforce,
-	&yazc_cmd_dictionary,
-	&yazc_cmd_plaintext,
-	&yazc_cmd_info,
+	&yazc_cmd_help,	     &yazc_cmd_bruteforce, &yazc_cmd_dictionary,
+	&yazc_cmd_plaintext, &yazc_cmd_info,
 };
 
 static int help(int argc __attribute__((unused)), char *argv[])
@@ -57,11 +52,13 @@ static int help(int argc __attribute__((unused)), char *argv[])
 	       "Options:\n"
 	       "\t-V, --version     show version\n"
 	       "\t-h, --help        show this help\n\n"
-	       "Commands:\n", basename(argv[0]));
+	       "Commands:\n",
+	       basename(argv[0]));
 
 	for (i = 0; i < ARRAY_SIZE(yazc_cmds); ++i) {
 		if (yazc_cmds[i]->help)
-			printf("  %-12s %s\n", yazc_cmds[i]->name, yazc_cmds[i]->help);
+			printf("  %-12s %s\n", yazc_cmds[i]->name,
+			       yazc_cmds[i]->help);
 	}
 
 	return EXIT_SUCCESS;
@@ -78,8 +75,7 @@ static void print_version()
 		"Report bugs to: "PACKAGE_BUGREPORT"\n");
 }
 
-int print_runtime_stats(const struct timeval *begin,
-			const struct timeval *end)
+int print_runtime_stats(const struct timeval *begin, const struct timeval *end)
 {
 	return printf("Runtime: %f secs.\n",
 		      (double)(end->tv_usec - begin->tv_usec) / 1000000 +

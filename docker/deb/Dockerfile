@@ -15,4 +15,4 @@ WORKDIR /home/dev
 
 COPY devscripts /home/dev/.devscripts
 
-CMD cd /home/dev/libzc && ./builddeb
+CMD cd /home/dev/libzc && ./scripts/builddeb

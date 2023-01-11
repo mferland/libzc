@@ -49,15 +49,14 @@ struct zc_crk_ptext {
 	size_t key2_size;
 };
 
-#define generate_key3(s, i) (s->plaintext[i] ^ s->ciphertext[i])
+#define generate_key3(s, i)	     (s->plaintext[i] ^ s->ciphertext[i])
 #define get_bits_15_2(bits_15_2, k3) (&bits_15_2[k3 * 64])
 
 void uniq(uint32_t *buf, size_t *n);
 
-size_t key2r_compute_single(uint32_t key2i_plus_1,
-			    uint32_t *key2i,
+size_t key2r_compute_single(uint32_t key2i_plus_1, uint32_t *key2i,
 			    const uint16_t *key2i_bits_15_2,
 			    const uint16_t *key2im1_bits_15_2,
 			    uint32_t common_bits_mask);
 
-#endif  /* _PTEXT_PRIVATE_H_ */
+#endif /* _PTEXT_PRIVATE_H_ */

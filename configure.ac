@@ -21,7 +21,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
 AC_SYS_LARGEFILE
 AC_CONFIG_MACRO_DIR([m4])
 AM_SILENT_RULES([yes])
-LT_INIT([disable-static pic-only])
+LT_INIT
 AC_PREFIX_DEFAULT([/usr])
 
 AC_PROG_CC

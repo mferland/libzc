@@ -110,11 +110,8 @@ ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->header_size = err;
 
-	err = fill_test_cipher(crk->ctx,
-			       filename,
-			       &crk->cipher,
-			       &crk->cipher_size,
-			       &crk->original_crc,
+	err = fill_test_cipher(crk->ctx, filename, &crk->cipher,
+			       &crk->cipher_size, &crk->original_crc,
 			       &crk->cipher_is_deflated);
 	if (err) {
 		err(crk->ctx, "failed to read cipher data\n");
@@ -156,16 +153,12 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
 	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
 	int err;
 	if (crk->cipher_is_deflated)
-		err = inflate_buffer(crk->zlib,
-				     &crk->plaintext[12],
-				     crk->cipher_size - 12,
-				     crk->inflate,
-				     INFLATE_CHUNK,
-				     crk->original_crc);
+		err = inflate_buffer(crk->zlib, &crk->plaintext[12],
+				     crk->cipher_size - 12, crk->inflate,
+				     INFLATE_CHUNK, crk->original_crc);
 	else
 		err = test_buffer_crc(&crk->plaintext[12],
-				      crk->cipher_size - 12,
-				      crk->original_crc);
+				      crk->cipher_size - 12, crk->original_crc);
 
 	return err ? false : true;
 }
@@ -202,10 +195,12 @@ ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 			if (feof(f))
 				err = 1;
 			else if (ferror(f)) {
-				err(crk->ctx, "fgets() failed: %s\n", strerror(tmp));
+				err(crk->ctx, "fgets() failed: %s\n",
+				    strerror(tmp));
 				err = -1;
 			} else {
-				err(crk->ctx, "unknown failure, errno: %d\n", tmp);
+				err(crk->ctx, "unknown failure, errno: %d\n",
+				    tmp);
 				err = -1;
 			}
 			break;

@@ -28,12 +28,9 @@ struct zlib_state {
 /* to silence compiler warnings about missing prototypes */
 int inflate_new(struct zlib_state **zlib);
 void inflate_destroy(struct zlib_state *zlib);
-int inflate_buffer(struct zlib_state *zlib,
-		   unsigned char *in, size_t inlen,
-		   unsigned char *out, size_t outlen,
-		   uint32_t original_crc);
-int test_buffer_crc(unsigned char *in, size_t inlen,
-		    uint32_t original_crc);
+int inflate_buffer(struct zlib_state *zlib, unsigned char *in, size_t inlen,
+		   unsigned char *out, size_t outlen, uint32_t original_crc);
+int test_buffer_crc(unsigned char *in, size_t inlen, uint32_t original_crc);
 
 int inflate_new(struct zlib_state **zlib)
 {
@@ -61,10 +58,8 @@ void inflate_destroy(struct zlib_state *zlib)
 	free(zlib);
 }
 
-int inflate_buffer(struct zlib_state *zlib,
-		   unsigned char *in, size_t inlen,
-		   unsigned char *out, size_t outlen,
-		   uint32_t original_crc)
+int inflate_buffer(struct zlib_state *zlib, unsigned char *in, size_t inlen,
+		   unsigned char *out, size_t outlen, uint32_t original_crc)
 {
 	int ret;
 	uint32_t crc;
@@ -90,8 +85,7 @@ int inflate_buffer(struct zlib_state *zlib,
 	return crc == original_crc ? 0 : -1;
 }
 
-int test_buffer_crc(unsigned char *in, size_t inlen,
-		    uint32_t original_crc)
+int test_buffer_crc(unsigned char *in, size_t inlen, uint32_t original_crc)
 {
 	uint32_t crc = crc32(0L, Z_NULL, 0);
 	crc = crc32(crc, in, inlen);

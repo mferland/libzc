@@ -196,7 +196,7 @@ static bool all_workers_idle(const struct threadpool *pool)
 	return true;
 }
 
-static void *__work(struct worker *w)
+static void __work(struct worker *w)
 {
 	struct threadpool *pool = w->pool;
 	struct list_head *work_head = NULL;
@@ -244,8 +244,7 @@ static void *__work(struct worker *w)
 
 			work_head = NULL;
 
-			pthread_cond_wait(&pool->work_cond,
-					  &pool->work_mutex);
+			pthread_cond_wait(&pool->work_cond, &pool->work_mutex);
 
 			/* woke up - unmark thread */
 			clear_bit(pool->idle_bitmap, w->id);
@@ -253,7 +252,8 @@ static void *__work(struct worker *w)
 
 		work_head = pool->waiting_head.next;
 		list_del(pool->waiting_head.next);
-		clear_bit(pool->idle_bitmap, w->id); /* got work - unmark thread */
+		clear_bit(pool->idle_bitmap,
+			  w->id); /* got work - unmark thread */
 		pthread_mutex_unlock(&pool->work_mutex);
 
 		ret = pool->ops->do_work(pool->ops->in, work_head, w->id);
@@ -293,8 +293,7 @@ static void *__work_cancel(struct worker *w)
 		}
 
 		pthread_cleanup_push(unlock_work_mutex, w);
-		pthread_cond_wait(&pool->work_cond,
-				  &pool->work_mutex);
+		pthread_cond_wait(&pool->work_cond, &pool->work_mutex);
 		pthread_cleanup_pop(0);
 	}
 
@@ -323,8 +322,10 @@ static void *work(void *p)
 
 	if (w->pool->support_cancel)
 		return __work_cancel(w);
-	else
-		return __work(w);
+	else {
+		__work(w);
+		return NULL;
+	}
 }
 
 static void dealloc_workers(struct threadpool *p)
@@ -514,7 +515,8 @@ static void wait_and_join(struct threadpool *p)
 			list_del(&w->list);
 			int err = pthread_join(w->thread_id, NULL);
 			if (err)
-				fatal("pthread_join() failed: %s\n", strerror(err));
+				fatal("pthread_join() failed: %s\n",
+				      strerror(err));
 			if (w->cancel_siblings && left > 1) {
 				w->cancel_siblings = 0;
 				cancel(p);

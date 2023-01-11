@@ -148,8 +148,7 @@ static int try_key_1_4(struct final_private *f)
  */
 static bool recover_key1_key0lsb(struct zc_key *k,
 				 const uint8_t (*lsbk0_lookup)[4],
-				 const uint8_t *lsbk0_count,
-				 uint32_t level)
+				 const uint8_t *lsbk0_count, uint32_t level)
 {
 	if (level == 0)
 		return k->key1 == KEY1;
@@ -265,12 +264,14 @@ static int try_key_5_6(struct final_private *f)
 		set_default_encryption_keys(&k[i + 1]);
 		k[i + 2].key1 = PREKEY1;
 
-		if (!recover_key1_key0lsb(&k[1], f->lsbk0_lookup, f->lsbk0_count, i))
+		if (!recover_key1_key0lsb(&k[1], f->lsbk0_lookup,
+					  f->lsbk0_count, i))
 			continue;
 
 		/* recover bytes */
 		for (int j = 0; j < i + 1; ++j) {
-			f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0, k[j].key0);
+			f->pw[j] = recover_input_byte_from_crcs(k[j + 1].key0,
+								k[j].key0);
 			k[j + 1].key0 = crc32inv(k[j].key0, f->pw[j]);
 		}
 
@@ -284,11 +285,8 @@ static int try_key_5_6(struct final_private *f)
 	return -1;
 }
 
-static int recover(struct zc_key *recovered,
-		   uint8_t *recovered_pw,
-		   size_t from,
-		   const uint8_t (*lsbk0_lookup)[4],
-		   const uint8_t *lsbk0_count,
+static int recover(struct zc_key *recovered, uint8_t *recovered_pw, size_t from,
+		   const uint8_t (*lsbk0_lookup)[4], const uint8_t *lsbk0_count,
 		   const struct zc_key *internal_rep)
 {
 	struct zc_key *k = &recovered[from];
@@ -354,12 +352,8 @@ static int recover_7(void *in, struct list_head *list, int id)
 	do {
 		pw[0] = c;
 		recover_prev_key(&recovered[0], c, &recovered[1]);
-		if (recover(recovered,
-			    pw,
-			    1,
-			    final->lsbk0_lookup,
-			    final->lsbk0_count,
-			    &final->internal_rep) < 0) {
+		if (recover(recovered, pw, 1, final->lsbk0_lookup,
+			    final->lsbk0_count, &final->internal_rep) < 0) {
 			/* not found, go on to the next character */
 			c++;
 		} else {
@@ -389,10 +383,7 @@ static int recover_8(void *in, struct list_head *list, int id)
 		for (int i = 0; i < 256; ++i) {
 			pw[1] = i;
 			recover_prev_key(&recovered[1], i, &recovered[2]);
-			if (recover(recovered,
-				    pw,
-				    2,
-				    final->lsbk0_lookup,
+			if (recover(recovered, pw, 2, final->lsbk0_lookup,
 				    final->lsbk0_count,
 				    &final->internal_rep) < 0) {
 				/* not found, go on to the next character */
@@ -428,10 +419,9 @@ static int recover_9(void *in, struct list_head *list, int id)
 			recover_prev_key(&recovered[1], i, &recovered[2]);
 			for (int j = 0; j < 256; ++j) {
 				pw[2] = j;
-				recover_prev_key(&recovered[2], j, &recovered[3]);
-				if (recover(recovered,
-					    pw,
-					    3,
+				recover_prev_key(&recovered[2], j,
+						 &recovered[3]);
+				if (recover(recovered, pw, 3,
 					    final->lsbk0_lookup,
 					    final->lsbk0_count,
 					    &final->internal_rep) < 0) {
@@ -450,6 +440,7 @@ static int recover_9(void *in, struct list_head *list, int id)
 	return TPEEXIT;
 }
 
+// clang-format off
 static int recover_10(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
@@ -653,9 +644,9 @@ static int recover_13(void *in, struct list_head *list, int id)
 
 	return TPEEXIT;
 }
+// clang-format on
 
-static void init_work_units(struct final_work_unit *unit,
-			    size_t len)
+static void init_work_units(struct final_work_unit *unit, size_t len)
 {
 	size_t nbchar_per_thread = 256 / len;
 	size_t rem = 256 % len;
@@ -663,7 +654,8 @@ static void init_work_units(struct final_work_unit *unit,
 	if (!rem) {
 		size_t i;
 		int start;
-		for (i = 0, start = 0; i < len; ++i, start += nbchar_per_thread) {
+		for (i = 0, start = 0; i < len;
+		     ++i, start += nbchar_per_thread) {
 			unit[i].start = start;
 			unit[i].len = nbchar_per_thread;
 		}

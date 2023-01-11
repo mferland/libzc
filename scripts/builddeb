@@ -5,7 +5,7 @@
 
 set -e
 
-D="debtest"
+D="build-deb"
 PN="libzc"
 PV="0.4.4"
 PF="${PN}-${PV}"

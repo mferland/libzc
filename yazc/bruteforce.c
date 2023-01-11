@@ -42,17 +42,17 @@ static bool stats = false;
 
 static const char short_opts[] = "c:i:l:aAnsSt:h";
 static const struct option long_opts[] = {
-	{"charset", required_argument, 0, 'c'},
-	{"initial", required_argument, 0, 'i'},
-	{"length", required_argument, 0, 'l'},
-	{"alpha", no_argument, 0, 'a'},
-	{"alpha-caps", no_argument, 0, 'A'},
-	{"numeric", no_argument, 0, 'n'},
-	{"special", no_argument, 0, 's'},
-	{"threads", required_argument, 0, 't'},
-	{"stats", no_argument, 0, 'S'},
-	{"help", no_argument, 0, 'h'},
-	{NULL, 0, 0, 0}
+	{ "charset", required_argument, 0, 'c' },
+	{ "initial", required_argument, 0, 'i' },
+	{ "length", required_argument, 0, 'l' },
+	{ "alpha", no_argument, 0, 'a' },
+	{ "alpha-caps", no_argument, 0, 'A' },
+	{ "numeric", no_argument, 0, 'n' },
+	{ "special", no_argument, 0, 's' },
+	{ "threads", required_argument, 0, 't' },
+	{ "stats", no_argument, 0, 'S' },
+	{ "help", no_argument, 0, 'h' },
+	{ NULL, 0, 0, 0 }
 };
 
 static void print_help(const char *name)
@@ -143,7 +143,8 @@ static int launch_crack(void)
 		else
 			printf("Worker threads: %ld\n", thread_count);
 		printf("Maximum length: %zu\n", pwcfg.maxlen);
-		printf("Character set: %s\n", zc_crk_bforce_sanitized_charset(crk));
+		printf("Character set: %s\n",
+		       zc_crk_bforce_sanitized_charset(crk));
 		printf("Filename: %s\n", filename);
 	}
 
@@ -230,10 +231,10 @@ static int do_bruteforce(int argc, char *argv[])
 	/* password stop length */
 	if (arg_maxlen) {
 		pwcfg.maxlen = atoi(arg_maxlen);
-		if (pwcfg.maxlen < ZC_PW_MINLEN || pwcfg.maxlen > ZC_PW_MAXLEN) {
+		if (pwcfg.maxlen < ZC_PW_MINLEN ||
+		    pwcfg.maxlen > ZC_PW_MAXLEN) {
 			err("maximum password length must be between %d and %d.\n",
-			    ZC_PW_MINLEN,
-			    ZC_PW_MAXLEN);
+			    ZC_PW_MINLEN, ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else
@@ -259,7 +260,8 @@ static int do_bruteforce(int argc, char *argv[])
 			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		char *tmp = make_charset(arg_charset_flag, pwcfg.set, ZC_CHARSET_MAXLEN);
+		char *tmp = make_charset(arg_charset_flag, pwcfg.set,
+					 ZC_CHARSET_MAXLEN);
 		if (!tmp) {
 			err("generating character set failed.\n");
 			return EXIT_FAILURE;

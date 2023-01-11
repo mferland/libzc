@@ -25,13 +25,11 @@
 #include "libzc.h"
 #include "yazc.h"
 
-#define MAX(a, b) (( a > b) ? a : b)
+#define MAX(a, b) ((a > b) ? a : b)
 
 static const char short_opts[] = "h";
-static const struct option long_opts[] = {
-	{"help", no_argument, 0, 'h'},
-	{NULL, 0, 0, 0}
-};
+static const struct option long_opts[] = { { "help", no_argument, 0, 'h' },
+					   { NULL, 0, 0, 0 } };
 
 struct zc_ctx *ctx;
 
@@ -88,12 +86,8 @@ static int do_info(int argc, char *argv[])
 		goto err2;
 	}
 
-	size_t fn_max_len = 0,
-		crypt_max_len = 0,
-		offset_begin_max_len = 0,
-		offset_end_max_len = 0,
-		size_max_len = 0,
-		csize_max_len = 0;
+	size_t fn_max_len = 0, crypt_max_len = 0, offset_begin_max_len = 0,
+	       offset_end_max_len = 0, size_max_len = 0, csize_max_len = 0;
 	info = zc_file_info_next(file, NULL);
 	while (info) {
 		char buf[256];
@@ -120,8 +114,7 @@ static int do_info(int argc, char *argv[])
 		if (tmp1 > offset_end_max_len)
 			offset_end_max_len = tmp1;
 		/* size */
-		snprintf(buf, sizeof(buf), "%u",
-			 zc_file_info_size(info));
+		snprintf(buf, sizeof(buf), "%u", zc_file_info_size(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > size_max_len)
 			size_max_len = tmp1;
