@@ -77,4 +77,6 @@ AC_MSG_RESULT([
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
+	PTHREAD_LIBS:           ${PTHREAD_LIBS}
+	PTHREAD_CFLAGS:         ${PTHREAD_CFLAGS}
 ])
