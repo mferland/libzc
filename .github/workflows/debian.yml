@@ -12,4 +12,4 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: docker-build
-        run: ./docker-build debian
+        run: docker-compose run debian
