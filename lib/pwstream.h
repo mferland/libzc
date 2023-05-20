@@ -28,21 +28,16 @@ int pwstream_new(struct pwstream **pws);
 
 void pwstream_free(struct pwstream *pws);
 
-int pwstream_generate(struct pwstream *pws,
-		      size_t pool_len,
-		      size_t pw_len,
-		      size_t streams,
-		      const size_t *initial);
+int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
+		      size_t streams, const size_t *initial);
 
-const struct entry *pwstream_get_entry(struct pwstream *pws,
-				       size_t stream,
+const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 				       size_t pos);
 
 size_t pwstream_get_pwlen(const struct pwstream *pws);
 
 size_t pwstream_get_stream_count(const struct pwstream *pws);
 
-bool pwstream_is_empty(struct pwstream *pws,
-		       unsigned int stream);
+bool pwstream_is_empty(struct pwstream *pws, unsigned int stream);
 
-#endif  /* _PWSTREAM_H_ */
+#endif /* _PWSTREAM_H_ */

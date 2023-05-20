@@ -30,11 +30,10 @@
 static bool stats = false;
 
 static const char short_opts[] = "d:hS";
-static const struct option long_opts[] = {
-	{"dictionary", required_argument, 0, 'd'},
-	{"help", no_argument, 0, 'h'},
-	{NULL, 0, 0, 0}
-};
+static const struct option long_opts[] = { { "dictionary", required_argument, 0,
+					     'd' },
+					   { "help", no_argument, 0, 'h' },
+					   { NULL, 0, 0, 0 } };
 
 static void print_help(const char *cmdname)
 {
@@ -130,7 +129,8 @@ static int do_dictionary(int argc, char *argv[])
 	zip_filename = argv[optind];
 
 	if (stats) {
-		printf("Dictionary: %s\n", !dict_filename ? "stdin" : dict_filename);
+		printf("Dictionary: %s\n",
+		       !dict_filename ? "stdin" : dict_filename);
 		printf("Filename: %s\n", zip_filename);
 	}
 

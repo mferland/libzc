@@ -39,15 +39,14 @@
  */
 struct zc_ctx {
 	int refcount;
-	void (*log_fn)(struct zc_ctx *ctx,
-		       int priority, const char *file, int line, const char *fn,
-		       const char *format, va_list args);
+	void (*log_fn)(struct zc_ctx *ctx, int priority, const char *file,
+		       int line, const char *fn, const char *format,
+		       va_list args);
 	int log_priority;
 };
 
-void zc_log(struct zc_ctx *ctx,
-	    int priority, const char *file, int line, const char *fn,
-	    const char *format, ...)
+void zc_log(struct zc_ctx *ctx, int priority, const char *file, int line,
+	    const char *fn, const char *format, ...)
 {
 	va_list args;
 
@@ -56,8 +55,8 @@ void zc_log(struct zc_ctx *ctx,
 	va_end(args);
 }
 
-void zc_trace(const char *file, int line, const char *fn,
-	      const char *format, ...)
+void zc_trace(const char *file, int line, const char *fn, const char *format,
+	      ...)
 {
 	va_list args;
 
@@ -70,8 +69,7 @@ void zc_trace(const char *file, int line, const char *fn,
 static void log_stderr(struct zc_ctx *ctx __attribute__((__unused__)),
 		       int priority __attribute__((__unused__)),
 		       const char *file __attribute__((__unused__)),
-		       int line __attribute__((__unused__)),
-		       const char *fn,
+		       int line __attribute__((__unused__)), const char *fn,
 		       const char *format, va_list args)
 {
 	fprintf(stderr, "libzc: %s: ", fn);
@@ -175,10 +173,10 @@ ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
  *
  **/
 ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
-			     void (*log_fn)(struct zc_ctx *ctx,
-					    int priority, const char *file,
-					    int line, const char *fn,
-					    const char *format, va_list args))
+			     void (*log_fn)(struct zc_ctx *ctx, int priority,
+					    const char *file, int line,
+					    const char *fn, const char *format,
+					    va_list args))
 {
 	ctx->log_fn = log_fn;
 	info(ctx, "custom logging function %p registered\n", log_fn);

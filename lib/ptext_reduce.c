@@ -27,7 +27,12 @@
 #include "pool.h"
 
 #define KEY2_ARRAY_LEN (1 << 22)
-#define swap(x, y) do { typeof(x) SWAP = x; x = y; y = SWAP; } while (0)
+#define swap(x, y)                  \
+	do {                        \
+		typeof(x) SWAP = x; \
+		x = y;              \
+		y = SWAP;           \
+	} while (0)
 
 struct reduce_private {
 	/*

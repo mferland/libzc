@@ -1,0 +1,38 @@
+From 7e34dab875bf8099b436ef816c9169c8b9b06f90 Mon Sep 17 00:00:00 2001
+From: Marc Ferland <ferlandm@amotus.ca>
+Date: Wed, 5 Apr 2023 11:01:06 -0400
+Subject: [PATCH] Temp Makefile fix
+
+---
+ GNUmakefile.in | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/GNUmakefile.in b/GNUmakefile.in
+index 3455b6d..0495c4a 100644
+--- a/GNUmakefile.in
++++ b/GNUmakefile.in
+@@ -316,17 +316,15 @@ default_libs = $(wildcard $(addprefix $1,$(PTW32_VER)$2 $(PTW32_VERD)$2))
+ # what it's going to install as the default libpthread.a?  Better to
+ # just explicitly make it a copy of libpthreadGC$(PTW32_VER).a
+ install-libs: install-lib-default
+-install-lib-default: $(call default_libs,libpthreadGC,.a)
+-install-lib-default: $(call default_libs,libpthreadGCE,.a)
+-	$(INSTALL_DATA) $(lastword $^) ${libdir}/$(DEST_LIB_NAME).a
++install-lib-default: libpthreadGC3.dll.a
++	$(INSTALL_DATA) libpthreadGC3.dll.a ${libdir}/$(DEST_LIB_NAME).a
+ 
+ # FIXME: similarly, who knows what this will install?  Once again, it
+ # would be better to explicitly install libpthread.dll.a as a copy of
+ # libpthreadGC$(PTW32_VER).dll.a
+ install-libs: install-implib-default
+-install-implib-default: $(call default_libs,libpthreadGC,.dll.a)
+-install-implib-default: $(call default_libs,libpthreadGCE,.dll.a)
+-	$(INSTALL_DATA) $(lastword $^) ${libdir}/$(DEST_LIB_NAME).dll.a
++install-implib-default: libpthreadGC3.dll.a
++	$(INSTALL_DATA) libpthreadGC3.dll.a ${libdir}/$(DEST_LIB_NAME).dll.a
+ 
+ install-headers: pthread.h sched.h semaphore.h _ptw32.h
+ 	$(INSTALL_DATA) $^ ${includedir}
+-- 
+2.34.1
+

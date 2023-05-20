@@ -127,8 +127,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	return NULL;
 }
 
-ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx,
-			       struct zc_crk_ptext **ptext,
+ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
 			       long force_threads)
 {
 	struct zc_crk_ptext *new;
@@ -162,8 +161,7 @@ err1:
 
 ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 				    const uint8_t *plaintext,
-				    const uint8_t *ciphertext,
-				    size_t size)
+				    const uint8_t *ciphertext, size_t size)
 {
 	if (size < 13)
 		return -1;

@@ -36,12 +36,12 @@
 
 static const char short_opts[] = "t:oiSh";
 static const struct option long_opts[] = {
-	{"threads", required_argument, 0, 't'},
-	{"offset", no_argument, 0, 'o'},
-	{"password-from-internal-rep", no_argument, 0, 'i'},
-	{"stats", no_argument, 0, 'S'},
-	{"help", no_argument, 0, 'h'},
-	{NULL, 0, 0, 0}
+	{ "threads", required_argument, 0, 't' },
+	{ "offset", no_argument, 0, 'o' },
+	{ "password-from-internal-rep", no_argument, 0, 'i' },
+	{ "stats", no_argument, 0, 'S' },
+	{ "help", no_argument, 0, 'h' },
+	{ NULL, 0, 0, 0 }
 };
 
 struct filed {
@@ -55,8 +55,8 @@ struct filed {
 	void *map;
 };
 
-static struct filed cipher = {NULL, 0, 0, 0, -1, NULL};
-static struct filed plain = {NULL, 0, 0, 0, -1, NULL};
+static struct filed cipher = { NULL, 0, 0, 0, -1, NULL };
+static struct filed plain = { NULL, 0, 0, 0, -1, NULL };
 static long thread_count;
 static bool stats = false;
 static struct zc_key internal_rep;
@@ -129,8 +129,7 @@ static int parse_single_key(const char *tok, uint32_t *key)
 	char *endptr;
 	errno = 0;
 	unsigned long int val = strtoul(tok, &endptr, 0);
-	if ((errno == ERANGE && val == ULONG_MAX) ||
-	    (errno != 0 && val == 0))
+	if ((errno == ERANGE && val == ULONG_MAX) || (errno != 0 && val == 0))
 		return -1;
 	if (endptr == tok)
 		return -1;
@@ -138,11 +137,7 @@ static int parse_single_key(const char *tok, uint32_t *key)
 	return 0;
 }
 
-enum text_src {
-	SRC_PLAIN = 0,
-	SRC_CIPHER,
-	SRC_NUM
-};
+enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
 static int parse_entry_opts(const char *argv[])
 {
@@ -159,8 +154,7 @@ static int parse_entry_opts(const char *argv[])
 		entry = argv[optind++];
 
 		dbg("%s: %s %s\n",
-		    src == SRC_PLAIN ? "plaintext" : "ciphertext",
-		    filename,
+		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
 		    entry);
 
 		err = zc_file_new_from_filename(ctx, filename, &f);
@@ -179,8 +173,10 @@ static int parse_entry_opts(const char *argv[])
 				/* filenames do not match */
 				goto next;
 
-			if ((src == SRC_PLAIN && zc_file_info_crypt_header_offset(info) != -1) ||
-			    (src == SRC_CIPHER && zc_file_info_crypt_header_offset(info) == -1))
+			if ((src == SRC_PLAIN &&
+			     zc_file_info_crypt_header_offset(info) != -1) ||
+			    (src == SRC_CIPHER &&
+			     zc_file_info_crypt_header_offset(info) == -1))
 				/* plaintext is encrypted or ciphertext is not encrypted ? */
 				goto next;
 
@@ -191,10 +187,8 @@ static int parse_entry_opts(const char *argv[])
 			fd->file_begin = zc_file_info_crypt_header_offset(info);
 			fd->name = filename;
 			matches++;
-			dbg("found match: %s %lld %lld %lld\n",
-			    entry,
-			    (long long)fd->txt_begin,
-			    (long long)fd->txt_end,
+			dbg("found match: %s %lld %lld %lld\n", entry,
+			    (long long)fd->txt_begin, (long long)fd->txt_end,
 			    (long long)fd->file_begin);
 			break;
 next:
@@ -228,14 +222,10 @@ static int parse_offset_opts(char *argv[])
 	if (parse_offset(argv[optind], &cipher.file_begin))
 		return -1;
 
-	dbg("plaintext: %s %lld %lld\n",
-	    plain.name,
-	    (long long)plain.txt_begin,
+	dbg("plaintext: %s %lld %lld\n", plain.name, (long long)plain.txt_begin,
 	    (long long)plain.txt_end);
-	dbg("ciphertext: %s %lld %lld %lld\n",
-	    cipher.name,
-	    (long long)cipher.txt_begin,
-	    (long long)cipher.txt_end,
+	dbg("ciphertext: %s %lld %lld %lld\n", cipher.name,
+	    (long long)cipher.txt_begin, (long long)cipher.txt_end,
 	    (long long)cipher.file_begin);
 
 	return 0;
@@ -250,10 +240,8 @@ static int parse_internal_rep(char *argv[])
 	if (parse_single_key(argv[optind++], &internal_rep.key2))
 		return -1;
 
-	dbg("internal rep: 0x%x 0x%x 0x%x\n",
-	    internal_rep.key0,
-	    internal_rep.key1,
-	    internal_rep.key2);
+	dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep.key0,
+	    internal_rep.key1, internal_rep.key2);
 
 	return 0;
 }
@@ -266,7 +254,8 @@ static bool validate_offsets()
 	if (plain.txt_end - plain.txt_begin < 13 ||
 	    cipher.txt_end - cipher.txt_begin < 13)
 		return false;
-	if (plain.txt_end - plain.txt_begin != cipher.txt_end - cipher.txt_begin)
+	if (plain.txt_end - plain.txt_begin !=
+	    cipher.txt_end - cipher.txt_begin)
 		return false;
 	if (cipher.file_begin > cipher.txt_begin)
 		return false;
@@ -308,7 +297,8 @@ static int mmap_text_buf(struct filed *file)
 	}
 
 	if (file->txt_end >= filestat.st_size) {
-		err("end offset (%lld) goes past the end of the file.\n", (long long)file->txt_end);
+		err("end offset (%lld) goes past the end of the file.\n",
+		    (long long)file->txt_end);
 		goto error;
 	}
 
@@ -512,10 +502,10 @@ static int do_plaintext(int argc, char *argv[])
 		goto error3;
 	}
 
-	err = zc_crk_ptext_set_text(ptext,
-				    &((const uint8_t *)plain.map)[plain.txt_begin],
-				    &((const uint8_t *)cipher.map)[cipher.txt_begin],
-				    size_of_map(&plain));
+	err = zc_crk_ptext_set_text(
+		ptext, &((const uint8_t *)plain.map)[plain.txt_begin],
+		&((const uint8_t *)cipher.map)[cipher.txt_begin],
+		size_of_map(&plain));
 	if (err < 0) {
 		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
@@ -543,21 +533,20 @@ static int do_plaintext(int argc, char *argv[])
 	}
 	printf(" done!\n");
 
-	printf("Intermediate key: 0x%x 0x%x 0x%x\n",
-	       out_key.key0, out_key.key1, out_key.key2);
+	printf("Intermediate key: 0x%x 0x%x 0x%x\n", out_key.key0, out_key.key1,
+	       out_key.key2);
 
 	struct zc_key int_rep;
-	err = zc_crk_ptext_find_internal_rep(&out_key,
-					     &((const uint8_t *)cipher.map)[cipher.file_begin],
-					     cipher.txt_begin - cipher.file_begin,
-					     &int_rep);
+	err = zc_crk_ptext_find_internal_rep(
+		&out_key, &((const uint8_t *)cipher.map)[cipher.file_begin],
+		cipher.txt_begin - cipher.file_begin, &int_rep);
 	if (err < 0) {
 		err("finding internal representation failed.\n");
 		goto error4;
 	}
 
-	printf("Internal key representation: 0x%x 0x%x 0x%x\n",
-	       int_rep.key0, int_rep.key1, int_rep.key2);
+	printf("Internal key representation: 0x%x 0x%x 0x%x\n", int_rep.key0,
+	       int_rep.key1, int_rep.key2);
 
 	printf("Recovering original password...");
 	fflush(stdout);

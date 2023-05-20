@@ -25,8 +25,13 @@ services:
     build: ./docker/scanbuild
     volumes:
       - ./:/home/dev/libzc
-  gccanalyzer:
-    # will build with gcc and the -fanalyzer
-    build: ./docker/gccanalyzer
+  mingw64:
+    # will build a windows compatible executable
+    build: ./docker/mingw64
+    volumes:
+      - ./:/home/dev/libzc
+  afl:
+    # will run afl tests
+    build: ./docker/afl
     volumes:
       - ./:/home/dev/libzc

@@ -21,8 +21,7 @@
 #include "decrypt_byte.h"
 #include "libzc_private.h"
 
-int fill_header(struct zc_ctx *ctx, const char *filename,
-		struct zc_header *h,
+int fill_header(struct zc_ctx *ctx, const char *filename, struct zc_header *h,
 		size_t len)
 {
 	struct zc_file *file;
@@ -47,8 +46,8 @@ int fill_header(struct zc_ctx *ctx, const char *filename,
 }
 
 int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
-		     unsigned char **buf, size_t *len,
-		     uint32_t *original_crc, bool *is_deflated)
+		     unsigned char **buf, size_t *len, uint32_t *original_crc,
+		     bool *is_deflated)
 {
 	struct zc_file *file;
 	int err;
@@ -97,7 +96,8 @@ uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
 }
 
-bool decrypt_headers(const struct zc_key *k, const struct zc_header *h, size_t len)
+bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
+		     size_t len)
 {
 	struct zc_key tmp;
 

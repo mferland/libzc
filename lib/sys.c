@@ -16,6 +16,19 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stddef.h>
+
+#ifdef WIN32
+
+size_t threads_to_create(long forced)
+{
+	if (forced > 0)
+		return forced;
+	return 1; /* best effort on windows */
+}
+
+#else
+
 #include <unistd.h>
 
 size_t threads_to_create(long forced)
@@ -27,3 +40,5 @@ size_t threads_to_create(long forced)
 		return 1;
 	return n;
 }
+
+#endif

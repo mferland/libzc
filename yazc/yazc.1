@@ -28,7 +28,7 @@ yazc \- yet another zip cracker
 .PD 1
 .SH DESCRIPTION
 .B yazc
-cracks password protected zip files. Three attack methods are
+cracks password-protected zip files. Three attack methods are
 supported: \fIbruteforce\fR, \fIdictionary\fR and \fIplaintext\fR.
 .PP
 Note: Only files encrypted using the legacy Pkware encryption method
@@ -37,7 +37,7 @@ are supported.
 .SH BRUTEFORCE
 The \fIbruteforce\fR command tries every possible character
 combination. A general rule of thumb is to use this command when you
-suspect the password to be 8 characters or less.
+suspect the password to be 8 characters or fewer.
 .TP
 .BR \-c ", " \-\-charset=\fICHARSET\fR
 Set the character set to CHARSET.
@@ -64,6 +64,9 @@ Use special characters " !\(dq#$%&'()*+,-./:;<=>?`[~]^_{|}@".
 Distribute load to NUM threads. If set to "auto" (default), yazc will
 automatically use the number of logical processors available.
 .TP
+.BR \-S ", " \-\-stats
+Print statistics.
+.TP
 .BR \-h ", " \-\-help
 Display help and exit.
 .SH DICTIONARY
@@ -73,6 +76,10 @@ password is separated by a newline.
 .TP
 .BR \-d ", " \-\-dictionary=\fIFILE\fR
 Read passwords from FILE.
+.TP
+.BR \-S ", " \-\-stats
+Print statistics.
+
 .TP
 .BR \-h ", " \-\-help
 Display help and exit.
@@ -91,10 +98,14 @@ offsets (\-o option) or by using the zip file entry name.
 Use raw byte offsets instead of entry names.
 .TP
 .BR \-i ", " \-\-password-from-internal-rep
-Find the password from the provided internal representation.
+Find the password from the provided internal representation. See
+section 3.6 of the Biham & Kocher paper.
 .TP
 .BR \-t ", " \-\-threads=\fINUM\fR
 Distribute load to NUM threads.
+.TP
+.BR \-S ", " \-\-stats
+Print statistics.
 .TP
 .BR \-h ", " \-\-help
 Display help and exit.
@@ -102,7 +113,41 @@ Display help and exit.
 .SH INFO
 The \fIinfo\fR command lists the filenames, offsets and the encryption
 header for each file in the archive. This is useful to determine what
-configuration to pass to the \fIplaintext\fR command.
+configuration to pass to the \fIplaintext\fR command. The output lists
+one file per line with the following columns:
+.
+.
+.TP
+.I INDEX
+is the index of the file (0-based) from the zip headers
+.
+.
+.TP
+.I NAME
+is the name of the file
+.
+.
+.TP
+.I OFFSETS
+are the three offsets that are typically used with the
+\fI\-\-offset\fR option from the \fIplaintext\fR command. These are:
+the first encryption header byte (-1 if file is not encrypted), first
+data byte and the last data byte offsets (resp.)
+.
+.
+.TP
+.I SIZE
+is the uncompressed size of the file
+.
+.
+.TP
+.I CSIZE
+is the compressed size of the file
+.
+.
+.TP
+.I ENCRYPTED HEADER
+is the 12-bytes encryption header (all 0s if the file is not encrypted)
 .SH EXAMPLES
 Use a \fIbruteforce\fR attack on file archive.zip using only lower case
 letters and distribute the load to 8 threads:

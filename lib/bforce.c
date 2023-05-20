@@ -123,9 +123,7 @@ static size_t sanitize_set(char *set, size_t len)
 	return newlen;
 }
 
-static bool pw_in_set(const char *pw,
-		      const char *set,
-		      size_t len)
+static bool pw_in_set(const char *pw, const char *set, size_t len)
 {
 	for (size_t i = 0; pw[i] != '\0'; ++i) {
 		if (!memchr(set, pw[i], len))
@@ -134,8 +132,7 @@ static bool pw_in_set(const char *pw,
 	return true;
 }
 
-static bool test_password(struct worker *w,
-			  const struct zc_key *key)
+static bool test_password(struct worker *w, const struct zc_key *key)
 {
 	int err;
 
@@ -143,12 +140,9 @@ static bool test_password(struct worker *w,
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	if (w->crk->cipher_is_deflated)
-		err = inflate_buffer(w->zlib,
-				     &w->plaintext[12],
-				     w->crk->cipher_size - 12,
-				     w->inflate,
-				     INFLATE_CHUNK,
-				     w->crk->original_crc);
+		err = inflate_buffer(w->zlib, &w->plaintext[12],
+				     w->crk->cipher_size - 12, w->inflate,
+				     INFLATE_CHUNK, w->crk->original_crc);
 	else
 		err = test_buffer_crc(&w->plaintext[12],
 				      w->crk->cipher_size - 12,
@@ -163,12 +157,8 @@ static bool try_decrypt(const struct zc_crk_bforce *crk,
 	return decrypt_headers(base, crk->header, crk->header_size);
 }
 
-static void do_work_recurse(struct worker *w,
-			    size_t level,
-			    size_t level_count,
-			    char *pw,
-			    struct zc_key *cache,
-			    struct entry *limit)
+static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
+			    char *pw, struct zc_key *cache, struct entry *limit)
 {
 	const struct zc_crk_bforce *crk = w->crk;
 	int first = limit[0].initial;
@@ -176,7 +166,8 @@ static void do_work_recurse(struct worker *w,
 
 	if (level == 1) {
 		for (int p = first; p < last; ++p) {
-			update_keys(crk->set[p], &cache[level_count - 1], &cache[level_count]);
+			update_keys(crk->set[p], &cache[level_count - 1],
+				    &cache[level_count]);
 			if (try_decrypt(crk, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
 					pw[level_count - 1] = crk->set[p];
@@ -190,7 +181,8 @@ static void do_work_recurse(struct worker *w,
 		for (int p = first; p < last; ++p) {
 			pw[i] = crk->set[p];
 			update_keys(pw[i], &cache[i], &cache[i + 1]);
-			do_work_recurse(w, level - 1, level_count, pw, cache, &limit[1]);
+			do_work_recurse(w, level - 1, level_count, pw, cache,
+					&limit[1]);
 		}
 	}
 	limit[0].initial = limit[0].start;
@@ -218,24 +210,24 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 		for (size_t j = 0; j < LEN; ++j)
 			check[j] = b ^ decrypt_byte(k2[j]) ^ k0[j];
 
-		/* update key0 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
+		/* update key0 */
 		for (size_t j = 0; j < LEN; ++j)
 			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
-		/* update key1 */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
+		/* update key1 */
 		for (size_t j = 0; j < LEN; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
-		/* update key2 -- loop is in two parts */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
+		/* update key2 -- loop is in two parts */
 		for (size_t j = 0; j < LEN; ++j) {
 			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
 			crcshr8[j] = k2[j] >> 8;
@@ -256,17 +248,16 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 	return h->candidate;
 }
 
-static int try_decrypt2(const struct zc_crk_bforce *crk,
-			struct worker *w)
+static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 {
 	struct zc_key key;
 	struct hash *h = &w->h;
 
-#define RESET() do				\
-	{					\
-		key.key0 = h->initk0[ctz];	\
-		key.key1 = h->initk1[ctz];	\
-		key.key2 = h->initk2[ctz];	\
+#define RESET()                            \
+	do {                               \
+		key.key0 = h->initk0[ctz]; \
+		key.key1 = h->initk1[ctz]; \
+		key.key2 = h->initk2[ctz]; \
 	} while (0)
 
 	do {
@@ -275,7 +266,8 @@ static int try_decrypt2(const struct zc_crk_bforce *crk,
 		size_t j = 1;
 		for (; j < crk->header_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->header[j].buf, &key, crk->header[j].magic))
+			if (decrypt_header(crk->header[j].buf, &key,
+					   crk->header[j].magic))
 				break;
 		}
 		if (j == crk->header_size) {
@@ -298,9 +290,7 @@ static int try_decrypt2(const struct zc_crk_bforce *crk,
     out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
     out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
  */
-static void indexes_from_raw_counter(uint64_t c,
-				     const int *in,
-				     int *out)
+static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
 {
 	uint64_t tmp[6];
 	int i = 5;
@@ -314,11 +304,9 @@ static void indexes_from_raw_counter(uint64_t c,
 		out[i] = tmp[i] %= in[i];
 }
 
-static void do_work_recurse2(struct worker *w,
-			     size_t level,
-			     size_t level_count,
-			     char *pw,
-			     struct zc_key *cache,
+// clang-format off
+static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
+			     char *pw, struct zc_key *cache,
 			     struct entry *limit)
 {
 	const struct zc_crk_bforce *crk = w->crk;
@@ -403,24 +391,22 @@ static void do_work_recurse2(struct worker *w,
 		for (int p = first; p < last; ++p) {
 			pw[0] = crk->set[p];
 			update_keys(pw[0], &cache[0], &cache[1]);
-			do_work_recurse2(w, level - 1, level_count, &pw[1], &cache[1], &limit[1]);
+			do_work_recurse2(w, level - 1, level_count, &pw[1],
+					 &cache[1], &limit[1]);
 		}
 	}
 	limit[0].initial = limit[0].start;
 }
+// clang-format on
 
-static void fill_limits(struct pwstream *pws,
-			struct entry *limit,
-			size_t count,
+static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
 			size_t stream)
 {
 	for (size_t i = 0, j = count - 1; i < count; ++i, --j)
 		limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
-static void do_work(struct worker *w,
-		    struct pwstream *pws,
-		    size_t stream,
+static void do_work(struct worker *w, struct pwstream *pws, size_t stream,
 		    char *pw)
 {
 	size_t level = pwstream_get_pwlen(pws);
@@ -451,7 +437,7 @@ static void worker_cleanup_handler(void *p)
 static void dealloc_workers(struct zc_crk_bforce *crk)
 {
 	struct worker *w, *wtmp;
-	list_for_each_entry_safe(w, wtmp,  &crk->workers_head, list) {
+	list_for_each_entry_safe(w, wtmp, &crk->workers_head, list) {
 		list_del(&w->list);
 		free(w->inflate);
 		free(w->plaintext);
@@ -460,8 +446,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
 	}
 }
 
-static int alloc_workers(struct zc_crk_bforce *crk,
-			 size_t count)
+static int alloc_workers(struct zc_crk_bforce *crk, size_t count)
 {
 	struct worker *w;
 
@@ -532,8 +517,7 @@ end:
 	return NULL;
 }
 
-static void broadcast_workers_err(struct zc_crk_bforce *crk,
-				  int err)
+static void broadcast_workers_err(struct zc_crk_bforce *crk, int err)
 {
 	pthread_mutex_lock(&crk->mutex);
 	crk->pthread_create_err = err;
@@ -541,8 +525,7 @@ static void broadcast_workers_err(struct zc_crk_bforce *crk,
 	pthread_mutex_unlock(&crk->mutex);
 }
 
-static int create_workers(struct zc_crk_bforce *crk,
-			  size_t *cnt)
+static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
 {
 	struct worker *w;
 	size_t created = 0;
@@ -579,9 +562,7 @@ static void cancel_workers(struct zc_crk_bforce *crk)
 	}
 }
 
-static void wait_workers(struct zc_crk_bforce *crk,
-			 size_t workers,
-			 char *pw,
+static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 			 size_t len)
 {
 	int workers_left = workers;
@@ -620,11 +601,8 @@ static void dealloc_pwstreams(struct zc_crk_bforce *crk)
 	free(crk->pws);
 }
 
-static void fill_initial_pwstream(size_t *initial,
-				  const char *ipw,
-				  size_t ipwlen,
-				  const char *set,
-				  size_t setlen)
+static void fill_initial_pwstream(size_t *initial, const char *ipw,
+				  size_t ipwlen, const char *set, size_t setlen)
 {
 	for (size_t i = ipwlen - 1, j = 0; j < ipwlen; --i, ++j)
 		initial[j] = (const char *)memchr(set, ipw[i], setlen) - set;
@@ -632,11 +610,8 @@ static void fill_initial_pwstream(size_t *initial,
 
 /* when generating the first streams, take into account the
  * initial password provided */
-static int alloc_first_pwstream(struct pwstream **pws,
-				const char *ipw,
-				size_t ipwlen,
-				const char *set,
-				size_t setlen,
+static int alloc_first_pwstream(struct pwstream **pws, const char *ipw,
+				size_t ipwlen, const char *set, size_t setlen,
 				size_t workers)
 {
 	struct pwstream *tmp;
@@ -653,8 +628,7 @@ static int alloc_first_pwstream(struct pwstream **pws,
 	return 0;
 }
 
-static int alloc_pwstreams(struct zc_crk_bforce *crk,
-			   size_t workers)
+static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 {
 	const char *ipw = crk->ipw;
 	size_t ipwlen = crk->ipwlen;
@@ -667,7 +641,8 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk,
 	if (!crk->pws)
 		return -1;
 
-	if (alloc_first_pwstream(&crk->pws[0], ipw, ipwlen, set, setlen, workers)) {
+	if (alloc_first_pwstream(&crk->pws[0], ipw, ipwlen, set, setlen,
+				 workers)) {
 		free(crk->pws);
 		return -1;
 	}
@@ -679,20 +654,18 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk,
 			return -1;
 		}
 		crk->pwslen++;
-		pwstream_generate(crk->pws[i], setlen, ipwlen + i, workers, NULL);
+		pwstream_generate(crk->pws[i], setlen, ipwlen + i, workers,
+				  NULL);
 	}
 
 	return 0;
 }
 
-static int set_pwcfg(struct zc_crk_bforce *crk,
-		     const struct zc_crk_pwcfg *cfg)
+static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 {
 	/* basic sanity checks */
-	if (cfg->setlen == 0 ||
-	    cfg->setlen > ZC_CHARSET_MAXLEN  ||
-	    cfg->maxlen == 0 ||
-	    cfg->maxlen > ZC_PW_MAXLEN)
+	if (cfg->setlen == 0 || cfg->setlen > ZC_CHARSET_MAXLEN ||
+	    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN)
 		return -1;
 
 	if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
@@ -740,17 +713,15 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	}
 
 	crk->header_size = err;
-	crk->pre_magic_xor_header = crk->header[0].magic ^ crk->header[0].buf[11];
+	crk->pre_magic_xor_header = crk->header[0].magic ^
+				    crk->header[0].buf[11];
 
 	if (crk->cipher) {
 		free(crk->cipher);
 		crk->cipher = NULL;
 	}
-	err = fill_test_cipher(crk->ctx,
-			       filename,
-			       &crk->cipher,
-			       &crk->cipher_size,
-			       &crk->original_crc,
+	err = fill_test_cipher(crk->ctx, filename, &crk->cipher,
+			       &crk->cipher_size, &crk->original_crc,
 			       &crk->cipher_is_deflated);
 	if (err) {
 		err(crk->ctx, "failed to read cipher data\n");
@@ -764,8 +735,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx,
-				struct zc_crk_bforce **crk)
+ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 {
 	struct zc_crk_bforce *tmp;
 	int err;
@@ -827,19 +797,18 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	return NULL;
 }
 
-ZC_EXPORT const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
+ZC_EXPORT const char *
+zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }
 
-ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce,
-					   long w)
+ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 {
 	bforce->force_threads = w;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk,
-				  char *pw,
+ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 				  size_t len)
 {
 	size_t w;

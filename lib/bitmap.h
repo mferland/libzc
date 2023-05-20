@@ -47,4 +47,4 @@ static inline int test_bit(const unsigned long *bitmap, int nr)
 unsigned long *bitmap_alloc(unsigned int nbits);
 void bitmap_free(unsigned long *bitmap);
 
-#endif	/* _BITMAP_H_ */
+#endif /* _BITMAP_H_ */

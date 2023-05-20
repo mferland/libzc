@@ -229,7 +229,8 @@ static void compute_key1(struct attack_private *priv)
 	}
 }
 
-static uint32_t compute_key1_msb(struct attack_private *priv, uint32_t current_idx)
+static uint32_t compute_key1_msb(struct attack_private *priv,
+				 uint32_t current_idx)
 {
 	const uint32_t key2i = k2(current_idx);
 	const uint32_t key2im1 = k2(current_idx - 1);

@@ -12,13 +12,7 @@ RUN useradd --create-home --shell /bin/bash dev
 
 USER dev
 WORKDIR /home/dev
+ENV CC=clang
+ENV CCC_CC=clang
 
-CMD cd /home/dev/libzc \
-    && rm -rf ./build-clang \
-    && mkdir build-clang \
-    && git clean -d -X -f \
-    && (([ -f Makefile ] && make distclean) || true) \
-    && ./autogen.sh \
-    && cd build-clang \
-    && ../configure CC="clang" CFLAGS="-g -O0" \
-    && CCC_CC=clang scan-build -o ./output make check
+CMD cd /home/dev/libzc && scripts/build-scanbuild.sh /home/dev/libzc

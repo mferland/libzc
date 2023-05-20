@@ -21,17 +21,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "libzc.h"
 #include "yazc.h"
 
-#define MAX(a, b) (( a > b) ? a : b)
+#define MAX(a, b) ((a > b) ? a : b)
 
 static const char short_opts[] = "h";
-static const struct option long_opts[] = {
-	{"help", no_argument, 0, 'h'},
-	{NULL, 0, 0, 0}
-};
+static const struct option long_opts[] = { { "help", no_argument, 0, 'h' },
+					   { NULL, 0, 0, 0 } };
 
 struct zc_ctx *ctx;
 
@@ -88,12 +87,8 @@ static int do_info(int argc, char *argv[])
 		goto err2;
 	}
 
-	size_t fn_max_len = 0,
-		crypt_max_len = 0,
-		offset_begin_max_len = 0,
-		offset_end_max_len = 0,
-		size_max_len = 0,
-		csize_max_len = 0;
+	size_t fn_max_len = 0, crypt_max_len = 0, offset_begin_max_len = 0,
+	       offset_end_max_len = 0, size_max_len = 0, csize_max_len = 0;
 	info = zc_file_info_next(file, NULL);
 	while (info) {
 		char buf[256];
@@ -101,32 +96,32 @@ static int do_info(int argc, char *argv[])
 		size_t tmp1 = strlen(zc_file_info_name(info));
 		if (tmp1 > fn_max_len)
 			fn_max_len = tmp1;
-		/* encrypted header */
-		snprintf(buf, sizeof(buf), "%li",
-			 zc_file_info_crypt_header_offset(info));
+		/* offset encrypted header */
+		snprintf(buf, sizeof(buf), "%jd",
+			 (intmax_t)zc_file_info_crypt_header_offset(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > crypt_max_len)
 			crypt_max_len = tmp1;
 		/* offset begin */
-		snprintf(buf, sizeof(buf), "%li",
+		snprintf(buf, sizeof(buf), "%jd",
 			 zc_file_info_offset_begin(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_begin_max_len)
 			offset_begin_max_len = tmp1;
 		/* offset end */
-		snprintf(buf, sizeof(buf), "%li",
+		snprintf(buf, sizeof(buf), "%jd",
 			 zc_file_info_offset_end(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_end_max_len)
 			offset_end_max_len = tmp1;
 		/* size */
-		snprintf(buf, sizeof(buf), "%u",
+		snprintf(buf, sizeof(buf), "%"PRIu64,
 			 zc_file_info_size(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > size_max_len)
 			size_max_len = tmp1;
 		/* compressed size */
-		snprintf(buf, sizeof(buf), "%u",
+		snprintf(buf, sizeof(buf), "%"PRIu64,
 			 zc_file_info_compressed_size(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > csize_max_len)
@@ -152,16 +147,16 @@ static int do_info(int argc, char *argv[])
 	info = zc_file_info_next(file, NULL);
 	while (info) {
 		const uint8_t *ehdr = zc_file_info_enc_header(info);
-		printf("%5d %*s %*li %*li %*li %*u %*u %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		printf("%5d %*s %*jd %*jd %*jd %*"PRIu64" %*"PRIu64" %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 		       zc_file_info_idx(info),
 		       (int)(-MAX(fn_max_len, 8)),
 		       zc_file_info_name(info),
 		       (int)(-crypt_max_len),
-		       zc_file_info_crypt_header_offset(info),
+		       (intmax_t)zc_file_info_crypt_header_offset(info),
 		       (int)(-offset_begin_max_len),
-		       zc_file_info_offset_begin(info),
+		       (intmax_t)zc_file_info_offset_begin(info),
 		       (int)(-offset_end_max_len),
-		       zc_file_info_offset_end(info),
+		       (intmax_t)zc_file_info_offset_end(info),
 		       (int)(-MAX(size_max_len, 4)),
 		       zc_file_info_size(info),
 		       (int)(-MAX(csize_max_len, 5)),

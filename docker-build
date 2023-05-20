@@ -1,0 +1,29 @@
+#!/bin/bash
+
+BUILD_IMAGE=0
+
+while getopts ":b" o; do
+    case "${o}" in
+	b)
+	    BUILD_IMAGE=1
+	    ;;
+	*)
+	    echo >&2 "error option: " ${o}
+    esac
+done
+shift $((OPTIND-1))
+
+case "${1}" in
+    clang|deb|debian|gcc|mingw64|scanbuild|afl)
+	if [ ${BUILD_IMAGE} == 0 ]; then
+	    docker-compose up ${1} && docker-compose down
+	else
+	    docker-compose build ${1}
+	fi
+	;;
+    *)
+	echo >&2 "unkonwn target: ${1}"
+	echo >&2 "Select one of: clang deb debian gcc mingw64 scanbuild afl"
+	exit 1
+	;;
+esac

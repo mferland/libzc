@@ -23,7 +23,7 @@
 #include "libzc_private.h"
 #include "pwstream.h"
 
-static const struct entry null_entry = { -1, -1, -1};
+static const struct entry null_entry = { -1, -1, -1 };
 
 /*
  This algorithm distributes a pool of characters to 'n' password
@@ -189,7 +189,7 @@ static size_t uniq(struct pwstream *t, size_t row, const struct entry *e)
  */
 static size_t uniq_from_entry(const struct entry *e, size_t len)
 {
-	size_t count = 1;           /* first entry is always equal */
+	size_t count = 1; /* first entry is always equal */
 	for (size_t i = 1; i < len; ++i) {
 		if (is_equal_entries(&e[i], e))
 			++count;
@@ -321,8 +321,8 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 	return 0;
 }
 
-const struct entry *pwstream_get_entry(struct pwstream *pws,
-				       size_t stream, size_t pos)
+const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
+				       size_t pos)
 {
 	if (stream >= pws->cols)
 		return &null_entry;
