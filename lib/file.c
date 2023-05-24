@@ -262,20 +262,25 @@ static int alloc_cdheader(struct zc_cdheader *cd)
 {
 	void *tmp;
 
+	/* filename length already validated as being > 1 */
 	tmp = calloc(1, cd->filename_length + 1);
 	if (!tmp)
 		return -1;
 	cd->filename = tmp;
 
-	tmp = malloc(cd->extra_length);
-	if (!tmp)
-		goto err1;
-	cd->extra = tmp;
+	if (cd->extra_length) {
+		tmp = malloc(cd->extra_length);
+		if (!tmp)
+			goto err1;
+		cd->extra = tmp;
+	}
 
-	tmp = malloc(cd->comment_length);
-	if (!tmp)
-		goto err2;
-	cd->comment = tmp;
+	if (cd->comment_length) {
+		tmp = malloc(cd->comment_length);
+		if (!tmp)
+			goto err2;
+		cd->comment = tmp;
+	}
 
 	return 0;
 err2:
