@@ -262,20 +262,25 @@ static int alloc_cdheader(struct zc_cdheader *cd)
 {
 	void *tmp;
 
+	/* filename length already validated as being > 1 */
 	tmp = calloc(1, cd->filename_length + 1);
 	if (!tmp)
 		return -1;
 	cd->filename = tmp;
 
-	tmp = malloc(cd->extra_length);
-	if (!tmp)
-		goto err1;
-	cd->extra = tmp;
+	if (cd->extra_length) {
+		tmp = malloc(cd->extra_length);
+		if (!tmp)
+			goto err1;
+		cd->extra = tmp;
+	}
 
-	tmp = malloc(cd->comment_length);
-	if (!tmp)
-		goto err2;
-	cd->comment = tmp;
+	if (cd->comment_length) {
+		tmp = malloc(cd->comment_length);
+		if (!tmp)
+			goto err2;
+		cd->comment = tmp;
+	}
 
 	return 0;
 err2:
@@ -617,6 +622,11 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 		return -1;
 	}
 
+	if (eocd64_loc.disk_num || eocd64_loc.disk_total > 1) {
+		err(f->ctx, "multi-disk zip files not supported\n");
+		return -1;
+	}
+
 	ret = zfseeko(f, (off_t)eocd64_loc.cd_start_offset, SEEK_SET);
 	if (ret < 0)
 		return ret;
@@ -933,7 +943,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 
 static int fill_info_list_central_directory(struct zc_file *f)
 {
-	int ret, fd;
+	int err, fd;
 	struct stat sb;
 	off_t cd_offset;
 	uint64_t entries_in_cd;
@@ -946,8 +956,8 @@ static int fill_info_list_central_directory(struct zc_file *f)
 		return -1;
 	}
 
-	ret = fstat(fd, &sb);
-	if (ret < 0) {
+	err = fstat(fd, &sb);
+	if (err < 0) {
 		err(f->ctx, "fstat() failed: %s\n", strerror(errno));
 		return -1;
 	}
@@ -962,8 +972,8 @@ static int fill_info_list_central_directory(struct zc_file *f)
 	dbg(f->ctx, "Detected file size: %zu bytes\n", sb.st_size);
 	dbg(f->ctx, "Bytes to read: %zu\n", to_read);
 
-	ret = zfseeko(f, -(off_t)to_read, SEEK_END);
-	if (ret)
+	err = zfseeko(f, -(off_t)to_read, SEEK_END);
+	if (err)
 		return -1;
 
 	len = zfread(f, f->search_buf, to_read, 1);
@@ -1011,9 +1021,9 @@ static int fill_info_list_central_directory(struct zc_file *f)
 		dbg(f->ctx, "\tcomment_len: %d\n",
 		    eocd.comment_len);
 
-		ret = find_cd_offset_from_eocd(f, &eocd, from, &cd_offset,
+		err = find_cd_offset_from_eocd(f, &eocd, from, &cd_offset,
 					       &entries_in_cd);
-		if (ret) {
+		if (err) {
 			to_read = rem;
 			from++;
 			continue;
@@ -1028,15 +1038,14 @@ static int fill_info_list_central_directory(struct zc_file *f)
 			continue;
 		}
 
-		ret = read_all_entries_at(f, cd_offset, entries_in_cd);
-		if (ret) {
+		err = read_all_entries_at(f, cd_offset, entries_in_cd);
+		if (!err)
+			break;
+		else {
 			to_read = rem;
 			from++;
 			continue;
-		} else if (!ret) {
-			break;
-		} else
-			goto err1;
+		}
 	}
 
 	return 0;
