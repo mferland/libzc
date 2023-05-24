@@ -622,6 +622,11 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 		return -1;
 	}
 
+	if (eocd64_loc.disk_num || eocd64_loc.disk_total > 1) {
+		err(f->ctx, "multi-disk zip files not supported\n");
+		return -1;
+	}
+
 	ret = zfseeko(f, (off_t)eocd64_loc.cd_start_offset, SEEK_SET);
 	if (ret < 0)
 		return ret;
