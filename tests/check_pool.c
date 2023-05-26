@@ -262,6 +262,7 @@ START_TEST(test_wait_idle)
 		tmp[i]->id = i;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
+	/* FAILS HERE! */
 	threadpool_submit_wait_idle(pool);
 	threadpool_destroy(pool);
 

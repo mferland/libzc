@@ -1,0 +1,66 @@
+---
+name: Build test
+'on':
+  push:
+    branches:
+      - build-test
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu", "fedora", "silkeh/clang:15-bullseye", "gcc:latest", "debian:unstable"]
+        include:
+          - os: "silkeh/clang:15-bullseye"
+            cc: "clang"
+
+    container:
+      image: ${{ matrix.os }}
+      options: --privileged --ulimit core=-1 --security-opt seccomp=unconfined
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - if: ${{ matrix.cc }}
+        run: echo CC=${{ matrix.cc }} >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: |
+          ./scripts/install-deps.sh
+
+      - name: autogen
+        run: |
+          ./autogen.sh
+
+      - name: configure
+        run: |
+          ./configure CFLAGS="-O0 -g"
+
+      - name: make check
+        run: |
+          ulimit -c
+          echo "$GITHUB_WORKSPACE/libzc-coredump/core.%h.%e.%t" > /proc/sys/kernel/core_pattern
+          cat /proc/sys/kernel/core_pattern
+          mkdir "$GITHUB_WORKSPACE/libzc-coredump"
+          make check
+
+      - name: upload check logs and coredumps
+        uses: actions/upload-artifact@v3
+        if: ${{ failure() }}
+        with:
+          name: check_logs.${{ strategy.job-index }}
+          path: |
+            ${{ github.workspace }}
+            /usr/lib/x86_64-linux-gnu/libpthread.so.0
+            /usr/lib/x86_64-linux-gnu/libc.so.6
+            /usr/lib/x86_64-linux-gnu/librt.so.1
+            /usr/lib/x86_64-linux-gnu/libm.so.6
+            /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+            /usr/lib/libcheck.so.0.0.0
+            /usr/lib/x86_64-linux-gnu/libthread_db.so.1
+          if-no-files-found: error
+          retention-days: 3

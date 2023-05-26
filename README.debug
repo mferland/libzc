@@ -1,0 +1,49 @@
+Debug from GH artifact
+======================
+Let's say the `pool` test fails sometimes on GH actions, it will
+automatically create a bundle, i.e.: check_logs.2. This package
+contais all the code, binaries and libraries from the GH VM.
+
+Using the bundle
+----------------
+Unzip the bundle:
+
+    $ unzip check_logs.2.zip
+    $ ls -l
+    total 11876
+    -rw-rw-r-- 1 marc marc 12148205 Jul  6 21:57 check_logs.3.zip
+    drwxr-xr-x 3 marc marc     4096 Jul 10 21:42 lib
+    drwxr-xr-x 3 marc marc     4096 Jul  7 01:57 usr
+    drwxr-xr-x 3 marc marc     4096 Jul  7 01:56 __w
+
+Make sure the files are correctly placed (gdb requires this). For
+example:
+
+    artifacts/lib/libcheck.so.0
+    artifacts/lib/x86_64-linux-gnu/libc.so.6
+    artifacts/lib64/ld-linux-x86-64.so.2
+
+Go to the `__w/libzc/libzc` directory and start `gdb`:
+
+    $ libtool exe gdb
+
+Open the `pool` executable and load the coredump:
+
+    (gdb) set sysroot /home/marc/dev/libzc/artifacts
+    (gdb) add-auto-load-safe-path /home/marc/dev/libzc/artifacts/lib/x86_64-linux-gnu/libthread_db.so.1
+    (gdb) file tests/pool
+    (gdb) core libzc-coredump/core.33698e2b99a0.pool.1688694965.10788
+
+Show the backtrace:
+
+     (gdb) bt
+     #0  0x00007f4373055d36 in ?? () from /home/marc/dev/libzc/artifacts/lib/x86_64-linux-gnu/libc.so.6
+     #1  0x00007f43730583f8 in pthread_cond_wait () from /home/marc/dev/libzc/artifacts/lib/x86_64-linux-gnu/libc.so.6
+     #2  0x0000000000404a80 in threadpool_submit_wait_idle (p=0x170f280) at pool.c:618
+     #3  0x00000000004031de in test_wait_idle_fn (_i=0) at check_pool.c:266
+     #4  0x00007f43731b7ec1 in tcase_run_tfun_fork (i=0, tfun=<optimized out>, tc=<optimized out>, sr=<optimized out>) at check_run.c:497
+     #5  srunner_iterate_tcase_tfuns (tc=0x170d300, sr=<optimized out>) at check_run.c:256
+     #6  srunner_run_tcase (tc=0x170d300, sr=0x170d580) at check_run.c:402
+     #7  srunner_iterate_suites (print_mode=<optimized out>, exclude_tags=0x0, include_tags=0x0, tcname=<optimized out>, sname=0x0, sr=0x170d580) at check_run.c:222
+     #8  srunner_run_tagged (sr=0x170d580, sname=0x0, tcname=<optimized out>, include_tags=0x0, exclude_tags=0x0, print_mode=<optimized out>) at check_run.c:814
+     #9  0x000000000040364e in main () at check_pool.c:339

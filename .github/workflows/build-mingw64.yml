@@ -1,0 +1,41 @@
+---
+name: Build Windows executable
+'on':
+  push:
+    branches:
+      - build-test
+
+jobs:
+  build-mingw64:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt install -y git make automake libtool-bin autoconf zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install mman-win32
+        run: |
+          git clone https://github.com/alitrack/mman-win32.git
+          cd mman-win32
+          ./configure --prefix=/usr/x86_64-w64-mingw32 --enable-static --cc=x86_64-w64-mingw32-gcc --cross-prefix=x86_64-w64-mingw32-
+          make
+          sudo make install
+
+      - name: Install pthreads4w
+        run: |
+          git clone https://git.code.sf.net/p/pthreads4w/code pthreads4w
+          cd pthreads4w
+          cp ${GITHUB_WORKSPACE}/docker/mingw64/0001-Temp-Makefile-fix.patch .
+          git apply 0001-Temp-Makefile-fix.patch
+          autoreconf --install
+          ./configure --prefix=/usr/x86_64-w64-mingw32/local --host=x86_64-w64-mingw32
+          make clean GC
+          sudo make install
+
+      - name: Run build script
+        run: |
+          scripts/build-mingw64.sh ${GITHUB_WORKSPACE}
