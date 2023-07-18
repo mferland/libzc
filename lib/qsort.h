@@ -115,7 +115,6 @@ typedef struct {
 	((--top, (low = top->_lo), (high = top->_hi)))
 #define	_QSORT_STACK_NOT_EMPTY	(_stack < _top)
 
-
 /* Order size using quicksort.  This implementation incorporates
    four optimizations discussed in Sedgewick:
 

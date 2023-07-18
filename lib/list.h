@@ -204,5 +204,4 @@ static inline int list_empty(struct list_head *head)
 	     &pos->member != (head); 					\
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
-
 #endif
