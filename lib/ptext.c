@@ -121,7 +121,6 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
 	threadpool_destroy(ptext->pool);
-	free((void *)ptext->key2);
 	free((void *)ptext->bits_15_2);
 	free(ptext);
 	return NULL;

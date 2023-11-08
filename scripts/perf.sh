@@ -40,9 +40,9 @@ if [ ! -x ${PERF} ]; then
     case $yn in
 	[yY] ) echo "Installing perf..."
 	       KVER=$(uname -r)
-	       sudo apt install linux-tools-common \
-		    linux-tools-$(KVER) \
-		    linux-cloud-tools-$(KVER) \
+	       sudo -E apt install linux-tools-common \
+		    linux-tools-${KVER} \
+		    linux-cloud-tools-${KVER} \
 		    linux-tools-generic \
 		    linux-cloud-tools-generic
 	       ;;

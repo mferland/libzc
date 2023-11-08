@@ -25,6 +25,7 @@
 
 #define KEY2_MASK_6BITS 0xfc00
 #define KEY2_MASK_8BITS 0xff00
+#define KEY2_ARRAY_LEN (1 << 22)
 
 struct zc_crk_ptext {
 	struct zc_ctx *ctx;
@@ -45,7 +46,7 @@ struct zc_crk_ptext {
 	struct threadpool *pool;
 
 	/* final reduced key2 buffer */
-	const uint32_t *key2;
+	uint32_t key2[KEY2_ARRAY_LEN];
 	size_t key2_size;
 };
 

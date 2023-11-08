@@ -58,6 +58,4 @@ void threadpool_submit_work(struct threadpool *p, struct list_head *list);
 
 void threadpool_submit_wait(struct threadpool *p);
 
-void threadpool_submit_wait_idle(struct threadpool *p);
-
 #endif /* _POOL_H_ */
