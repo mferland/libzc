@@ -115,6 +115,16 @@ case "${1}" in
     "stat")
 	sudo ${PERF} stat ${CMD}
 	;;
+    "diff")
+	D="./perfdiff"
+	mkdir -p ${D}
+	CURR=$(ls ${D} | tail -n1 | cut -d'.' -f3)
+	NEXT=$(printf "%04d\n" $((CURR+1)))
+	sudo ${PERF} record -a -o ${D}/perf.data.${NEXT} ${CMD}
+	sudo chown marc:marc ${D}/perf.data.${NEXT}
+	${PERF} report -i ${D}/perf.data.${NEXT} -n > ${D}/perf.report.${NEXT}
+	# sudo ${PERF} diff ${D}/perf.data.*
+	;;
 
     *)
 	echo >&2 "Unknown command: ${1}"
