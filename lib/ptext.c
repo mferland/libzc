@@ -156,7 +156,5 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 
 ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
-	if (ptext->key2)
-		return ptext->key2_size;
-	return 0;
+	return ptext->key2_size;
 }
