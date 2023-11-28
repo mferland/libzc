@@ -936,7 +936,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 
 	return 0;
 
- err:
+err:
 	clear_info_list(f);
 	return -1;
 }

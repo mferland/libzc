@@ -71,7 +71,8 @@ libzc_la_SOURCES =\
 	file.c \
 	sys.c \
 	qsort.h \
-	qsort.c
+	qsort.c \
+	uniq.c
 
 include_HEADERS = libzc.h
 

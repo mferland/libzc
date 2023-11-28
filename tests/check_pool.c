@@ -237,7 +237,7 @@ static int do_work_wait(void *in, struct list_head *list, int id)
 	return TPEMORE;
 }
 
-START_TEST(test_wait_idle)
+START_TEST(test_wait)
 {
 	struct threadpool_ops ops = {
 		.do_work = do_work_wait,
@@ -262,41 +262,7 @@ START_TEST(test_wait_idle)
 		tmp[i]->id = i;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
-	threadpool_submit_wait_idle(pool);
-	threadpool_destroy(pool);
-
-	for (int i = 0; i < WAIT_TEST_COUNT; ++i)
-		free(tmp[i]);
-	free(tmp);
-}
-END_TEST
-
-START_TEST(test_wait_idle_err)
-{
-	struct threadpool_ops ops = {
-		.do_work = do_work_wait,
-		.in = NULL
-	};
-	struct threadpool *pool = NULL;
-	struct work_wait **tmp;
-	int err;
-
-	tmp = calloc(WAIT_TEST_COUNT,
-		     sizeof(struct work_wait *));
-
-	err = threadpool_new(&pool, -1);
-	ck_assert_int_eq(err, 0);
-	ck_assert(pool != NULL);
-
-	threadpool_set_ops(pool,  &ops);
-
-	threadpool_submit_start(pool, true);
-	for (size_t i = 0; i < WAIT_TEST_COUNT; ++i) {
-		tmp[i] = malloc(sizeof(struct work_wait));
-		tmp[i]->id = i;
-		threadpool_submit_work(pool, &(tmp[i]->list));
-	}
-	threadpool_submit_wait_idle(pool);
+	threadpool_submit_wait(pool);
 	threadpool_destroy(pool);
 
 	for (int i = 0; i < WAIT_TEST_COUNT; ++i)
@@ -319,8 +285,7 @@ Suite *threadpool_suite()
 	tcase_add_test(tc_core, test_start_submit_wait_less);
 	tcase_add_test(tc_core, test_start_submit_wait_equal);
 	tcase_add_test(tc_core, test_start_submit_wait_more);
-	tcase_add_test(tc_core, test_wait_idle);
-	tcase_add_exit_test(tc_core, test_wait_idle_err, EXIT_FAILURE);
+	tcase_add_test(tc_core, test_wait);
 	suite_add_tcase(s, tc_core);
 
 	return s;

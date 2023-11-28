@@ -30,24 +30,6 @@
 #include "ptext_private.h"
 #include "pool.h"
 
-void uniq(uint32_t *buf, size_t *n)
-{
-	size_t i = 0, j;
-
-	if (*n <= 1)
-		return;
-
-	uint32_qsort(buf, *n);
-
-	/* reduce by removing duplicates */
-	for (j = 1; j < *n; ++j) {
-		if (buf[j] != buf[i])
-			buf[++i] = buf[j];
-	}
-
-	*n = i + 1;
-}
-
 static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
 {
 	/*    \  List of multiples (up to 4) that
@@ -121,7 +103,6 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 		return ptext;
 	dbg(ptext->ctx, "ptext %p released\n", ptext);
 	threadpool_destroy(ptext->pool);
-	free((void *)ptext->key2);
 	free((void *)ptext->bits_15_2);
 	free(ptext);
 	return NULL;
