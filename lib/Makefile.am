@@ -47,8 +47,6 @@ LIBZC_AGE=0
 
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
-	bitmap.c \
-	bitmap.h \
 	common.c \
 	crc32.h \
 	decrypt_byte.h \

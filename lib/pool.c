@@ -24,7 +24,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "bitmap.h"
 #include "list.h"
 #include "pool.h"
 #include "libzc_private.h"
@@ -395,7 +394,6 @@ void threadpool_submit_start_scale(struct threadpool *p, bool support_cancel,
 				   long nbthreads)
 {
 	long max_threads;
-	int err;
 
 	if (p->nbthreads_default < 1) {
 		/* by default, use auto scale */
@@ -411,7 +409,7 @@ void threadpool_submit_start_scale(struct threadpool *p, bool support_cancel,
 		fatal("cannot create more than %ld threads", max_threads);
 
 	if (support_cancel) {
-		err = pthread_barrier_init(&p->barrier, NULL, nbthreads + 1);
+		int err = pthread_barrier_init(&p->barrier, NULL, nbthreads + 1);
 		if (err)
 			fatal("pthread_barrier_init() failed: %s\n",
 			      strerror(err));
@@ -449,11 +447,8 @@ void threadpool_submit_work(struct threadpool *p, struct list_head *list)
 
 void threadpool_submit_wait(struct threadpool *p)
 {
-	int err;
-
-	err = create_threads(p);
-	if (err)
-		fatal("TODO\n");
+	if (create_threads(p))
+		fatal("create_threads failed\n");
 
 	/* indicates that we are ready, all of the other threads can
 	 * now proceed */

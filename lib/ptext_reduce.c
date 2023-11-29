@@ -199,12 +199,12 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 			uniq(priv->key2, &priv->key2_size);
 			if (i == 12)
 				break; /* reduction is done no more bytes to process */
-			for (size_t i = 0; i < priv->nbthreads; ++i) {
-				priv->unit[i].key2ip1_size =
+			for (size_t j = 0; j < priv->nbthreads; ++j) {
+				priv->unit[j].key2ip1_size =
 					distribute_key2(priv->key2_size / priv->nbthreads,
 							priv->key2_size % priv->nbthreads,
-							priv->unit[i].key2ip1,
-							i,
+							priv->unit[j].key2ip1,
+							j,
 							priv->key2);
 			}
 			priv->key2_size = 0;

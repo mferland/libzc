@@ -768,13 +768,13 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 			dbg(f->ctx, "Reading extra tag: 0x%x, size: %d\n", extra->tag, extra->size);
 
 			if (extra->tag != EXTRA_TAG_ZIP64) {
-				int next = header_id_index + extra->size + 4; /* 4 ==> tag + size */
+				int next_index = header_id_index + extra->size + 4; /* 4 ==> tag + size */
 
 				/* skip this extra field */
-				if (next + 4 > header->extra_length)
+				if (next_index + 4 > header->extra_length)
 					/* nothing more to read from extra field */
 					break;
-				header_id_index = next;
+				header_id_index = next_index;
 				continue;
 			}
 			/* found it ! */
