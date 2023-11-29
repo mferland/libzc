@@ -5,7 +5,7 @@
 
 <a href="https://github.com/mferland/libzc/actions">
    <img alt="Build Status"
-        src="https://github.com/mferland/libzc/actions/workflows/check.yml/badge.svg"/>
+        src="https://github.com/mferland/libzc/actions/workflows/build.yml/badge.svg"/>
 </a>
 
 What is it?
