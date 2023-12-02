@@ -23,12 +23,3 @@ else
     echo "ERROR: OS name is not provided."
     exit 1
 fi
-
-# install our hacked version of libcheck
-git clone https://github.com/mferland/check
-cd check
-autoreconf --install
-./configure --prefix=/usr
-make
-make install
-ldconfig
