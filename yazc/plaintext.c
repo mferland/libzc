@@ -529,9 +529,9 @@ static int do_plaintext(int argc, char *argv[])
 	}
 
 	err = zc_crk_ptext_set_text(
-		ptext, &((const uint8_t *)plain.map)[plain.txt_begin],
-		&((const uint8_t *)cipher.map)[cipher.txt_begin],
-		size_of_map(&plain));
+		      ptext, &((const uint8_t *)plain.map)[plain.txt_begin],
+		      &((const uint8_t *)cipher.map)[cipher.txt_begin],
+		      size_of_map(&plain));
 	if (err < 0) {
 		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
@@ -571,8 +571,8 @@ static int do_plaintext(int argc, char *argv[])
 
 	struct zc_key int_rep;
 	err = zc_crk_ptext_find_internal_rep(
-		&out_key, &((const uint8_t *)cipher.map)[cipher.file_begin],
-		cipher.txt_begin - cipher.file_begin, &int_rep);
+		      &out_key, &((const uint8_t *)cipher.map)[cipher.file_begin],
+		      cipher.txt_begin - cipher.file_begin, &int_rep);
 	if (err < 0) {
 		err("finding internal representation failed.\n");
 		goto error4;
