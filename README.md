@@ -81,6 +81,14 @@ encrypted.zip:
 
     yazc plaintext plaintext.zip document.txt encrypted.zip document.txt
 
+Example 3:
+Use plaintext bytes from plaintextfile and map them to the bytes from
+cipherfile. We assume that the first 12 bytes from cipherfile is the
+encryption header. If some bytes cannot be mapped, they are ignored
+(can happen if either the plaintext or the cipher file is smaller):
+
+    yazc plaintext -f plaintextfile cipherfile
+
 Info
 ----
 The `info` sub-command lists the content of the zip file. It can help
