@@ -34,10 +34,11 @@
 #include "libzc.h"
 #include "yazc.h"
 
-static const char short_opts[] = "t:oiSh";
+static const char short_opts[] = "t:ofiSh";
 static const struct option long_opts[] = {
 	{ "threads", required_argument, 0, 't' },
 	{ "offset", no_argument, 0, 'o' },
+	{ "file", no_argument, 0, 'f' },
 	{ "password-from-internal-rep", no_argument, 0, 'i' },
 	{ "stats", no_argument, 0, 'S' },
 	{ "help", no_argument, 0, 'h' },
@@ -67,45 +68,24 @@ static void usage(const char *name)
 		"Usage:\n"
 		"\t%s [options] PLAIN ENTRY CIPHER ENTRY\n"
 		"\t%s [options] -o PLAIN OFFSETS CIPHER OFFSETS BEGIN\n"
+		"\t%s [options] -f PLAIN CIPHER\n"
 		"\t%s [options] -i KEY0 KEY1 KEY2\n"
 		"\n"
 		"The plaintext subcommand uses a known vulnerability in the pkzip\n"
 		"stream cipher to find the internal representation of the encryption\n"
 		"key. To use this attack type you need at least 13 known plaintext\n"
-		"bytes from any file in the archive. Examples:\n"
-		"\n"
-		"Find the password by providing offsets from the cipher and plain text\n"
-		"files:\n"
-		"\n"
-		"\t %s -o plain.zip 100 650 cipher.zip 112 662 64\n"
-		"\n"
-		"Explanation: Use plaintext bytes 100 to 650 and map them to ciphertext\n"
-		"bytes 112 to 662. Use these bytes to reduce the number of keys and\n"
-		"perform the attack. Once the intermediate key is found, decrypt the\n"
-		"rest of the cipher (begins at offset 64) to get the internal\n"
-		"representation and the original password.\n"
-		"\n"
-		"Find the password by providing the name of the entries in two zip files:\n"
-		"\n"
-		"\t %s plain.zip file1.bin cipher.zip file2.bin\n"
-		"\n"
-		"Explanation: Use plaintext bytes from the file1.bin entry in plain.zip\n"
-		"and map them to file2.bin from cipher.zip. Both entries must have the\n"
-		"exact same size.\n"
-		"\n"
-		"It is also possible to find the password if you already know the internal\n"
-		"representation (96 bits key that encrypted the archive):\n"
-		"\n"
-		"\t %s -i 0x12345678 0x23456789 0x34567890\n"
+		"bytes. Three different options are available to map the plaintext\n"
+		"bytes on the ciphertext: file, offset and zip entry (default).\n"
 		"\n"
 		"Options:\n"
 		"\t-t, --threads=NUM                  spawn NUM threads\n"
 		"\t-o, --offset                       use offsets instead of entry names\n"
+		"\t-f, --file                         use plaintext and ciphertext from files\n"
 		"\t-i, --password-from-internal-rep   find password from the internal\n"
 		"\t                                   representation\n"
 		"\t-S, --stats                        print statistics\n"
 		"\t-h, --help                         show this help\n",
-		name, name, name, name, name, name);
+		name, name, name, name);
 }
 
 static int parse_offset(const char *tok, off_t *offset)
@@ -139,7 +119,7 @@ static int parse_single_key(const char *tok, uint32_t *key)
 
 enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
-static int parse_entry_opts(const char *argv[])
+static int parse_zip_entry_opts(const char *argv[])
 {
 	struct zc_ctx *ctx;
 	struct zc_file *f;
@@ -204,6 +184,42 @@ err1:
 	if (err)
 		return err;
 	return matches == 2 ? 0 : -1;
+}
+
+static int parse_file_opts(const char *argv[])
+{
+	const char *filename;
+	struct stat st;
+	int err;
+
+	for (int src = SRC_PLAIN; src < SRC_NUM; ++src) {
+		filename = argv[optind++];
+
+		dbg("%s: %s\n",
+		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename);
+
+		struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
+		fd->txt_begin = src == SRC_PLAIN ? 0 : 12;
+		err = stat(filename, &st);
+		if (err < 0) {
+			err("stat() failed: %s\n", strerror(errno));
+			return err;
+		} else if (st.st_size == 0) {
+			err("file %s is empty\n", filename);
+			return -1;
+		}
+		fd->txt_end = st.st_size - 1;
+		fd->file_begin = 0;
+		fd->name = filename;
+	}
+
+	/* adjust txt_end */
+	if (plain.txt_end + 12 < cipher.txt_end)
+		cipher.txt_end = plain.txt_end + 12;
+	else if (plain.txt_end + 12 > cipher.txt_end)
+		plain.txt_end = cipher.txt_end - 12;
+
+	return 0;
 }
 
 static int parse_offset_opts(char *argv[])
@@ -388,6 +404,7 @@ static int do_plaintext(int argc, char *argv[])
 {
 	const char *arg_threads = NULL;
 	bool arg_use_offsets = false;
+	bool arg_use_file = false;
 	bool arg_from_internal_rep = false;
 	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
@@ -402,6 +419,9 @@ static int do_plaintext(int argc, char *argv[])
 		switch (c) {
 		case 'o':
 			arg_use_offsets = true;
+			break;
+		case 'f':
+			arg_use_file = true;
 			break;
 		case 't':
 			arg_threads = optarg;
@@ -438,9 +458,9 @@ static int do_plaintext(int argc, char *argv[])
 	} else
 		thread_count = -1;	/* auto */
 
-	if (arg_from_internal_rep && arg_use_offsets) {
-		err("the offset and password-from-internal-rep "
-		    "options are mutually exclusive.\n");
+	if (arg_from_internal_rep && (arg_use_offsets || arg_use_file)) {
+		err("the offset and file options are mutually exclusive from"
+		    "the password-from-internal-rep option.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -465,12 +485,18 @@ static int do_plaintext(int argc, char *argv[])
 			err("error parsing offsets.\n");
 			return EXIT_FAILURE;
 		}
+	} else if (arg_use_file) {
+		if (argc - optind < 2)
+			goto missing;
+		if (parse_file_opts((const char **)argv)) {
+			err("error opening files.\n");
+			return EXIT_FAILURE;
+		}
 	} else {
-		/* get offsets from entry names */
 		if (argc - optind < 4)
 			goto missing;
-
-		if (parse_entry_opts((const char **)argv)) {
+		/* get offsets from entry names */
+		if (parse_zip_entry_opts((const char **)argv)) {
 			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
@@ -510,6 +536,13 @@ static int do_plaintext(int argc, char *argv[])
 		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
 	}
+
+	printf("Using plaintext bytes %lld..%lld (%lld bytes)\n",
+	       (long long)plain.txt_begin, (long long)plain.txt_end,
+	       (long long)(plain.txt_end - plain.txt_begin + 1));
+
+	printf("Using ciphertext bytes %lld..%lld\n",
+	       (long long)cipher.txt_begin, (long long)cipher.txt_end);
 
 	printf("Key2 reduction...");
 	fflush(stdout);

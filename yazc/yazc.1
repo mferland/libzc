@@ -91,11 +91,16 @@ bytes from any file in the archive. Generally, this means that you
 need to obtain at least 13 bytes of the \fBcompressed\fR stream before
 it was encrypted.
 .PP
-The \fIplaintext\fR command can be used either with the raw byte
-offsets (\-o option) or by using the zip file entry name.
+The \fIplaintext\fR command can be used with the raw byte offsets (\-o
+option), directly with a plaintext and ciphertext file (\-f option) or
+by using the entry names from two zip files (default).
 .TP
 .BR \-o ", " \-\-offset
-Use raw byte offsets instead of entry names.
+Specify offsets from the plaintext and cipher text files.
+.TP
+.BR \-f ", " \-\-file
+Use plaintext and ciphertext files directly (assumes the ciphertext
+includes the 12 encryption bytes).
 .TP
 .BR \-i ", " \-\-password-from-internal-rep
 Find the password from the provided internal representation. See
@@ -178,6 +183,27 @@ password will also be recovered and printed.
 .nf
 .RS
 yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
+.RE
+.fi
+.PP
+Use plaintext bytes from the file1.bin entry in plain.zip and map them
+to file2.bin from cipher.zip. Both entries must have the exact same
+size.
+.PP
+.nf
+.RS
+yazc plaintext plain.zip file1.bin cipher.zip file2.bin
+.RE
+.fi
+.PP
+Use plaintext bytes from plaintextfile and map them to the bytes from
+cipherfile. We assume that the first 12 bytes from cipherfile is the
+encryption header. If some bytes cannot be mapped, they are ignored
+(can happen if either the plaintext or the cipher file is smaller).
+.PP
+.nf
+.RS
+yazc plaintext -f plaintextfile cipherfile
 .RE
 .fi
 .PP
