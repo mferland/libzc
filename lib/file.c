@@ -761,6 +761,9 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		/* Zip64 Extended Information Extra Field */
 		int header_id_index = 0;
 
+		if (!header->extra)
+			goto err;
+
 		while (1) {
 			extra->tag = get_le16_at(header->extra, header_id_index);
 			extra->size = get_le16_at(header->extra, header_id_index + 2);
