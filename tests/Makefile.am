@@ -33,6 +33,7 @@ EXTRA_DIST = noradi.zip \
 	stored.zip \
 	test_non_encrypted.zip \
 	test.zip \
+	test_zyx.zip \
 	dict.txt
 
 # basic functions test

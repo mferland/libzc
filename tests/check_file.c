@@ -39,8 +39,8 @@ void teardown(void)
 
 START_TEST(test_zc_file_new)
 {
-	zc_file_new_from_filename(ctx, "toto.zip", &file);
-	ck_assert_msg(strcmp(zc_file_get_filename(file), "toto.zip") == 0,
+	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	ck_assert_msg(strcmp(zc_file_get_filename(file), DATADIR "test.zip") == 0,
 		      "Filename does not match.");
 	ck_assert(zc_file_isopened(file) == false);
 }
