@@ -42,7 +42,13 @@
 #define LOG_DEBUG   7 /* debug-level messages */
 #endif
 
-static inline void __attribute__((always_inline, format(printf, 2, 3)))
+#ifdef __MINGW64__
+#define __ZC_PRINTF_FORMAT __MINGW_PRINTF_FORMAT
+#else
+#define __ZC_PRINTF_FORMAT printf
+#endif
+
+static inline void __attribute__((always_inline, format(__ZC_PRINTF_FORMAT, 2, 3)))
 zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 	    const char *format __attribute__((__unused__)), ...)
 {
@@ -50,10 +56,10 @@ zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 
 void zc_log(struct zc_ctx *ctx, int priority, const char *file, int line,
 	    const char *fn, const char *format, ...)
-	__attribute__((format(printf, 6, 7)));
+	__attribute__((format(__ZC_PRINTF_FORMAT, 6, 7)));
 
 void zc_trace(const char *file, int line, const char *fn, const char *format,
-	      ...) __attribute__((format(printf, 4, 5)));
+	      ...) __attribute__((format(__ZC_PRINTF_FORMAT, 4, 5)));
 
 #define zc_log_cond(ctx, prio, arg...)                                      \
 	do {                                                                \
