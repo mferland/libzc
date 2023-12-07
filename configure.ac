@@ -73,10 +73,11 @@ AC_MSG_RESULT([
 
         compiler:               ${CC}
         cflags:                 ${CFLAGS}
+        cppflags:               ${CPPFLAGS}
         ldflags:                ${LIBS} ${LDFLAGS}
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
-	PTHREAD_LIBS:           ${PTHREAD_LIBS}
-	PTHREAD_CFLAGS:         ${PTHREAD_CFLAGS}
+        PTHREAD_LIBS:           ${PTHREAD_LIBS}
+        PTHREAD_CFLAGS:         ${PTHREAD_CFLAGS}
 ])
