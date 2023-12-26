@@ -171,7 +171,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 				id,
 				priv->key2);
 
-	for (size_t i = start_index; i >= 12; --i) {
+	for (size_t i = start_index; ; --i) {
 		uint8_t key3i = generate_key3(priv->ptext, i);
 		uint8_t key3im1 = generate_key3(priv->ptext, i - 1);
 		key2r_compute_next_array(unit->key2ip1,
