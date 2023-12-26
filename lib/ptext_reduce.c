@@ -36,7 +36,6 @@ struct reduc_work_unit {
 };
 
 struct reduce_private {
-	/* key2 buffer to accumulate final results */
 	uint32_t *key2;
 	size_t key2_size;
 	pthread_mutex_t mutex;
@@ -48,8 +47,8 @@ struct reduce_private {
 
 static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bits_15_2)
 {
-	for (uint32_t i = 0; i < pow2(16); ++i)
-		for (uint32_t j = 0; j < 64; ++j)
+	for (int i = 0; i < POW2_16; ++i)
+		for (int j = 0; j < 64; ++j)
 			key2[i * 64 + j] = (i << 16) | key2_bits_15_2[j];
 }
 
@@ -63,13 +62,13 @@ static size_t generate_all_key2i_with_bits_1_0(uint32_t *key2i,
 					       uint32_t key2i_frag,
 					       const uint16_t *key2im1_bits_15_2)
 {
-	const uint32_t key2i_frag_msb = msb(key2i_frag);
-	const uint32_t key2im1_bits_31_10 = (key2i_frag << 8) ^ crc_32_invtab[key2i_frag_msb];
-	const uint32_t key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
+	uint32_t key2i_frag_msb = msb(key2i_frag);
+	uint32_t key2im1_bits_31_10 = (key2i_frag << 8) ^ crc_32_invtab[key2i_frag_msb];
+	uint32_t key2im1_bits_15_10_rhs = key2im1_bits_31_10 & 0xfc00;
 	size_t total = 0;
 
-	for (int j = 0; j < 64; ++j) {
-		const uint32_t key2im1_bits_15_10_lhs = key2im1_bits_15_2[j] & 0xfc00;
+	for (int i = 0; i < 64; ++i) {
+		uint32_t key2im1_bits_15_10_lhs = key2im1_bits_15_2[i] & 0xfc00;
 
 		/*
 		 * the left and right hand side share 6 bits in position
@@ -78,7 +77,7 @@ static size_t generate_all_key2i_with_bits_1_0(uint32_t *key2i,
 		if (key2im1_bits_15_10_rhs == key2im1_bits_15_10_lhs) {
 			uint32_t key2im1;
 			key2im1 = key2im1_bits_31_10 & 0xfffffc00;
-			key2im1 |= key2im1_bits_15_2[j];
+			key2im1 |= key2im1_bits_15_2[i];
 			key2i[total++] = key2i_frag | bits_1_0_key2i(key2im1, key2i_frag_msb);
 		}
 	}
@@ -92,15 +91,17 @@ size_t key2r_compute_single(uint32_t key2i_plus_1,
 			    const uint16_t *key2im1_bits_15_2,
 			    uint32_t common_bits_mask)
 {
-	const uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
-	const uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
+	uint32_t key2i_bits31_8 = (key2i_plus_1 << 8) ^ crc_32_invtab[key2i_plus_1 >> 24];
+	uint32_t key2i_bits15_10_rhs = key2i_bits31_8 & common_bits_mask;
 	size_t total = 0;
 
-	for (uint32_t i = 0; i < 64; ++i) {
-		const uint32_t key2i_bits15_10_lhs = key2i_bits_15_2[i] & common_bits_mask;
+	for (int i = 0; i < 64; ++i) {
+		uint32_t key2i_bits15_10_lhs = key2i_bits_15_2[i] & common_bits_mask;
 
-		/* the left and right hand side share the same 6 bits in
-		   position [15..10]. See biham & kocher 3.1. */
+		/*
+		 * the left and right hand side share the same 6 bits
+		 * in position [15..10]. See biham & kocher 3.1.
+		 */
 		if (key2i_bits15_10_rhs == key2i_bits15_10_lhs) {
 			uint32_t key2i_frag;
 
@@ -232,9 +233,11 @@ static int reduce_private_alloc(struct zc_crk_ptext *ptext,
 
 	tmp->ptext = ptext;
 
-	/* Allocate enough space for the 1st generation of keys along
-	   with the extra keys found for the first plaintext byte
-	   (before calling uniq()) */
+	/*
+	 * Allocate enough space for the 1st generation of keys along
+	 * with the extra keys found for the first plaintext byte
+	 * (before calling uniq()).
+	 */
 	tmp->key2 = calloc(KEY2_ARRAY_LEN * 2, sizeof(uint32_t));
 	if (!tmp->key2) {
 		free(tmp);
@@ -301,8 +304,10 @@ ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 		threadpool_submit_work(ptext->pool, &priv->unit[i].list);
 	threadpool_submit_wait(ptext->pool);
 
-	/* from here priv->key2 and priv->key2_size contain the final
-	   reduced array of key2 keys */
+	/*
+	 * from here priv->key2 and priv->key2_size contain the final
+	 * reduced array of key2 keys.
+	 */
 
 	memcpy(&ptext->key2,
 	       priv->key2,

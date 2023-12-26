@@ -219,7 +219,7 @@ static void recurse_key1(struct attack_private *priv, uint32_t current_idx)
 static void compute_key1(struct attack_private *priv)
 {
 	/* find matching msb, section 3.3 from Biham & Kocher */
-	for (uint32_t i = 0; i < pow2(24); ++i) {
+	for (uint32_t i = 0; i < POW2_24; ++i) {
 		const uint32_t key1_12_tmp = mask_msb(k1(12)) | i;
 		const uint32_t key1_11_tmp = (key1_12_tmp - 1) * MULTINV;
 		if (mask_msb(key1_11_tmp) == mask_msb(k1(11))) {

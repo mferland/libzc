@@ -111,16 +111,13 @@ static inline void fatal(const char *format, ...)
 #define ENC_HEADER_LEN 12
 #define HEADER_MAX     5
 #define INFLATE_CHUNK  16384
+#define POW2_16        (1 << 16)
+#define POW2_24        (1 << 24)
 
 struct zc_header {
 	uint8_t buf[12];
 	uint8_t magic;
 };
-
-static inline uint32_t pow2(uint32_t p)
-{
-	return (1 << p);
-}
 
 static inline uint32_t mask_msb(uint32_t v)
 {
