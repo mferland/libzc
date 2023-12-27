@@ -158,6 +158,11 @@ typedef struct {
       QSORT_TYPE *_hi; QSORT_TYPE *_lo;					\
     } _stack[_QSORT_STACK_SIZE], *_top = _stack + 1;			\
 									\
+    for (unsigned _i = 0; _i < _QSORT_STACK_SIZE; ++_i) {		\
+	    _stack[_i]._hi = NULL;					\
+	    _stack[_i]._lo = NULL;					\
+    }		                                                        \
+									\
     while (_QSORT_STACK_NOT_EMPTY) {					\
       QSORT_TYPE *_left_ptr; QSORT_TYPE *_right_ptr;			\
 									\
