@@ -1,7 +1,6 @@
 # libzc debian pacakge build environment
 
 FROM debian:unstable-slim
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \
     && apt upgrade -y \

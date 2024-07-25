@@ -1,7 +1,6 @@
 # libzc debian build environment
 
 FROM debian:unstable
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \
     && apt upgrade -y \

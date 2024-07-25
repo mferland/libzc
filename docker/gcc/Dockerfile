@@ -1,7 +1,6 @@
 # libzc gcc:latest build environment
 
 FROM gcc:latest
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \
     && apt upgrade -y \
