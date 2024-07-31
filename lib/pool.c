@@ -179,7 +179,6 @@ err1:
 
 void threadpool_destroy(struct threadpool *p)
 {
-	/* pthread_barrier_destroy(&p->barrier); */
 	pthread_cond_destroy(&p->cond);
 	pthread_mutex_destroy(&p->mutex);
 	free(p);
@@ -203,10 +202,6 @@ static void *_work(struct worker *w)
 {
 	struct threadpool *pool = w->pool;
 	int ret = TPEMORE;
-
-	/* wait on barrier, when barrier unlocks, it means work items
-	 * are ready to be processed. */
-	/* pthread_barrier_wait(&pool->barrier); */
 
 	while (ret == TPEMORE && !list_empty(&w->waiting_head)) {
 		struct list_head *work_head = w->waiting_head.next;
