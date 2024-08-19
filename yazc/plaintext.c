@@ -174,7 +174,6 @@ static int parse_zip_entry_opts(const char *argv[])
 next:
 			dbg("skipping %s\n", zc_file_info_name(info));
 			info = zc_file_info_next(f, info);
-			continue;
 		}
 		zc_file_close(f);
 		zc_file_unref(f);

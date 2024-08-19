@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 BIN=`which cppcheck`
-OPT="--enable=all --language=c --platform=unix64 --std=c99"
+OPT="--enable=all --language=c --platform=unix64 --std=c99 --suppress=missingIncludeSystem --suppress=missingInclude"
 FILES="yazc/ lib/"
 
 if [ ! -x "$BIN" ]; then

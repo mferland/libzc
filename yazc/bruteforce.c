@@ -260,8 +260,8 @@ static int do_bruteforce(int argc, char *argv[])
 			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		char *tmp = make_charset(arg_charset_flag, pwcfg.set,
-					 ZC_CHARSET_MAXLEN);
+		const char *tmp = make_charset(arg_charset_flag, pwcfg.set,
+					       ZC_CHARSET_MAXLEN);
 		if (!tmp) {
 			err("generating character set failed.\n");
 			return EXIT_FAILURE;

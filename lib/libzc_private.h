@@ -139,7 +139,7 @@ static inline uint8_t lsb(uint32_t v)
 	return (v & 0xff);
 }
 
-static inline void update_keys(uint8_t c, struct zc_key *ksrc,
+static inline void update_keys(uint8_t c, const struct zc_key *ksrc,
 			       struct zc_key *kdst)
 {
 	kdst->key0 = crc32(ksrc->key0, c);

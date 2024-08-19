@@ -322,7 +322,7 @@ struct final_work_unit {
 	struct list_head list;
 };
 
-static void set_password_found(struct final_private *final, uint8_t *pw)
+static void set_password_found(struct final_private *final, const uint8_t *pw)
 {
 	pthread_mutex_lock(&final->mutex);
 	final->found = true;
@@ -342,7 +342,7 @@ static int recover_7(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -370,7 +370,7 @@ static int recover_8(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -404,7 +404,7 @@ static int recover_9(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -445,7 +445,7 @@ static int recover_10(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -490,7 +490,7 @@ static int recover_11(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -539,7 +539,7 @@ static int recover_12(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 
@@ -592,7 +592,7 @@ static int recover_13(void *in, struct list_head *list, int id)
 {
 	struct zc_key recovered[RECOVERED_KEYS_BUF_LEN];
 	uint8_t pw[PASS_MAX_LEN] = { 0 };
-	struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
+	const struct final_work_unit *unit = list_entry(list, struct final_work_unit, list);
 	struct final_private *final = (struct final_private *)in;
 	(void)id;
 

@@ -163,7 +163,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 {
 	struct reduce_private *priv = (struct reduce_private *)in;
 	struct reduc_work_unit *unit = list_entry(list, struct reduc_work_unit, list);
-	size_t start_index = priv->ptext->text_size - 2, current;
+	size_t start_index = priv->ptext->text_size - 2;
 
 	unit->key2ip1_size =
 		distribute_key2(KEY2_ARRAY_LEN / priv->nbthreads,
@@ -184,7 +184,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 					 i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
 
 		pthread_mutex_lock(&priv->mutex);
-		current = priv->key2_size;
+		size_t current = priv->key2_size;
 		priv->key2_size += unit->key2i_size;
 		pthread_mutex_unlock(&priv->mutex);
 

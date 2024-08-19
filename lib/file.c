@@ -1236,12 +1236,12 @@ ZC_EXPORT int zc_file_close(struct zc_file *f)
  *
  * @retval Whether or not the file is opened.
  */
-ZC_EXPORT bool zc_file_isopened(struct zc_file *f)
+ZC_EXPORT bool zc_file_isopened(const struct zc_file *f)
 {
 	return (f->stream != NULL);
 }
 
-static bool consider_file(struct zc_info *info)
+static bool consider_file(const struct zc_info *info)
 {
 	if (!is_encrypted(info->header.gen_bit_flag) ||
 	    (!is_deflated(info->header.comp_method) &&

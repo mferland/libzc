@@ -188,7 +188,7 @@ ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
  *
  * Returns: the current logging priority
  **/
-ZC_EXPORT int zc_get_log_priority(struct zc_ctx *ctx)
+ZC_EXPORT int zc_get_log_priority(const struct zc_ctx *ctx)
 {
 	return ctx->log_priority;
 }
