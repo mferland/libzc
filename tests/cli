@@ -58,3 +58,24 @@ grep -q "Password is: noradi" "$tmpdir/dictionary.out"
 "$YAZC" bruteforce -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
 grep -q "Password is: a" "$tmpdir/bruteforce.out"
+
+"$YAZC" vulkan --help >"$tmpdir/vulkan-help.out" \
+	2>"$tmpdir/vulkan-help.err"
+grep -q -- "--list-devices" "$tmpdir/vulkan-help.err"
+
+if "$YAZC" vulkan -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/vulkan-length.out" 2>"$tmpdir/vulkan-length.err"; then
+	echo "vulkan accepted a missing --min-length" >&2
+	exit 1
+fi
+grep -q -- "--length and --min-length are both required" \
+	"$tmpdir/vulkan-length.err"
+
+if "$YAZC" vulkan -c a -l 1 --min-length 2 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/vulkan-range.out" 2>"$tmpdir/vulkan-range.err"; then
+	echo "vulkan accepted an inverted length range" >&2
+	exit 1
+fi
+grep -q -- "minimum length must not exceed maximum length" \
+	"$tmpdir/vulkan-range.err"

@@ -41,7 +41,7 @@ static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
 	&yazc_cmd_help,	     &yazc_cmd_bruteforce, &yazc_cmd_dictionary,
-	&yazc_cmd_plaintext, &yazc_cmd_info,
+	&yazc_cmd_plaintext, &yazc_cmd_vulkan, &yazc_cmd_info,
 };
 
 static int help(int argc __attribute__((unused)), char *argv[])

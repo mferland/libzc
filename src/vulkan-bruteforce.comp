@@ -1,0 +1,134 @@
+#version 450
+
+/* One invocation evaluates one password.  The host dispatches enough groups
+ * to cover the current chunk and the bounds check below ignores padding. */
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+/*
+ * Both buffers contain only uint values.  This intentionally avoids optional
+ * 8-bit-storage and 64-bit-integer features from post-1.0 Vulkan versions.
+ *
+ * Input-buffer layout, in uint words:
+ *
+ *   0 .. 4       dispatch metadata
+ *   5 .. 20      base password represented as mixed-radix digits
+ *   21 .. 116    character set, one byte in each uint
+ *   117 .. 372   ZipCrypto CRC lookup table
+ *   373 ..       encrypted headers, each followed by its validation byte
+ *
+ * Result-buffer layout:
+ *
+ *   0            atomic count of every header survivor
+ *   1 .. N       candidate offsets, capped at INPUT_RESULT_CAPACITY
+ *
+ * The host definitions in vulkan.c must remain synchronized with this layout.
+ */
+layout(std430, set = 0, binding = 0) readonly buffer InputBuffer {
+	uint words[];
+} input_data;
+
+layout(std430, set = 0, binding = 1) buffer ResultBuffer {
+	uint words[];
+} result_data;
+
+const uint INPUT_CANDIDATE_COUNT = 0;
+const uint INPUT_LENGTH = 1;
+const uint INPUT_CHARSET_LENGTH = 2;
+const uint INPUT_HEADER_COUNT = 3;
+const uint INPUT_RESULT_CAPACITY = 4;
+const uint INPUT_BASE_DIGITS = 5;
+const uint INPUT_CHARSET = INPUT_BASE_DIGITS + 16;
+const uint INPUT_CRC_TABLE = INPUT_CHARSET + 96;
+const uint INPUT_HEADERS = INPUT_CRC_TABLE + 256;
+const uint HEADER_WORDS = 13;
+
+uint crc32_byte(uint crc, uint value)
+{
+	return input_data.words[INPUT_CRC_TABLE + ((crc ^ value) & 0xffu)] ^
+	       (crc >> 8);
+}
+
+uint decrypt_byte(uint key2)
+{
+	uint temp = key2 | 2u;
+	return ((temp * (temp ^ 1u)) >> 8) & 0xffu;
+}
+
+void update_keys(uint value, inout uint key0, inout uint key1,
+		 inout uint key2)
+{
+	key0 = crc32_byte(key0, value);
+	key1 = (key1 + (key0 & 0xffu)) * 134775813u + 1u;
+	key2 = crc32_byte(key2, key1 >> 24);
+}
+
+bool header_matches(uint header_index, uint base0, uint base1, uint base2)
+{
+	uint offset = INPUT_HEADERS + header_index * HEADER_WORDS;
+	uint key0 = base0;
+	uint key1 = base1;
+	uint key2 = base2;
+
+	/* The first eleven plaintext bytes only advance the cipher state. */
+	for (uint i = 0; i < 11; ++i) {
+		uint plain = input_data.words[offset + i] ^ decrypt_byte(key2);
+
+		update_keys(plain, key0, key1, key2);
+	}
+
+	/* The final byte must decrypt to the entry's expected validation byte. */
+	return (input_data.words[offset + 11] ^ decrypt_byte(key2)) ==
+	       input_data.words[offset + 12];
+}
+
+void main()
+{
+	uint candidate = gl_GlobalInvocationID.x;
+	uint count = input_data.words[INPUT_CANDIDATE_COUNT];
+	uint length = input_data.words[INPUT_LENGTH];
+	uint radix = input_data.words[INPUT_CHARSET_LENGTH];
+	uint digits[16];
+	uint carry;
+	uint key0 = 0x12345678u;
+	uint key1 = 0x23456789u;
+	uint key2 = 0x34567890u;
+
+	if (candidate >= count)
+		return;
+
+	/* Begin at the host-provided mixed-radix counter.  For example, with
+	 * alphabet "abc", digits [0, 2] represent "ac". */
+	for (uint i = 0; i < length; ++i)
+		digits[i] = input_data.words[INPUT_BASE_DIGITS + i];
+
+	/* Add this invocation's offset from right to left.  The host chooses the
+	 * chunk size so this addition cannot overflow past the first digit. */
+	carry = candidate;
+	for (uint pos = length; pos > 0 && carry != 0; --pos) {
+		uint value = digits[pos - 1] + carry;
+
+		digits[pos - 1] = value % radix;
+		carry = value / radix;
+	}
+
+	/* Derive the three classic ZipCrypto keys from the candidate password. */
+	for (uint i = 0; i < length; ++i) {
+		uint value = input_data.words[INPUT_CHARSET + digits[i]];
+
+		update_keys(value, key0, key1, key2);
+	}
+
+	/* Reject on the first header mismatch.  A survivor must pass every usable
+	 * encrypted entry collected by the host. */
+	for (uint i = 0; i < input_data.words[INPUT_HEADER_COUNT]; ++i) {
+		if (!header_matches(i, key0, key1, key2))
+			return;
+	}
+
+	/* Always increment the total, even when the offset array is full.  Seeing
+	 * a count above capacity tells the host to split and retry the range. */
+	uint slot = atomicAdd(result_data.words[0], 1u);
+
+	if (slot < input_data.words[INPUT_RESULT_CAPACITY])
+		result_data.words[slot + 1] = candidate;
+}
