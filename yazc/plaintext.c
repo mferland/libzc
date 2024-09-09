@@ -34,12 +34,13 @@
 #include "libzc.h"
 #include "yazc.h"
 
-static const char short_opts[] = "t:ofiSh";
+static const char short_opts[] = "t:ofipSh";
 static const struct option long_opts[] = {
 	{ "threads", required_argument, 0, 't' },
 	{ "offset", no_argument, 0, 'o' },
 	{ "file", no_argument, 0, 'f' },
 	{ "password-from-internal-rep", no_argument, 0, 'i' },
+	{ "internal-rep-from-password", no_argument, 0, 'p' },
 	{ "stats", no_argument, 0, 'S' },
 	{ "help", no_argument, 0, 'h' },
 	{ NULL, 0, 0, 0 }
@@ -70,6 +71,7 @@ static void usage(const char *name)
 		"\t%s [options] -o PLAIN OFFSETS CIPHER OFFSETS BEGIN\n"
 		"\t%s [options] -f PLAIN CIPHER\n"
 		"\t%s [options] -i KEY0 KEY1 KEY2\n"
+		"\t%s [options] -p PASSWORD\n"
 		"\n"
 		"The plaintext subcommand uses a known vulnerability in the pkzip\n"
 		"stream cipher to find the internal representation of the encryption\n"
@@ -83,6 +85,8 @@ static void usage(const char *name)
 		"\t-f, --file                         use plaintext and ciphertext from files\n"
 		"\t-i, --password-from-internal-rep   find password from the internal\n"
 		"\t                                   representation\n"
+		"\t-p, --internal-rep-from-password   get the internal representation from a\n"
+		"\t                                   string\n"
 		"\t-S, --stats                        print statistics\n"
 		"\t-h, --help                         show this help\n",
 		name, name, name, name);
@@ -399,12 +403,22 @@ err1:
 	return ret;
 }
 
+static void get_internal_rep_from_password(const char *pw)
+{
+	struct zc_key k;
+
+	zc_passw_to_internal_rep((uint8_t *)pw, strlen(pw), &k);
+
+	printf("0x%x 0x%x 0x%x\n", k.key0, k.key1, k.key2);
+}
+
 static int do_plaintext(int argc, char *argv[])
 {
 	const char *arg_threads = NULL;
 	bool arg_use_offsets = false;
 	bool arg_use_file = false;
 	bool arg_from_internal_rep = false;
+	bool arg_internal_rep_from_passw = false;
 	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
 	struct timeval begin, end;
@@ -430,6 +444,9 @@ static int do_plaintext(int argc, char *argv[])
 			break;
 		case 'i':
 			arg_from_internal_rep = true;
+			break;
+		case 'p':
+			arg_internal_rep_from_passw = true;
 			break;
 		case 'h':
 			usage(basename(argv[0]));
@@ -463,6 +480,12 @@ static int do_plaintext(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	if (arg_internal_rep_from_passw && (arg_use_offsets || arg_use_file)) {
+		err("the offset and file options are mutually exclusive from"
+		    "the internal-rep-from-password option.\n");
+		return EXIT_FAILURE;
+	}
+
 	if (arg_from_internal_rep) {
 		/* find the password from the internal representation
 		 * provided by the user */
@@ -475,6 +498,13 @@ static int do_plaintext(int argc, char *argv[])
 		}
 
 		return find_password_from_internal_rep();
+	} else if (arg_internal_rep_from_passw) {
+		if (argc - optind < 1)
+			goto missing;
+
+		get_internal_rep_from_password(argv[optind++]);
+
+		return EXIT_SUCCESS;
 	} else if (arg_use_offsets) {
 		/* parse raw offsets */
 		if (argc - optind < 7)
