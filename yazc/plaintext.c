@@ -89,7 +89,7 @@ static void usage(const char *name)
 		"\t                                   string\n"
 		"\t-S, --stats                        print statistics\n"
 		"\t-h, --help                         show this help\n",
-		name, name, name, name);
+		name, name, name, name, name);
 }
 
 static int parse_offset(const char *tok, off_t *offset)
