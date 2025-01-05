@@ -1,6 +1,6 @@
 # libzc clang build environment
 
-FROM silkeh/clang:18-bookworm
+FROM silkeh/clang:19-bookworm
 
 RUN apt update \
     && apt upgrade -y \
