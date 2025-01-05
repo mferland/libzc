@@ -27,7 +27,7 @@ for r in ${REV}
 do
     git checkout ${r}
     ./autogen.sh
-    ./configure CFLAGS='-Ofast -march=native -mtune=native'
+    ./configure CFLAGS='-O3 -ffast-math -march=native -mtune=native'
     make -j8
     for i in $(seq 1 10)
     do

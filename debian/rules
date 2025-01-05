@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
-export DEB_CFLAGS_MAINT_APPEND = -Ofast
+export DEB_CFLAGS_MAINT_APPEND = -O3 -ffast-math
 
 %:
 	dh $@

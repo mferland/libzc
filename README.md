@@ -28,7 +28,7 @@ Just clone, configure, compile and install.
     git clone https://github.com/mferland/libzc.git
     cd libzc
     ./autogen.sh
-    ./configure CFLAGS='-Ofast -march=native -mtune=native'
+    ./configure CFLAGS='-O3 -ffast-math -march=native -mtune=native'
     make
     sudo make install
 
