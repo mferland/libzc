@@ -67,7 +67,7 @@ static void print_help(const char *name)
 		"Options:\n"
 		"\t-c, --charset=CHARSET   use character set CHARSET\n"
 		"\t-i, --initial=STRING    initial password\n"
-		"\t-l, --length=NUM        maximum password length\n"
+		"\t-l, --length=NUM        maximum password length (default is %d)\n"
 		"\t-a, --alpha             use characters [a-z]\n"
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
@@ -75,7 +75,7 @@ static void print_help(const char *name)
 		"\t-t, --threads=N         force number of threads to N\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name);
+		name, name, PW_LEN_DEFAULT);
 }
 
 static char *make_charset(int flags, char *out, size_t outlen)
