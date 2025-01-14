@@ -1,7 +1,6 @@
 # afl++ related tests
 
 FROM aflplusplus/aflplusplus:latest
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
 
 RUN apt update \
     && apt upgrade -y \

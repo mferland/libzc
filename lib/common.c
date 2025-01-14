@@ -109,3 +109,8 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 
 	return true;
 }
+
+ZC_EXPORT void zc_passw_to_internal_rep(const uint8_t *pw, size_t len, struct zc_key *out_key)
+{
+	update_default_keys_from_array(out_key, pw, len);
+}

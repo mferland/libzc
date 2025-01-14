@@ -339,7 +339,7 @@ size_t pwstream_get_stream_count(const struct pwstream *pws)
 	return pws->real_cols;
 }
 
-bool pwstream_is_empty(struct pwstream *pws, unsigned int stream)
+bool pwstream_is_empty(const struct pwstream *pws, unsigned int stream)
 {
 	return stream >= pws->cols;
 }

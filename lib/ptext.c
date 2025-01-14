@@ -63,7 +63,7 @@ static void generate_key0_lsb(struct zc_crk_ptext *ptext)
 static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
 {
 	uint32_t valuei = 0;
-	for (uint32_t i = 0; i < pow2(16); i += 4) {
+	for (uint32_t i = 0; i < POW2_16; i += 4) {
 		uint8_t key3tmp = ((i | 2) * (i | 3)) >> 8;
 		if (key3 == key3tmp) {
 			value[valuei] = i;

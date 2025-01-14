@@ -42,7 +42,13 @@
 #define LOG_DEBUG   7 /* debug-level messages */
 #endif
 
-static inline void __attribute__((always_inline, format(printf, 2, 3)))
+#ifdef __MINGW64__
+#define __ZC_PRINTF_FORMAT __MINGW_PRINTF_FORMAT
+#else
+#define __ZC_PRINTF_FORMAT printf
+#endif
+
+static inline void __attribute__((always_inline, format(__ZC_PRINTF_FORMAT, 2, 3)))
 zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 	    const char *format __attribute__((__unused__)), ...)
 {
@@ -50,10 +56,10 @@ zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
 
 void zc_log(struct zc_ctx *ctx, int priority, const char *file, int line,
 	    const char *fn, const char *format, ...)
-	__attribute__((format(printf, 6, 7)));
+	__attribute__((format(__ZC_PRINTF_FORMAT, 6, 7)));
 
 void zc_trace(const char *file, int line, const char *fn, const char *format,
-	      ...) __attribute__((format(printf, 4, 5)));
+	      ...) __attribute__((format(__ZC_PRINTF_FORMAT, 4, 5)));
 
 #define zc_log_cond(ctx, prio, arg...)                                      \
 	do {                                                                \
@@ -105,16 +111,13 @@ static inline void fatal(const char *format, ...)
 #define ENC_HEADER_LEN 12
 #define HEADER_MAX     5
 #define INFLATE_CHUNK  16384
+#define POW2_16        (1 << 16)
+#define POW2_24        (1 << 24)
 
 struct zc_header {
 	uint8_t buf[12];
 	uint8_t magic;
 };
-
-static inline uint32_t pow2(uint32_t p)
-{
-	return (1 << p);
-}
 
 static inline uint32_t mask_msb(uint32_t v)
 {
@@ -136,7 +139,7 @@ static inline uint8_t lsb(uint32_t v)
 	return (v & 0xff);
 }
 
-static inline void update_keys(uint8_t c, struct zc_key *ksrc,
+static inline void update_keys(uint8_t c, const struct zc_key *ksrc,
 			       struct zc_key *kdst)
 {
 	kdst->key0 = crc32(ksrc->key0, c);

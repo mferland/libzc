@@ -33,6 +33,7 @@ EXTRA_DIST = noradi.zip \
 	stored.zip \
 	test_non_encrypted.zip \
 	test.zip \
+	test_zyx.zip \
 	dict.txt
 
 # basic functions test
@@ -66,7 +67,6 @@ pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 pool_LDADD = $(top_builddir)/lib/pool.lo \
 	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/libzc.lo \
-	$(top_builddir)/lib/bitmap.lo \
 	@CHECK_LIBS@
 
 # reduce related functions
@@ -75,7 +75,6 @@ reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 reduce_LDADD = $(top_builddir)/lib/libzc.la \
 	$(top_builddir)/lib/ptext.lo \
 	$(top_builddir)/lib/pool.lo \
-	$(top_builddir)/lib/bitmap.lo \
 	$(top_builddir)/lib/sys.lo \
 	$(top_builddir)/lib/qsort.lo \
 	$(top_builddir)/lib/libzc.lo \

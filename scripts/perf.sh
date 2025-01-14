@@ -90,7 +90,7 @@ echo "Cleaning..."
 make clean
 
 echo "Configure..."
-./configure CFLAGS="-g -Ofast -mtune=native -march=native -fno-omit-frame-pointer"
+./configure CFLAGS="-g -O3 -ffast-math -mtune=native -march=native -fno-omit-frame-pointer"
 
 echo "Compile..."
 make -j24

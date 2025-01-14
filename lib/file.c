@@ -55,6 +55,41 @@
 #define CD_ENTRY64_LEN     56   /* Zip64 central directory entry length */
 #define CD_BUF_LEN         (MAX_COM_LEN + EOCD_LEN + EOCD64_LOC_LEN)
 
+/*
+ * Taken from:
+ * https://opensource.apple.com/source/Libc/Libc-825.25/string/FreeBSD/memmem.c.auto.html
+ */
+#ifdef __MINGW64__
+void *
+memmem(const void *l, size_t l_len, const void *s, size_t s_len)
+{
+	register char *cur, *last;
+	const char *cl = (const char *)l;
+	const char *cs = (const char *)s;
+
+	/* we need something to compare */
+	if (l_len == 0 || s_len == 0)
+		return NULL;
+
+	/* "s" must be smaller or equal to "l" */
+	if (l_len < s_len)
+		return NULL;
+
+	/* special case where s_len == 1 */
+	if (s_len == 1)
+		return memchr(l, (int)*cs, l_len);
+
+	/* the last position where its possible to find "s" in "l" */
+	last = (char *)cl + l_len - s_len;
+
+	for (cur = (char *)cl; cur <= last; cur++)
+		if (cur[0] == cs[0] && memcmp(cur, cs, s_len) == 0)
+			return cur;
+
+	return NULL;
+}
+#endif
+
 /**
  * SECTION:file
  * @short_description: libzc zip file
@@ -761,6 +796,9 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		/* Zip64 Extended Information Extra Field */
 		int header_id_index = 0;
 
+		if (!header->extra)
+			goto err;
+
 		while (1) {
 			extra->tag = get_le16_at(header->extra, header_id_index);
 			extra->size = get_le16_at(header->extra, header_id_index + 2);
@@ -768,13 +806,13 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 			dbg(f->ctx, "Reading extra tag: 0x%x, size: %d\n", extra->tag, extra->size);
 
 			if (extra->tag != EXTRA_TAG_ZIP64) {
-				int next = header_id_index + extra->size + 4; /* 4 ==> tag + size */
+				int next_index = header_id_index + extra->size + 4; /* 4 ==> tag + size */
 
 				/* skip this extra field */
-				if (next + 4 > header->extra_length)
+				if (next_index + 4 > header->extra_length)
 					/* nothing more to read from extra field */
 					break;
-				header_id_index = next;
+				header_id_index = next_index;
 				continue;
 			}
 			/* found it ! */
@@ -849,7 +887,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 		if (!info)
 			goto err;
 
-		dbg(f->ctx, "Reading entry: %ld\n", i);
+		dbg(f->ctx, "Reading entry: %"PRIu64"\n", i);
 
 		ret = read_single_entry_at(f, cd_offset, &info->header,
 					   &info->extra, &cd_offset);
@@ -1031,7 +1069,7 @@ static int fill_info_list_central_directory(struct zc_file *f)
 
 		/* basic sanity checks */
 		if (!entries_in_cd || cd_offset > sb.st_size) {
-			err(f->ctx, "detected invalid zip file: entries_in_cd: %ld, cd_offset: 0x%016jx\n",
+			err(f->ctx, "detected invalid zip file: entries_in_cd: %"PRIu64", cd_offset: 0x%016jx\n",
 			    entries_in_cd, cd_offset);
 			to_read = rem;
 			from++;
@@ -1198,12 +1236,12 @@ ZC_EXPORT int zc_file_close(struct zc_file *f)
  *
  * @retval Whether or not the file is opened.
  */
-ZC_EXPORT bool zc_file_isopened(struct zc_file *f)
+ZC_EXPORT bool zc_file_isopened(const struct zc_file *f)
 {
 	return (f->stream != NULL);
 }
 
-static bool consider_file(struct zc_info *info)
+static bool consider_file(const struct zc_info *info)
 {
 	if (!is_encrypted(info->header.gen_bit_flag) ||
 	    (!is_deflated(info->header.comp_method) &&

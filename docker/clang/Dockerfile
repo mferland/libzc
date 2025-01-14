@@ -1,7 +1,6 @@
 # libzc clang build environment
 
-FROM silkeh/clang:15-bullseye
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
+FROM silkeh/clang:19-bookworm
 
 RUN apt update \
     && apt upgrade -y \

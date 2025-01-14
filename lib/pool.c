@@ -24,7 +24,6 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#include "bitmap.h"
 #include "list.h"
 #include "pool.h"
 #include "libzc_private.h"
@@ -49,16 +48,15 @@ struct threadpool {
 	struct threadpool_ops *ops;
 
 	/*
-	 * Number of threads we were asked to create. <=0 is a special
-	 * value here and means automatic (basically, get the number
-	 * of online cpus).
+	 * Number of threads we were asked to create.
 	 */
 	long nbthreads_default;
 
 	/*
-	 * The actual number of threads created. Used in case an error is encountered while allocating workers.
+	 * The actual number of threads created. Used in case
+	 * pthread_create fails.
 	 */
-	long nbthreads_created, next_nbthreads;
+	long nbthreads_created;
 
 	/*
 	 * State of thread creation.
@@ -163,7 +161,7 @@ int threadpool_new(struct threadpool **p, long nbthreads)
 	if (err)
 		goto err2;
 
-	tmp->nbthreads_default = nbthreads;
+	tmp->nbthreads_default = threads_to_create(nbthreads);
 
 	INIT_LIST_HEAD(&tmp->active_head);
 	INIT_LIST_HEAD(&tmp->cleanup_head);
@@ -181,7 +179,6 @@ err1:
 
 void threadpool_destroy(struct threadpool *p)
 {
-	/* pthread_barrier_destroy(&p->barrier); */
 	pthread_cond_destroy(&p->cond);
 	pthread_mutex_destroy(&p->mutex);
 	free(p);
@@ -205,10 +202,6 @@ static void *_work(struct worker *w)
 {
 	struct threadpool *pool = w->pool;
 	int ret = TPEMORE;
-
-	/* wait on barrier, when barrier unlocks, it means work items
-	 * are ready to be processed. */
-	/* pthread_barrier_wait(&pool->barrier); */
 
 	while (ret == TPEMORE && !list_empty(&w->waiting_head)) {
 		struct list_head *work_head = w->waiting_head.next;
@@ -389,43 +382,18 @@ static void wait_and_join(struct threadpool *p)
 	p->nbthreads_created = 0;
 }
 
-/* TODO: passer un facteur de scaling? */
-/* TODO: remove parameter support_cancel? or set the parameter each time. */
-void threadpool_submit_start_scale(struct threadpool *p, bool support_cancel,
-				   long nbthreads)
+void threadpool_submit_start(struct threadpool *p, bool support_cancel)
 {
-	long max_threads;
-	int err;
-
-	if (p->nbthreads_default < 1) {
-		/* by default, use auto scale */
-		max_threads = threads_to_create(0);
-	} else {
-		/* use parameter passed by user */
-		max_threads = p->nbthreads_default;
-	}
-
-	if (nbthreads < 1)
-		nbthreads = max_threads;
-	else if (nbthreads > max_threads)
-		fatal("cannot create more than %ld threads", max_threads);
-
 	if (support_cancel) {
-		err = pthread_barrier_init(&p->barrier, NULL, nbthreads + 1);
+		int err = pthread_barrier_init(&p->barrier, NULL,
+					       p->nbthreads_default + 1);
 		if (err)
 			fatal("pthread_barrier_init() failed: %s\n",
 			      strerror(err));
 	}
 
 	p->next_worker_index = 0;
-	p->next_nbthreads = nbthreads;
-
-	allocate_workers(p, nbthreads);
-}
-
-void threadpool_submit_start(struct threadpool *p, bool support_cancel)
-{
-	threadpool_submit_start_scale(p, support_cancel, p->nbthreads_default);
+	allocate_workers(p, p->nbthreads_default);
 }
 
 /**
@@ -444,16 +412,13 @@ void threadpool_submit_work(struct threadpool *p, struct list_head *list)
 		++i;
 	}
 
-	p->next_worker_index = (p->next_worker_index + 1) % p->next_nbthreads;
+	p->next_worker_index = (p->next_worker_index + 1) % p->nbthreads_default;
 }
 
 void threadpool_submit_wait(struct threadpool *p)
 {
-	int err;
-
-	err = create_threads(p);
-	if (err)
-		fatal("TODO\n");
+	if (create_threads(p))
+		fatal("create_threads failed\n");
 
 	/* indicates that we are ready, all of the other threads can
 	 * now proceed */

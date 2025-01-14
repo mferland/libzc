@@ -67,7 +67,7 @@ static void print_help(const char *name)
 		"Options:\n"
 		"\t-c, --charset=CHARSET   use character set CHARSET\n"
 		"\t-i, --initial=STRING    initial password\n"
-		"\t-l, --length=NUM        maximum password length\n"
+		"\t-l, --length=NUM        maximum password length (default is %d)\n"
 		"\t-a, --alpha             use characters [a-z]\n"
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
@@ -75,7 +75,7 @@ static void print_help(const char *name)
 		"\t-t, --threads=N         force number of threads to N\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name);
+		name, name, PW_LEN_DEFAULT);
 }
 
 static char *make_charset(int flags, char *out, size_t outlen)
@@ -83,7 +83,7 @@ static char *make_charset(int flags, char *out, size_t outlen)
 	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
 	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	const char *number_set = "0123456789";
-	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@";
+	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\";
 	size_t len = 0;
 
 	if (flags & PWSET_LOWER)
@@ -260,8 +260,8 @@ static int do_bruteforce(int argc, char *argv[])
 			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		char *tmp = make_charset(arg_charset_flag, pwcfg.set,
-					 ZC_CHARSET_MAXLEN);
+		const char *tmp = make_charset(arg_charset_flag, pwcfg.set,
+					       ZC_CHARSET_MAXLEN);
 		if (!tmp) {
 			err("generating character set failed.\n");
 			return EXIT_FAILURE;

@@ -96,6 +96,9 @@ check_output
 $CMD plaintext data/archive_ptext.zip cv.tex data/archivec.zip cv.tex
 check_output
 
+$CMD plaintext -f data/plaintext.bin data/ciphertext.bin
+check_output
+
 $CMD plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
 check_output
 

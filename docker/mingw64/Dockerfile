@@ -1,7 +1,6 @@
 # yazc static executable for Windows 64-bits
 
-FROM ubuntu:22.10
-MAINTAINER Marc Ferland <marc.ferland@gmail.com>
+FROM ubuntu:22.04
 
 RUN apt update \
     && apt upgrade -y \

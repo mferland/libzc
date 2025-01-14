@@ -38,6 +38,6 @@ size_t pwstream_get_pwlen(const struct pwstream *pws);
 
 size_t pwstream_get_stream_count(const struct pwstream *pws);
 
-bool pwstream_is_empty(struct pwstream *pws, unsigned int stream);
+bool pwstream_is_empty(const struct pwstream *pws, unsigned int stream);
 
 #endif /* _PWSTREAM_H_ */

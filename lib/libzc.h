@@ -42,7 +42,7 @@ void zc_set_log_fn(struct zc_ctx *ctx,
 		   void (*log_fn)(struct zc_ctx *ctx, int priority,
 				  const char *file, int line, const char *fn,
 				  const char *format, va_list args));
-int zc_get_log_priority(struct zc_ctx *ctx);
+int zc_get_log_priority(const struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
 /**
@@ -58,7 +58,7 @@ int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename,
 const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
-bool zc_file_isopened(struct zc_file *file);
+bool zc_file_isopened(const struct zc_file *file);
 
 struct zc_info;
 struct zc_info *zc_file_info_next(struct zc_file *, struct zc_info *info);
@@ -140,6 +140,12 @@ int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
 int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 			       const struct zc_key *internal_rep, char *out,
 			       size_t len);
+
+/**
+ * Utilities
+ */
+void zc_passw_to_internal_rep(const uint8_t *pw, size_t len, struct zc_key *out_key);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

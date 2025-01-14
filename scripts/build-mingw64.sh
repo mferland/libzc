@@ -18,9 +18,9 @@ export PTHREAD_CFLAGS="-I${MINGW_LOCAL_PATH}/include"
 ../configure --host=x86_64-w64-mingw32 \
 	     --enable-static \
 	     --disable-shared \
-	     CFLAGS="-Ofast" \
+	     CPPFLAGS="-D_FILE_OFFSET_BITS=64" \
 	     LDFLAGS="-L${MINGW_LIB_PATH} -lmman ${PTHREAD_LIBS}"
-make -j12
+make V=1
 
 V=$(../configure -V | grep 'zc configure' | cut -d' ' -f3)
 ARCHIVE=yazc-v${V}-win64.zip

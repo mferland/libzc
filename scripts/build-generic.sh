@@ -11,6 +11,6 @@ prepare_src ${S} ${D}
 
 ./autogen.sh
 cd ${D}
-../configure CFLAGS="-Ofast"
+../configure CFLAGS="-O3 -ffast-math"
 make -j12 check
 make dist

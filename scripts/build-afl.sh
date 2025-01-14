@@ -10,8 +10,8 @@ source ${S}/scripts/common.sh
 prepare_src ${S} ${D}
 
 export CC="afl-clang-fast"
-export CFLAGS="-Ofast -mtune=native -march=native"
-export CXXFLAGS="-Ofast -mtune=native -march=native"
+export CFLAGS="-O3 -ffast-math -mtune=native -march=native"
+export CXXFLAGS="-O3 -ffast-math  -mtune=native -march=native"
 
 T=${D}/targets
 INST=${T}/root
