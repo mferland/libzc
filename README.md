@@ -78,6 +78,11 @@ Try all passwords in [a-z0-9] up to 8 characters with 4 threads:
 
     yazc bruteforce -a -n -l8 -t4 archive.zip
 
+Try all password combinations using characters "abc123" up to a
+maximum of 10 characters with all available cores:
+
+    yazc bruteforce -c abc123 -l10 archive.zip
+
 ## Dictionary
 
 This mode tries all passwords from the given dictionary file. If no
@@ -107,6 +112,15 @@ find the internal representation of the encryption key. Once the
 internal representation of the key has been found, we try to find the
 actual (or an equivalent) password.
 
+Three different options are available to map the plaintext bytes on
+the ciphertext: file (`-f`), offset (`-o`) and zip entry (default).
+
+If no option switch is given, the program will read the plaintext and
+ciphertext from zip files. You just need to give the entry names of
+both files within the zips. For example:
+
+    yazc plaintext notencrypted.zip file.exe encrypted.zip file.exe
+
 ### Options
 
 `-o, --offset` use offsets instead of the zip file entry names. Using
@@ -123,7 +137,7 @@ bytes 112-662 of archive.zip, first cipher byte is at offset 64):
 the bytes from cipherfile. We assume that the first 12 bytes from
 cipherfile is the encryption header. If some bytes cannot be mapped,
 they are ignored (can happen if either the plaintext or the cipher
-file is smaller). Example
+file is smaller). Example:
 
     yazc plaintext -f plaintextfile cipherfile
 
@@ -133,7 +147,7 @@ for more information about the internal representation). For example:
 
     yazc plaintext -i 0x777095c0 0xc1764180 0xf5d5b494
 
-`-p, --password` from a text passowrd, caculate the internal password
+`-p, --password` from a password, calculate the internal
 representation. For example:
 
     yazc plaintext -p pAssW0Rd
