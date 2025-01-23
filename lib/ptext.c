@@ -56,7 +56,7 @@ static void generate_key0_lsb(struct zc_crk_ptext *ptext)
 	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint8_t));
 	memset(ptext->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
 
-	for (int i = 0, p = 0; i < 256; ++i, p += MULTINV)
+	for (uint32_t i = 0, p = 0; i < 256; ++i, p += MULTINV)
 		lsbk0_set(ptext, msb(p), i);
 }
 
