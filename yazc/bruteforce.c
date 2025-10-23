@@ -40,7 +40,7 @@ static struct zc_crk_pwcfg pwcfg;
 static long thread_count;
 static bool stats = false;
 
-static const char short_opts[] = "c:i:l:aAnsSt:h";
+static const char short_opts[] = "c:i:l:aAnsm:k:x:St:h";
 static const struct option long_opts[] = {
 	{ "charset", required_argument, 0, 'c' },
 	{ "initial", required_argument, 0, 'i' },
@@ -49,6 +49,9 @@ static const struct option long_opts[] = {
 	{ "alpha-caps", no_argument, 0, 'A' },
 	{ "numeric", no_argument, 0, 'n' },
 	{ "special", no_argument, 0, 's' },
+	{ "mask", required_argument, 0, 'm' },
+	{ "mask-minlen", required_argument, 0, 'k' },
+	{ "mask-maxlen", required_argument, 0, 'x' },
 	{ "threads", required_argument, 0, 't' },
 	{ "stats", no_argument, 0, 'S' },
 	{ "help", no_argument, 0, 'h' },
@@ -72,6 +75,9 @@ static void print_help(const char *name)
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
 		"\t-s, --special           use special characters\n"
+		"\t-m, --mask=MASK         password mask to use\n"
+		"\t-k, --min-mask=N        skip passwords shorter than N\n"
+		"\t-x, --max-mask=N        repeat last mask item up to length N\n"
 		"\t-t, --threads=N         force number of threads to N\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
@@ -176,6 +182,9 @@ static int do_bruteforce(int argc, char *argv[])
 	const char *arg_initial = NULL;
 	const char *arg_threads = NULL;
 	const char *arg_maxlen = NULL;
+	const char *arg_mask = NULL;
+	const char *arg_mask_minlen = NULL;
+	const char *arg_mask_maxlen = NULL;
 	int arg_charset_flag = 0;
 
 	for (;;) {
@@ -205,6 +214,15 @@ static int do_bruteforce(int argc, char *argv[])
 			break;
 		case 's':
 			arg_charset_flag |= PWSET_SPEC;
+			break;
+		case 'm':
+			arg_mask = optarg;
+			break;
+		case 'k':
+			arg_mask_minlen = optarg;
+			break;
+		case 'x':
+			arg_mask_maxlen = optarg;
 			break;
 		case 't':
 			arg_threads = optarg;
@@ -254,8 +272,28 @@ static int do_bruteforce(int argc, char *argv[])
 	} else
 		thread_count = -1;	/* auto */
 
-	/* character set */
-	if (!arg_set) {
+	if (arg_mask) {
+		if (arg_mask_minlen) {
+			pwcfg.mask.minlen = atoi(arg_mask_minlen);
+			if (pwcfg.mask.minlen < 1) {
+				err("minimum mask length must be greater than one.\n");
+				return EXIT_FAILURE;
+			}
+		} else
+			pwcfg.mask.minlen = 0;
+
+		if (arg_mask_maxlen) {
+			pwcfg.mask.maxlen = atoi(arg_mask_maxlen);
+			if (pwcfg.mask.minlen && pwcfg.mask.maxlen < pwcfg.mask.minlen) {
+				err("maximum mask length must be greater than the minimum length.\n");
+				return EXIT_FAILURE;
+			}
+		} else
+			pwcfg.mask.maxlen = 0;
+
+		pwcfg.mask.str = arg_mask;
+
+	} else if (!arg_set) {
 		if (!arg_charset_flag) {
 			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;

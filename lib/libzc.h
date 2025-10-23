@@ -71,6 +71,12 @@ off_t zc_file_info_crypt_header_offset(const struct zc_info *info);
 const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
 int zc_file_info_idx(const struct zc_info *info);
 
+struct zc_mask {
+	size_t minlen;
+	size_t maxlen;
+	const char *str;
+};
+
 /**
  * zc_crk_dict:
  *
@@ -96,6 +102,7 @@ struct zc_crk_pwcfg {
 	size_t setlen;
 	size_t maxlen;
 	char initial[ZC_PW_MAXLEN + 1];
+	struct zc_mask mask;
 };
 struct zc_crk_bforce;
 struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);

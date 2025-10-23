@@ -56,6 +56,8 @@ libzc_la_SOURCES =\
 	libzc.h \
 	libzc_private.h \
 	list.h \
+	mask_scanner.l \
+	mask_parser.y \
 	ptext_attack.c \
 	ptext_private.h \
 	ptext_reduce.c \
@@ -80,3 +82,9 @@ libzc_la_LIBADD = -lm ${ZLIB_LIBS}
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = libzc.pc
 CLEANFILES += libzc.pc
+
+BUILT_SOURCES = mask_parser.c mask_parser.h mask_scanner.c
+
+YACC = bison -o y.tab.c
+AM_YFLAGS = -d
+LEX = flex

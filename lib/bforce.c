@@ -663,33 +663,60 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 
 static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 {
-	/* basic sanity checks */
-	if (cfg->setlen == 0 || cfg->setlen > ZC_CHARSET_MAXLEN ||
-	    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN)
-		return -1;
+	if (cfg->mask.str) {
+		/* use mask */
+		char **parsed;
+		int err;
 
-	if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
-		return -1;
+		/* basic sanity checks */
+		if (cfg->mask.minlen > 1 && cfg->mask.minlen > cfg->mask.maxlen)
+			return -1;
 
-	memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
-	memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
-	crk->maxlen = cfg->maxlen;
-	crk->setlen = sanitize_set(crk->set, cfg->setlen);
-	crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+		/* TODO: handle minlen and maxlen */
 
-	if (!crk->ipwlen) {
-		/* no initial password supplied, use first set character */
-		crk->ipw[0] = crk->set[0];
-		crk->ipw[1] = '\0';
-		crk->ipwlen = 1;
-		return 0;
+		err = parse_mask(cfg->mask.str, &parsed);
+		if (err < 0) {
+			err(crk->ctx, "mask parsing failed!\n");
+			return -1;
+		}
+
+#ifdef DEBUG
+		for (int i = 0; i < err; ++i)
+			printf("%d: %s\n", parsed[i]);
+#endif
+
+		
+	} else {
+		/* use character set */
+
+		/* basic sanity checks */
+		if (cfg->setlen == 0 || cfg->setlen > ZC_CHARSET_MAXLEN ||
+		    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN)
+			return -1;
+
+		if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
+			return -1;
+
+		memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+		memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
+		crk->maxlen = cfg->maxlen;
+		crk->setlen = sanitize_set(crk->set, cfg->setlen);
+		crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+
+		if (!crk->ipwlen) {
+			/* no initial password supplied, use first set character */
+			crk->ipw[0] = crk->set[0];
+			crk->ipw[1] = '\0';
+			crk->ipwlen = 1;
+			return 0;
+		}
+
+		if (crk->ipwlen > crk->maxlen)
+			return -1;
+
+		if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
+			return -1;
 	}
-
-	if (crk->ipwlen > crk->maxlen)
-		return -1;
-
-	if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
-		return -1;
 
 	return 0;
 }
