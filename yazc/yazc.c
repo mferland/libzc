@@ -31,9 +31,11 @@
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 static const char options_s[] = "+hV";
-static const struct option options[] = { { "help", no_argument, NULL, 'h' },
-					 { "version", no_argument, NULL, 'V' },
-					 { NULL, 0, 0, 0 } };
+static const struct option options[] = {
+	{ "help", no_argument, NULL, 'h' },
+	{ "version", no_argument, NULL, 'V' },
+	{ NULL, 0, 0, 0 }
+};
 
 static const struct yazc_cmd yazc_cmd_help;
 

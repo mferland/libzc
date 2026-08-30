@@ -70,7 +70,7 @@ START_TEST(generate_test_initial1)
 END_TEST
 
 static void assert_mixed_mask_coverage(const char *const *mask, size_t len,
-					 size_t streams)
+				       size_t streams)
 {
 	struct pwstream *m;
 	size_t total = 1;
@@ -80,7 +80,7 @@ static void assert_mixed_mask_coverage(const char *const *mask, size_t len,
 		total *= strlen(mask[i]);
 	ck_assert_int_eq(pwstream_new(&m), 0);
 	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, len, streams,
-							 NULL), 0);
+						     NULL), 0);
 	seen = calloc(total, 1);
 	ck_assert_ptr_nonnull(seen);
 
@@ -93,8 +93,8 @@ static void assert_mixed_mask_coverage(const char *const *mask, size_t len,
 				for (size_t c = 0; c < strlen(mask[2]); ++c) {
 					size_t key = (a * strlen(mask[1]) + b) * strlen(mask[2]) + c;
 					bool in = a >= (size_t)e[0]->start && a <= (size_t)e[0]->stop &&
-						b >= (size_t)e[1]->start && b <= (size_t)e[1]->stop &&
-						c >= (size_t)e[2]->start && c <= (size_t)e[2]->stop;
+						  b >= (size_t)e[1]->start && b <= (size_t)e[1]->stop &&
+						  c >= (size_t)e[2]->start && c <= (size_t)e[2]->stop;
 					if (in) {
 						ck_assert_int_eq(seen[key], 0);
 						seen[key] = 1;
@@ -226,7 +226,7 @@ START_TEST(reject_overflowing_table_dimensions)
 
 	/* SIZE_MAX columns times two rows would wrap the entry count. */
 	ck_assert_int_eq(pwstream_generate_from_pool(m, SIZE_MAX, 2,
-						       SIZE_MAX, NULL), -1);
+						     SIZE_MAX, NULL), -1);
 
 	/* Overflow is rejected before the previous valid table is released. */
 	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
@@ -342,7 +342,7 @@ START_TEST(preserve_size_t_pool_indexes)
 
 	ck_assert_int_eq(pwstream_new(&m), 0);
 	ck_assert_int_eq(pwstream_generate_from_pool(m, SIZE_MAX, 1, 4,
-						       initial), 0);
+						     initial), 0);
 	previous = pwstream_get_entry(m, 0, 0);
 	ck_assert_msg(previous->start == 0, "first range does not start at zero");
 	for (size_t stream = 1; stream < 4; ++stream) {

@@ -351,17 +351,17 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		}
 
 		for (p[0] = first[0]; p[0] < last[0]; ++p[0]) {
-				update_keys(candidate_char(crk, level_count - 6, p[0]), &cache[0], &cache[1]);
+			update_keys(candidate_char(crk, level_count - 6, p[0]), &cache[0], &cache[1]);
 			for (p[1] = first[1]; p[1] < last[1]; ++p[1]) {
-					update_keys(candidate_char(crk, level_count - 5, p[1]), &cache[1], &cache[2]);
+				update_keys(candidate_char(crk, level_count - 5, p[1]), &cache[1], &cache[2]);
 				for (p[2] = first[2]; p[2] < last[2]; ++p[2]) {
-						update_keys(candidate_char(crk, level_count - 4, p[2]), &cache[2], &cache[3]);
+					update_keys(candidate_char(crk, level_count - 4, p[2]), &cache[2], &cache[3]);
 					for (p[3] = first[3]; p[3] < last[3]; ++p[3]) {
-							update_keys(candidate_char(crk, level_count - 3, p[3]), &cache[3], &cache[4]);
+						update_keys(candidate_char(crk, level_count - 3, p[3]), &cache[3], &cache[4]);
 						for (p[4] = first[4]; p[4] < last[4]; ++p[4]) {
-								update_keys(candidate_char(crk, level_count - 2, p[4]), &cache[4], &cache[5]);
+							update_keys(candidate_char(crk, level_count - 2, p[4]), &cache[4], &cache[5]);
 							for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
-									update_keys(candidate_char(crk, level_count - 1, p[5]), &cache[5], &cache[6]);
+								update_keys(candidate_char(crk, level_count - 1, p[5]), &cache[5], &cache[6]);
 
 								/* save password hashes */
 								w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
@@ -387,7 +387,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								pwi = pwi - (LEN - 1 - ret) - 1;
 								indexes_from_raw_counter(pwi, in, out);
 								for (int i = 0; i < 6; ++i)
-					pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
+									pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
 
 								w->found = true;
 								pthread_exit(w);
@@ -420,7 +420,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		size_t first = limit[0].initial;
 		size_t last = limit[0].stop + 1;
 		for (size_t p = first; p < last; ++p) {
-		pw[0] = candidate_char(crk, level_count - level, p);
+			pw[0] = candidate_char(crk, level_count - level, p);
 			update_keys(pw[0], &cache[0], &cache[1]);
 			do_work_recurse2(w, level - 1, level_count, &pw[1],
 					 &cache[1], &limit[1]);
@@ -686,7 +686,7 @@ static int alloc_pwstream_pool(struct zc_crk_bforce *crk, size_t workers)
 		}
 		crk->pwslen++;
 		pwstream_generate_from_pool(crk->pws[i], setlen, ipwlen + i, workers,
-				  NULL);
+					    NULL);
 	}
 
 	return 0;
@@ -778,7 +778,7 @@ static int truncate_mask(char **parsed, size_t *in_len)
 	return 0;
 }
 
-static char ** copy_parsed_mask(char **in_parsed_mask, size_t in_parsed_mask_len)
+static char **copy_parsed_mask(char **in_parsed_mask, size_t in_parsed_mask_len)
 {
 	char **out;
 	size_t i = 0;

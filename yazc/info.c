@@ -29,8 +29,10 @@
 #define MAX(a, b) ((a > b) ? a : b)
 
 static const char short_opts[] = "h";
-static const struct option long_opts[] = { { "help", no_argument, 0, 'h' },
-					   { NULL, 0, 0, 0 } };
+static const struct option long_opts[] = {
+	{ "help", no_argument, 0, 'h' },
+	{ NULL, 0, 0, 0 }
+};
 
 struct zc_ctx *ctx;
 

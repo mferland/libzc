@@ -562,7 +562,7 @@ void pwstream_free(struct pwstream *pws)
  *   5. Apply optional starting indexes in natural password order.
  */
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
-		      size_t streams, const size_t *initial)
+				size_t streams, const size_t *initial)
 {
 	struct entry *new_entry;
 	size_t *new_chars_at_idx;

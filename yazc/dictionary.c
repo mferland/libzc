@@ -30,10 +30,11 @@
 static bool stats = false;
 
 static const char short_opts[] = "d:hS";
-static const struct option long_opts[] = { { "dictionary", required_argument, 0,
-					     'd' },
-					   { "help", no_argument, 0, 'h' },
-					   { NULL, 0, 0, 0 } };
+static const struct option long_opts[] = {
+	{ "dictionary", required_argument, 0, 'd' },
+	{ "help", no_argument, 0, 'h' },
+	{ NULL, 0, 0, 0 }
+};
 
 static void print_help(const char *cmdname)
 {

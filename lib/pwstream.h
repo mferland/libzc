@@ -30,7 +30,7 @@ void pwstream_free(struct pwstream *pws);
 
 /* initial indexes, when provided, are in natural left-to-right order. */
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
-		      size_t streams, const size_t *initial);
+				size_t streams, const size_t *initial);
 
 /* Backward-compatible pool generator name. */
 int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
