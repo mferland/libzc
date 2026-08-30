@@ -456,6 +456,9 @@ static size_t ceil_streams_mask(char **parsed_mask, size_t parsed_mask_len, size
 
 int pwstream_new(struct pwstream **pws)
 {
+	if (!pws)
+		return -1;
+
 	struct pwstream *p = calloc(1, sizeof(struct pwstream));
 
 	if (!p)
@@ -493,6 +496,10 @@ void pwstream_free(struct pwstream *pws)
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial)
 {
+	/* Reject invalid dimensions before releasing an existing table. */
+	if (!pws || !pool_len || !pw_len || !streams)
+		return -1;
+
 	/* Pool mode is the uniform-radix case: every password position indexes
 	 * the same pool and therefore has the same chars_at_idx value. */
 	if (pws->entry)
@@ -551,6 +558,15 @@ int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t
 	/* parsed_mask is supplied in natural left-to-right password order.  The
 	 * table uses the reverse order, so copy only the alphabet lengths and
 	 * reverse them while doing so.  The strings remain owned by the caller. */
+
+	/* Every position must provide at least one character.  Validate before
+	 * releasing an existing table so a rejected call leaves it usable. */
+	if (!pws || !parsed_mask || !parsed_mask_len || !streams)
+		return -1;
+	for (size_t i = 0; i < parsed_mask_len; ++i) {
+		if (!parsed_mask[i] || !parsed_mask[i][0])
+			return -1;
+	}
 
 	if (pws->entry)
 		free(pws->entry);

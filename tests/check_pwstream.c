@@ -180,6 +180,36 @@ START_TEST(generate_recursion_stops_at_last_row)
 }
 END_TEST
 
+START_TEST(reject_invalid_generation_parameters)
+{
+	char *valid_mask[] = { "ab", "cd" };
+	char *empty_position[] = { "ab", "" };
+	char *null_position[] = { "ab", NULL };
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(NULL), -1);
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 2, NULL), 0);
+
+	ck_assert_int_eq(pwstream_generate_from_pool(NULL, 2, 3, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 0, 3, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 0, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 0, NULL), -1);
+
+	ck_assert_int_eq(pwstream_generate_from_mask(NULL, valid_mask, 2, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, NULL, 2, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, valid_mask, 0, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, valid_mask, 2, 0, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, empty_position, 2, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, null_position, 2, 2, NULL), -1);
+
+	/* Invalid regeneration attempts must not destroy the previous table. */
+	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
+	ck_assert(!pwstream_is_empty(m, 0));
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -448,6 +478,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_literal_mask_and_initial);
 	tcase_add_test(tc_core, regenerate_mixed_mask);
 	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
+	tcase_add_test(tc_core, reject_invalid_generation_parameters);
 	suite_add_tcase(s, tc_core);
 
 	return s;
