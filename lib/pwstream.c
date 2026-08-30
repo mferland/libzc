@@ -505,6 +505,8 @@ void pwstream_free(struct pwstream *pws)
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial)
 {
+	struct entry *new_entry;
+	size_t *new_chars_at_idx;
 	size_t tmp_size;
 	size_t entry_count;
 	size_t cstrm;
@@ -520,20 +522,22 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	if (size_mul_overflow(pw_len, sizeof(size_t), &tmp_size))
 		return -1;
 
+	/* Allocate the complete replacement before changing the current state. */
+	new_entry = calloc(entry_count, sizeof(struct entry));
+	if (!new_entry)
+		return -1;
+	new_chars_at_idx = calloc(pw_len, sizeof(size_t));
+	if (!new_chars_at_idx) {
+		free(new_entry);
+		return -1;
+	}
+
 	/* Pool mode is the uniform-radix case: every password position indexes
 	 * the same pool and therefore has the same chars_at_idx value. */
-	if (pws->entry)
-		free(pws->entry);
-	if (pws->chars_at_idx)
-		free(pws->chars_at_idx);
-
-	pws->entry = calloc(entry_count, sizeof(struct entry));
-	if (!pws->entry)
-		return -1;
-
-	pws->chars_at_idx = calloc(pw_len, sizeof(size_t));
-	if (!pws->chars_at_idx)
-		return -1;
+	free(pws->entry);
+	free(pws->chars_at_idx);
+	pws->entry = new_entry;
+	pws->chars_at_idx = new_chars_at_idx;
 
 	pws->rows = pw_len;
 	pws->cols = cstrm;
@@ -572,6 +576,8 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t parsed_mask_len,
 				size_t streams, const size_t *initial)
 {
+	struct entry *new_entry;
+	size_t *new_chars_at_idx;
 	size_t tmp_size;
 	size_t entry_count;
 	size_t cstrm;
@@ -597,18 +603,19 @@ int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t
 	if (size_mul_overflow(parsed_mask_len, sizeof(size_t), &tmp_size))
 		return -1;
 
-	if (pws->entry)
-		free(pws->entry);
-	if (pws->chars_at_idx)
-		free(pws->chars_at_idx);
-
-	pws->entry = calloc(entry_count, sizeof(struct entry));
-	if (!pws->entry)
+	new_entry = calloc(entry_count, sizeof(struct entry));
+	if (!new_entry)
 		return -1;
-
-	pws->chars_at_idx = calloc(parsed_mask_len, sizeof(size_t));
-	if (!pws->chars_at_idx)
+	new_chars_at_idx = calloc(parsed_mask_len, sizeof(size_t));
+	if (!new_chars_at_idx) {
+		free(new_entry);
 		return -1;
+	}
+
+	free(pws->entry);
+	free(pws->chars_at_idx);
+	pws->entry = new_entry;
+	pws->chars_at_idx = new_chars_at_idx;
 
 	pws->rows = parsed_mask_len;
 	pws->cols = cstrm;

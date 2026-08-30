@@ -229,6 +229,24 @@ START_TEST(reject_overflowing_table_dimensions)
 }
 END_TEST
 
+START_TEST(preserve_state_after_allocation_failure)
+{
+	const size_t huge = SIZE_MAX / sizeof(struct entry);
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 2, NULL), 0);
+
+	/* This table size does not overflow size_t, but cannot be allocated. */
+	ck_assert_int_eq(pwstream_generate_from_pool(m, huge, 1, huge, NULL), -1);
+
+	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
+	ck_assert_int_eq(pwstream_get_stream_count(m), 2);
+	ck_assert(!pwstream_is_empty(m, 0));
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -499,6 +517,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
 	tcase_add_test(tc_core, reject_invalid_generation_parameters);
 	tcase_add_test(tc_core, reject_overflowing_table_dimensions);
+	tcase_add_test(tc_core, preserve_state_after_allocation_failure);
 	suite_add_tcase(s, tc_core);
 
 	return s;
