@@ -97,7 +97,6 @@ static const struct entry null_entry = { -1, -1, -1 };
 struct pwstream {
 	/* Row-major table described above. */
 	struct entry *entry;
-	size_t initial;
 	/* rows=password length; cols=allocated non-empty worker columns. */
 	size_t rows;
 	size_t cols;
@@ -621,7 +620,6 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 	size_t entry_count;
 	size_t cstrm;
 
-	(void)initial;
 	/* parsed_mask is supplied in natural left-to-right password order.  The
 	 * table uses the reverse order, so copy only the alphabet lengths and
 	 * reverse them while doing so.  The strings remain owned by the caller. */
