@@ -693,191 +693,73 @@ static int alloc_pwstream_pool(struct zc_crk_bforce *crk, size_t workers)
 }
 
 /*
- * Stretch mask by 1.
+ * Extend the mask by appending a copy of its final position.
  *
- *  1. If last mask position is a range, we repeat that.
- *     word?d --> word?d?d
+ * Each call adds one position:
  *
- *  2. Otherwise if there is any range, we repeat the *first* one.
- *     ?dword --> ?d?dword
- *     pass?dword --> pass?d?dword
+ *     pass       -> passs
+ *     word?d     -> word?d?d
+ *     ?dword     -> ?dwordd
  *
- *  3. Last resort, we just repeat the last character.
- *     pass --> passs
- *
- * This function does a single strech, each time you call it, it'll
- * stretch once more.
+ * The strings are copied rather than shared because the parsed mask owns
+ * every position independently and frees each one during cleanup.
  */
-static int stretch_mask(char **parsed, size_t *in_len)
+static int stretch_mask(char ***in_parsed, size_t *in_len)
 {
+	char **parsed = *in_parsed;
 	size_t len = *in_len;
-	size_t last_len = strlen(parsed[len - 1]);
+	char *duplicate;
 	char **tmp;
 
-	/* 1 */
-	if (last_len > 1) {
-		/* repeat last position once */
-		tmp = reallocarray(parsed, len + 1, sizeof(char *));
-		if (!tmp)
-			return -1;
-		parsed = tmp;
-		/* make two last positions point to the same range */
-		parsed[len] = parsed[len - 1];
-		*in_len += 1;
-		return 0;
+	duplicate = strdup(parsed[len - 1]);
+	if (!duplicate)
+		return -1;
+	tmp = reallocarray(parsed, len + 1, sizeof(char *));
+	if (!tmp) {
+		free(duplicate);
+		return -1;
 	}
-
-	/* 2 */
-	for (size_t i = 0; i < len; ++i) {
-		size_t chars_at_pos = strlen(parsed[i]);
-		if (chars_at_pos > 1) {
-			tmp = reallocarray(parsed, len + 1, sizeof(char *));
-			if (!tmp)
-				return -1;
-			parsed = tmp;
-			/* repeat first range (index == i), after this
-			 * loop both position point to the same range */
-			for (size_t j = len; j > i; --j)
-				parsed[j] = parsed[j - 1];
-			*in_len += 1;
-			return 0;
-		}
-	}
-
-	/* 3 */
-	parsed = reallocarray(parsed, len + 1, sizeof(char *));
-	parsed[len] = parsed[len - 1];
-	*in_len += 1;
+	parsed = tmp;
+	parsed[len] = duplicate;
+	*in_parsed = parsed;
+	*in_len = len + 1;
 	return 0;
 }
 
-/*
- * Truncate mask by 1.
- *
- * 1. If mask length is <=1, return mask without changes.
- *    ?d --> ?d
- *
- * 2. If mask length is >1, drop the last position without reallocating
- *    memory. Just dealloc the last
- *    wor?d --> wor
- *    wor?d?d --> word?
- */
-static int truncate_mask(char **parsed, size_t *in_len)
+static void free_parsed_mask(char **parsed_mask, size_t parsed_mask_len)
 {
-	size_t len;
-
-	/* 1 */
-	if (*in_len <= 0)
-		return 0;	/* nothing to do */
-
-	/* 2 */
-	len = *in_len - 1;
-	free(parsed[len]);
-	parsed[len] = NULL;
-	*in_len = len;
-	return 0;
-}
-
-static char **copy_parsed_mask(char **in_parsed_mask, size_t in_parsed_mask_len)
-{
-	char **out;
-	size_t i = 0;
-
-	out = calloc(in_parsed_mask_len, sizeof(char *));
-	if (!out)
-		return NULL;
-
-	for (; i < in_parsed_mask_len; ++i) {
-		if (in_parsed_mask[i]) {
-			char *t = strdup(in_parsed_mask[i]);
-			if (!t)
-				goto err;
-			out[i] = t;
-		}
-	}
-
-	return out;
-
-err:
-	while (i)
-		free(out[--i]);
-	free(out);
-	return NULL;
+	if (!parsed_mask)
+		return;
+	for (size_t i = 0; i < parsed_mask_len; ++i)
+		free(parsed_mask[i]);
+	free(parsed_mask);
 }
 
 static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 {
-	/* const char *ipw = crk->ipw; */
-	/* size_t ipwlen = crk->ipwlen; */
-	size_t to_alloc;
-	char **copy;
-	size_t i, c = 0;
-
-	if (crk->mask_maxlen > 0 && crk->mask_minlen > 0)
-		/* both min and max are set */
-		to_alloc = crk->mask_maxlen - crk->mask_minlen + 1;
-	else if (crk->mask_maxlen > 0 && !crk->mask_minlen)
-		/* only maxlen is set */
-		to_alloc = crk->mask_maxlen - crk->parsed_mask_len + 1;
-	else if (!crk->mask_maxlen && !crk->mask_minlen)
-		/* only minlen is set */
-		to_alloc = crk->parsed_mask_len - crk->mask_minlen + 1;
-	else
-		/* neither min and max are set */
-		to_alloc = 1;
+	size_t to_alloc = crk->mask_maxlen - crk->mask_minlen + 1;
 
 	crk->pws = calloc(to_alloc, sizeof(struct pwstream *));
 	if (!crk->pws)
 		return -1;
 
-	/* TODO: handle initial password in pwstream first
-	 * generation */
-
 	crk->pwslen = 0;
-	for (size_t i = 0; i < to_alloc; ++i) {
-		if (pwstream_new(&crk->pws[i])) {
+	for (size_t len = crk->mask_minlen; len <= crk->mask_maxlen; ++len) {
+		size_t stream = len - crk->mask_minlen;
+
+		if (pwstream_new(&crk->pws[stream])) {
 			dealloc_pwstreams(crk);
 			return -1;
 		}
 		crk->pwslen++;
-	}
 
-	/* bforce owns mutable masks so it can resize and eventually free them.
-	 * pwstream only borrows a read-only view; C requires the nested const
-	 * qualification to be made explicit at that ownership boundary. */
-
-	/* create truncated variations if needed */
-	if (crk->mask_minlen < crk->parsed_mask_len) {
-		copy = copy_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
-		i = crk->parsed_mask_len;
-		while (i >= crk->mask_minlen) {
-			truncate_mask(copy, &i);
-			/* TODO: i dont think we should process
-			 * initial password here, only use initial
-			 * password when neither min and max are
-			 * set. */
-			pwstream_generate_from_mask(crk->pws[c++],
-						    (const char *const *)copy,
-						    i, workers, NULL);
-		}
-	}
-
-	/* create unmodified stream */
-	pwstream_generate_from_mask(crk->pws[c++],
-				    (const char *const *)crk->parsed_mask,
-				    crk->parsed_mask_len,
-				    workers,
-				    NULL);
-
-	/* create stretched variations if needed */
-	if (crk->mask_maxlen > 0) {
-		copy = copy_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
-		i = crk->parsed_mask_len;
-		while (i < crk->mask_maxlen) {
-			stretch_mask(copy, &i);
-			pwstream_generate_from_mask(crk->pws[c++],
-						    (const char *const *)copy,
-						    i, workers, NULL);
+		/* parsed_mask is fully expanded to maxlen.  Passing len makes
+		 * pwstream use the prefix corresponding to this password length. */
+		if (pwstream_generate_from_mask(crk->pws[stream],
+						(const char *const *)crk->parsed_mask,
+						len, workers, NULL)) {
+			dealloc_pwstreams(crk);
+			return -1;
 		}
 	}
 
@@ -897,10 +779,9 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 		/* use mask */
 		char **parsed;
 		int ret;
-
-		/* basic sanity checks */
-		if (cfg->mask.minlen > 0 && cfg->mask.minlen > cfg->mask.maxlen)
-			return -1;
+		size_t parsed_len;
+		size_t mask_minlen;
+		size_t mask_maxlen;
 
 		ret = parse_mask(cfg->mask.str, &parsed);
 		if (ret <= 0) {
@@ -908,46 +789,59 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 			return -1;
 		}
 
-		crk->parsed_mask = parsed;
-		crk->parsed_mask_len = ret;
-		crk->mask_minlen = cfg->mask.minlen ? cfg->mask.minlen : (size_t)ret;
-		crk->mask_maxlen = cfg->mask.maxlen ? cfg->mask.maxlen : (size_t)ret;
-		if (crk->mask_minlen > (size_t)ret || crk->mask_maxlen < (size_t)ret ||
-		    crk->mask_minlen > crk->mask_maxlen)
+		parsed_len = (size_t)ret;
+		mask_minlen = cfg->mask.minlen ? cfg->mask.minlen : parsed_len;
+		mask_maxlen = cfg->mask.maxlen ? cfg->mask.maxlen : parsed_len;
+
+		/* The parsed mask is the central length: minlen may shorten it and
+		 * maxlen may extend it, but neither may cross to the other side. */
+		if (parsed_len > ZC_PW_MAXLEN || mask_minlen > parsed_len ||
+		    mask_maxlen < parsed_len || mask_minlen > mask_maxlen ||
+		    mask_maxlen > ZC_PW_MAXLEN) {
+			free_parsed_mask(parsed, parsed_len);
 			return -1;
+		}
+
+		/* Keep one canonical mask at maxlen.  Streams for shorter password
+		 * lengths use prefixes of this array. */
+		while (parsed_len < mask_maxlen) {
+			if (stretch_mask(&parsed, &parsed_len)) {
+				free_parsed_mask(parsed, parsed_len);
+				return -1;
+			}
+		}
+
+		crk->parsed_mask = parsed;
+		crk->parsed_mask_len = parsed_len;
+		crk->mask_minlen = mask_minlen;
+		crk->mask_maxlen = mask_maxlen;
 
 		memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
 		crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
 
 		if (!crk->ipwlen) {
 			/*
-			 * no initial password supplied, use first
-			 * character of each mask position.
+			 * No initial password supplied: start at the first
+			 * candidate of the shortest requested mask.
 			 */
 			size_t i;
-			for (i = 0; i < crk->parsed_mask_len; ++i)
+			for (i = 0; i < crk->mask_minlen; ++i)
 				crk->ipw[i] = crk->parsed_mask[i][0];
 			crk->ipw[i] = '\0';
-			crk->ipwlen = crk->parsed_mask_len;
+			crk->ipwlen = crk->mask_minlen;
 		}
 
 		/* Initial password should have the same length as the
 		   minimum mask length. */
-		if (cfg->mask.minlen && crk->ipwlen != cfg->mask.minlen) {
+		if (crk->ipwlen != crk->mask_minlen) {
 			err(crk->ctx, "initial password length (%lu) different from minimum mask length (%lu)\n",
 			    crk->ipwlen,
-			    cfg->mask.minlen);
+			    crk->mask_minlen);
 			return -1;
 		}
 
-		if (!pw_in_mask(crk->ipw, crk->parsed_mask, crk->parsed_mask_len))
+		if (!pw_in_mask(crk->ipw, crk->parsed_mask, crk->ipwlen))
 			return -1;
-
-#ifdef DEBUG
-		for (int i = 0; i < err; ++i)
-			printf("%d: %s\n", parsed[i]);
-#endif
-
 	} else {
 		/* use character set */
 
@@ -1080,11 +974,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 		free(crk->filename);
 	if (crk->cipher)
 		free(crk->cipher);
-	if (crk->parsed_mask) {
-		for (size_t i = 0; i < crk->parsed_mask_len; ++i)
-			free(crk->parsed_mask[i]);
-		free(crk->parsed_mask);
-	}
+	free_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
 	pthread_cond_destroy(&crk->cond);
 	pthread_mutex_destroy(&crk->mutex);
 	free(crk);

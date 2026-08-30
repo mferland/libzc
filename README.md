@@ -189,6 +189,12 @@ Result:
 This sub-command is provided to facilitate exploring the content of
 zip files. Another tool you can use is `zipinfo`.
 
+# TODO
+
+- Use a per-position alphabet table for both charset and mask modes so
+  `candidate_char()` does not need to check `crk->parsed_mask_len` for every
+  generated character.
+
 # License
 
 Distributed under the GPLv3+ license. See `COPYING` for more information.

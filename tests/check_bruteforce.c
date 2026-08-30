@@ -227,12 +227,16 @@ END_TEST
 
 static const char mask_options_password[] = "aA0!fF?\x80??";
 
-static void assert_mask_finds_options_password(const char *mask)
+static void assert_mask_config_finds_options_password(const char *mask,
+						      size_t minlen,
+						      size_t maxlen)
 {
 	struct zc_crk_pwcfg cfg = {0};
 	char out[sizeof(mask_options_password)];
 
 	cfg.mask.str = mask;
+	cfg.mask.minlen = minlen;
+	cfg.mask.maxlen = maxlen;
 
 	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "mask_options.zip",
 					      &cfg), 0);
@@ -240,6 +244,11 @@ static void assert_mask_finds_options_password(const char *mask)
 	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
 	ck_assert_mem_eq(out, mask_options_password,
 			 sizeof(mask_options_password));
+}
+
+static void assert_mask_finds_options_password(const char *mask)
+{
+	assert_mask_config_finds_options_password(mask, 0, 0);
 }
 
 START_TEST(test_bruteforce_mask_literals)
@@ -278,6 +287,21 @@ static const char *const mask_placeholder_cases[] = {
 START_TEST(test_bruteforce_mask_placeholders)
 {
 	assert_mask_finds_options_password(mask_placeholder_cases[_i]);
+}
+END_TEST
+
+static const char *const mask_maxlen_cases[] = {
+	/* No ranges: repeat the final literal '?'. */
+	"aA0!fF\\?\\x80\\?",
+	/* The final position is a range, so repeat it. */
+	"aA0!fF\\?\\x80[!\\?]",
+	/* An earlier range does not change the rule: repeat the final literal. */
+	"a[A-C]0!fF\\?\\x80\\?",
+};
+
+START_TEST(test_bruteforce_mask_maxlen)
+{
+	assert_mask_config_finds_options_password(mask_maxlen_cases[_i], 0, 10);
 }
 END_TEST
 
@@ -414,6 +438,9 @@ Suite *bforce_suite(void)
 	tcase_add_loop_test(tc_core, test_bruteforce_mask_placeholders, 0,
 			    sizeof(mask_placeholder_cases) /
 			    sizeof(mask_placeholder_cases[0]));
+	tcase_add_loop_test(tc_core, test_bruteforce_mask_maxlen, 0,
+			    sizeof(mask_maxlen_cases) /
+			    sizeof(mask_maxlen_cases[0]));
 	tcase_add_test(tc_core, test_bruteforce_initial_password_boundary);
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
