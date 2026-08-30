@@ -256,30 +256,15 @@ static void entry_table_init(struct pwstream *t, size_t start, const size_t *sto
 	}
 }
 
-/* Count all workers on row that have the same range as e.  generate() uses
- * this only on row 0, whose equal ranges were sorted into adjacent groups. */
-static size_t uniq(struct pwstream *t, size_t row, const struct entry *e)
-{
-	size_t count = 0;
-	struct entry *n = get(t, row, 0);
-
-	for (size_t i = 0; i < t->cols; ++i) {
-		if (is_equal_entries(&n[i], e))
-			++count;
-	}
-	return count;
-}
-
-/* Count entries equal to the first cell within the remaining portion of a
- * worker group.  Because distribute() sorts equal ranges, the returned count
- * is also the width of the next contiguous subgroup. */
-static size_t uniq_from_entry(const struct entry *e, size_t len)
+/* Return the length of the equal-entry run at the start of e.  distribute()
+ * sorts equal ranges next to one another, so generation can consume every
+ * row in one linear pass without repeatedly scanning unrelated workers. */
+static size_t equal_run_length(const struct entry *e, size_t len)
 {
 	size_t count = 1; /* first entry is always equal */
-	for (size_t i = 1; i < len; ++i) {
-		if (is_equal_entries(&e[i], e))
-			++count;
-	}
+
+	while (count < len && is_equal_entries(&e[count], e))
+		++count;
 	return count;
 }
 
@@ -318,7 +303,7 @@ static void recurse(struct pwstream *pws, size_t row, size_t count, struct entry
 	 * Adding pws->cols advances one complete table row. */
 	size_t u = 0;
 	for (size_t i = 0; i < count; i += u) {
-		u = uniq_from_entry(&e[i], count - i);
+		u = equal_run_length(&e[i], count - i);
 		if (u > 1 && row + 1 < pws->rows)
 			recurse(pws, row + 1, u, &e[i + pws->cols]);
 	}
@@ -345,7 +330,7 @@ static void generate(struct pwstream *pws)
 	/* Group workers that received the same row-0 range and use subsequent
 	 * rows to distinguish the workers inside each group. */
 	for (size_t i = 0, u = 0; i < pws->cols; i += u) {
-		u = uniq(pws, 0, &pws->entry[i]);
+		u = equal_run_length(&pws->entry[i], pws->cols - i);
 		if (u > 1)
 			recurse(pws, 1, u, get(pws, 1, i));
 	}
