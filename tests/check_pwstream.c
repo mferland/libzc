@@ -135,12 +135,18 @@ START_TEST(generate_literal_mask_and_initial)
 		ck_assert_int_eq(e->stop, 0);
 	}
 	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, 3, 4, initial), 0);
-	for (size_t s = 0; s < 4; ++s)
+	for (size_t s = 0; s < 4; ++s) {
+		const struct entry *outer = pwstream_get_entry(m, s, 2);
+		if (outer->initial > outer->stop) {
+			ck_assert_int_eq(outer->initial, outer->stop + 1);
+			continue;
+		}
 		for (size_t p = 0; p < 3; ++p) {
 			const struct entry *e = pwstream_get_entry(m, s, p);
 			ck_assert(e->initial >= e->start);
 			ck_assert(e->initial <= e->stop);
 		}
+	}
 	pwstream_free(m);
 }
 END_TEST
@@ -247,6 +253,56 @@ START_TEST(preserve_state_after_allocation_failure)
 }
 END_TEST
 
+START_TEST(generate_lexicographic_initial_password)
+{
+	/* Natural password order is [row 1][row 0]. */
+	const size_t initial[] = { 1, 1 }; /* "bb" in pool "abc" */
+	struct pwstream *m;
+	const struct entry *e;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 3, 2, 2, initial), 0);
+
+	/* Stream 0 owns passwords ending in 'a'.  "ba" is before "bb", so
+	 * it must carry into the first position and begin at "ca". */
+	e = pwstream_get_entry(m, 0, 1);
+	ck_assert_int_eq(e->initial, 2);
+	e = pwstream_get_entry(m, 0, 0);
+	ck_assert_int_eq(e->initial, 0);
+
+	/* Stream 1 contains the requested password and begins exactly at "bb". */
+	e = pwstream_get_entry(m, 1, 1);
+	ck_assert_int_eq(e->initial, 1);
+	e = pwstream_get_entry(m, 1, 0);
+	ck_assert_int_eq(e->initial, 1);
+
+	pwstream_free(m);
+}
+END_TEST
+
+START_TEST(skip_stream_before_initial_password)
+{
+	const size_t initial[] = { 2, 2 }; /* "cc" in pool "abc" */
+	struct pwstream *m;
+	const struct entry *e;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 3, 2, 2, initial), 0);
+
+	/* Stream 0 ends in 'a', so all of its passwords precede "cc". */
+	e = pwstream_get_entry(m, 0, 1);
+	ck_assert_int_eq(e->initial, e->stop + 1);
+
+	/* Stream 1 owns "cc" and starts there. */
+	e = pwstream_get_entry(m, 1, 1);
+	ck_assert_int_eq(e->initial, 2);
+	e = pwstream_get_entry(m, 1, 0);
+	ck_assert_int_eq(e->initial, 2);
+
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -289,7 +345,7 @@ END_TEST
   streams: 3
  */
 static const struct entry test_initial4[] = {
-	{0, 0, 0}, {0, 2, 1}, {0, 2, 0},
+	{0, 0, 0}, {0, 2, 2}, {0, 2, 0},
 	{1, 1, 1}, {0, 2, 1}, {0, 2, 0},
 	{2, 2, 2}, {0, 2, 1}, {0, 2, 0},
 };
@@ -307,7 +363,7 @@ END_TEST
   streams: 3
  */
 static const struct entry test_initial5[] = {
-	{0, 0, 0}, {0, 2, 1}, {0, 2, 1},
+	{0, 0, 0}, {0, 2, 2}, {0, 2, 1},
 	{1, 1, 1}, {0, 2, 1}, {0, 2, 1},
 	{2, 2, 2}, {0, 2, 1}, {0, 2, 1},
 };
@@ -325,7 +381,7 @@ END_TEST
   streams: 2
  */
 static const struct entry test_initial6[] = {
-	{0, 0, 0}, {0, 2, 0}, {0, 2, 0},
+	{0, 0, 0}, {0, 2, 1}, {0, 2, 0},
 	{1, 2, 2}, {0, 2, 0}, {0, 2, 0},
 };
 static const size_t initial6[] = {2, 0, 0};
@@ -342,7 +398,7 @@ END_TEST
   streams: 2
  */
 static const struct entry test_initial7[] = {
-	{0, 0, 0}, {0, 2, 2}, {0, 2, 0},
+	{0, 0, 0}, {0, 2, 0}, {0, 2, 1},
 	{1, 2, 2}, {0, 2, 2}, {0, 2, 0},
 };
 static const size_t initial7[] = {2, 2, 0};
@@ -518,6 +574,8 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, reject_invalid_generation_parameters);
 	tcase_add_test(tc_core, reject_overflowing_table_dimensions);
 	tcase_add_test(tc_core, preserve_state_after_allocation_failure);
+	tcase_add_test(tc_core, generate_lexicographic_initial_password);
+	tcase_add_test(tc_core, skip_stream_before_initial_password);
 	suite_add_tcase(s, tc_core);
 
 	return s;

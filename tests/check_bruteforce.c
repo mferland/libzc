@@ -208,6 +208,43 @@ START_TEST(test_bruteforce_stored_multicall)
 }
 END_TEST
 
+START_TEST(test_bruteforce_initial_password_boundary)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* Pool order is p < a < s.  The archive password is exactly the
+	 * requested initial password and must still be tested. */
+	strcpy(cfg.set, "pas");
+	cfg.maxlen = 4;
+	cfg.setlen = 3;
+	strcpy(cfg.initial, "pass");
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "pass");
+}
+END_TEST
+
+START_TEST(test_bruteforce_skips_password_before_initial)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* With pool order p < a < s, "saaa" is after "pass" because its
+	 * first character is greater.  The cracker must not retry "pass". */
+	strcpy(cfg.set, "pas");
+	cfg.maxlen = 4;
+	cfg.setlen = 3;
+	strcpy(cfg.initial, "saaa");
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+}
+END_TEST
+
 #define CANCEL_TESTS 10
 
 static void test_cancel(size_t threads)
@@ -297,6 +334,8 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_bruteforce_password_not_found_multicall);
 	tcase_add_test(tc_core, test_bruteforce_stored);
 	tcase_add_test(tc_core, test_bruteforce_stored_multicall);
+	tcase_add_test(tc_core, test_bruteforce_initial_password_boundary);
+	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
 	tcase_add_test(tc_core, test_bruteforce_pay);
 #ifdef EXTRACHECK

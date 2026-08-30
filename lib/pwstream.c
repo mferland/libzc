@@ -333,52 +333,107 @@ static void generate(struct pwstream *pws)
 	}
 }
 
-static bool is_before(const struct entry *e, int c)
-{
-	return (c < e->start);
-}
-
-static bool is_after(const struct entry *e, int c)
-{
-	return (c > e->stop);
-}
-
-static bool is_enclosed(const struct entry *e, int c)
-{
-	return !is_before(e, c) && !is_after(e, c);
-}
-
 /**
- * generate_initial_indexes - choose each worker's first index on every row
+ * generate_initial_indexes - choose each worker's first complete password
  * @pws: generated range table
  * @initial: requested starting index for each internal table row
  *
- * Range ownership never changes here.  Only entry.initial changes:
+ * Find the lexicographically smallest password in each worker's rectangular
+ * range that is greater than or equal to the requested password.  Natural
+ * password order is most-significant position first, while table rows are
+ * stored in reverse order.
  *
- *                    worker range
- *                  start---------stop
- *     request before   ^             -> initial=start
- *     request inside         ^       -> initial=request
- *     request after                    ^ -> initial=stop
+ * If matching the requested prefix becomes impossible, increment the nearest
+ * earlier position that still has room and reset the suffix to its starts.
+ * If no earlier position can be incremented, set the most-significant row's
+ * initial index past its stop value; the consumer's outer loop then skips
+ * this worker entirely.
  *
- * This allows every worker to begin as close as possible to the requested
- * password while remaining inside its assigned range.
+ * Example: pool "abc", password length 2, two workers.  Row 0 (the final
+ * character) is divided first:
+ *
+ *     worker 0 ranges: [a-c][a]  -> aa, ba, ca
+ *     worker 1 ranges: [a-c][b-c] -> ab, ac, bb, bc, cb, cc
+ *
+ * With requested initial password "bb":
+ *
+ *     worker 0: "ba" is too small and its final position cannot advance.
+ *               Carry into the first position and reset the suffix:
+ *               ba -> ca.  Worker 0 starts at "ca".
+ *
+ *     worker 1: both requested indexes are inside its ranges.
+ *               Worker 1 starts exactly at "bb".
+ *
+ * With requested initial password "cc", worker 0 has no candidate at or
+ * after the request.  Its outer initial index is set to stop + 1, while
+ * worker 1 starts exactly at "cc".
  */
 static void generate_initial_indexes(struct pwstream *pws,
 				     const size_t *initial)
 {
-	/* start/stop describe a worker's assigned range.  initial selects where
-	 * iteration begins inside that range.  If the requested starting index
-	 * is outside a worker's range, clamp it to the nearest boundary. */
-	for (size_t i = 0; i < pws->rows; ++i) {
-		for (size_t j = 0; j < pws->cols; ++j) {
-			struct entry *e = get(pws, i, j);
-			if (is_enclosed(e, initial[i]))
-				e->initial = initial[i];
-			else if (is_after(e, initial[i]))
-				e->initial = e->stop;
-			else
+	/* Each column is an independent rectangular password subspace. */
+	for (size_t col = 0; col < pws->cols; ++col) {
+		bool found = true;
+
+		/* Compare the requested password from its most-significant (leftmost)
+		 * position.  Convert natural position back to the reversed table row. */
+		for (size_t pos = 0; pos < pws->rows; ++pos) {
+			size_t row = pws->rows - pos - 1;
+			struct entry *e = get(pws, row, col);
+
+			/* The worker's lowest value is already greater than the request at
+			 * this position.  The prefix is now greater, so the smallest valid
+			 * suffix is simply the start of every remaining range. */
+			if (initial[row] < (size_t)e->start) {
 				e->initial = e->start;
+				for (++pos; pos < pws->rows; ++pos) {
+					row = pws->rows - pos - 1;
+					e = get(pws, row, col);
+					e->initial = e->start;
+				}
+				break;
+			}
+
+			/* Preserve an equal prefix for as long as the requested value is
+			 * contained in this worker's range. */
+			if (initial[row] <= (size_t)e->stop) {
+				e->initial = initial[row];
+				continue;
+			}
+
+			/* The requested value is above this range.  Walk left through the
+			 * already matched prefix and find the nearest position that can be
+			 * incremented, just like carrying in a mixed-radix counter. */
+			found = false;
+			while (pos > 0) {
+				--pos;
+				row = pws->rows - pos - 1;
+				e = get(pws, row, col);
+				if (initial[row] < (size_t)e->stop) {
+					e->initial = initial[row] + 1;
+					found = true;
+					break;
+				}
+			}
+
+			/* After carrying, reset every less-significant position to the
+			 * smallest value owned by this worker. */
+			if (found) {
+				for (++pos; pos < pws->rows; ++pos) {
+					row = pws->rows - pos - 1;
+					e = get(pws, row, col);
+					e->initial = e->start;
+				}
+			}
+			break;
+		}
+
+		/* No prefix position could be incremented: the worker's complete
+		 * subspace precedes the requested password.  An initial value beyond
+		 * the outermost stop makes the consumer's first loop empty. */
+		if (!found) {
+			struct entry *e = get(pws, pws->rows - 1, col);
+			e->initial = e->stop + 1;
 		}
 	}
 }
