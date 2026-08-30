@@ -208,6 +208,79 @@ START_TEST(test_bruteforce_stored_multicall)
 }
 END_TEST
 
+START_TEST(test_bruteforce_mask)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* The first candidate is "pbxx"; "pass" requires selecting the second
+	 * character from all three variable positions.  Multiple workers exercise
+	 * the complete parser -> pwstream -> candidate lookup path. */
+	cfg.mask.str = "p[ba][xs][xs]";
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "pass");
+}
+END_TEST
+
+static const char mask_options_password[] = "aA0!fF?\x80??";
+
+static void assert_mask_finds_options_password(const char *mask)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[sizeof(mask_options_password)];
+
+	cfg.mask.str = mask;
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "mask_options.zip",
+					      &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_mem_eq(out, mask_options_password,
+			 sizeof(mask_options_password));
+}
+
+START_TEST(test_bruteforce_mask_literals)
+{
+	/* Exercise ordinary literals plus both escaped '?' and a hexadecimal
+	 * byte escape. */
+	assert_mask_finds_options_password("aA0!fF\\?\\x80\\?\\?");
+}
+END_TEST
+
+static const char *const mask_range_cases[] = {
+	"[ba]A0!fF\\?\\x80\\?\\?",  /* explicit character list */
+	"[a-c]A0!fF\\?\\x80\\?\\?", /* lowercase range */
+	"a[A-C]0!fF\\?\\x80\\?\\?", /* uppercase range */
+	"aA[0-2]!fF\\?\\x80\\?\\?", /* numeric range */
+};
+
+START_TEST(test_bruteforce_mask_ranges)
+{
+	assert_mask_finds_options_password(mask_range_cases[_i]);
+}
+END_TEST
+
+static const char *const mask_placeholder_cases[] = {
+	"?lA0!fF\\?\\x80\\?\\?",    /* lowercase */
+	"a?u0!fF\\?\\x80\\?\\?",    /* uppercase */
+	"aA?d!fF\\?\\x80\\?\\?",    /* decimal digit */
+	"aA0?sfF\\?\\x80\\?\\?",    /* special character */
+	"aA0!fF?a\\x80\\?\\?",       /* printable ASCII */
+	"aA0!fF\\??B\\?\\?",          /* upper 8-bit range */
+	"aA0!fF\\??b\\?\\?",          /* every non-NUL byte */
+	"aA0!?hF\\?\\x80\\?\\?",    /* lowercase hexadecimal */
+	"aA0!f?H\\?\\x80\\?\\?",    /* uppercase hexadecimal */
+};
+
+START_TEST(test_bruteforce_mask_placeholders)
+{
+	assert_mask_finds_options_password(mask_placeholder_cases[_i]);
+}
+END_TEST
+
 START_TEST(test_bruteforce_initial_password_boundary)
 {
 	struct zc_crk_pwcfg cfg = {0};
@@ -334,6 +407,13 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_bruteforce_password_not_found_multicall);
 	tcase_add_test(tc_core, test_bruteforce_stored);
 	tcase_add_test(tc_core, test_bruteforce_stored_multicall);
+	tcase_add_test(tc_core, test_bruteforce_mask);
+	tcase_add_test(tc_core, test_bruteforce_mask_literals);
+	tcase_add_loop_test(tc_core, test_bruteforce_mask_ranges, 0,
+			    sizeof(mask_range_cases) / sizeof(mask_range_cases[0]));
+	tcase_add_loop_test(tc_core, test_bruteforce_mask_placeholders, 0,
+			    sizeof(mask_placeholder_cases) /
+			    sizeof(mask_placeholder_cases[0]));
 	tcase_add_test(tc_core, test_bruteforce_initial_password_boundary);
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_thread_cancellation);

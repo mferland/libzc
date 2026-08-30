@@ -28,6 +28,7 @@ check_PROGRAMS = basic \
 AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(srcdir)/"' @CPPFLAGS@
 
 EXTRA_DIST = noradi.zip \
+	mask_options.zip \
 	pay.zip \
 	pw.txt \
 	stored.zip \
