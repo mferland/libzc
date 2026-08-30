@@ -664,7 +664,10 @@ static int alloc_first_pwstream(struct pwstream **pws, const char *ipw,
 		return -1;
 
 	fill_initial_pwstream(initial, ipw, ipwlen, set, setlen);
-	pwstream_generate_from_pool(tmp, setlen, ipwlen, workers, initial);
+	if (pwstream_generate_from_pool(tmp, setlen, ipwlen, workers, initial)) {
+		pwstream_free(tmp);
+		return -1;
+	}
 
 	*pws = tmp;
 
@@ -697,8 +700,11 @@ static int alloc_pwstream_pool(struct zc_crk_bforce *crk, size_t workers)
 			return -1;
 		}
 		crk->pwslen++;
-		pwstream_generate_from_pool(crk->pws[i], setlen, ipwlen + i, workers,
-					    NULL);
+		if (pwstream_generate_from_pool(crk->pws[i], setlen, ipwlen + i,
+						workers, NULL)) {
+			dealloc_pwstreams(crk);
+			return -1;
+		}
 	}
 
 	return 0;
