@@ -321,6 +321,19 @@ START_TEST(mask_initial_uses_natural_order)
 }
 END_TEST
 
+START_TEST(cap_large_pool_at_requested_streams)
+{
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 257, 8, 7, NULL), 0);
+	ck_assert_int_eq(pwstream_get_stream_count(m), 7);
+	for (size_t stream = 0; stream < 7; ++stream)
+		ck_assert(!pwstream_is_empty(m, stream));
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -595,6 +608,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_lexicographic_initial_password);
 	tcase_add_test(tc_core, skip_stream_before_initial_password);
 	tcase_add_test(tc_core, mask_initial_uses_natural_order);
+	tcase_add_test(tc_core, cap_large_pool_at_requested_streams);
 	suite_add_tcase(s, tc_core);
 
 	return s;

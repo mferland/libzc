@@ -16,7 +16,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -450,17 +449,20 @@ static void generate_initial_indexes(struct pwstream *pws,
  */
 static size_t ceil_streams_pool(size_t pool_len, size_t pw_len, size_t streams)
 {
-	/* Creating more table columns than possible passwords would produce
-	 * empty workers.  Allocate only min(requested streams, permutations). */
-	long double permut = powl((long double)pool_len, (long double)pw_len);
-	if (permut == HUGE_VALL)
-		/* assume we won't ever have more than HUGE_VAL streams */
-		return streams;
-	else if (permut < (long double)streams)
-		/* more streams than permutations, return the number
-		 * of permutations */
-		return (size_t)permut;
-	return streams;
+	size_t permutations = 1;
+
+	/* Only the comparison with streams matters.  Stop multiplying as soon
+	 * as the search space reaches that count, avoiding both integer overflow
+	 * and floating-point rounding for large password spaces. */
+	for (size_t i = 0; i < pw_len; ++i) {
+		if (permutations >= streams)
+			return streams;
+		if (pool_len > streams / permutations)
+			return streams;
+		permutations *= pool_len;
+	}
+
+	return permutations;
 }
 
 static u128 u128_mul_overflow(u128 a, u128 b)
