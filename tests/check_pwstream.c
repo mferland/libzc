@@ -17,6 +17,7 @@
  */
 
 #include <check.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -204,6 +205,24 @@ START_TEST(reject_invalid_generation_parameters)
 	ck_assert_int_eq(pwstream_generate_from_mask(m, null_position, 2, 2, NULL), -1);
 
 	/* Invalid regeneration attempts must not destroy the previous table. */
+	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
+	ck_assert(!pwstream_is_empty(m, 0));
+	pwstream_free(m);
+}
+END_TEST
+
+START_TEST(reject_overflowing_table_dimensions)
+{
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 2, NULL), 0);
+
+	/* SIZE_MAX columns times two rows would wrap the entry count. */
+	ck_assert_int_eq(pwstream_generate_from_pool(m, SIZE_MAX, 2,
+						       SIZE_MAX, NULL), -1);
+
+	/* Overflow is rejected before the previous valid table is released. */
 	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
 	ck_assert(!pwstream_is_empty(m, 0));
 	pwstream_free(m);
@@ -479,6 +498,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, regenerate_mixed_mask);
 	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
 	tcase_add_test(tc_core, reject_invalid_generation_parameters);
+	tcase_add_test(tc_core, reject_overflowing_table_dimensions);
 	suite_add_tcase(s, tc_core);
 
 	return s;

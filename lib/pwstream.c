@@ -415,6 +415,15 @@ static u128 u128_mul_overflow(u128 a, u128 b)
 	return (a * b);
 }
 
+/* Return true instead of allowing an allocation element count to wrap. */
+static bool size_mul_overflow(size_t a, size_t b, size_t *result)
+{
+	if (a && b > SIZE_MAX / a)
+		return true;
+	*result = a * b;
+	return false;
+}
+
 /**
  * ceil_streams_mask - mixed-radix equivalent of ceil_streams_pool
  *
@@ -496,8 +505,19 @@ void pwstream_free(struct pwstream *pws)
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial)
 {
+	size_t tmp_size;
+	size_t entry_count;
+	size_t cstrm;
+
 	/* Reject invalid dimensions before releasing an existing table. */
 	if (!pws || !pool_len || !pw_len || !streams)
+		return -1;
+	cstrm = ceil_streams_pool(pool_len, pw_len, streams);
+	if (size_mul_overflow(cstrm, pw_len, &entry_count))
+		return -1;
+	if (size_mul_overflow(entry_count, sizeof(struct entry), &tmp_size))
+		return -1;
+	if (size_mul_overflow(pw_len, sizeof(size_t), &tmp_size))
 		return -1;
 
 	/* Pool mode is the uniform-radix case: every password position indexes
@@ -507,9 +527,7 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	if (pws->chars_at_idx)
 		free(pws->chars_at_idx);
 
-	size_t cstrm = ceil_streams_pool(pool_len, pw_len, streams);
-
-	pws->entry = calloc(cstrm * pw_len, sizeof(struct entry));
+	pws->entry = calloc(entry_count, sizeof(struct entry));
 	if (!pws->entry)
 		return -1;
 
@@ -554,6 +572,10 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t parsed_mask_len,
 				size_t streams, const size_t *initial)
 {
+	size_t tmp_size;
+	size_t entry_count;
+	size_t cstrm;
+
 	(void)initial;
 	/* parsed_mask is supplied in natural left-to-right password order.  The
 	 * table uses the reverse order, so copy only the alphabet lengths and
@@ -567,16 +589,20 @@ int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t
 		if (!parsed_mask[i] || !parsed_mask[i][0])
 			return -1;
 	}
+	cstrm = ceil_streams_mask(parsed_mask, parsed_mask_len, streams);
+	if (size_mul_overflow(cstrm, parsed_mask_len, &entry_count))
+		return -1;
+	if (size_mul_overflow(entry_count, sizeof(struct entry), &tmp_size))
+		return -1;
+	if (size_mul_overflow(parsed_mask_len, sizeof(size_t), &tmp_size))
+		return -1;
 
 	if (pws->entry)
 		free(pws->entry);
 	if (pws->chars_at_idx)
 		free(pws->chars_at_idx);
 
-	size_t cstrm = ceil_streams_mask(parsed_mask, parsed_mask_len,
-					 streams);
-
-	pws->entry = calloc(cstrm * parsed_mask_len, sizeof(struct entry));
+	pws->entry = calloc(entry_count, sizeof(struct entry));
 	if (!pws->entry)
 		return -1;
 
