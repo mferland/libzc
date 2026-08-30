@@ -69,7 +69,7 @@ START_TEST(generate_test_initial1)
 }
 END_TEST
 
-static void assert_mixed_mask_coverage(char **mask, size_t len,
+static void assert_mixed_mask_coverage(const char *const *mask, size_t len,
 					 size_t streams)
 {
 	struct pwstream *m;
@@ -109,7 +109,7 @@ static void assert_mixed_mask_coverage(char **mask, size_t len,
 
 START_TEST(generate_mixed_mask_coverage)
 {
-	char *mask[] = { "ab", "cde", "xy" };
+	const char *const mask[] = { "ab", "cde", "xy" };
 	assert_mixed_mask_coverage(mask, 3, 1);
 	assert_mixed_mask_coverage(mask, 3, 2);
 	assert_mixed_mask_coverage(mask, 3, 4);
@@ -120,8 +120,8 @@ END_TEST
 
 START_TEST(generate_literal_mask_and_initial)
 {
-	char *literal[] = { "a", "b", "c" };
-	char *mask[] = { "ab", "cde", "xy" };
+	const char *const literal[] = { "a", "b", "c" };
+	const char *const mask[] = { "ab", "cde", "xy" };
 	const size_t initial[] = { 1, 2, 1 };
 	struct pwstream *m;
 
@@ -153,8 +153,8 @@ END_TEST
 
 START_TEST(regenerate_mixed_mask)
 {
-	char *first[] = { "ab", "cde", "xy" };
-	char *second[] = { "a", "bc", "def" };
+	const char *const first[] = { "ab", "cde", "xy" };
+	const char *const second[] = { "a", "bc", "def" };
 	struct pwstream *m;
 
 	ck_assert_int_eq(pwstream_new(&m), 0);
@@ -169,7 +169,7 @@ END_TEST
  * recurse() must stop there instead of constructing a pointer to row 3. */
 START_TEST(generate_recursion_stops_at_last_row)
 {
-	char *mask[] = { "ab", "cd", "xy" };
+	const char *const mask[] = { "ab", "cd", "xy" };
 	struct pwstream *m;
 
 	ck_assert_int_eq(pwstream_new(&m), 0);
@@ -189,9 +189,9 @@ END_TEST
 
 START_TEST(reject_invalid_generation_parameters)
 {
-	char *valid_mask[] = { "ab", "cd" };
-	char *empty_position[] = { "ab", "" };
-	char *null_position[] = { "ab", NULL };
+	const char *const valid_mask[] = { "ab", "cd" };
+	const char *const empty_position[] = { "ab", "" };
+	const char *const null_position[] = { "ab", NULL };
 	struct pwstream *m;
 
 	ck_assert_int_eq(pwstream_new(NULL), -1);
@@ -305,7 +305,7 @@ END_TEST
 
 START_TEST(mask_initial_uses_natural_order)
 {
-	char *mask[] = { "ab", "xyz", "01" };
+	const char *const mask[] = { "ab", "xyz", "01" };
 	const size_t initial[] = { 1, 2, 0 }; /* "bz0" */
 	struct pwstream *m;
 
@@ -337,7 +337,7 @@ END_TEST
 START_TEST(cap_large_mask_at_requested_streams)
 {
 	char alphabet[18];
-	char *mask[16];
+	const char *mask[16];
 	struct pwstream *m;
 
 	memset(alphabet, 'a', sizeof(alphabet) - 1);

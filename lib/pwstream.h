@@ -38,7 +38,8 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial);
 
 /* parsed_mask and initial both use natural left-to-right password order. */
-int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask,
+int pwstream_generate_from_mask(struct pwstream *pws,
+				const char *const *parsed_mask,
 				size_t parsed_mask_len,
 				size_t streams, const size_t *initial);
 

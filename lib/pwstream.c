@@ -478,7 +478,8 @@ static bool size_mul_overflow(size_t a, size_t b, size_t *result)
  * candidates.  Counting stops at the requested number of workers because
  * the exact search-space size is irrelevant once it reaches that value.
  */
-static size_t ceil_streams_mask(char **parsed_mask, size_t parsed_mask_len, size_t streams)
+static size_t ceil_streams_mask(const char *const *parsed_mask,
+				size_t parsed_mask_len, size_t streams)
 {
 	size_t permutations = 1;
 
@@ -609,8 +610,10 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
  *
  * The remaining setup and partitioning steps are identical to pool mode.
  */
-int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t parsed_mask_len,
-				size_t streams, const size_t *initial)
+int pwstream_generate_from_mask(struct pwstream *pws,
+				const char *const *parsed_mask,
+				size_t parsed_mask_len, size_t streams,
+				const size_t *initial)
 {
 	struct entry *new_entry;
 	size_t *new_chars_at_idx;

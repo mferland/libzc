@@ -840,6 +840,10 @@ static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 		crk->pwslen++;
 	}
 
+	/* bforce owns mutable masks so it can resize and eventually free them.
+	 * pwstream only borrows a read-only view; C requires the nested const
+	 * qualification to be made explicit at that ownership boundary. */
+
 	/* create truncated variations if needed */
 	if (crk->mask_minlen < crk->parsed_mask_len) {
 		copy = copy_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
@@ -850,13 +854,15 @@ static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 			 * initial password here, only use initial
 			 * password when neither min and max are
 			 * set. */
-			pwstream_generate_from_mask(crk->pws[c++], copy, i, workers, NULL);
+			pwstream_generate_from_mask(crk->pws[c++],
+						    (const char *const *)copy,
+						    i, workers, NULL);
 		}
 	}
 
 	/* create unmodified stream */
 	pwstream_generate_from_mask(crk->pws[c++],
-				    crk->parsed_mask,
+				    (const char *const *)crk->parsed_mask,
 				    crk->parsed_mask_len,
 				    workers,
 				    NULL);
@@ -867,7 +873,9 @@ static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 		i = crk->parsed_mask_len;
 		while (i < crk->mask_maxlen) {
 			stretch_mask(copy, &i);
-			pwstream_generate_from_mask(crk->pws[c++], copy, i, workers, NULL);
+			pwstream_generate_from_mask(crk->pws[c++],
+						    (const char *const *)copy,
+						    i, workers, NULL);
 		}
 	}
 
