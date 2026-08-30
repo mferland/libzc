@@ -639,6 +639,18 @@ static void fill_initial_pwstream(size_t *initial, const char *ipw,
 		initial[i] = (const char *)memchr(set, ipw[i], setlen) - set;
 }
 
+static void fill_initial_pwstream_mask(size_t *initial, const char *ipw,
+				       size_t ipwlen,
+				       const char *const *parsed_mask)
+{
+	for (size_t i = 0; i < ipwlen; ++i) {
+		const char *alphabet = parsed_mask[i];
+
+		initial[i] = (const char *)memchr(alphabet, ipw[i],
+						    strlen(alphabet)) - alphabet;
+	}
+}
+
 /* when generating the first streams, take into account the
  * initial password provided */
 static int alloc_first_pwstream(struct pwstream **pws, const char *ipw,
@@ -738,6 +750,10 @@ static void free_parsed_mask(char **parsed_mask, size_t parsed_mask_len)
 static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 {
 	size_t to_alloc = crk->mask_maxlen - crk->mask_minlen + 1;
+	size_t initial[crk->mask_minlen];
+
+	fill_initial_pwstream_mask(initial, crk->ipw, crk->ipwlen,
+				   (const char *const *)crk->parsed_mask);
 
 	crk->pws = calloc(to_alloc, sizeof(struct pwstream *));
 	if (!crk->pws)
@@ -757,7 +773,8 @@ static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 		 * pwstream use the prefix corresponding to this password length. */
 		if (pwstream_generate_from_mask(crk->pws[stream],
 						(const char *const *)crk->parsed_mask,
-						len, workers, NULL)) {
+						len, workers,
+						stream == 0 ? initial : NULL)) {
 			dealloc_pwstreams(crk);
 			return -1;
 		}

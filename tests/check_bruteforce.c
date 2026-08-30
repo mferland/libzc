@@ -342,6 +342,23 @@ START_TEST(test_bruteforce_skips_password_before_initial)
 }
 END_TEST
 
+START_TEST(test_bruteforce_mask_skips_password_before_initial)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* "pass" precedes "saaa" in this mask's mixed-radix order.  Starting
+	 * from the requested initial password must therefore skip the archive
+	 * password rather than eventually finding it. */
+	cfg.mask.str = "[ps][ab][as][as]";
+	strcpy(cfg.initial, "saaa");
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+}
+END_TEST
+
 #define CANCEL_TESTS 10
 
 static void test_cancel(size_t threads)
@@ -443,6 +460,7 @@ Suite *bforce_suite(void)
 			    sizeof(mask_maxlen_cases[0]));
 	tcase_add_test(tc_core, test_bruteforce_initial_password_boundary);
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
+	tcase_add_test(tc_core, test_bruteforce_mask_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
 	tcase_add_test(tc_core, test_bruteforce_pay);
 #ifdef EXTRACHECK
