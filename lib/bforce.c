@@ -27,6 +27,7 @@
 #include "libzc_private.h"
 #include "list.h"
 #include "pwstream.h"
+#include "mask_parser.h"
 
 /* The length here refers to the length of the 'candidate' field. */
 #define LEN 64UL
@@ -56,6 +57,12 @@ struct zc_crk_bforce {
 	/* character set */
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
+
+	/* parsed mask */
+	char **parsed_mask;
+	size_t parsed_mask_len;
+	size_t mask_minlen;
+	size_t mask_maxlen;
 
 	/* password streams */
 	struct pwstream **pws;
@@ -96,6 +103,14 @@ struct worker {
 	struct zc_crk_bforce *crk;
 };
 
+static inline unsigned char candidate_char(const struct zc_crk_bforce *crk,
+					   size_t pos, int index)
+{
+	if (crk->parsed_mask_len)
+		return (unsigned char)crk->parsed_mask[pos][index];
+	return (unsigned char)crk->set[index];
+}
+
 static size_t uniq(char *str, size_t len)
 {
 	if (len <= 1)
@@ -129,6 +144,20 @@ static bool pw_in_set(const char *pw, const char *set, size_t len)
 		if (!memchr(set, pw[i], len))
 			return false;
 	}
+	return true;
+}
+
+static bool pw_in_mask(const char *pw, char **parsed, size_t len)
+{
+	if (strlen(pw) != len)
+		return false;
+
+	for (size_t i = 0; i < len; ++i) {
+		/* make sure character is present */
+		if (!memchr(parsed[i], pw[i], strlen(parsed[i])))
+			return false;
+	}
+
 	return true;
 }
 
@@ -166,11 +195,11 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 
 	if (level == 1) {
 		for (int p = first; p < last; ++p) {
-			update_keys(crk->set[p], &cache[level_count - 1],
+			update_keys(candidate_char(crk, level_count - 1, p), &cache[level_count - 1],
 				    &cache[level_count]);
 			if (try_decrypt(crk, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
-					pw[level_count - 1] = crk->set[p];
+					pw[level_count - 1] = candidate_char(crk, level_count - 1, p);
 					w->found = true;
 					pthread_exit(w);
 				}
@@ -179,7 +208,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 	} else {
 		size_t i = level_count - level;
 		for (int p = first; p < last; ++p) {
-			pw[i] = crk->set[p];
+			pw[i] = candidate_char(crk, i, p);
 			update_keys(pw[i], &cache[i], &cache[i + 1]);
 			do_work_recurse(w, level - 1, level_count, pw, cache,
 					&limit[1]);
@@ -320,17 +349,17 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		}
 
 		for (p[0] = first[0]; p[0] < last[0]; ++p[0]) {
-			update_keys(crk->set[p[0]], &cache[0], &cache[1]);
+				update_keys(candidate_char(crk, level_count - 6, p[0]), &cache[0], &cache[1]);
 			for (p[1] = first[1]; p[1] < last[1]; ++p[1]) {
-				update_keys(crk->set[p[1]], &cache[1], &cache[2]);
+					update_keys(candidate_char(crk, level_count - 5, p[1]), &cache[1], &cache[2]);
 				for (p[2] = first[2]; p[2] < last[2]; ++p[2]) {
-					update_keys(crk->set[p[2]], &cache[2], &cache[3]);
+						update_keys(candidate_char(crk, level_count - 4, p[2]), &cache[2], &cache[3]);
 					for (p[3] = first[3]; p[3] < last[3]; ++p[3]) {
-						update_keys(crk->set[p[3]], &cache[3], &cache[4]);
+							update_keys(candidate_char(crk, level_count - 3, p[3]), &cache[3], &cache[4]);
 						for (p[4] = first[4]; p[4] < last[4]; ++p[4]) {
-							update_keys(crk->set[p[4]], &cache[4], &cache[5]);
+								update_keys(candidate_char(crk, level_count - 2, p[4]), &cache[4], &cache[5]);
 							for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
-								update_keys(crk->set[p[5]], &cache[5], &cache[6]);
+									update_keys(candidate_char(crk, level_count - 1, p[5]), &cache[5], &cache[6]);
 
 								/* save password hashes */
 								w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
@@ -356,7 +385,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								pwi = pwi - (LEN - 1 - ret) - 1;
 								indexes_from_raw_counter(pwi, in, out);
 								for (int i = 0; i < 6; ++i)
-									pw[i] = crk->set[out[i] + first[i]];
+					pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
 
 								w->found = true;
 								pthread_exit(w);
@@ -381,7 +410,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		pwi = pwi - ((pwi % LEN) - 1 - ret) - 1;
 		indexes_from_raw_counter(pwi, in, out);
 		for (int i = 0; i < 6; ++i)
-			pw[i] = crk->set[out[i] + first[i]];
+			pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
 
 		w->found = true;
 		pthread_exit(w);
@@ -389,7 +418,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		int first = limit[0].initial;
 		int last = limit[0].stop + 1;
 		for (int p = first; p < last; ++p) {
-			pw[0] = crk->set[p];
+		pw[0] = candidate_char(crk, level_count - level, p);
 			update_keys(pw[0], &cache[0], &cache[1]);
 			do_work_recurse2(w, level - 1, level_count, &pw[1],
 					 &cache[1], &limit[1]);
@@ -621,14 +650,14 @@ static int alloc_first_pwstream(struct pwstream **pws, const char *ipw,
 		return -1;
 
 	fill_initial_pwstream(initial, ipw, ipwlen, set, setlen);
-	pwstream_generate(tmp, setlen, ipwlen, workers, initial);
+	pwstream_generate_from_pool(tmp, setlen, ipwlen, workers, initial);
 
 	*pws = tmp;
 
 	return 0;
 }
 
-static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
+static int alloc_pwstream_pool(struct zc_crk_bforce *crk, size_t workers)
 {
 	const char *ipw = crk->ipw;
 	size_t ipwlen = crk->ipwlen;
@@ -654,11 +683,202 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 			return -1;
 		}
 		crk->pwslen++;
-		pwstream_generate(crk->pws[i], setlen, ipwlen + i, workers,
+		pwstream_generate_from_pool(crk->pws[i], setlen, ipwlen + i, workers,
 				  NULL);
 	}
 
 	return 0;
+}
+
+/*
+ * Stretch mask by 1.
+ *
+ *  1. If last mask position is a range, we repeat that.
+ *     word?d --> word?d?d
+ *
+ *  2. Otherwise if there is any range, we repeat the *first* one.
+ *     ?dword --> ?d?dword
+ *     pass?dword --> pass?d?dword
+ *
+ *  3. Last resort, we just repeat the last character.
+ *     pass --> passs
+ *
+ * This function does a single strech, each time you call it, it'll
+ * stretch once more.
+ */
+static int stretch_mask(char **parsed, size_t *in_len)
+{
+	size_t len = *in_len;
+	size_t last_len = strlen(parsed[len - 1]);
+	char **tmp;
+
+	/* 1 */
+	if (last_len > 1) {
+		/* repeat last position once */
+		tmp = reallocarray(parsed, len + 1, sizeof(char *));
+		if (!tmp)
+			return -1;
+		parsed = tmp;
+		/* make two last positions point to the same range */
+		parsed[len] = parsed[len - 1];
+		*in_len += 1;
+		return 0;
+	}
+
+	/* 2 */
+	for (size_t i = 0; i < len; ++i) {
+		size_t chars_at_pos = strlen(parsed[i]);
+		if (chars_at_pos > 1) {
+			tmp = reallocarray(parsed, len + 1, sizeof(char *));
+			if (!tmp)
+				return -1;
+			parsed = tmp;
+			/* repeat first range (index == i), after this
+			 * loop both position point to the same range */
+			for (size_t j = len; j > i; --j)
+				parsed[j] = parsed[j - 1];
+			*in_len += 1;
+			return 0;
+		}
+	}
+
+	/* 3 */
+	parsed = reallocarray(parsed, len + 1, sizeof(char *));
+	parsed[len] = parsed[len - 1];
+	*in_len += 1;
+	return 0;
+}
+
+/*
+ * Truncate mask by 1.
+ *
+ * 1. If mask length is <=1, return mask without changes.
+ *    ?d --> ?d
+ *
+ * 2. If mask length is >1, drop the last position without reallocating
+ *    memory. Just dealloc the last
+ *    wor?d --> wor
+ *    wor?d?d --> word?
+ */
+static int truncate_mask(char **parsed, size_t *in_len)
+{
+	size_t len;
+
+	/* 1 */
+	if (*in_len <= 0)
+		return 0;	/* nothing to do */
+
+	/* 2 */
+	len = *in_len - 1;
+	free(parsed[len]);
+	parsed[len] = NULL;
+	*in_len = len;
+	return 0;
+}
+
+static char ** copy_parsed_mask(char **in_parsed_mask, size_t in_parsed_mask_len)
+{
+	char **out;
+	size_t i = 0;
+
+	out = calloc(in_parsed_mask_len, sizeof(char *));
+	if (!out)
+		return NULL;
+
+	for (; i < in_parsed_mask_len; ++i) {
+		if (in_parsed_mask[i]) {
+			char *t = strdup(in_parsed_mask[i]);
+			if (!t)
+				goto err;
+			out[i] = t;
+		}
+	}
+
+	return out;
+
+err:
+	while (i)
+		free(out[--i]);
+	free(out);
+	return NULL;
+}
+
+static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
+{
+	/* const char *ipw = crk->ipw; */
+	/* size_t ipwlen = crk->ipwlen; */
+	size_t to_alloc;
+	char **copy;
+	size_t i, c = 0;
+
+	if (crk->mask_maxlen > 0 && crk->mask_minlen > 0)
+		/* both min and max are set */
+		to_alloc = crk->mask_maxlen - crk->mask_minlen + 1;
+	else if (crk->mask_maxlen > 0 && !crk->mask_minlen)
+		/* only maxlen is set */
+		to_alloc = crk->mask_maxlen - crk->parsed_mask_len + 1;
+	else if (!crk->mask_maxlen && !crk->mask_minlen)
+		/* only minlen is set */
+		to_alloc = crk->parsed_mask_len - crk->mask_minlen + 1;
+	else
+		/* neither min and max are set */
+		to_alloc = 1;
+
+	crk->pws = calloc(to_alloc, sizeof(struct pwstream *));
+	if (!crk->pws)
+		return -1;
+
+	/* TODO: handle initial password in pwstream first
+	 * generation */
+
+	crk->pwslen = 0;
+	for (size_t i = 0; i < to_alloc; ++i) {
+		if (pwstream_new(&crk->pws[i])) {
+			dealloc_pwstreams(crk);
+			return -1;
+		}
+		crk->pwslen++;
+	}
+
+	/* create truncated variations if needed */
+	if (crk->mask_minlen < crk->parsed_mask_len) {
+		copy = copy_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
+		i = crk->parsed_mask_len;
+		while (i >= crk->mask_minlen) {
+			truncate_mask(copy, &i);
+			/* TODO: i dont think we should process
+			 * initial password here, only use initial
+			 * password when neither min and max are
+			 * set. */
+			pwstream_generate_from_mask(crk->pws[c++], copy, i, workers, NULL);
+		}
+	}
+
+	/* create unmodified stream */
+	pwstream_generate_from_mask(crk->pws[c++],
+				    crk->parsed_mask,
+				    crk->parsed_mask_len,
+				    workers,
+				    NULL);
+
+	/* create stretched variations if needed */
+	if (crk->mask_maxlen > 0) {
+		copy = copy_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
+		i = crk->parsed_mask_len;
+		while (i < crk->mask_maxlen) {
+			stretch_mask(copy, &i);
+			pwstream_generate_from_mask(crk->pws[c++], copy, i, workers, NULL);
+		}
+	}
+
+	return 0;
+}
+
+static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
+{
+	if (crk->parsed_mask_len)
+		return alloc_pwstream_mask(crk, workers);
+	return alloc_pwstream_pool(crk, workers);
 }
 
 static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
@@ -666,26 +886,58 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 	if (cfg->mask.str) {
 		/* use mask */
 		char **parsed;
-		int err;
+		int ret;
 
 		/* basic sanity checks */
-		if (cfg->mask.minlen > 1 && cfg->mask.minlen > cfg->mask.maxlen)
+		if (cfg->mask.minlen > 0 && cfg->mask.minlen > cfg->mask.maxlen)
 			return -1;
 
-		/* TODO: handle minlen and maxlen */
-
-		err = parse_mask(cfg->mask.str, &parsed);
-		if (err < 0) {
+		ret = parse_mask(cfg->mask.str, &parsed);
+		if (ret <= 0) {
 			err(crk->ctx, "mask parsing failed!\n");
 			return -1;
 		}
+
+		crk->parsed_mask = parsed;
+		crk->parsed_mask_len = ret;
+		crk->mask_minlen = cfg->mask.minlen ? cfg->mask.minlen : (size_t)ret;
+		crk->mask_maxlen = cfg->mask.maxlen ? cfg->mask.maxlen : (size_t)ret;
+		if (crk->mask_minlen > (size_t)ret || crk->mask_maxlen < (size_t)ret ||
+		    crk->mask_minlen > crk->mask_maxlen)
+			return -1;
+
+		memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+		crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+
+		if (!crk->ipwlen) {
+			/*
+			 * no initial password supplied, use first
+			 * character of each mask position.
+			 */
+			size_t i;
+			for (i = 0; i < crk->parsed_mask_len; ++i)
+				crk->ipw[i] = crk->parsed_mask[i][0];
+			crk->ipw[i] = '\0';
+			crk->ipwlen = crk->parsed_mask_len;
+		}
+
+		/* Initial password should have the same length as the
+		   minimum mask length. */
+		if (cfg->mask.minlen && crk->ipwlen != cfg->mask.minlen) {
+			err(crk->ctx, "initial password length (%lu) different from minimum mask length (%lu)\n",
+			    crk->ipwlen,
+			    cfg->mask.minlen);
+			return -1;
+		}
+
+		if (!pw_in_mask(crk->ipw, crk->parsed_mask, crk->parsed_mask_len))
+			return -1;
 
 #ifdef DEBUG
 		for (int i = 0; i < err; ++i)
 			printf("%d: %s\n", parsed[i]);
 #endif
 
-		
 	} else {
 		/* use character set */
 
@@ -818,6 +1070,11 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 		free(crk->filename);
 	if (crk->cipher)
 		free(crk->cipher);
+	if (crk->parsed_mask) {
+		for (size_t i = 0; i < crk->parsed_mask_len; ++i)
+			free(crk->parsed_mask[i]);
+		free(crk->parsed_mask);
+	}
 	pthread_cond_destroy(&crk->cond);
 	pthread_mutex_destroy(&crk->mutex);
 	free(crk);

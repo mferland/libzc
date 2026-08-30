@@ -18,12 +18,17 @@
 
 #include <math.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libzc_private.h"
 #include "pwstream.h"
 
 static const struct entry null_entry = { -1, -1, -1 };
+
+typedef __uint128_t u128;
+#define UINT128_MAX (( __uint128_t) -1)
 
 /*
  This algorithm distributes a pool of characters to 'n' password
@@ -65,7 +70,7 @@ struct pwstream {
 	size_t rows;
 	size_t cols;
 	size_t real_cols;
-	size_t plen;
+	size_t *chars_at_idx;
 };
 
 static int compare_entries(const void *a, const void *b)
@@ -159,12 +164,32 @@ static bool is_equal_entries(const struct entry *e1, const struct entry *e2)
 /**
  * Initialize entry table with default values.
  */
-static void entry_table_init(struct pwstream *t, int start, int stop)
+static void entry_table_init(struct pwstream *t, size_t start, const size_t *stop)
 {
-	for (size_t i = 0; i < t->rows * t->cols; ++i) {
-		t->entry[i].start = start;
-		t->entry[i].stop = stop;
-		t->entry[i].initial = start;
+	/*
+	 * The default stop values are taken from the chars_at_idx
+	 * array. Each entry in this array corresponds to the number
+	 * of characters we have to test.
+	 *
+	 * Example for a pool of 3 characters:
+	 * +---+---+---+---+---+
+	 * | 3 | 3 | 3 |...| 3 |
+	 * +---+---+---+---+---+
+	 *
+	 * Example for mask "abc?d":
+	 * +---+---+---+----+
+	 * | 1 | 1 | 1 | 10 |
+	 * +---+---+---+----+
+	 *
+	 */
+
+	for (size_t row = 0; row < t->rows; ++row) {
+		for (size_t col = 0; col < t->cols; ++col) {
+			struct entry *entry = get(t, row, col);
+			entry->start = start;
+			entry->stop = stop[row] - 1;
+			entry->initial = start;
+		}
 	}
 }
 
@@ -197,30 +222,30 @@ static size_t uniq_from_entry(const struct entry *e, size_t len)
 	return count;
 }
 
-static void recurse(struct pwstream *t, size_t count, struct entry *e)
+static void recurse(struct pwstream *pws, size_t row, size_t count, struct entry *e)
 {
-	if (count == 1)
+	if (count == 1 || row >= pws->rows)
 		return;
 
-	distribute(t->plen, count, e);
+	distribute(pws->chars_at_idx[row], count, e);
 
 	size_t u = 0;
 	for (size_t i = 0; i < count; i += u) {
 		u = uniq_from_entry(&e[i], count - i);
-		recurse(t, u, &e[i + t->cols]);
+		recurse(pws, row + 1, u, &e[i + pws->cols]);
 	}
 }
 
 static void generate(struct pwstream *pws)
 {
 	/* do a first distribution for character 0 */
-	distribute(pws->plen, pws->cols, pws->entry);
+	distribute(pws->chars_at_idx[0], pws->cols, pws->entry);
 
 	/* generate the remaining entries */
 	for (size_t i = 0, u = 0; i < pws->cols; i += u) {
 		u = uniq(pws, 0, &pws->entry[i]);
 		if (u > 1)
-			recurse(pws, u, get(pws, 1, i));
+			recurse(pws, 1, u, get(pws, 1, i));
 	}
 }
 
@@ -255,13 +280,53 @@ static void generate_initial_indexes(struct pwstream *pws,
 	}
 }
 
-static size_t ceil_streams(size_t pool_len, size_t pw_len, size_t streams)
+static size_t ceil_streams_pool(size_t pool_len, size_t pw_len, size_t streams)
 {
 	long double permut = powl((long double)pool_len, (long double)pw_len);
 	if (permut == HUGE_VALL)
 		/* assume we won't ever have more than HUGE_VAL streams */
 		return streams;
 	else if (permut < (long double)streams)
+		/* more streams than permutations, return the number
+		 * of permutations */
+		return (size_t)permut;
+	return streams;
+}
+
+static u128 u128_mul_overflow(u128 a, u128 b)
+{
+	if (!a || !b)
+		return 0;
+	if (a > UINT128_MAX / b)
+		return UINT128_MAX; /* overflow */
+	return (a * b);
+}
+
+static size_t ceil_streams_mask(char **parsed_mask, size_t parsed_mask_len, size_t streams)
+{
+	size_t len, i;
+	u128 permut = 1;
+
+	for (i = 0; i < parsed_mask_len; ++i) {
+		if (!parsed_mask[i]) {
+			printf("ERROR: ceil_streams_mask()\n");
+			break;
+		}
+		len = strlen(parsed_mask[i]);
+		permut = u128_mul_overflow(permut, len);
+	}
+
+	if (permut == UINT128_MAX)
+		/*
+		 * assume we won't ever have more than UINT128_MAX
+		 * streams.
+		 */
+		return streams;
+	else if (permut < (u128)streams)
+		/*
+		 * more streams than permutations, return the number
+		 * of permutations.
+		 */
 		return (size_t)permut;
 	return streams;
 }
@@ -276,7 +341,7 @@ int pwstream_new(struct pwstream **pws)
 	p->entry = NULL;
 	p->rows = 0;
 	p->cols = 0;
-	p->plen = 0;
+	p->chars_at_idx = NULL;
 
 	*pws = p;
 
@@ -287,36 +352,86 @@ void pwstream_free(struct pwstream *pws)
 {
 	if (pws->entry)
 		free(pws->entry);
+	if (pws->chars_at_idx)
+		free(pws->chars_at_idx);
 	free(pws);
+}
+
+int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
+		      size_t streams, const size_t *initial)
+{
+	if (pws->entry)
+		free(pws->entry);
+	if (pws->chars_at_idx)
+		free(pws->chars_at_idx);
+
+	size_t cstrm = ceil_streams_pool(pool_len, pw_len, streams);
+
+	pws->entry = calloc(cstrm * pw_len, sizeof(struct entry));
+	if (!pws->entry)
+		return -1;
+
+	pws->chars_at_idx = calloc(pw_len, sizeof(size_t));
+	if (!pws->chars_at_idx)
+		return -1;
+
+	pws->rows = pw_len;
+	pws->cols = cstrm;
+	pws->real_cols = streams;
+
+	/* when generating for a pool, all entries are identical */
+	for (size_t i = 0; i < pw_len; ++i)
+		pws->chars_at_idx[i] = pool_len;
+
+	entry_table_init(pws, 0, pws->chars_at_idx);
+	generate(pws);
+
+	if (initial)
+		generate_initial_indexes(pws, initial);
+
+	return 0;
 }
 
 int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial)
 {
+	return pwstream_generate_from_pool(pws, pool_len, pw_len, streams, initial);
+}
+
+int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t parsed_mask_len,
+				size_t streams, const size_t *initial)
+{
+	(void)initial;
+
 	if (pws->entry)
 		free(pws->entry);
+	if (pws->chars_at_idx)
+		free(pws->chars_at_idx);
 
-	size_t cstrm = ceil_streams(pool_len, pw_len, streams);
+	size_t cstrm = ceil_streams_mask(parsed_mask, parsed_mask_len,
+					 streams);
 
-	pws->entry = calloc(cstrm * pw_len, sizeof(struct entry));
-	if (!pws->entry) {
-		pws->rows = 0;
-		pws->cols = 0;
-		pws->plen = 0;
-		pws->real_cols = 0;
+	pws->entry = calloc(cstrm * parsed_mask_len, sizeof(struct entry));
+	if (!pws->entry)
 		return -1;
-	}
 
-	pws->rows = pw_len;
+	pws->chars_at_idx = calloc(parsed_mask_len, sizeof(size_t));
+	if (!pws->chars_at_idx)
+		return -1;
+
+	pws->rows = parsed_mask_len;
 	pws->cols = cstrm;
-	pws->plen = pool_len;
 	pws->real_cols = streams;
 
-	entry_table_init(pws, 0, pool_len - 1);
+	/* The stream table is least-significant-position first. */
+	for (size_t i = 0; i < parsed_mask_len; ++i)
+		pws->chars_at_idx[i] = strlen(parsed_mask[parsed_mask_len - i - 1]);
+
+	entry_table_init(pws, 0, pws->chars_at_idx);
 	generate(pws);
 
 	if (initial)
-		generate_initial_indexes(pws, initial);
+		generate_initial_indexes(pws, initial); /* rendu iciciciic, faire compiler */
 
 	return 0;
 }

@@ -40,7 +40,7 @@ static void teardown()
 
 START_TEST(test_parameter_set)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 
 	/* empty set */
 	memset(cfg.set, 0, ZC_CHARSET_MAXLEN + 1);
@@ -54,7 +54,7 @@ END_TEST
 
 START_TEST(test_parameter_setlen)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 
 	/* wrong setlen */
 	strcpy(cfg.set, "aaaaabcd");
@@ -80,7 +80,7 @@ END_TEST
 
 START_TEST(test_parameter_init_leak)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 
 	strcpy(cfg.set, "abcd");
 	cfg.maxlen = 5;
@@ -103,7 +103,7 @@ END_TEST
 
 START_TEST(test_bruteforce_password_found)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -120,7 +120,7 @@ END_TEST
 
 START_TEST(test_bruteforce_password_found_multicall)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -141,7 +141,7 @@ END_TEST
 
 START_TEST(test_bruteforce_password_not_found)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -157,7 +157,7 @@ END_TEST
 
 START_TEST(test_bruteforce_password_not_found_multicall)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -174,7 +174,7 @@ END_TEST
 
 START_TEST(test_bruteforce_stored)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[5];
 
 	strcpy(cfg.set, "password");
@@ -191,7 +191,7 @@ END_TEST
 
 START_TEST(test_bruteforce_stored_multicall)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[5];
 
 	strcpy(cfg.set, "password");
@@ -212,7 +212,7 @@ END_TEST
 
 static void test_cancel(size_t threads)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradi");
@@ -242,7 +242,7 @@ END_TEST
 
 START_TEST(test_bruteforce_pay)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[10];
 
 	strcpy(cfg.set, "amorpheus!");
@@ -260,7 +260,7 @@ END_TEST
 #ifdef EXTRACHECK
 START_TEST(test_bruteforce_pthread_create_fail)
 {
-	struct zc_crk_pwcfg cfg;
+	struct zc_crk_pwcfg cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");

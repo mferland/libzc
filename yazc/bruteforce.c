@@ -292,7 +292,6 @@ static int do_bruteforce(int argc, char *argv[])
 			pwcfg.mask.maxlen = 0;
 
 		pwcfg.mask.str = arg_mask;
-
 	} else if (!arg_set) {
 		if (!arg_charset_flag) {
 			err("no character set provided or specified.\n");

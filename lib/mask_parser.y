@@ -228,8 +228,9 @@ int parse_mask(const char *input, char ***output)
 	}
 
 	ret = 0;
-	list_for_each_entry(item, &item_head, list)
+	list_for_each_entry(item, &item_head, list) {
 		tmp[ret++] = strdup(item->set);
+	}
 
 	*output = tmp;
 

@@ -72,8 +72,8 @@ const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
 int zc_file_info_idx(const struct zc_info *info);
 
 struct zc_mask {
-	size_t minlen;
-	size_t maxlen;
+	size_t minlen;		/* 0 --> use mask length */
+	size_t maxlen;		/* 0 --> use mask length */
 	const char *str;
 };
 

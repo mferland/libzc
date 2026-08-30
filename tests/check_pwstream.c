@@ -18,6 +18,7 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libzc_private.h"
 #include "pwstream.h"
@@ -64,6 +65,95 @@ START_TEST(generate_test_initial1)
 {
 	pwstream_generate(pws, 3, 3, 3, NULL);
 	test_generated_stream(test_initial1);
+}
+END_TEST
+
+static void assert_mixed_mask_coverage(char **mask, size_t len,
+					 size_t streams)
+{
+	struct pwstream *m;
+	size_t total = 1;
+	unsigned char *seen;
+
+	for (size_t i = 0; i < len; ++i)
+		total *= strlen(mask[i]);
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, len, streams,
+							 NULL), 0);
+	seen = calloc(total, 1);
+	ck_assert_ptr_nonnull(seen);
+
+	for (size_t s = 0; s < streams; ++s) {
+		const struct entry *e[len];
+		for (size_t p = 0; p < len; ++p)
+			e[p] = pwstream_get_entry(m, s, len - p - 1);
+		for (size_t a = 0; a < strlen(mask[0]); ++a)
+			for (size_t b = 0; b < strlen(mask[1]); ++b)
+				for (size_t c = 0; c < strlen(mask[2]); ++c) {
+					size_t key = (a * strlen(mask[1]) + b) * strlen(mask[2]) + c;
+					bool in = a >= (size_t)e[0]->start && a <= (size_t)e[0]->stop &&
+						b >= (size_t)e[1]->start && b <= (size_t)e[1]->stop &&
+						c >= (size_t)e[2]->start && c <= (size_t)e[2]->stop;
+					if (in) {
+						ck_assert_int_eq(seen[key], 0);
+						seen[key] = 1;
+					}
+				}
+	}
+	for (size_t i = 0; i < total; ++i)
+		ck_assert_int_eq(seen[i], 1);
+	free(seen);
+	pwstream_free(m);
+}
+
+START_TEST(generate_mixed_mask_coverage)
+{
+	char *mask[] = { "ab", "cde", "xy" };
+	assert_mixed_mask_coverage(mask, 3, 1);
+	assert_mixed_mask_coverage(mask, 3, 2);
+	assert_mixed_mask_coverage(mask, 3, 4);
+	assert_mixed_mask_coverage(mask, 3, 6);
+	assert_mixed_mask_coverage(mask, 3, 12);
+}
+END_TEST
+
+START_TEST(generate_literal_mask_and_initial)
+{
+	char *literal[] = { "a", "b", "c" };
+	char *mask[] = { "ab", "cde", "xy" };
+	const size_t initial[] = { 1, 2, 1 };
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, literal, 3, 8, NULL), 0);
+	ck_assert_int_eq(pwstream_get_stream_count(m), 8);
+	ck_assert(pwstream_is_empty(m, 1));
+	for (size_t p = 0; p < 3; ++p) {
+		const struct entry *e = pwstream_get_entry(m, 0, p);
+		ck_assert_int_eq(e->start, 0);
+		ck_assert_int_eq(e->stop, 0);
+	}
+	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, 3, 4, initial), 0);
+	for (size_t s = 0; s < 4; ++s)
+		for (size_t p = 0; p < 3; ++p) {
+			const struct entry *e = pwstream_get_entry(m, s, p);
+			ck_assert(e->initial >= e->start);
+			ck_assert(e->initial <= e->stop);
+		}
+	pwstream_free(m);
+}
+END_TEST
+
+START_TEST(regenerate_mixed_mask)
+{
+	char *first[] = { "ab", "cde", "xy" };
+	char *second[] = { "a", "bc", "def" };
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, first, 3, 4, NULL), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, second, 3, 4, NULL), 0);
+	pwstream_free(m);
 }
 END_TEST
 
@@ -331,6 +421,9 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_less1);
 	tcase_add_test(tc_core, generate_more);
 	tcase_add_test(tc_core, generate_equal);
+	tcase_add_test(tc_core, generate_mixed_mask_coverage);
+	tcase_add_test(tc_core, generate_literal_mask_and_initial);
+	tcase_add_test(tc_core, regenerate_mixed_mask);
 	suite_add_tcase(s, tc_core);
 
 	return s;
