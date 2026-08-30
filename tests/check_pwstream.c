@@ -334,6 +334,32 @@ START_TEST(cap_large_pool_at_requested_streams)
 }
 END_TEST
 
+START_TEST(preserve_size_t_pool_indexes)
+{
+	const size_t initial[] = { SIZE_MAX - 1 };
+	const struct entry *previous;
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, SIZE_MAX, 1, 4,
+						       initial), 0);
+	previous = pwstream_get_entry(m, 0, 0);
+	ck_assert_msg(previous->start == 0, "first range does not start at zero");
+	for (size_t stream = 1; stream < 4; ++stream) {
+		const struct entry *entry = pwstream_get_entry(m, stream, 0);
+
+		ck_assert_msg(previous->stop + 1 == entry->start,
+			      "large pool ranges are not contiguous");
+		previous = entry;
+	}
+	ck_assert_msg(previous->stop == SIZE_MAX - 1,
+		      "last stop index was truncated");
+	ck_assert_msg(previous->initial == SIZE_MAX - 1,
+		      "initial index was truncated");
+	pwstream_free(m);
+}
+END_TEST
+
 START_TEST(cap_large_mask_at_requested_streams)
 {
 	char alphabet[18];
@@ -629,6 +655,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, skip_stream_before_initial_password);
 	tcase_add_test(tc_core, mask_initial_uses_natural_order);
 	tcase_add_test(tc_core, cap_large_pool_at_requested_streams);
+	tcase_add_test(tc_core, preserve_size_t_pool_indexes);
 	tcase_add_test(tc_core, cap_large_mask_at_requested_streams);
 	suite_add_tcase(s, tc_core);
 

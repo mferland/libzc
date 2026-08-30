@@ -24,7 +24,7 @@
 #include "libzc_private.h"
 #include "pwstream.h"
 
-static const struct entry null_entry = { -1, -1, -1 };
+static const struct entry null_entry = { SIZE_MAX, SIZE_MAX, SIZE_MAX };
 
 /*
  * OVERVIEW
@@ -133,11 +133,34 @@ static struct entry *get(struct pwstream *t, size_t row, size_t col)
  * Example: five values over three streams -> [0,0], [1,2], [3,4]. */
 static void split_less(size_t plen, size_t streams, struct entry *t)
 {
+	/* Example: plen=5 and streams=3 gives width=1 and remainder=2.
+	 * Every worker receives one value, then the accumulated remainder adds
+	 * an extra value whenever it reaches one complete group of 3:
+	 *
+	 *     worker    range    carried remainder after the worker
+	 *       0       [0,0]                 2
+	 *       1       [1,2]                 1  (2 + 2 passes 3)
+	 *       2       [3,4]                 0  (1 + 2 reaches 3)
+	 *
+	 * This is equivalent to floor(i * plen / streams) at each boundary,
+	 * but it never evaluates the potentially overflowing multiplication. */
+	size_t width = plen / streams;
+	size_t remainder = plen % streams;
+	size_t carried = 0;
+	size_t start = 0;
+
 	for (size_t i = 0; i < streams; ++i) {
-		int start = (i * plen) / streams;
 		t[i].start = start;
 		t[i].initial = start;
-		t[i].stop = ((i + 1) * plen) / streams - 1;
+		start += width;
+		/* Reproduce floor((i + 1) * plen / streams) without allowing
+		 * either the multiplication or remainder accumulation to wrap. */
+		if (remainder && carried >= streams - remainder) {
+			++start;
+			carried -= streams - remainder;
+		} else
+			carried += remainder;
+		t[i].stop = start - 1;
 	}
 }
 
@@ -147,7 +170,7 @@ static void split_less(size_t plen, size_t streams, struct entry *t)
 static void split_more(size_t plen, size_t streams, struct entry *e)
 {
 	for (size_t i = 0; i < streams; ++i) {
-		int tmp = i % plen;
+		size_t tmp = i % plen;
 		e[i].start = tmp;
 		e[i].stop = tmp;
 		e[i].initial = tmp;
@@ -380,7 +403,7 @@ static void generate_initial_indexes(struct pwstream *pws,
 			/* The worker's lowest value is already greater than the request at
 			 * this position.  The prefix is now greater, so the smallest valid
 			 * suffix is simply the start of every remaining range. */
-			if (requested < (size_t)e->start) {
+			if (requested < e->start) {
 				e->initial = e->start;
 				for (++pos; pos < pws->rows; ++pos) {
 					row = pws->rows - pos - 1;
@@ -392,7 +415,7 @@ static void generate_initial_indexes(struct pwstream *pws,
 
 			/* Preserve an equal prefix for as long as the requested value is
 			 * contained in this worker's range. */
-			if (requested <= (size_t)e->stop) {
+			if (requested <= e->stop) {
 				e->initial = requested;
 				continue;
 			}
@@ -406,7 +429,7 @@ static void generate_initial_indexes(struct pwstream *pws,
 				row = pws->rows - pos - 1;
 				requested = initial[pos];
 				e = get(pws, row, col);
-				if (requested < (size_t)e->stop) {
+				if (requested < e->stop) {
 					e->initial = requested + 1;
 					found = true;
 					break;
@@ -693,7 +716,7 @@ size_t pwstream_get_stream_count(const struct pwstream *pws)
 	return pws->real_cols;
 }
 
-bool pwstream_is_empty(const struct pwstream *pws, unsigned int stream)
+bool pwstream_is_empty(const struct pwstream *pws, size_t stream)
 {
 	return stream >= pws->cols;
 }

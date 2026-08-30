@@ -21,8 +21,7 @@
 
 struct pwstream;
 struct entry {
-	/* TODO: convert to ssize_t */
-	int start, stop, initial;
+	size_t start, stop, initial;
 };
 
 int pwstream_new(struct pwstream **pws);
@@ -50,6 +49,6 @@ size_t pwstream_get_pwlen(const struct pwstream *pws);
 
 size_t pwstream_get_stream_count(const struct pwstream *pws);
 
-bool pwstream_is_empty(const struct pwstream *pws, unsigned int stream);
+bool pwstream_is_empty(const struct pwstream *pws, size_t stream);
 
 #endif /* _PWSTREAM_H_ */

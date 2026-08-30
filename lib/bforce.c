@@ -104,7 +104,7 @@ struct worker {
 };
 
 static inline unsigned char candidate_char(const struct zc_crk_bforce *crk,
-					   size_t pos, int index)
+					   size_t pos, size_t index)
 {
 	if (crk->parsed_mask_len)
 		return (unsigned char)crk->parsed_mask[pos][index];
@@ -190,11 +190,11 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 			    char *pw, struct zc_key *cache, struct entry *limit)
 {
 	const struct zc_crk_bforce *crk = w->crk;
-	int first = limit[0].initial;
-	int last = limit[0].stop + 1;
+	size_t first = limit[0].initial;
+	size_t last = limit[0].stop + 1;
 
 	if (level == 1) {
-		for (int p = first; p < last; ++p) {
+		for (size_t p = first; p < last; ++p) {
 			update_keys(candidate_char(crk, level_count - 1, p), &cache[level_count - 1],
 				    &cache[level_count]);
 			if (try_decrypt(crk, &cache[level_count])) {
@@ -207,7 +207,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 		}
 	} else {
 		size_t i = level_count - level;
-		for (int p = first; p < last; ++p) {
+		for (size_t p = first; p < last; ++p) {
 			pw[i] = candidate_char(crk, i, p);
 			update_keys(pw[i], &cache[i], &cache[i + 1]);
 			do_work_recurse(w, level - 1, level_count, pw, cache,
@@ -319,10 +319,11 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
     out[1] = (c / in[5] / in[4] / in[3] / in[2]) % in[1];
     out[0] = (c / in[5] / in[4] / in[3] / in[2] / in[1]) % in[0];
  */
-static void indexes_from_raw_counter(uint64_t c, const int *in, int *out)
+static void indexes_from_raw_counter(uint64_t c, const size_t *in,
+				     size_t *out)
 {
 	uint64_t tmp[6];
-	int i = 5;
+	size_t i = 5;
 
 	tmp[i] = c;
 	do {
@@ -340,7 +341,8 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 {
 	const struct zc_crk_bforce *crk = w->crk;
 	if (level_count > 5 && level == 6) {
-		int first[6], last[6], p[6], out[6], in[6], ret;
+		size_t first[6], last[6], p[6], out[6], in[6];
+		int ret;
 		uint64_t pwi = 0;
 
 		for (int i = 0; i < 6; ++i) {
@@ -415,9 +417,9 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		w->found = true;
 		pthread_exit(w);
 	} else {
-		int first = limit[0].initial;
-		int last = limit[0].stop + 1;
-		for (int p = first; p < last; ++p) {
+		size_t first = limit[0].initial;
+		size_t last = limit[0].stop + 1;
+		for (size_t p = first; p < last; ++p) {
 		pw[0] = candidate_char(crk, level_count - level, p);
 			update_keys(pw[0], &cache[0], &cache[1]);
 			do_work_recurse2(w, level - 1, level_count, &pw[1],
