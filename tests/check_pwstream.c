@@ -157,6 +157,29 @@ START_TEST(regenerate_mixed_mask)
 }
 END_TEST
 
+/* Force the partitioner to use every row.  With three binary positions and
+ * eight streams, each final-row subgroup resolves to exactly one worker.
+ * recurse() must stop there instead of constructing a pointer to row 3. */
+START_TEST(generate_recursion_stops_at_last_row)
+{
+	char *mask[] = { "ab", "cd", "xy" };
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, 3, 8, NULL), 0);
+
+	for (size_t stream = 0; stream < 8; ++stream) {
+		ck_assert(!pwstream_is_empty(m, stream));
+		for (size_t row = 0; row < 3; ++row) {
+			const struct entry *e = pwstream_get_entry(m, stream, row);
+			ck_assert_int_eq(e->start, e->stop);
+		}
+	}
+
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -424,6 +447,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_mixed_mask_coverage);
 	tcase_add_test(tc_core, generate_literal_mask_and_initial);
 	tcase_add_test(tc_core, regenerate_mixed_mask);
+	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
 	suite_add_tcase(s, tc_core);
 
 	return s;

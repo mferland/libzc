@@ -295,12 +295,14 @@ static void recurse(struct pwstream *pws, size_t row, size_t count, struct entry
 	/* e points at this row's first cell for the current contiguous group. */
 	distribute(pws->chars_at_idx[row], count, e);
 
-	/* distribute() leaves equal ranges adjacent.  Recurse once per equal
-	 * range, advancing one complete table row with pws->cols. */
+	/* distribute() leaves equal ranges adjacent.  Recurse for groups that
+	 * still contain multiple workers and only when another row exists.
+	 * Adding pws->cols advances one complete table row. */
 	size_t u = 0;
 	for (size_t i = 0; i < count; i += u) {
 		u = uniq_from_entry(&e[i], count - i);
-		recurse(pws, row + 1, u, &e[i + pws->cols]);
+		if (u > 1 && row + 1 < pws->rows)
+			recurse(pws, row + 1, u, &e[i + pws->cols]);
 	}
 }
 
