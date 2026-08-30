@@ -29,6 +29,7 @@ int pwstream_new(struct pwstream **pws);
 
 void pwstream_free(struct pwstream *pws);
 
+/* initial indexes, when provided, are in natural left-to-right order. */
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial);
 
@@ -36,6 +37,7 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial);
 
+/* parsed_mask and initial both use natural left-to-right password order. */
 int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask,
 				size_t parsed_mask_len,
 				size_t streams, const size_t *initial);

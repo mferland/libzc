@@ -336,7 +336,7 @@ static void generate(struct pwstream *pws)
 /**
  * generate_initial_indexes - choose each worker's first complete password
  * @pws: generated range table
- * @initial: requested starting index for each internal table row
+ * @initial: requested indexes in natural left-to-right password order
  *
  * Find the lexicographically smallest password in each worker's rectangular
  * range that is greater than or equal to the requested password.  Natural
@@ -379,12 +379,13 @@ static void generate_initial_indexes(struct pwstream *pws,
 		 * position.  Convert natural position back to the reversed table row. */
 		for (size_t pos = 0; pos < pws->rows; ++pos) {
 			size_t row = pws->rows - pos - 1;
+			size_t requested = initial[pos];
 			struct entry *e = get(pws, row, col);
 
 			/* The worker's lowest value is already greater than the request at
 			 * this position.  The prefix is now greater, so the smallest valid
 			 * suffix is simply the start of every remaining range. */
-			if (initial[row] < (size_t)e->start) {
+			if (requested < (size_t)e->start) {
 				e->initial = e->start;
 				for (++pos; pos < pws->rows; ++pos) {
 					row = pws->rows - pos - 1;
@@ -396,8 +397,8 @@ static void generate_initial_indexes(struct pwstream *pws,
 
 			/* Preserve an equal prefix for as long as the requested value is
 			 * contained in this worker's range. */
-			if (initial[row] <= (size_t)e->stop) {
-				e->initial = initial[row];
+			if (requested <= (size_t)e->stop) {
+				e->initial = requested;
 				continue;
 			}
 
@@ -408,9 +409,10 @@ static void generate_initial_indexes(struct pwstream *pws,
 			while (pos > 0) {
 				--pos;
 				row = pws->rows - pos - 1;
+				requested = initial[pos];
 				e = get(pws, row, col);
-				if (initial[row] < (size_t)e->stop) {
-					e->initial = initial[row] + 1;
+				if (requested < (size_t)e->stop) {
+					e->initial = requested + 1;
 					found = true;
 					break;
 				}
@@ -555,7 +557,7 @@ void pwstream_free(struct pwstream *pws)
  *   2. Allocate rows * active columns cells.
  *   3. Fill every row radix with pool_len.
  *   4. Initialize full ranges and partition them with generate().
- *   5. Apply an optional starting password expressed as row indexes.
+ *   5. Apply optional starting indexes in natural password order.
  */
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 		      size_t streams, const size_t *initial)
@@ -684,7 +686,7 @@ int pwstream_generate_from_mask(struct pwstream *pws, char **parsed_mask, size_t
 	generate(pws);
 
 	if (initial)
-		/* initial indexes use internal row order, like pool mode. */
+		/* Initial indexes use natural left-to-right password order. */
 		generate_initial_indexes(pws, initial);
 
 	return 0;

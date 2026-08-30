@@ -303,6 +303,24 @@ START_TEST(skip_stream_before_initial_password)
 }
 END_TEST
 
+START_TEST(mask_initial_uses_natural_order)
+{
+	char *mask[] = { "ab", "xyz", "01" };
+	const size_t initial[] = { 1, 2, 0 }; /* "bz0" */
+	struct pwstream *m;
+
+	ck_assert_int_eq(pwstream_new(&m), 0);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, 3, 1, initial), 0);
+
+	/* Table rows are reversed even though the input is natural order. */
+	ck_assert_int_eq(pwstream_get_entry(m, 0, 2)->initial, 1); /* b */
+	ck_assert_int_eq(pwstream_get_entry(m, 0, 1)->initial, 2); /* z */
+	ck_assert_int_eq(pwstream_get_entry(m, 0, 0)->initial, 0); /* 0 */
+
+	pwstream_free(m);
+}
+END_TEST
+
 /*
   pool len: 3
   pw len: 3
@@ -349,7 +367,7 @@ static const struct entry test_initial4[] = {
 	{1, 1, 1}, {0, 2, 1}, {0, 2, 0},
 	{2, 2, 2}, {0, 2, 1}, {0, 2, 0},
 };
-static const size_t initial4[] = {1, 1, 0};
+static const size_t initial4[] = {0, 1, 1};
 START_TEST(generate_test_initial4)
 {
 	pwstream_generate(pws, 3, 3, 3, initial4);
@@ -384,7 +402,7 @@ static const struct entry test_initial6[] = {
 	{0, 0, 0}, {0, 2, 1}, {0, 2, 0},
 	{1, 2, 2}, {0, 2, 0}, {0, 2, 0},
 };
-static const size_t initial6[] = {2, 0, 0};
+static const size_t initial6[] = {0, 0, 2};
 START_TEST(generate_test_initial6)
 {
 	pwstream_generate(pws, 3, 3, 2, initial6);
@@ -401,7 +419,7 @@ static const struct entry test_initial7[] = {
 	{0, 0, 0}, {0, 2, 0}, {0, 2, 1},
 	{1, 2, 2}, {0, 2, 2}, {0, 2, 0},
 };
-static const size_t initial7[] = {2, 2, 0};
+static const size_t initial7[] = {0, 2, 2};
 START_TEST(generate_test_initial7)
 {
 	pwstream_generate(pws, 3, 3, 2, initial7);
@@ -576,6 +594,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, preserve_state_after_allocation_failure);
 	tcase_add_test(tc_core, generate_lexicographic_initial_password);
 	tcase_add_test(tc_core, skip_stream_before_initial_password);
+	tcase_add_test(tc_core, mask_initial_uses_natural_order);
 	suite_add_tcase(s, tc_core);
 
 	return s;

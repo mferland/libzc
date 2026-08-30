@@ -633,8 +633,8 @@ static void dealloc_pwstreams(struct zc_crk_bforce *crk)
 static void fill_initial_pwstream(size_t *initial, const char *ipw,
 				  size_t ipwlen, const char *set, size_t setlen)
 {
-	for (size_t i = ipwlen - 1, j = 0; j < ipwlen; --i, ++j)
-		initial[j] = (const char *)memchr(set, ipw[i], setlen) - set;
+	for (size_t i = 0; i < ipwlen; ++i)
+		initial[i] = (const char *)memchr(set, ipw[i], setlen) - set;
 }
 
 /* when generating the first streams, take into account the
