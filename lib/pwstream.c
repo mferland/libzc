@@ -26,9 +26,6 @@
 
 static const struct entry null_entry = { -1, -1, -1 };
 
-typedef __uint128_t u128;
-#define UINT128_MAX (( __uint128_t) -1)
-
 /*
  * OVERVIEW
  * --------
@@ -465,15 +462,6 @@ static size_t ceil_streams_pool(size_t pool_len, size_t pw_len, size_t streams)
 	return permutations;
 }
 
-static u128 u128_mul_overflow(u128 a, u128 b)
-{
-	if (!a || !b)
-		return 0;
-	if (a > UINT128_MAX / b)
-		return UINT128_MAX; /* overflow */
-	return (a * b);
-}
-
 /* Return true instead of allowing an allocation element count to wrap. */
 static bool size_mul_overflow(size_t a, size_t b, size_t *result)
 {
@@ -487,39 +475,28 @@ static bool size_mul_overflow(size_t a, size_t b, size_t *result)
  * ceil_streams_mask - mixed-radix equivalent of ceil_streams_pool
  *
  * For alphabets with lengths [2, 3, 2], the search space contains 12
- * candidates.  Multiplication saturates at UINT128_MAX so a very large mask
- * is treated as having at least as many candidates as requested workers.
+ * candidates.  Counting stops at the requested number of workers because
+ * the exact search-space size is irrelevant once it reaches that value.
  */
 static size_t ceil_streams_mask(char **parsed_mask, size_t parsed_mask_len, size_t streams)
 {
-	size_t len, i;
-	u128 permut = 1;
+	size_t permutations = 1;
 
 	/* A mask is a mixed-radix space, so its size is the product of the
-	 * character counts at all positions.  Saturation is sufficient because
-	 * this result is used only to cap the requested worker count. */
-	for (i = 0; i < parsed_mask_len; ++i) {
-		if (!parsed_mask[i]) {
-			printf("ERROR: ceil_streams_mask()\n");
-			break;
-		}
-		len = strlen(parsed_mask[i]);
-		permut = u128_mul_overflow(permut, len);
+	 * character counts at all positions.  Stop before multiplication would
+	 * overflow or exceed streams; either case means every requested worker
+	 * can receive a non-empty range. */
+	for (size_t i = 0; i < parsed_mask_len; ++i) {
+		size_t len = strlen(parsed_mask[i]);
+
+		if (permutations >= streams)
+			return streams;
+		if (len > streams / permutations)
+			return streams;
+		permutations *= len;
 	}
 
-	if (permut == UINT128_MAX)
-		/*
-		 * assume we won't ever have more than UINT128_MAX
-		 * streams.
-		 */
-		return streams;
-	else if (permut < (u128)streams)
-		/*
-		 * more streams than permutations, return the number
-		 * of permutations.
-		 */
-		return (size_t)permut;
-	return streams;
+	return permutations;
 }
 
 int pwstream_new(struct pwstream **pws)
