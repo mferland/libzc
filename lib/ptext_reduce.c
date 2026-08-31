@@ -49,7 +49,7 @@ static void generate_all_key2_bits_31_2(uint32_t *key2, const uint16_t *key2_bit
 {
 	for (int i = 0; i < POW2_16; ++i)
 		for (int j = 0; j < 64; ++j)
-			key2[i * 64 + j] = (i << 16) | key2_bits_15_2[j];
+			key2[i * 64 + j] = ((uint32_t)i << 16) | key2_bits_15_2[j];
 }
 
 static inline uint32_t bits_1_0_key2i(uint32_t key2im1, uint32_t key2i_frag_msb)

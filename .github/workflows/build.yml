@@ -63,3 +63,37 @@ jobs:
             /usr/lib/x86_64-linux-gnu/libthread_db.so.1
           if-no-files-found: error
           retention-days: 3
+
+  sanitizers:
+    name: Clang sanitizers
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install dependencies
+        run: |
+          ./scripts/install-deps.sh
+          apt install -yq clang
+
+      - name: autogen
+        run: |
+          ./autogen.sh
+
+      - name: configure
+        env:
+          CC: clang
+          CFLAGS: -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+          LDFLAGS: -fsanitize=address,undefined
+        run: |
+          ./configure
+
+      - name: make check
+        env:
+          ASAN_OPTIONS: allocator_may_return_null=1:detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          make check
