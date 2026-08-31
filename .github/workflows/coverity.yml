@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - name: Install dependencies
         run: |
-          sudo apt install -y make automake libtool autoconf bison flex zlib1g-dev pkg-config git check
+          sudo ./scripts/install-deps.sh
       - name: autogen
         run: ./autogen.sh
       - name: configure

@@ -20,14 +20,14 @@ jobs:
       PTHREADS4W_COMMIT: 8e467a62a14fd9de15af33beec0a913d23f4d2f9
 
     steps:
-      - name: Install dependencies
-        run: |
-          sudo apt install -y git make automake libtool-bin autoconf bison flex zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev wine64 zip
-
       - name: Checkout
         uses: actions/checkout@v6.0.2
         with:
           persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          sudo ./scripts/install-mingw64-deps.sh
 
       - name: Install mman-win32
         run: |
