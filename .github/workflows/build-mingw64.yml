@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: |
-          sudo apt install -y git make automake libtool-bin autoconf bison flex zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip
+          sudo apt install -y git make automake libtool-bin autoconf bison flex zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev wine64 zip
 
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -43,3 +43,19 @@ jobs:
       - name: Run build script
         run: |
           scripts/build-mingw64.sh ${GITHUB_WORKSPACE}
+
+      - name: Smoke test Windows executable
+        env:
+          WINEARCH: win64
+          WINEDEBUG: -all
+          WINEPREFIX: ${{ runner.temp }}/wine-prefix
+        run: |
+          /usr/lib/wine/wine64 build-mingw64/yazc-v*/yazc.exe --help
+
+      - name: Upload Windows archive
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: yazc-win64
+          path: build-mingw64/yazc-v*-win64.zip
+          if-no-files-found: error
+          retention-days: 7
