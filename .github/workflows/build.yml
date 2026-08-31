@@ -11,18 +11,33 @@ name: Build
 
 jobs:
   build:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu", "fedora", "silkeh/clang:15-bullseye", "gcc:latest", "debian:unstable"]
         include:
-          - os: "silkeh/clang:15-bullseye"
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            experimental: false
+          - name: Fedora 44
+            image: fedora:44
+            experimental: false
+          - name: Clang 15 on Debian 11
+            image: silkeh/clang:15-bullseye
             cc: "clang"
+            experimental: false
+          - name: GCC 15.2 on Debian 12
+            image: gcc:15.2.0-bookworm
+            experimental: false
+          - name: Debian unstable
+            image: debian:unstable
+            experimental: true
 
     container:
-      image: ${{ matrix.os }}
+      image: ${{ matrix.image }}
 
     steps:
       - name: Checkout
