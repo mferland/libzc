@@ -4,11 +4,16 @@ on:
   push:
     branches: ["coverity_scan"]
 
+permissions:
+  contents: read
+
 jobs:
   coverity:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: |
           sudo apt install -y make automake libtool autoconf bison flex zlib1g-dev pkg-config git check

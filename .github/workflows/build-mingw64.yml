@@ -9,6 +9,9 @@ name: Build Windows executable
       - master
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build-mingw64:
     runs-on: ubuntu-latest
@@ -23,6 +26,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Install mman-win32
         run: |
