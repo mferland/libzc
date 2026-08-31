@@ -111,3 +111,8 @@ int handle_placeholder(const char *yytext, YYSTYPE *yylval)
 	return -1;
     }
 }
+
+void mask_scanner_reset(void)
+{
+    BEGIN(INITIAL);
+}

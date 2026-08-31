@@ -10,6 +10,7 @@
 #include "list.h"
 
 int yylex(void);
+void mask_scanner_reset(void);
 
 void yyerror(const char *format, ...)
 {
@@ -217,8 +218,15 @@ int parse_mask(const char *input, char ***output)
 	int ret;
 	char **tmp;
 
+	/* current_range is normally cleared when a complete range is reduced.
+	 * A previous syntax error may have interrupted that reduction. */
+	if (current_range) {
+		dealloc_item(current_range);
+		current_range = NULL;
+	}
 	INIT_LIST_HEAD(&item_head);
 
+	mask_scanner_reset();
 	buffer = yy_scan_string(input);
 
 	ret = yyparse();
@@ -244,6 +252,11 @@ int parse_mask(const char *input, char ***output)
 	*output = tmp;
 
 err_dealloc_items:
+	/* A failed parse may leave an incomplete range outside item_head. */
+	if (current_range) {
+		dealloc_item(current_range);
+		current_range = NULL;
+	}
 	dealloc_item_list(&item_head);
 err_del_buffer:
 	yy_delete_buffer(buffer);

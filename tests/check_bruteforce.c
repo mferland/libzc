@@ -161,6 +161,23 @@ START_TEST(test_reject_initial_password_outside_mask)
 }
 END_TEST
 
+START_TEST(test_mask_parser_recovers_after_invalid_range)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* The leading 'a' is accumulated before the descending range fails. */
+	cfg.mask.str = "[az-a]";
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	/* A stale partial range would turn [b] into [ab] and incorrectly make
+	 * the archive password "pass" part of this search space. */
+	cfg.mask.str = "p[b][s][s]";
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+}
+END_TEST
+
 START_TEST(test_bruteforce_password_found)
 {
 	struct zc_crk_pwcfg cfg = {0};
@@ -507,6 +524,7 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_reinitialize_mask_as_charset);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_set);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_mask);
+	tcase_add_test(tc_core, test_mask_parser_recovers_after_invalid_range);
 	tcase_add_test(tc_core, test_bruteforce_password_found);
 	tcase_add_test(tc_core, test_bruteforce_password_found_multicall);
 	tcase_add_test(tc_core, test_bruteforce_password_not_found);
