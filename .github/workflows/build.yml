@@ -21,19 +21,24 @@ jobs:
         include:
           - name: Ubuntu 24.04
             image: ubuntu:24.04
+            artifact: ubuntu-24.04
             experimental: false
           - name: Fedora 44
             image: fedora:44
+            artifact: fedora-44
             experimental: false
           - name: Clang 15 on Debian 11
             image: silkeh/clang:15-bullseye
+            artifact: clang-15-debian-11
             cc: "clang"
             experimental: false
           - name: GCC 15.2 on Debian 12
             image: gcc:15.2.0-bookworm
+            artifact: gcc-15.2-debian-12
             experimental: false
           - name: Debian unstable
             image: debian:unstable
+            artifact: debian-unstable
             experimental: true
 
     container:
@@ -66,17 +71,12 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         if: ${{ failure() }}
         with:
-          name: check_logs.${{ strategy.job-index }}
+          name: check-logs-${{ matrix.artifact }}
           path: |
-            ${{ github.workspace }}
-            /usr/lib/x86_64-linux-gnu/libpthread.so.0
-            /usr/lib/x86_64-linux-gnu/libc.so.6
-            /usr/lib/x86_64-linux-gnu/librt.so.1
-            /usr/lib/x86_64-linux-gnu/libm.so.6
-            /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
-            /usr/lib/libcheck.so.0.0.0
-            /usr/lib/x86_64-linux-gnu/libthread_db.so.1
-          if-no-files-found: error
+            config.log
+            tests/test-suite.log
+            tests/*.log
+          if-no-files-found: warn
           retention-days: 3
 
   sanitizers:
