@@ -12,6 +12,9 @@ name: Build Windows executable
 jobs:
   build-mingw64:
     runs-on: ubuntu-latest
+    env:
+      MMAN_WIN32_COMMIT: fedbdbf167241503c4a8250c1666be580890c4e2
+      PTHREADS4W_COMMIT: 8e467a62a14fd9de15af33beec0a913d23f4d2f9
 
     steps:
       - name: Install dependencies
@@ -23,7 +26,8 @@ jobs:
 
       - name: Install mman-win32
         run: |
-          git clone https://github.com/alitrack/mman-win32.git
+          git clone --no-checkout https://github.com/alitrack/mman-win32.git
+          git -C mman-win32 checkout --detach "$MMAN_WIN32_COMMIT"
           cd mman-win32
           ./configure --prefix=/usr/x86_64-w64-mingw32 --enable-static --cc=x86_64-w64-mingw32-gcc --cross-prefix=x86_64-w64-mingw32-
           make
@@ -31,7 +35,8 @@ jobs:
 
       - name: Install pthreads4w
         run: |
-          git clone https://git.code.sf.net/p/pthreads4w/code pthreads4w
+          git clone --no-checkout https://git.code.sf.net/p/pthreads4w/code pthreads4w
+          git -C pthreads4w checkout --detach "$PTHREADS4W_COMMIT"
           cd pthreads4w
           cp ${GITHUB_WORKSPACE}/docker/mingw64/0001-Temp-Makefile-fix.patch .
           git apply 0001-Temp-Makefile-fix.patch
