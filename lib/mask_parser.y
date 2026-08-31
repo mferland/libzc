@@ -176,15 +176,24 @@ void print_item(const struct mask_item *e)
 
 static struct mask_item * range_merge(struct mask_item *e)
 {
-	int len;
+	char *tmp;
+	size_t len;
 
 	if (!current_range)
 		return current_range = e;
 
 	len = strlen(current_range->set) + strlen(e->set) + 1;
-	current_range->set = realloc(current_range->set, len);
+	tmp = realloc(current_range->set, len);
+	if (!tmp) {
+		yyerror("realloc() failed");
+		dealloc_item(current_range);
+		dealloc_item(e);
+		current_range = NULL;
+		return NULL;
+	}
+	current_range->set = tmp;
 	strcat(current_range->set, e->set);
-	current_range->set[len] = 0;
+	dealloc_item(e);
 
 	return current_range;
 }

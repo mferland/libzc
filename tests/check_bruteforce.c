@@ -321,6 +321,7 @@ END_TEST
 
 static const char *const mask_range_cases[] = {
 	"[ba]A0!fF\\?\\x80\\?\\?",  /* explicit character list */
+	"[b-da]A0!fF\\?\\x80\\?\\?", /* merged range and literal */
 	"[a-c]A0!fF\\?\\x80\\?\\?", /* lowercase range */
 	"a[A-C]0!fF\\?\\x80\\?\\?", /* uppercase range */
 	"aA[0-2]!fF\\?\\x80\\?\\?", /* numeric range */
