@@ -1,8 +1,9 @@
-name: coverity
+name: Coverity Scan
 
-on:
-  push:
-    branches: ["coverity_scan"]
+'on':
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,7 +24,7 @@ jobs:
         run: ./configure
       - uses: vapier/coverity-scan-action@v1
         with:
-          email: marc.ferland@gmail.com
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
           project: mferland/libzc
           token: ${{ secrets.COVERITY_SCAN_TOKEN }}
           command: make
