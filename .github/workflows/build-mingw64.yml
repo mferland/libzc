@@ -15,7 +15,7 @@ jobs:
           sudo apt install -y git make automake libtool-bin autoconf bison flex zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6.0.2
 
       - name: Install mman-win32
         run: |
