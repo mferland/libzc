@@ -4,6 +4,10 @@ name: Build Windows executable
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
 
 jobs:
   build-mingw64:
