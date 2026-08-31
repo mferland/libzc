@@ -23,7 +23,6 @@ jobs:
 
     container:
       image: ${{ matrix.os }}
-      options: --privileged --ulimit core=-1 --security-opt seccomp=unconfined
 
     steps:
       - name: Checkout
@@ -46,13 +45,9 @@ jobs:
 
       - name: make check
         run: |
-          ulimit -c
-          echo "$GITHUB_WORKSPACE/libzc-coredump/core.%h.%e.%t" > /proc/sys/kernel/core_pattern
-          cat /proc/sys/kernel/core_pattern
-          mkdir "$GITHUB_WORKSPACE/libzc-coredump"
           make check
 
-      - name: upload check logs and coredumps
+      - name: upload check logs
         uses: actions/upload-artifact@v7.0.1
         if: ${{ failure() }}
         with:
