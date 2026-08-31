@@ -529,6 +529,8 @@ int pwstream_new(struct pwstream **pws)
 
 void pwstream_free(struct pwstream *pws)
 {
+	if (!pws)
+		return;
 	if (pws->entry)
 		free(pws->entry);
 	if (pws->chars_at_idx)
@@ -702,17 +704,17 @@ const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 
 size_t pwstream_get_pwlen(const struct pwstream *pws)
 {
-	return pws->rows;
+	return pws ? pws->rows : 0;
 }
 
 size_t pwstream_get_stream_count(const struct pwstream *pws)
 {
 	/* Return the requested count so callers can retain one worker object per
 	 * request.  pwstream_is_empty() identifies workers beyond active cols. */
-	return pws->real_cols;
+	return pws ? pws->real_cols : 0;
 }
 
 bool pwstream_is_empty(const struct pwstream *pws, size_t stream)
 {
-	return stream >= pws->cols;
+	return !pws || stream >= pws->cols;
 }

@@ -246,6 +246,15 @@ START_TEST(get_entry_rejects_invalid_coordinates)
 }
 END_TEST
 
+START_TEST(null_stream_helpers_are_safe)
+{
+	pwstream_free(NULL);
+	ck_assert_int_eq(pwstream_get_pwlen(NULL), 0);
+	ck_assert_int_eq(pwstream_get_stream_count(NULL), 0);
+	ck_assert(pwstream_is_empty(NULL, 0));
+}
+END_TEST
+
 START_TEST(reject_overflowing_table_dimensions)
 {
 	struct pwstream *m;
@@ -679,6 +688,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
 	tcase_add_test(tc_core, reject_invalid_generation_parameters);
 	tcase_add_test(tc_core, get_entry_rejects_invalid_coordinates);
+	tcase_add_test(tc_core, null_stream_helpers_are_safe);
 	tcase_add_test(tc_core, reject_overflowing_table_dimensions);
 	tcase_add_test(tc_core, preserve_state_after_allocation_failure);
 	tcase_add_test(tc_core, generate_lexicographic_initial_password);
