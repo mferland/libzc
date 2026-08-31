@@ -101,6 +101,32 @@ START_TEST(test_parameter_init_leak)
 }
 END_TEST
 
+START_TEST(test_reject_initial_password_outside_set)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	strcpy(cfg.set, "abc");
+	cfg.setlen = 3;
+	cfg.maxlen = 3;
+	/* 'd' cannot be converted to an index in the configured set. */
+	strcpy(cfg.initial, "abd");
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+}
+END_TEST
+
+START_TEST(test_reject_initial_password_outside_mask)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	cfg.mask.str = "[ab][cd]";
+	/* 'e' cannot be converted to an index in the second mask alphabet. */
+	strcpy(cfg.initial, "ae");
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+}
+END_TEST
+
 START_TEST(test_bruteforce_password_found)
 {
 	struct zc_crk_pwcfg cfg = {0};
@@ -442,6 +468,8 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_parameter_set);
 	tcase_add_test(tc_core, test_parameter_setlen);
 	tcase_add_test(tc_core, test_parameter_init_leak);
+	tcase_add_test(tc_core, test_reject_initial_password_outside_set);
+	tcase_add_test(tc_core, test_reject_initial_password_outside_mask);
 	tcase_add_test(tc_core, test_bruteforce_password_found);
 	tcase_add_test(tc_core, test_bruteforce_password_found_multicall);
 	tcase_add_test(tc_core, test_bruteforce_password_not_found);

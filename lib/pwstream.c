@@ -558,6 +558,12 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	/* Reject invalid dimensions before releasing an existing table. */
 	if (!pws || !pool_len || !pw_len || !streams)
 		return -1;
+	if (initial) {
+		for (size_t i = 0; i < pw_len; ++i) {
+			if (initial[i] >= pool_len)
+				return -1;
+		}
+	}
 	cstrm = ceil_streams_pool(pool_len, pw_len, streams);
 	if (size_mul_overflow(cstrm, pw_len, &entry_count))
 		return -1;
@@ -637,7 +643,12 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 	if (!pws || !parsed_mask || !parsed_mask_len || !streams)
 		return -1;
 	for (size_t i = 0; i < parsed_mask_len; ++i) {
+		size_t alphabet_len;
+
 		if (!parsed_mask[i] || !parsed_mask[i][0])
+			return -1;
+		alphabet_len = strlen(parsed_mask[i]);
+		if (initial && initial[i] >= alphabet_len)
 			return -1;
 	}
 	cstrm = ceil_streams_mask(parsed_mask, parsed_mask_len, streams);

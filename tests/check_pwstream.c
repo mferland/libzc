@@ -192,6 +192,8 @@ START_TEST(reject_invalid_generation_parameters)
 	const char *const valid_mask[] = { "ab", "cd" };
 	const char *const empty_position[] = { "ab", "" };
 	const char *const null_position[] = { "ab", NULL };
+	const size_t invalid_pool_initial[] = { 0, 2, 0 };
+	const size_t invalid_mask_initial[] = { 0, 2 };
 	struct pwstream *m;
 
 	ck_assert_int_eq(pwstream_new(NULL), -1);
@@ -202,6 +204,8 @@ START_TEST(reject_invalid_generation_parameters)
 	ck_assert_int_eq(pwstream_generate_from_pool(m, 0, 3, 2, NULL), -1);
 	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 0, 2, NULL), -1);
 	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 0, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_pool(m, 2, 3, 2,
+						     invalid_pool_initial), -1);
 
 	ck_assert_int_eq(pwstream_generate_from_mask(NULL, valid_mask, 2, 2, NULL), -1);
 	ck_assert_int_eq(pwstream_generate_from_mask(m, NULL, 2, 2, NULL), -1);
@@ -209,6 +213,8 @@ START_TEST(reject_invalid_generation_parameters)
 	ck_assert_int_eq(pwstream_generate_from_mask(m, valid_mask, 2, 0, NULL), -1);
 	ck_assert_int_eq(pwstream_generate_from_mask(m, empty_position, 2, 2, NULL), -1);
 	ck_assert_int_eq(pwstream_generate_from_mask(m, null_position, 2, 2, NULL), -1);
+	ck_assert_int_eq(pwstream_generate_from_mask(m, valid_mask, 2, 2,
+						     invalid_mask_initial), -1);
 
 	/* Invalid regeneration attempts must not destroy the previous table. */
 	ck_assert_int_eq(pwstream_get_pwlen(m), 3);
