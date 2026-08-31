@@ -223,6 +223,29 @@ START_TEST(reject_invalid_generation_parameters)
 }
 END_TEST
 
+START_TEST(get_entry_rejects_invalid_coordinates)
+{
+	const struct entry *entry;
+
+	ck_assert_int_eq(pwstream_generate_from_pool(pws, 2, 3, 2, NULL), 0);
+
+	entry = pwstream_get_entry(pws, 2, 0);
+	ck_assert_int_eq(entry->start, SIZE_MAX);
+	ck_assert_int_eq(entry->stop, SIZE_MAX);
+	ck_assert_int_eq(entry->initial, SIZE_MAX);
+
+	entry = pwstream_get_entry(pws, 0, 3);
+	ck_assert_int_eq(entry->start, SIZE_MAX);
+	ck_assert_int_eq(entry->stop, SIZE_MAX);
+	ck_assert_int_eq(entry->initial, SIZE_MAX);
+
+	entry = pwstream_get_entry(NULL, 0, 0);
+	ck_assert_int_eq(entry->start, SIZE_MAX);
+	ck_assert_int_eq(entry->stop, SIZE_MAX);
+	ck_assert_int_eq(entry->initial, SIZE_MAX);
+}
+END_TEST
+
 START_TEST(reject_overflowing_table_dimensions)
 {
 	struct pwstream *m;
@@ -655,6 +678,7 @@ Suite *pwstream_suite()
 	tcase_add_test(tc_core, regenerate_mixed_mask);
 	tcase_add_test(tc_core, generate_recursion_stops_at_last_row);
 	tcase_add_test(tc_core, reject_invalid_generation_parameters);
+	tcase_add_test(tc_core, get_entry_rejects_invalid_coordinates);
 	tcase_add_test(tc_core, reject_overflowing_table_dimensions);
 	tcase_add_test(tc_core, preserve_state_after_allocation_failure);
 	tcase_add_test(tc_core, generate_lexicographic_initial_password);

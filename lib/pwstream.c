@@ -695,7 +695,7 @@ const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 				       size_t pos)
 {
 	/* pos is an internal table row: pos 0 is the last password character. */
-	if (stream >= pws->cols)
+	if (!pws || stream >= pws->cols || pos >= pws->rows)
 		return &null_entry;
 	return get(pws, pos, stream);
 }
