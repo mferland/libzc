@@ -101,6 +101,40 @@ START_TEST(test_parameter_init_leak)
 }
 END_TEST
 
+START_TEST(test_parameter_mask_init_leak)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	cfg.mask.str = "p[ba][xs][xs]";
+
+	/* Reinitializing replaces the owned parsed mask each time. */
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+}
+END_TEST
+
+START_TEST(test_reinitialize_mask_as_charset)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[5];
+
+	/* Establish mask mode with a search space that cannot find "pass". */
+	cfg.mask.str = "xxxx";
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+
+	/* Reinitialize the same cracker in charset mode.  A stale parsed-mask
+	 * length would incorrectly make zc_crk_bforce_start() reuse "xxxx". */
+	memset(&cfg, 0, sizeof(cfg));
+	strcpy(cfg.set, "pas");
+	cfg.setlen = 3;
+	cfg.maxlen = 4;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "pass");
+}
+END_TEST
+
 START_TEST(test_reject_initial_password_outside_set)
 {
 	struct zc_crk_pwcfg cfg = {0};
@@ -468,6 +502,8 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_parameter_set);
 	tcase_add_test(tc_core, test_parameter_setlen);
 	tcase_add_test(tc_core, test_parameter_init_leak);
+	tcase_add_test(tc_core, test_parameter_mask_init_leak);
+	tcase_add_test(tc_core, test_reinitialize_mask_as_charset);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_set);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_mask);
 	tcase_add_test(tc_core, test_bruteforce_password_found);

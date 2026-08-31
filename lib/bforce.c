@@ -798,6 +798,15 @@ static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
 
 static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 {
+	/* A cracker may be initialized more than once.  Drop the previous mask
+	 * before selecting the new mode so mask storage is not leaked and a
+	 * later charset configuration cannot be mistaken for mask mode. */
+	free_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
+	crk->parsed_mask = NULL;
+	crk->parsed_mask_len = 0;
+	crk->mask_minlen = 0;
+	crk->mask_maxlen = 0;
+
 	if (cfg->mask.str) {
 		/* use mask */
 		char **parsed;
