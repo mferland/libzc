@@ -12,9 +12,15 @@ name: Build Windows executable
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-mingw64:
+    name: MinGW-w64
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     env:
       MMAN_WIN32_COMMIT: fedbdbf167241503c4a8250c1666be580890c4e2
       PTHREADS4W_COMMIT: 8e467a62a14fd9de15af33beec0a913d23f4d2f9

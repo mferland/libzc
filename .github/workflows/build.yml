@@ -12,10 +12,15 @@ name: Build
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     continue-on-error: ${{ matrix.experimental }}
 
     strategy:
@@ -70,7 +75,7 @@ jobs:
 
       - name: make check
         run: |
-          make check
+          make -j2 check
 
       - name: upload check logs
         uses: actions/upload-artifact@v7.0.1
@@ -87,6 +92,7 @@ jobs:
   sanitizers:
     name: Clang sanitizers
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     container:
       image: ubuntu:24.04
 
@@ -118,11 +124,12 @@ jobs:
           ASAN_OPTIONS: allocator_may_return_null=1:detect_leaks=1:halt_on_error=1
           UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
         run: |
-          make check
+          make -j2 check
 
   distcheck:
     name: Source distribution
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     container:
       image: ubuntu:24.04
 
