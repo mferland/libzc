@@ -26,6 +26,7 @@ AC_PREFIX_DEFAULT([/usr])
 
 AC_PROG_CC
 AM_PROG_CC_C_O
+AC_CHECK_FUNCS([reallocarray])
 
 AC_PROG_YACC
 AC_PROG_LEX([noyywrap])

@@ -48,6 +48,8 @@ LIBZC_AGE=0
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
 	common.c \
+	compat.c \
+	compat.h \
 	crc32.h \
 	decrypt_byte.h \
 	find_password.c \
