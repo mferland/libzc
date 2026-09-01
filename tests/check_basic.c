@@ -18,6 +18,7 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <syslog.h>
 
 /* libzc */
 #include <libzc.h>
@@ -26,7 +27,8 @@ struct zc_ctx *ctx;
 
 void setup(void)
 {
-	zc_new(&ctx);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
 }
 
 void teardown(void)
@@ -36,6 +38,8 @@ void teardown(void)
 
 START_TEST(test_zc_log_priority)
 {
+	ck_assert_int_eq(zc_get_log_priority(ctx), LOG_ERR);
+
 	zc_set_log_priority(ctx, 2);
 	ck_assert_int_eq(zc_get_log_priority(ctx), 2);
 }
@@ -44,6 +48,8 @@ END_TEST
 START_TEST(test_zc_refcount)
 {
 	struct zc_ctx *p;
+
+	ck_assert_ptr_null(zc_ref(NULL));
 
 	ck_assert_ptr_eq(zc_ref(ctx), ctx);    /* inc */
 
@@ -66,6 +72,8 @@ START_TEST(test_zc_file_refcount)
 
 	ret = zc_file_new_from_filename(ctx, "dummy", &file);
 	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(file);
+	ck_assert_ptr_null(zc_file_ref(NULL));
 
 	tmp = zc_file_ref(file);
 	ck_assert_ptr_eq(tmp, file);                 /* inc */
@@ -89,6 +97,8 @@ START_TEST(test_zc_crk_dict_refcount)
 
 	ret = zc_crk_dict_new(ctx, &p);
 	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(p);
+	ck_assert_ptr_null(zc_crk_dict_ref(NULL));
 
 	tmp = zc_crk_dict_ref(p);
 	ck_assert_ptr_eq(tmp, p);                        /* inc */
@@ -112,6 +122,8 @@ START_TEST(test_zc_crk_bforce_refcount)
 
 	ret = zc_crk_bforce_new(ctx, &p);
 	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(p);
+	ck_assert_ptr_null(zc_crk_bforce_ref(NULL));
 
 	tmp = zc_crk_bforce_ref(p);
 	ck_assert_ptr_eq(tmp, p);                          /* inc */
@@ -135,6 +147,8 @@ START_TEST(test_zc_crk_ptext_refcount)
 
 	ret = zc_crk_ptext_new(ctx, &p, -1);
 	ck_assert_int_eq(ret, 0);
+	ck_assert_ptr_nonnull(p);
+	ck_assert_ptr_null(zc_crk_ptext_ref(NULL));
 
 	tmp = zc_crk_ptext_ref(p);
 	ck_assert_ptr_eq(tmp, p);                         /* inc */
