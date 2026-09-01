@@ -28,7 +28,8 @@ struct pwstream *pws;
 
 void setup_pws()
 {
-	pwstream_new(&pws);
+	ck_assert_int_eq(pwstream_new(&pws), 0);
+	ck_assert_ptr_nonnull(pws);
 }
 
 void teardown_pws()
@@ -81,11 +82,19 @@ static void assert_mixed_mask_coverage(const char *const *mask, size_t len,
 	ck_assert_int_eq(pwstream_new(&m), 0);
 	ck_assert_int_eq(pwstream_generate_from_mask(m, mask, len, streams,
 						     NULL), 0);
+	ck_assert_int_eq(pwstream_get_stream_count(m), streams);
 	seen = calloc(total, 1);
 	ck_assert_ptr_nonnull(seen);
 
 	for (size_t s = 0; s < streams; ++s) {
 		const struct entry *e[len];
+
+		if (s >= total) {
+			ck_assert(pwstream_is_empty(m, s));
+			continue;
+		}
+
+		ck_assert(!pwstream_is_empty(m, s));
 		for (size_t p = 0; p < len; ++p)
 			e[p] = pwstream_get_entry(m, s, len - p - 1);
 		for (size_t a = 0; a < strlen(mask[0]); ++a)
@@ -115,6 +124,22 @@ START_TEST(generate_mixed_mask_coverage)
 	assert_mixed_mask_coverage(mask, 3, 4);
 	assert_mixed_mask_coverage(mask, 3, 6);
 	assert_mixed_mask_coverage(mask, 3, 12);
+	assert_mixed_mask_coverage(mask, 3, 20);
+}
+END_TEST
+
+START_TEST(new_stream_is_empty)
+{
+	const struct entry *entry;
+
+	ck_assert_int_eq(pwstream_get_pwlen(pws), 0);
+	ck_assert_int_eq(pwstream_get_stream_count(pws), 0);
+	ck_assert(pwstream_is_empty(pws, 0));
+
+	entry = pwstream_get_entry(pws, 0, 0);
+	ck_assert_int_eq(entry->start, SIZE_MAX);
+	ck_assert_int_eq(entry->stop, SIZE_MAX);
+	ck_assert_int_eq(entry->initial, SIZE_MAX);
 }
 END_TEST
 
@@ -668,6 +693,7 @@ Suite *pwstream_suite()
 
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_checked_fixture(tc_core, setup_pws, teardown_pws);
+	tcase_add_test(tc_core, new_stream_is_empty);
 	tcase_add_test(tc_core, generate_test_initial1);
 	tcase_add_test(tc_core, generate_test_initial2);
 	tcase_add_test(tc_core, generate_test_initial3);
