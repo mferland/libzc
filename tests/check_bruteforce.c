@@ -437,6 +437,96 @@ START_TEST(test_bruteforce_mask_skips_password_before_initial)
 }
 END_TEST
 
+START_TEST(test_bruteforce_one_character_password)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[2];
+
+	/* Exercise the shortest password stream and a search space containing
+	 * fewer candidates than workers. */
+	strcpy(cfg.set, "a");
+	cfg.setlen = 1;
+	cfg.maxlen = 1;
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk,
+					    DATADIR "bruteforce_one_char.zip",
+					    &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "a");
+}
+END_TEST
+
+START_TEST(test_bruteforce_maximum_length_password)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[ZC_PW_MAXLEN + 1];
+
+	/* A literal mask gives one candidate exactly at the supported password
+	 * length boundary. */
+	cfg.mask.str = "abcdefghijklmnop";
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk,
+					    DATADIR "bruteforce_max_length.zip",
+					    &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "abcdefghijklmnop");
+}
+END_TEST
+
+START_TEST(test_bruteforce_punctuation_password)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[3];
+
+	/* '?' is mask syntax unless escaped; verify that a punctuation-only
+	 * password can still be represented and recovered. */
+	cfg.mask.str = "!\\?";
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk,
+					    DATADIR "bruteforce_special_chars.zip",
+					    &cfg), 0);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "!?");
+}
+END_TEST
+
+START_TEST(test_bruteforce_mixed_compression_methods)
+{
+	struct zc_crk_pwcfg cfg = {0};
+	char out[4];
+
+	/* The archive contains both stored and deflated encrypted entries.  The
+	 * common password must satisfy every encryption header and the selected
+	 * entry's method-specific payload validation. */
+	strcpy(cfg.set, "mix");
+	cfg.setlen = 3;
+	cfg.maxlen = 3;
+
+	ck_assert_int_eq(zc_crk_bforce_init(crk,
+					    DATADIR "bruteforce_mixed_methods.zip",
+					    &cfg), 0);
+	zc_crk_bforce_force_threads(crk, 8);
+	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "mix");
+}
+END_TEST
+
+START_TEST(test_bruteforce_rejects_unsupported_compression)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	/* Traditional encryption alone is not enough: payload validation only
+	 * supports stored and deflated entries. */
+	strcpy(cfg.set, "bz");
+	cfg.setlen = 2;
+	cfg.maxlen = 2;
+
+	ck_assert_int_eq(zc_crk_bforce_init(
+		crk, DATADIR "bruteforce_unsupported_method.zip", &cfg), -1);
+}
+END_TEST
+
 #define CANCEL_TESTS 10
 
 static void test_cancel(size_t threads)
@@ -544,6 +634,12 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_bruteforce_initial_password_boundary);
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_mask_skips_password_before_initial);
+	tcase_add_test(tc_core, test_bruteforce_one_character_password);
+	tcase_add_test(tc_core, test_bruteforce_maximum_length_password);
+	tcase_add_test(tc_core, test_bruteforce_punctuation_password);
+	tcase_add_test(tc_core, test_bruteforce_mixed_compression_methods);
+	tcase_add_test(tc_core,
+		       test_bruteforce_rejects_unsupported_compression);
 	tcase_add_test(tc_core, test_bruteforce_thread_cancellation);
 	tcase_add_test(tc_core, test_bruteforce_pay);
 #ifdef EXTRACHECK

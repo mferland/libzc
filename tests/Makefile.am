@@ -29,6 +29,11 @@ check_PROGRAMS = basic \
 AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(srcdir)/"' @CPPFLAGS@
 
 EXTRA_DIST = noradi.zip \
+	bruteforce_max_length.zip \
+	bruteforce_mixed_methods.zip \
+	bruteforce_one_char.zip \
+	bruteforce_special_chars.zip \
+	bruteforce_unsupported_method.zip \
 	mask_options.zip \
 	pay.zip \
 	pw.txt \
