@@ -7,178 +7,333 @@
 .\"
 .\" This program is distributed in the hope that it will be useful,
 .\" but WITHOUT ANY WARRANTY; without even the implied warranty of
-.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 .\" GNU General Public License for more details.
 .\"
-.\" You should have received a copy of the GNU General Public License
-.\" along with this program.  If not, see <http://www.gnu.org/licenses/>.
-.\" Process this file with
-.\" groff -man -Tascii yazc.1
-.\"
-.TH YAZC 1
+.TH YAZC 1 "August 2026" "yazc 0.4.4" "General Commands Manual"
 .SH NAME
-yazc \- yet another zip cracker
+yazc \- recover passwords and encryption keys from legacy ZIP archives
 .SH SYNOPSIS
-.\" set vertical line break space to 0
-.PD 0
-.B yazc\fR [\fB\-h\fR] [\fB\-V\fR]
-.PP
 .B yazc
-.I COMMAND OPTIONS\fR... \fIFILE
-.PD 1
+.RB [ \-h | \-\-help ]
+.RB [ \-V | \-\-version ]
+.br
+.B yazc help
+.br
+.B yazc bruteforce
+.RI [ options ]
+.I archive
+.br
+.B yazc dictionary
+.RI [ options ]
+.I archive
+.br
+.B yazc plaintext
+.RI [ options ]
+.I plain-archive plain-entry cipher-archive cipher-entry
+.br
+.B yazc plaintext
+.RI [ options ]
+.B \-o
+.I plain-file plain-start plain-end cipher-file cipher-start cipher-end cipher-begin
+.br
+.B yazc plaintext
+.RI [ options ]
+.B \-f
+.I plain-file cipher-file
+.br
+.B yazc plaintext
+.RI [ options ]
+.B \-i
+.I key0 key1 key2
+.br
+.B yazc plaintext
+.RI [ options ]
+.B \-p
+.I password
+.br
+.B yazc info
+.RI [ options ]
+.I archive
 .SH DESCRIPTION
 .B yazc
-cracks password-protected zip files. Three attack methods are
-supported: \fIbruteforce\fR, \fIdictionary\fR and \fIplaintext\fR.
-.PP
-Note: Only files encrypted using the legacy Pkware encryption method
-are supported.
-.PP
-.SH BRUTEFORCE
-The \fIbruteforce\fR command tries every possible character
-combination. A general rule of thumb is to use this command when you
-suspect the password to be 8 characters or fewer.
+operates on ZIP archives that use the legacy PKZIP stream cipher, commonly
+known as ZipCrypto. It provides brute-force, dictionary, and known-plaintext
+attacks, as well as a command for inspecting archive metadata.
+.SH COMMANDS
+.TP
+.B bruteforce
+Generate and test passwords from a character set or a position-specific mask.
+.TP
+.B dictionary
+Test passwords read from a file or standard input.
+.TP
+.B plaintext
+Use known plaintext to recover the internal encryption-key representation,
+or convert between passwords and internal representations.
+.TP
+.B info
+Display the entries, offsets, sizes, and encryption headers in an archive.
+.TP
+.B help
+Display global help and the list of commands.
+.SH GLOBAL OPTIONS
+.TP
+.BR \-h ", " \-\-help
+Display global help and exit.
+.TP
+.BR \-V ", " \-\-version
+Display version and license information, then exit.
+.SH BRUTE-FORCE OPTIONS
 .TP
 .BR \-c ", " \-\-charset=\fICHARSET\fR
-Set the character set to CHARSET.
+Use the characters in
+.I CHARSET
+to generate password candidates.
 .TP
 .BR \-i ", " \-\-initial=\fISTRING\fR
-Set the initial password to STRING.
+Begin the search at
+.I STRING
+instead of at the first generated password.
 .TP
 .BR \-l ", " \-\-length=\fINUM\fR
-Set the maximum password length to NUM characters.
+Set the maximum password length in character-set mode. The default is eight.
 .TP
 .BR \-a ", " \-\-alpha
-Use characters [a-z].
+Include lowercase ASCII letters (a-z) in the character set.
 .TP
 .BR \-A ", " \-\-alpha-caps
-Use characters [A-Z].
+Include uppercase ASCII letters (A-Z) in the character set.
 .TP
 .BR \-n ", " \-\-numeric
-Use characters [0-9].
+Include decimal digits (0-9) in the character set.
 .TP
 .BR \-s ", " \-\-special
-Use special characters " !\(dq#$%&'()*+,-./:;<=>?`[~]^_{|}@".
+Include printable special ASCII characters, including space, in the character
+set.
 .TP
-.BR \-t ", " \-\-threads=\fINUM\fR
-Distribute load to NUM threads. If set to "auto" (default), yazc will
-automatically use the number of logical processors available.
+.BR \-m ", " \-\-mask=\fIMASK\fR
+Use a position-specific password mask instead of character-set mode. Quote the
+mask to prevent the shell from interpreting its metacharacters.
+.TP
+.BR \-k ", " \-\-mask-minlen=\fINUM\fR
+Also test shorter prefixes of the mask, starting at length
+.IR NUM .
+The minimum cannot exceed the original number of mask positions.
+.TP
+.BR \-x ", " \-\-mask-maxlen=\fINUM\fR
+Also test longer passwords, up to length
+.IR NUM ,
+by repeating the final mask position. The maximum cannot be shorter than the
+original mask. Passwords cannot exceed 16 positions.
+.TP
+.BR \-t ", " \-\-threads=\fINUM|auto\fR
+Use
+.I NUM
+worker threads. The value
+.B auto
+selects the number of online processors and is the default.
 .TP
 .BR \-S ", " \-\-stats
-Print statistics.
+Print search configuration and runtime statistics.
 .TP
 .BR \-h ", " \-\-help
-Display help and exit.
-.SH DICTIONARY
-The \fIdictionary\fR command reads passwords from a text file (or
-stdin if no file argument is provided). It is assumed that each
-password is separated by a newline.
+Display help for the
+.B bruteforce
+command and exit.
+.SS Mask syntax
+Each mask position can be a literal character, a character list such as
+.BR [abc] ,
+an ascending lowercase, uppercase, or numeric range such as
+.BR [a-z] ,
+or one of the following placeholders:
+.TP
+.B ?l
+Lowercase ASCII letters (a-z).
+.TP
+.B ?u
+Uppercase ASCII letters (A-Z).
+.TP
+.B ?d
+Decimal digits (0-9).
+.TP
+.B ?s
+Printable special ASCII characters, including space.
+.TP
+.B ?a
+All printable ASCII characters, from byte value 0x20 through 0x7e.
+.TP
+.B ?B
+Upper-half byte values, from 0x80 through 0xff.
+.TP
+.B ?b
+All non-NUL byte values, from 0x01 through 0xff.
+.TP
+.B ?h
+Lowercase hexadecimal characters (a-f and 0-9).
+.TP
+.B ?H
+Uppercase hexadecimal characters (A-F and 0-9).
+.PP
+Lists can combine literals and ranges. For example,
+.B [a-f0-9_]
+matches a lowercase hexadecimal character or an underscore. Use
+.B \e?
+for a literal question mark,
+.B \e\e
+for a literal backslash, or
+.B \exNN
+for the byte with hexadecimal value
+.IR NN .
+Unescaped whitespace is ignored; use
+.B \ex20
+for a position that must contain a space.
+.PP
+Without
+.B \-k
+or
+.BR \-x ,
+the generated passwords have exactly the same number of positions as the
+mask. When
+.B \-i
+is used with a mask, the initial password must have the minimum generated
+length and must match every corresponding mask position.
+.SH DICTIONARY OPTIONS
+The
+.B dictionary
+command expects one password per line. If no dictionary file is specified,
+passwords are read from standard input.
 .TP
 .BR \-d ", " \-\-dictionary=\fIFILE\fR
-Read passwords from FILE.
+Read passwords from
+.I FILE
+instead of standard input.
 .TP
 .BR \-S ", " \-\-stats
-Print statistics.
-
+Print the selected input, archive name, and runtime statistics.
 .TP
 .BR \-h ", " \-\-help
-Display help and exit.
-.SH PLAINTEXT
-The \fIplaintext\fR command uses a known vulnerability in the pkzip
-stream cipher to find the internal representation of the encryption
-key. To use this attack type, you need at least 13 known plaintext
-bytes from any file in the archive. Generally, this means that you
-need to obtain at least 13 bytes of the \fBcompressed\fR stream before
-it was encrypted.
+Display help for the
+.B dictionary
+command and exit.
+.SH PLAINTEXT OPTIONS
+The
+.B plaintext
+command uses a known vulnerability in the PKZIP stream cipher to recover the
+internal representation of the encryption key. The attack requires at least
+13 known bytes from the compressed plaintext stream before it was encrypted.
 .PP
-The \fIplaintext\fR command can be used with the raw byte offsets (\-o
-option), directly with a plaintext and ciphertext file (\-f option) or
-by using the entry names from two zip files (default).
+By default, plaintext and ciphertext are read from corresponding entries in
+two ZIP archives. The
+.B \-o
+and
+.B \-f
+options provide two alternative mapping methods.
 .TP
 .BR \-o ", " \-\-offset
-Specify offsets from the plaintext and cipher text files.
+Map an inclusive range from
+.I plain-file
+to an equal-length range in
+.IR cipher-file .
+The final
+.I cipher-begin
+argument is the offset of the first ciphertext byte.
 .TP
 .BR \-f ", " \-\-file
-Use plaintext and ciphertext files directly (assumes the ciphertext
-includes the 12 encryption bytes).
+Map bytes directly from
+.I plain-file
+to
+.IR cipher-file .
+The first 12 bytes of the ciphertext file are assumed to be the encryption
+header. Bytes without a corresponding byte in the other file are ignored.
 .TP
 .BR \-i ", " \-\-password-from-internal-rep
-Find the password from the provided internal representation. See
-section 3.6 of the Biham & Kocher paper.
+Find a password from the three internal-representation values
+.IR key0 ,
+.IR key1 ,
+and
+.IR key2 .
+See section 3.6 of the Biham and Kocher paper for more information.
 .TP
-.BR \-t ", " \-\-threads=\fINUM\fR
-Distribute load to NUM threads.
+.BR \-p ", " \-\-internal-rep-from-password
+Calculate the internal representation of the positional
+.I password
+argument.
+.TP
+.BR \-t ", " \-\-threads=\fINUM|auto\fR
+Use
+.I NUM
+worker threads. The value
+.B auto
+selects the number of online processors and is the default.
 .TP
 .BR \-S ", " \-\-stats
-Print statistics.
+Print runtime statistics.
 .TP
 .BR \-h ", " \-\-help
-Display help and exit.
-.RE
-.SH INFO
-The \fIinfo\fR command lists the filenames, offsets and the encryption
-header for each file in the archive. This is useful to determine what
-configuration to pass to the \fIplaintext\fR command. The output lists
-one file per line with the following columns:
-.
-.
+Display help for the
+.B plaintext
+command and exit.
+.SH INFO OPTIONS
 .TP
-.I INDEX
-is the index of the file (0-based) from the zip headers
-.
-.
+.BR \-h ", " \-\-help
+Display help for the
+.B info
+command and exit.
+.SH INFO OUTPUT
+The
+.B info
+command prints one line per archive entry with the following fields:
 .TP
-.I NAME
-is the name of the file
-.
-.
+.B INDEX
+The zero-based index of the entry in the ZIP archive.
 .TP
-.I OFFSETS
-are the three offsets that are typically used with the
-\fI\-\-offset\fR option from the \fIplaintext\fR command. These are:
-the first encryption header byte (-1 if file is not encrypted), first
-data byte and the last data byte offsets (resp.)
-.
-.
+.B NAME
+The entry name from the ZIP header.
 .TP
-.I SIZE
-is the uncompressed size of the file
-.
-.
+.B OFFSETS
+Three offsets useful with
+.BR "plaintext --offset" :
+the first byte of the encryption header, the first byte of the compressed
+data, and the last byte of the compressed data. The encryption-header offset
+is \-1 when the entry is not encrypted.
 .TP
-.I CSIZE
-is the compressed size of the file
-.
-.
+.B SIZE
+The original, uncompressed size in bytes.
 .TP
-.I ENCRYPTED HEADER
-is the 12-bytes encryption header (all 0s if the file is not encrypted)
+.B CSIZE
+The compressed size in bytes, including the 12-byte encryption header.
+.TP
+.B ENCRYPTED HEADER
+The 12-byte encrypted header, or all zeros when the entry is not encrypted.
 .SH EXAMPLES
-Use a \fIbruteforce\fR attack on file archive.zip using only lower case
-letters and distribute the load to 8 threads:
+Try character-set passwords containing lowercase letters and digits, up to
+eight characters, using four worker threads:
 .PP
 .nf
 .RS
-yazc bruteforce -a -t8 archive.zip
+yazc bruteforce -a -n -l8 -t4 archive.zip
 .RE
 .fi
 .PP
-Use a \fIdictionary\fR attack on file archive.zip and use passwords from
-rockyou.txt:
+Try a literal pass- prefix followed by four decimal digits:
 .PP
 .nf
 .RS
-cat rockyou.txt | yazc dictionary archive.zip
+yazc bruteforce --mask='pass-?d?d?d?d' archive.zip
 .RE
 .fi
 .PP
-Use a \fIplaintext\fR attack on archive.zip. Take plaintext bytes 100
-to 650 and map them to ciphertext bytes 112 to 662. Use these bytes to
-reduce the number of keys and perform the attack. Once the
-intermediate key is found, decrypt the rest of the cipher (begins at
-offset 64) to get the internal representation (the encryption key
-derived from the password). If possible the actual (or equivalent)
-password will also be recovered and printed.
+Read dictionary passwords from a file:
+.PP
+.nf
+.RS
+yazc dictionary -d words.dict archive.zip
+.RE
+.fi
+.PP
+Map bytes 100 through 650 of plain.bin to bytes 112 through 662 of
+archive.zip. The first ciphertext byte is at offset 64:
 .PP
 .nf
 .RS
@@ -186,9 +341,7 @@ yazc plaintext -o plain.bin 100 650 archive.zip 112 662 64
 .RE
 .fi
 .PP
-Use plaintext bytes from the file1.bin entry in plain.zip and map them
-to file2.bin from cipher.zip. Both entries must have the exact same
-size.
+Map corresponding entries from an unencrypted and an encrypted ZIP archive:
 .PP
 .nf
 .RS
@@ -196,10 +349,7 @@ yazc plaintext plain.zip file1.bin cipher.zip file2.bin
 .RE
 .fi
 .PP
-Use plaintext bytes from plaintextfile and map them to the bytes from
-cipherfile. We assume that the first 12 bytes from cipherfile is the
-encryption header. If some bytes cannot be mapped, they are ignored
-(can happen if either the plaintext or the cipher file is smaller).
+Map plaintext and ciphertext files directly:
 .PP
 .nf
 .RS
@@ -207,16 +357,44 @@ yazc plaintext -f plaintextfile cipherfile
 .RE
 .fi
 .PP
-Find the password using the provided internal representation:
+Find a password from an internal representation:
 .PP
 .nf
 .RS
 yazc plaintext -i 0x61852369 0x54cba4d5 0x1c5d5a2e
 .RE
 .fi
+.PP
+Calculate an internal representation from a password:
+.PP
+.nf
+.RS
+yazc plaintext -p pAssW0Rd
+.RE
+.fi
+.PP
+Inspect the contents of an archive:
+.PP
+.nf
+.RS
+yazc info archive.zip
+.RE
+.fi
+.SH EXIT STATUS
+.B yazc
+returns zero when the requested operation succeeds and a nonzero value when
+an error occurs or a password cannot be found.
+.SH LIMITATIONS
+Only the legacy PKZIP stream cipher is supported. ZIP archives that use AES or
+other encryption methods are not supported.
+.SH SEE ALSO
+.BR zipinfo (1)
 .SH AUTHOR
 Marc Ferland <marc.ferland at gmail dot com>
 .PP
-Part of this software was inspired by fcrackzip by Marc Lehmann and
-pkcrack by Peter Conrad. The original plaintext algorithm was
-developed by Eli Biham and Paul C. Kocher.
+Parts of this software were inspired by
+.B fcrackzip
+by Marc Lehmann and
+.B pkcrack
+by Peter Conrad. The original plaintext algorithm was developed by Eli Biham
+and Paul C. Kocher.
