@@ -32,6 +32,7 @@ static bool stats = false;
 static const char short_opts[] = "d:hS";
 static const struct option long_opts[] = {
 	{ "dictionary", required_argument, 0, 'd' },
+	{ "stats", no_argument, 0, 'S' },
 	{ "help", no_argument, 0, 'h' },
 	{ NULL, 0, 0, 0 }
 };

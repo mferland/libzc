@@ -65,9 +65,9 @@ after testing every password whose length is between one and `length`.
 
 `-s, --special` uses printable special ASCII characters.
 
-`-t, --threads` specifies the number of worker threads. By default, the
-program uses the number of online CPUs reported by
-`sysconf(_SC_NPROCESSORS_ONLN)`.
+`-t, --threads=N` specifies the number of worker threads. Use
+`--threads=auto` to select the number of online CPUs reported by
+`sysconf(_SC_NPROCESSORS_ONLN)`. This is the default.
 
 `-S, --stats` prints runtime statistics.
 
@@ -206,14 +206,14 @@ for more information. For example:
 
     yazc plaintext -i 0x777095c0 0xc1764180 0xf5d5b494
 
-`-p, --password` calculates the internal representation of a password.
-For example:
+`-p, --internal-rep-from-password` calculates the internal representation
+of a password. For example:
 
     yazc plaintext -p pAssW0Rd
 
-`-t, --threads` specifies the number of worker threads. By default, the
-program uses the number of online CPUs reported by
-`sysconf(_SC_NPROCESSORS_ONLN)`.
+`-t, --threads=N` specifies the number of worker threads. Use
+`--threads=auto` to select the number of online CPUs reported by
+`sysconf(_SC_NPROCESSORS_ONLN)`. This is the default.
 
 `-S, --stats` prints runtime statistics.
 

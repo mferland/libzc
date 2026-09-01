@@ -79,7 +79,6 @@ Read passwords from FILE.
 .TP
 .BR \-S ", " \-\-stats
 Print statistics.
-
 .TP
 .BR \-h ", " \-\-help
 Display help and exit.
@@ -106,8 +105,12 @@ includes the 12 encryption bytes).
 Find the password from the provided internal representation. See
 section 3.6 of the Biham & Kocher paper.
 .TP
+.BR \-p ", " \-\-internal-rep-from-password
+Calculate the internal representation of a password.
+.TP
 .BR \-t ", " \-\-threads=\fINUM\fR
-Distribute load to NUM threads.
+Distribute load to NUM threads. If set to "auto" (default), yazc will
+automatically use the number of logical processors available.
 .TP
 .BR \-S ", " \-\-stats
 Print statistics.

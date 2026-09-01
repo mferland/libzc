@@ -76,9 +76,9 @@ static void print_help(const char *name)
 		"\t-n, --numeric           use characters [0-9]\n"
 		"\t-s, --special           use special characters\n"
 		"\t-m, --mask=MASK         password mask to use\n"
-		"\t-k, --min-mask=N        skip passwords shorter than N\n"
-		"\t-x, --max-mask=N        repeat last mask item up to length N\n"
-		"\t-t, --threads=N         force number of threads to N\n"
+		"\t-k, --mask-minlen=N     skip passwords shorter than N\n"
+		"\t-x, --mask-maxlen=N     repeat last mask item up to length N\n"
+		"\t-t, --threads=N|auto    number of threads (default: auto)\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
 		name, name, PW_LEN_DEFAULT);

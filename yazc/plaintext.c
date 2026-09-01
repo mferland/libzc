@@ -80,7 +80,7 @@ static void usage(const char *name)
 		"bytes on the ciphertext: file, offset and zip entry (default).\n"
 		"\n"
 		"Options:\n"
-		"\t-t, --threads=NUM                  spawn NUM threads\n"
+		"\t-t, --threads=NUM|auto             number of threads (default: auto)\n"
 		"\t-o, --offset                       use offsets instead of entry names\n"
 		"\t-f, --file                         use plaintext and ciphertext from files\n"
 		"\t-i, --password-from-internal-rep   find password from the internal\n"
