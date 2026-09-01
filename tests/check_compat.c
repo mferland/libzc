@@ -23,6 +23,24 @@
 
 #include "compat.h"
 
+START_TEST(test_reallocarray_allocates_and_preserves)
+{
+	int *values = reallocarray(NULL, 2, sizeof(*values));
+	int *resized;
+
+	ck_assert_ptr_nonnull(values);
+	values[0] = 42;
+	values[1] = 84;
+
+	resized = reallocarray(values, 4, sizeof(*values));
+
+	ck_assert_ptr_nonnull(resized);
+	ck_assert_int_eq(resized[0], 42);
+	ck_assert_int_eq(resized[1], 84);
+	free(resized);
+}
+END_TEST
+
 START_TEST(test_reallocarray_rejects_overflow)
 {
 	volatile size_t count = SIZE_MAX;
@@ -47,6 +65,7 @@ static Suite *compat_suite(void)
 	Suite *suite = suite_create("Compatibility");
 	TCase *tc_core = tcase_create("Core");
 
+	tcase_add_test(tc_core, test_reallocarray_allocates_and_preserves);
 	tcase_add_test(tc_core, test_reallocarray_rejects_overflow);
 	suite_add_tcase(suite, tc_core);
 
