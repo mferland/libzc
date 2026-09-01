@@ -71,6 +71,65 @@ program uses the number of online CPUs reported by
 
 `-S, --stats` prints runtime statistics.
 
+### Mask options
+
+A mask defines the allowed characters separately for each password
+position. Using `-m, --mask` selects mask mode instead of the character-set
+mode described above. Quote masks on the command line so the shell does not
+interpret characters such as `?`, `[`, or `]`.
+
+`-m, --mask=MASK` specifies the password mask. Without either of the length
+options below, the program tests passwords whose length exactly matches the
+mask. Passwords cannot exceed 16 characters.
+
+`-k, --mask-minlen=N` also tests shorter prefixes of the mask, starting at
+length `N`. The minimum length cannot exceed the number of positions in the
+mask.
+
+`-x, --mask-maxlen=N` also tests longer passwords, up to length `N`, by
+repeating the final mask position. The maximum length cannot be shorter than
+the mask.
+
+Each mask position can be a literal character, a character list such as
+`[abc]`, an alphanumeric range such as `[a-z]`, or one of these placeholders:
+
+| Placeholder | Characters |
+| --- | --- |
+| `?l` | Lowercase ASCII letters (`a-z`) |
+| `?u` | Uppercase ASCII letters (`A-Z`) |
+| `?d` | Decimal digits (`0-9`) |
+| `?s` | Printable special ASCII characters, including space |
+| `?a` | All printable ASCII characters (`0x20`–`0x7e`) |
+| `?B` | Upper-half byte values (`0x80`–`0xff`) |
+| `?b` | All non-NUL byte values (`0x01`–`0xff`) |
+| `?h` | Lowercase hexadecimal characters (`a-f`, `0-9`) |
+| `?H` | Uppercase hexadecimal characters (`A-F`, `0-9`) |
+
+Lists can combine characters and ranges. For example, `[a-f0-9_]` matches a
+lowercase hexadecimal character or an underscore. Use a backslash to include
+a mask metacharacter literally, such as `\?` for a question mark or `\\` for
+a backslash. A byte can also be written as `\xNN`, where `NN` is its two-digit
+hexadecimal value. Unescaped whitespace in a mask is ignored; use `\x20` when
+a position must contain a space.
+
+For example, try a literal `pass-` prefix followed by four digits:
+
+    yazc bruteforce --mask='pass-?d?d?d?d' archive.zip
+
+Try either `Pass0` or `pass0` through `Pass9` or `pass9`:
+
+    yazc bruteforce --mask='[Pp]ass?d' archive.zip
+
+The following mask first tests one lowercase letter, then a lowercase letter
+followed by one digit, and finally passwords with that prefix followed by up
+to two more digits:
+
+    yazc bruteforce --mask='?l?d' --mask-minlen=1 --mask-maxlen=4 archive.zip
+
+`-i, --initial` can also be used in mask mode. The initial password must have
+the minimum generated length and every character must match its corresponding
+mask position.
+
 ### Examples
 
 Try all passwords in `a-z0-9` up to eight characters using four worker
