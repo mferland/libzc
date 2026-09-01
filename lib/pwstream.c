@@ -154,6 +154,7 @@ static void split_ranges(size_t values, size_t workers, struct entry *entry)
 		entry[i].start = start;
 		entry[i].initial = start;
 		start += width;
+
 		/* Reproduce floor((i + 1) * values / workers) without allowing
 		 * either the multiplication or remainder accumulation to wrap. */
 		if (remainder && carried >= workers - remainder) {
@@ -161,6 +162,7 @@ static void split_ranges(size_t values, size_t workers, struct entry *entry)
 			carried -= workers - remainder;
 		} else
 			carried += remainder;
+
 		entry[i].stop = start - 1;
 	}
 }
@@ -176,6 +178,7 @@ static void split_repeated(size_t values, size_t workers, struct entry *entry)
 		entry[i].stop = value;
 		entry[i].initial = value;
 	}
+
 	sort_entries(entry, workers);
 }
 
@@ -266,6 +269,7 @@ static size_t equal_run(const struct entry *entry, size_t len)
 
 	while (count < len && entry_equal(&entry[count], entry))
 		++count;
+
 	return count;
 }
 
@@ -284,7 +288,7 @@ static size_t equal_run(const struct entry *entry, size_t len)
  *
  * Each two-worker group is still indistinguishable on this row.  The loop
  * calls split_rows() for each group at row + 1.  Pointer arithmetic adds
-	 * pws->active_stream_count to move to the same worker in the next row.
+ * pws->active_stream_count to move to the same worker in the next row.
  *
  * Once a group contains one worker, all remaining cells for that worker are
  * already full ranges from init_table(), so no further work is needed.
@@ -463,8 +467,10 @@ static size_t pool_cols(size_t pool_len, size_t pw_len, size_t workers)
 	for (size_t i = 0; i < pw_len; ++i) {
 		if (permutations >= workers)
 			return workers;
+
 		if (pool_len > workers / permutations)
 			return workers;
+
 		permutations *= pool_len;
 	}
 
@@ -476,6 +482,7 @@ static bool size_mul_overflow(size_t a, size_t b, size_t *result)
 {
 	if (a && b > SIZE_MAX / a)
 		return true;
+
 	*result = a * b;
 	return false;
 }
@@ -501,8 +508,10 @@ static size_t mask_cols(const char *const *mask, size_t mask_len,
 
 		if (permutations >= workers)
 			return workers;
+
 		if (len > workers / permutations)
 			return workers;
+
 		permutations *= len;
 	}
 
@@ -534,10 +543,13 @@ void pwstream_free(struct pwstream *pws)
 {
 	if (!pws)
 		return;
+
 	if (pws->table)
 		free(pws->table);
+
 	if (pws->radix)
 		free(pws->radix);
+
 	free(pws);
 }
 
@@ -563,17 +575,22 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	/* Reject invalid dimensions before releasing an existing table. */
 	if (!pws || !pool_len || !pw_len || !streams)
 		return -1;
+
 	if (initial) {
 		for (size_t i = 0; i < pw_len; ++i) {
 			if (initial[i] >= pool_len)
 				return -1;
 		}
 	}
+
 	active_stream_count = pool_cols(pool_len, pw_len, streams);
+
 	if (size_mul_overflow(active_stream_count, pw_len, &entry_count))
 		return -1;
+
 	if (size_mul_overflow(entry_count, sizeof(struct entry), &bytes))
 		return -1;
+
 	if (size_mul_overflow(pw_len, sizeof(size_t), &bytes))
 		return -1;
 
@@ -581,6 +598,7 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	table = calloc(entry_count, sizeof(struct entry));
 	if (!table)
 		return -1;
+
 	radix = calloc(pw_len, sizeof(size_t));
 	if (!radix) {
 		free(table);
@@ -647,26 +665,34 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 	 * releasing an existing table so a rejected call leaves it usable. */
 	if (!pws || !parsed_mask || !parsed_mask_len || !streams)
 		return -1;
+
 	for (size_t i = 0; i < parsed_mask_len; ++i) {
 		size_t alphabet_len;
 
 		if (!parsed_mask[i] || !parsed_mask[i][0])
 			return -1;
+
 		alphabet_len = strlen(parsed_mask[i]);
+
 		if (initial && initial[i] >= alphabet_len)
 			return -1;
 	}
+
 	active_stream_count = mask_cols(parsed_mask, parsed_mask_len, streams);
+
 	if (size_mul_overflow(active_stream_count, parsed_mask_len, &entry_count))
 		return -1;
+
 	if (size_mul_overflow(entry_count, sizeof(struct entry), &bytes))
 		return -1;
+
 	if (size_mul_overflow(parsed_mask_len, sizeof(size_t), &bytes))
 		return -1;
 
 	table = calloc(entry_count, sizeof(struct entry));
 	if (!table)
 		return -1;
+
 	radix = calloc(parsed_mask_len, sizeof(size_t));
 	if (!radix) {
 		free(table);
@@ -703,6 +729,7 @@ const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 	if (!pws || stream >= pws->active_stream_count ||
 	    pos >= pws->position_count)
 		return &null_entry;
+
 	return entry_at(pws, pos, stream);
 }
 
