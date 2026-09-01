@@ -272,7 +272,6 @@ static void dealloc_workers(struct threadpool *p)
 static void start_fail_cleanup(struct threadpool *p)
 {
 	long left = p->nbthreads_created;
-	int err;
 
 	while (left) {
 		pthread_mutex_lock(&p->mutex);
@@ -281,7 +280,7 @@ static void start_fail_cleanup(struct threadpool *p)
 		struct worker *w, *tmp;
 		list_for_each_entry_safe(w, tmp, &p->cleanup_head, list) {
 			list_del(&w->list);
-			err = pthread_join(w->id, NULL);
+			int err = pthread_join(w->id, NULL);
 			if (err)
 				fatal("pthread_join() failed: %s\n",
 				      strerror(err));

@@ -30,7 +30,8 @@
 #include "ptext_private.h"
 #include "pool.h"
 
-static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
+static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb_value,
+			     uint8_t mul)
 {
 	/*    \  List of multiples (up to 4) that
 	 * msb \ match with the msb or (msb - 1)
@@ -45,8 +46,8 @@ static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb, uint8_t mul)
 	 *
 	 * See Biham & Kocher section 3.3
 	 */
-	uint8_t nextmsb = (msb + 1) % 256;
-	p->lsbk0_lookup[msb][p->lsbk0_count[msb]++] = mul;
+	uint8_t nextmsb = (msb_value + 1) % 256;
+	p->lsbk0_lookup[msb_value][p->lsbk0_count[msb_value]++] = mul;
 	p->lsbk0_lookup[nextmsb][p->lsbk0_count[nextmsb]++] = mul;
 }
 

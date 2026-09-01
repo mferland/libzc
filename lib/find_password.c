@@ -98,6 +98,10 @@ static int compare_revpw_with_key(const uint8_t *pw, size_t len,
 {
 	uint8_t revpw[PASS_MAX_LEN];
 
+	/* No bytes need reversing for an empty password. */
+	if (!len)
+		return compare_pw_with_key(pw, len, k);
+
 	for (size_t i = len, j = 0; i > 0; --i, ++j)
 		revpw[j] = pw[i - 1];
 
