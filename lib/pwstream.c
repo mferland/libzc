@@ -629,13 +629,6 @@ int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw
 	return 0;
 }
 
-int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
-		      size_t streams, const size_t *initial)
-{
-	/* Historical name retained for pool-mode callers. */
-	return pwstream_generate_from_pool(pws, pool_len, pw_len, streams, initial);
-}
-
 /**
  * pwstream_generate_from_mask - generate a mixed-radix stream table
  *
