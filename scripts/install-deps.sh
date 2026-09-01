@@ -10,15 +10,15 @@ fi
 
 if [ "$NAME" = "Fedora Linux" ]
 then
-    dnf install -y git make automake libtool autoconf zlib-devel pkg-config texinfo diffutils check
+    dnf install -y gcc git make automake libtool autoconf bison flex zlib-devel pkg-config texinfo diffutils check
 elif [ "$NAME" = "Ubuntu" ]
 then
     apt update
-    apt install -yq git make automake libtool autoconf zlib1g-dev pkg-config texinfo diffutils check
+    apt install -yq gcc git make automake libtool autoconf bison flex zlib1g-dev pkg-config texinfo diffutils check
 elif [ "$NAME" = "Debian GNU/Linux" ]
 then
     apt update
-    apt install -yq git make automake libtool autoconf zlib1g-dev pkg-config texinfo diffutils check
+    apt install -yq gcc git make automake libtool autoconf bison flex zlib1g-dev pkg-config texinfo diffutils check
 else
     echo "ERROR: OS name is not provided."
     exit 1

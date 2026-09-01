@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "compat.h"
 #include "libzc.h"
 #include "libzc_private.h"
 #include "list.h"
@@ -732,7 +733,7 @@ static int stretch_mask(char ***in_parsed, size_t *in_len)
 	duplicate = strdup(parsed[len - 1]);
 	if (!duplicate)
 		return -1;
-	tmp = reallocarray(parsed, len + 1, sizeof(char *));
+	tmp = reallocarray(parsed, len + 1, sizeof(*parsed));
 	if (!tmp) {
 		free(duplicate);
 		return -1;
@@ -866,7 +867,7 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 		/* Initial password should have the same length as the
 		   minimum mask length. */
 		if (crk->ipwlen != crk->mask_minlen) {
-			err(crk->ctx, "initial password length (%lu) different from minimum mask length (%lu)\n",
+			err(crk->ctx, "initial password length (%zu) different from minimum mask length (%zu)\n",
 			    crk->ipwlen,
 			    crk->mask_minlen);
 			return -1;

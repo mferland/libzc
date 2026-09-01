@@ -13,9 +13,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS = basic file pwstream pool bruteforce dictionary reduce plaintext_password plaintext
+TESTS = basic compat file pwstream pool bruteforce dictionary reduce plaintext_password plaintext
 
 check_PROGRAMS = basic \
+	compat \
 	file \
 	pwstream \
 	pool \
@@ -41,6 +42,11 @@ EXTRA_DIST = noradi.zip \
 basic_SOURCES = check_basic.c
 basic_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
 basic_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+
+# compatibility functions
+compat_SOURCES = check_compat.c
+compat_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+compat_LDADD = $(top_builddir)/lib/compat.lo @CHECK_LIBS@
 
 # zc_file related functions
 file_SOURCES = check_file.c

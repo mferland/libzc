@@ -4,26 +4,59 @@ name: Build
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: ${{ matrix.experimental }}
 
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu", "fedora", "silkeh/clang:15-bullseye", "gcc:latest", "debian:unstable"]
         include:
-          - os: "silkeh/clang:15-bullseye"
+          - name: Ubuntu 24.04
+            image: ubuntu:24.04
+            artifact: ubuntu-24.04
+            experimental: false
+          - name: Fedora 44
+            image: fedora:44
+            artifact: fedora-44
+            experimental: false
+          - name: Clang 15 on Debian 11
+            image: silkeh/clang:15-bullseye
+            artifact: clang-15-debian-11
             cc: "clang"
+            experimental: false
+          - name: GCC 15.2 on Debian 12
+            image: gcc:15.2.0-bookworm
+            artifact: gcc-15.2-debian-12
+            experimental: false
+          - name: Debian unstable
+            image: debian:unstable
+            artifact: debian-unstable
+            experimental: true
 
     container:
-      image: ${{ matrix.os }}
-      options: --privileged --ulimit core=-1 --security-opt seccomp=unconfined
+      image: ${{ matrix.image }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
 
       - if: ${{ matrix.cc }}
         run: echo CC=${{ matrix.cc }} >> "$GITHUB_ENV"
@@ -42,25 +75,82 @@ jobs:
 
       - name: make check
         run: |
-          ulimit -c
-          echo "$GITHUB_WORKSPACE/libzc-coredump/core.%h.%e.%t" > /proc/sys/kernel/core_pattern
-          cat /proc/sys/kernel/core_pattern
-          mkdir "$GITHUB_WORKSPACE/libzc-coredump"
-          make check
+          make -j2 check
 
-      - name: upload check logs and coredumps
-        uses: actions/upload-artifact@v3
+      - name: upload check logs
+        uses: actions/upload-artifact@v7.0.1
         if: ${{ failure() }}
         with:
-          name: check_logs.${{ strategy.job-index }}
+          name: check-logs-${{ matrix.artifact }}
           path: |
-            ${{ github.workspace }}
-            /usr/lib/x86_64-linux-gnu/libpthread.so.0
-            /usr/lib/x86_64-linux-gnu/libc.so.6
-            /usr/lib/x86_64-linux-gnu/librt.so.1
-            /usr/lib/x86_64-linux-gnu/libm.so.6
-            /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
-            /usr/lib/libcheck.so.0.0.0
-            /usr/lib/x86_64-linux-gnu/libthread_db.so.1
-          if-no-files-found: error
+            config.log
+            tests/test-suite.log
+            tests/*.log
+          if-no-files-found: warn
           retention-days: 3
+
+  sanitizers:
+    name: Clang sanitizers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: ubuntu:24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          ./scripts/install-deps.sh
+          apt install -yq clang
+
+      - name: autogen
+        run: |
+          ./autogen.sh
+
+      - name: configure
+        env:
+          CC: clang
+          CFLAGS: -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+          LDFLAGS: -fsanitize=address,undefined
+        run: |
+          ./configure
+
+      - name: make check
+        env:
+          ASAN_OPTIONS: allocator_may_return_null=1:detect_leaks=1:halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+        run: |
+          make -j2 check
+
+  distcheck:
+    name: Source distribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    container:
+      image: ubuntu:24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          ./scripts/install-deps.sh
+
+      - name: autogen
+        run: |
+          ./autogen.sh
+
+      - name: configure
+        run: |
+          ./configure CFLAGS="-O0 -g"
+
+      - name: make distcheck
+        run: |
+          make distcheck

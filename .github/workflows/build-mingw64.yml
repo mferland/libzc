@@ -4,22 +4,41 @@ name: Build Windows executable
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-mingw64:
+    name: MinGW-w64
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      MMAN_WIN32_COMMIT: fedbdbf167241503c4a8250c1666be580890c4e2
+      PTHREADS4W_COMMIT: 8e467a62a14fd9de15af33beec0a913d23f4d2f9
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
+
       - name: Install dependencies
         run: |
-          sudo apt install -y git make automake libtool-bin autoconf zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip
-
-      - name: Checkout
-        uses: actions/checkout@v3
+          sudo ./scripts/install-mingw64-deps.sh
 
       - name: Install mman-win32
         run: |
-          git clone https://github.com/alitrack/mman-win32.git
+          git clone --no-checkout https://github.com/alitrack/mman-win32.git
+          git -C mman-win32 checkout --detach "$MMAN_WIN32_COMMIT"
           cd mman-win32
           ./configure --prefix=/usr/x86_64-w64-mingw32 --enable-static --cc=x86_64-w64-mingw32-gcc --cross-prefix=x86_64-w64-mingw32-
           make
@@ -27,7 +46,8 @@ jobs:
 
       - name: Install pthreads4w
         run: |
-          git clone https://git.code.sf.net/p/pthreads4w/code pthreads4w
+          git clone --no-checkout https://git.code.sf.net/p/pthreads4w/code pthreads4w
+          git -C pthreads4w checkout --detach "$PTHREADS4W_COMMIT"
           cd pthreads4w
           cp ${GITHUB_WORKSPACE}/docker/mingw64/0001-Temp-Makefile-fix.patch .
           git apply 0001-Temp-Makefile-fix.patch
@@ -39,3 +59,19 @@ jobs:
       - name: Run build script
         run: |
           scripts/build-mingw64.sh ${GITHUB_WORKSPACE}
+
+      - name: Smoke test Windows executable
+        env:
+          WINEARCH: win64
+          WINEDEBUG: -all
+          WINEPREFIX: ${{ runner.temp }}/wine-prefix
+        run: |
+          /usr/lib/wine/wine64 build-mingw64/yazc-v*/yazc.exe --help
+
+      - name: Upload Windows archive
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: yazc-win64
+          path: build-mingw64/yazc-v*-win64.zip
+          if-no-files-found: error
+          retention-days: 7

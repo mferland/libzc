@@ -1,24 +1,36 @@
-name: coverity
+name: Coverity Scan
 
-on:
-  push:
-    branches: ["coverity_scan"]
+'on':
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   coverity:
+    name: Coverity Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6.0.2
+        with:
+          persist-credentials: false
       - name: Install dependencies
         run: |
-          sudo apt install -y make automake libtool autoconf zlib1g-dev pkg-config git check
+          sudo ./scripts/install-deps.sh
       - name: autogen
         run: ./autogen.sh
       - name: configure
         run: ./configure
       - uses: vapier/coverity-scan-action@v1
         with:
-          email: marc.ferland@gmail.com
+          email: ${{ secrets.COVERITY_SCAN_EMAIL }}
           project: mferland/libzc
           token: ${{ secrets.COVERITY_SCAN_TOKEN }}
           command: make

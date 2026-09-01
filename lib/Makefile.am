@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTRA_DIST =
+EXTRA_DIST = mask_scanner.h
 CLEANFILES =
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AM_MAKEFLAGS = --no-print-directory
@@ -48,6 +48,8 @@ LIBZC_AGE=0
 lib_LTLIBRARIES = libzc.la
 libzc_la_SOURCES =\
 	common.c \
+	compat.c \
+	compat.h \
 	crc32.h \
 	decrypt_byte.h \
 	find_password.c \
