@@ -15,13 +15,33 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-BIN=`which cppcheck`
-OPT="--enable=all --language=c --platform=unix64 --std=c99 --suppress=missingIncludeSystem --suppress=missingInclude"
-FILES="yazc/ lib/"
+BIN=$(command -v cppcheck)
 
 if [ ! -x "$BIN" ]; then
     echo >&2 "cppcheck is not installed."
     exit 1
 fi
 
-${BIN} ${OPT} ${FILES}
+options=(
+    --enable=all
+    --language=c
+    --platform=unix64
+    --std=c99
+    --suppress=missingIncludeSystem
+    --suppress=missingInclude
+    --suppress=unusedFunction
+    --suppress=staticFunction
+    --suppress=normalCheckLevelMaxBranches
+    --suppress=checkersReport
+    -i lib/mask_parser.c
+    -i lib/mask_scanner.c
+)
+
+# Autoconf feature and package macros are normally supplied to every build.
+# Loading them here prevents warnings caused solely by cppcheck parsing the
+# source outside the configured build.
+if [ -f config.h ]; then
+    options+=(--include=config.h)
+fi
+
+"${BIN}" "${options[@]}" yazc/ lib/

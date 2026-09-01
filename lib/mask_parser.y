@@ -107,18 +107,24 @@ static struct mask_item * make_range_alphanum(int first, int second)
 static struct mask_item * make_char(int c)
 {
 	struct mask_item *e;
-	int ret;
 
-	/* if (isalpha(c) || isdigit(c) || c == '-' || c == '\\') { */
-		ret = alloc_mask_item(&e, 2, sizeof(unsigned char));
-		if (ret)
-			return NULL;
-		e->set[0] = c;
-		return e;
-	/* } */
+	if (alloc_mask_item(&e, 2, sizeof(unsigned char)))
+		return NULL;
 
-	yyerror("invalid character %c", c);
-	return NULL;
+	e->set[0] = c;
+	return e;
+}
+
+static struct mask_item * make_charset(const char *charset)
+{
+	struct mask_item *e;
+	size_t len = strlen(charset) + 1;
+
+	if (alloc_mask_item(&e, len, sizeof(*e->set)))
+		return NULL;
+
+	memcpy(e->set, charset, len);
+	return e;
 }
 
 static struct mask_item * make_place_holder(int place_holder)
@@ -140,8 +146,7 @@ static struct mask_item * make_place_holder(int place_holder)
 		break;
 	case 's':
 		/* special characters */
-		e = calloc(1, sizeof(*e));
-		e->set = strdup(" !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\");
+		e = make_charset(" !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\");
 		break;
 	case 'a':
 		/* full printable ASCII */
@@ -157,22 +162,15 @@ static struct mask_item * make_place_holder(int place_holder)
 		break;
 	case 'h':
 		/* lowercase HEX digits */
-		e = calloc(1, sizeof(*e));
-		e->set = strdup("abcdef0123456789");
+		e = make_charset("abcdef0123456789");
 		break;
 	case 'H':
 		/* uppercase HEX digits */
-		e = calloc(1, sizeof(*e));
-		e->set = strdup("ABCDEF0123456789");
+		e = make_charset("ABCDEF0123456789");
 		break;
 	}
 
 	return e;
-}
-
-void print_item(const struct mask_item *e)
-{
-	printf("%s\n", e->set);
 }
 
 static struct mask_item * range_merge(struct mask_item *e)

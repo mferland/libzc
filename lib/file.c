@@ -985,7 +985,8 @@ static int fill_info_list_central_directory(struct zc_file *f)
 	struct stat sb;
 	off_t cd_offset;
 	uint64_t entries_in_cd;
-	uint8_t *from, *end;
+	uint8_t *from;
+	const uint8_t *end;
 	size_t len, to_read = CD_BUF_LEN;
 
 	fd = fileno(f->stream);

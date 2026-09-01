@@ -193,7 +193,6 @@ static int parse_file_opts(const char *argv[])
 {
 	const char *filename;
 	struct stat st;
-	int err;
 
 	for (int src = SRC_PLAIN; src < SRC_NUM; ++src) {
 		filename = argv[optind++];
@@ -203,7 +202,7 @@ static int parse_file_opts(const char *argv[])
 
 		struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
 		fd->txt_begin = src == SRC_PLAIN ? 0 : 12;
-		err = stat(filename, &st);
+		int err = stat(filename, &st);
 		if (err < 0) {
 			err("stat() failed: %s\n", strerror(errno));
 			return err;
