@@ -64,7 +64,7 @@ static const struct entry test_initial1[] = {
 };
 START_TEST(generate_test_initial1)
 {
-	pwstream_generate(pws, 3, 3, 3, NULL);
+	pwstream_generate_from_pool(pws, 3, 3, 3, NULL);
 	test_generated_stream(test_initial1);
 }
 END_TEST
@@ -431,7 +431,7 @@ static const struct entry test_initial2[] = {
 static const size_t initial2[] = {0, 0, 0};
 START_TEST(generate_test_initial2)
 {
-	pwstream_generate(pws, 3, 3, 3, initial2);
+	pwstream_generate_from_pool(pws, 3, 3, 3, initial2);
 	test_generated_stream(test_initial2);
 }
 END_TEST
@@ -449,7 +449,7 @@ static const struct entry test_initial3[] = {
 static const size_t initial3[] = {0, 1, 0};
 START_TEST(generate_test_initial3)
 {
-	pwstream_generate(pws, 3, 3, 3, initial3);
+	pwstream_generate_from_pool(pws, 3, 3, 3, initial3);
 	test_generated_stream(test_initial3);
 }
 END_TEST
@@ -467,7 +467,7 @@ static const struct entry test_initial4[] = {
 static const size_t initial4[] = {0, 1, 1};
 START_TEST(generate_test_initial4)
 {
-	pwstream_generate(pws, 3, 3, 3, initial4);
+	pwstream_generate_from_pool(pws, 3, 3, 3, initial4);
 	test_generated_stream(test_initial4);
 }
 END_TEST
@@ -485,7 +485,7 @@ static const struct entry test_initial5[] = {
 static const size_t initial5[] = {1, 1, 1};
 START_TEST(generate_test_initial5)
 {
-	pwstream_generate(pws, 3, 3, 3, initial5);
+	pwstream_generate_from_pool(pws, 3, 3, 3, initial5);
 	test_generated_stream(test_initial5);
 }
 END_TEST
@@ -502,7 +502,7 @@ static const struct entry test_initial6[] = {
 static const size_t initial6[] = {0, 0, 2};
 START_TEST(generate_test_initial6)
 {
-	pwstream_generate(pws, 3, 3, 2, initial6);
+	pwstream_generate_from_pool(pws, 3, 3, 2, initial6);
 	test_generated_stream(test_initial6);
 }
 END_TEST
@@ -519,7 +519,7 @@ static const struct entry test_initial7[] = {
 static const size_t initial7[] = {0, 2, 2};
 START_TEST(generate_test_initial7)
 {
-	pwstream_generate(pws, 3, 3, 2, initial7);
+	pwstream_generate_from_pool(pws, 3, 3, 2, initial7);
 	test_generated_stream(test_initial7);
 }
 END_TEST
@@ -538,7 +538,7 @@ static const struct entry over_streams1[] = {
 };
 START_TEST(generate_over_streams1)
 {
-	pwstream_generate(pws, 2, 2, 5, NULL);
+	pwstream_generate_from_pool(pws, 2, 2, 5, NULL);
 	test_generated_stream(over_streams1);
 }
 END_TEST
@@ -557,7 +557,7 @@ static const struct entry over_streams2[] = {
 };
 START_TEST(generate_over_streams2)
 {
-	pwstream_generate(pws, 1, 2, 5, NULL);
+	pwstream_generate_from_pool(pws, 1, 2, 5, NULL);
 	test_generated_stream(over_streams2);
 }
 END_TEST
@@ -576,7 +576,7 @@ static const struct entry over_streams3[] = {
 };
 START_TEST(generate_over_streams3)
 {
-	pwstream_generate(pws, 1, 1, 5, NULL);
+	pwstream_generate_from_pool(pws, 1, 1, 5, NULL);
 	test_generated_stream(over_streams3);
 }
 END_TEST
@@ -595,7 +595,7 @@ static const struct entry less[] = {
 };
 START_TEST(generate_less)
 {
-	pwstream_generate(pws, 3, 5, 5, NULL);
+	pwstream_generate_from_pool(pws, 3, 5, 5, NULL);
 	test_generated_stream(less);
 }
 END_TEST
@@ -619,7 +619,7 @@ static const struct entry less1[] = {
 };
 START_TEST(generate_less1)
 {
-	pwstream_generate(pws, 3, 5, 10, NULL);
+	pwstream_generate_from_pool(pws, 3, 5, 10, NULL);
 	test_generated_stream(less1);
 }
 END_TEST
@@ -638,7 +638,7 @@ static const struct entry more[] = {
 };
 START_TEST(generate_more)
 {
-	pwstream_generate(pws, 8, 5, 5, NULL);
+	pwstream_generate_from_pool(pws, 8, 5, 5, NULL);
 	test_generated_stream(more);
 }
 END_TEST
@@ -657,7 +657,7 @@ static const struct entry equal[] = {
 };
 START_TEST(generate_equal)
 {
-	pwstream_generate(pws, 5, 5, 5, NULL);
+	pwstream_generate_from_pool(pws, 5, 5, 5, NULL);
 	test_generated_stream(equal);
 }
 END_TEST

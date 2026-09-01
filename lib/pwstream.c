@@ -90,23 +90,24 @@ static const struct entry null_entry = { SIZE_MAX, SIZE_MAX, SIZE_MAX };
  * 5. Repeat for later rows until every group contains one worker or there
  *    are no rows left.
  *
- * Sorting in split_more() keeps identical ranges adjacent, which is what
+ * Sorting in split_repeated() keeps identical ranges adjacent, which is what
  * makes the recursive grouping step possible.
  */
 
 struct pwstream {
 	/* Row-major table described above. */
-	struct entry *entry;
-	/* rows=password length; cols=allocated non-empty worker columns. */
-	size_t rows;
-	size_t cols;
-	/* Number of workers requested by the caller; may exceed cols. */
-	size_t real_cols;
+	struct entry *table;
+	/* Number of password positions. */
+	size_t position_count;
+	/* Number of allocated streams with work. */
+	size_t active_stream_count;
+	/* Number of streams requested by the caller. */
+	size_t stream_count;
 	/* Character count (radix) for each internal, reversed table row. */
-	size_t *chars_at_idx;
+	size_t *radix;
 };
 
-static int compare_entries(const void *a, const void *b)
+static int entry_cmp(const void *a, const void *b)
 {
 	const struct entry *ea = (const struct entry *)a;
 	const struct entry *eb = (const struct entry *)b;
@@ -116,24 +117,24 @@ static int compare_entries(const void *a, const void *b)
 	return (ea->start > eb->start) - (ea->start < eb->start);
 }
 
-static void sort(struct entry *e, size_t streams)
+static void sort_entries(struct entry *entry, size_t workers)
 {
-	qsort(e, streams, sizeof(struct entry), compare_entries);
+	qsort(entry, workers, sizeof(struct entry), entry_cmp);
 }
 
 /**
  * Get entry pointer at [row][col].
  */
-static struct entry *get(struct pwstream *t, size_t row, size_t col)
+static struct entry *entry_at(struct pwstream *pws, size_t row, size_t col)
 {
-	return &t->entry[t->cols * row + col];
+	return &pws->table[pws->active_stream_count * row + col];
 }
 
 /* Fewer streams than values: divide the values into contiguous ranges.
  * Example: five values over three streams -> [0,0], [1,2], [3,4]. */
-static void split_less(size_t plen, size_t streams, struct entry *t)
+static void split_ranges(size_t values, size_t workers, struct entry *entry)
 {
-	/* Example: plen=5 and streams=3 gives width=1 and remainder=2.
+	/* Example: values=5 and workers=3 gives width=1 and remainder=2.
 	 * Every worker receives one value, then the accumulated remainder adds
 	 * an extra value whenever it reaches one complete group of 3:
 	 *
@@ -142,95 +143,98 @@ static void split_less(size_t plen, size_t streams, struct entry *t)
 	 *       1       [1,2]                 1  (2 + 2 passes 3)
 	 *       2       [3,4]                 0  (1 + 2 reaches 3)
 	 *
-	 * This is equivalent to floor(i * plen / streams) at each boundary,
+	 * This is equivalent to floor(i * values / workers) at each boundary,
 	 * but it never evaluates the potentially overflowing multiplication. */
-	size_t width = plen / streams;
-	size_t remainder = plen % streams;
+	size_t width = values / workers;
+	size_t remainder = values % workers;
 	size_t carried = 0;
 	size_t start = 0;
 
-	for (size_t i = 0; i < streams; ++i) {
-		t[i].start = start;
-		t[i].initial = start;
+	for (size_t i = 0; i < workers; ++i) {
+		entry[i].start = start;
+		entry[i].initial = start;
 		start += width;
-		/* Reproduce floor((i + 1) * plen / streams) without allowing
+
+		/* Reproduce floor((i + 1) * values / workers) without allowing
 		 * either the multiplication or remainder accumulation to wrap. */
-		if (remainder && carried >= streams - remainder) {
+		if (remainder && carried >= workers - remainder) {
 			++start;
-			carried -= streams - remainder;
+			carried -= workers - remainder;
 		} else
 			carried += remainder;
-		t[i].stop = start - 1;
+
+		entry[i].stop = start - 1;
 	}
 }
 
 /* More streams than values: repeat singleton values, then sort them so all
  * equal entries are adjacent.  Later rows will subdivide those groups.
  * Example: three values over four streams -> [0], [0], [1], [2]. */
-static void split_more(size_t plen, size_t streams, struct entry *e)
+static void split_repeated(size_t values, size_t workers, struct entry *entry)
 {
-	for (size_t i = 0; i < streams; ++i) {
-		size_t tmp = i % plen;
-		e[i].start = tmp;
-		e[i].stop = tmp;
-		e[i].initial = tmp;
+	for (size_t i = 0; i < workers; ++i) {
+		size_t value = i % values;
+		entry[i].start = value;
+		entry[i].stop = value;
+		entry[i].initial = value;
 	}
-	sort(e, streams);
+
+	sort_entries(entry, workers);
 }
 
 /* One stream per value: every stream receives one singleton. */
-static void split_equal(size_t plen, struct entry *e)
+static void split_singletons(size_t values, struct entry *entry)
 {
-	for (size_t i = 0; i < plen; ++i) {
-		e[i].start = i;
-		e[i].stop = i;
-		e[i].initial = i;
+	for (size_t i = 0; i < values; ++i) {
+		entry[i].start = i;
+		entry[i].stop = i;
+		entry[i].initial = i;
 	}
 }
 
 /* Select the appropriate splitting strategy for one row and one contiguous
- * worker group.  plen is the radix of this row, not the password length. */
+ * worker group.  values is the radix, not the password length. */
 /**
- * distribute - partition one row among a contiguous group of workers
- * @plen: number of possible indexes at this password position
- * @streams: number of workers in the current group
+ * split_group - partition one row among a contiguous group of workers
+ * @values: number of possible indexes at this password position
+ * @workers: number of workers in the current group
  * @entry: first table cell belonging to that group on the current row
  *
  * This is the only function that assigns ranges.  Its result is always a
- * complete cover of [0, plen - 1].  Ranges do not overlap, except when there
+ * complete cover of [0, values - 1].  Ranges do not overlap, except when there
  * are more workers than values; in that case singleton ranges are repeated
  * deliberately and the next password row separates those workers.
  *
  * The caller relies on equal results being adjacent after this function.
  */
-static void distribute(size_t plen, size_t streams, struct entry *entry)
+static void split_group(size_t values, size_t workers, struct entry *entry)
 {
-	if (streams == 1) {
+	if (workers == 1) {
 		entry->start = 0;
-		entry->stop = plen - 1;
+		entry->stop = values - 1;
 		entry->initial = 0;
-	} else if (streams == plen) {
-		split_equal(plen, entry);
-	} else if (streams > plen) {
-		split_more(plen, streams, entry);
+	} else if (workers == values) {
+		split_singletons(values, entry);
+	} else if (workers > values) {
+		split_repeated(values, workers, entry);
 	} else
-		split_less(plen, streams, entry);
+		split_ranges(values, workers, entry);
 }
 
 /**
  * Compares entries e1 and e2.
  */
-static bool is_equal_entries(const struct entry *e1, const struct entry *e2)
+static bool entry_equal(const struct entry *a, const struct entry *b)
 {
-	return (e1->start == e2->start && e1->stop == e2->stop);
+	return (a->start == b->start && a->stop == b->stop);
 }
 
-/* Give every worker the complete range for every row.  generate() narrows
+/* Give every worker the complete range for every row.  build_table() narrows
  * only the rows needed to distinguish workers from one another. */
-static void entry_table_init(struct pwstream *t, size_t start, const size_t *stop)
+static void init_table(struct pwstream *pws, size_t start, const size_t *radix)
 {
 	/*
-	 * The default stop values are taken from the chars_at_idx
+	 * The default stop values are taken from the radix
 	 * array. Each entry in this array corresponds to the number
 	 * of characters we have to test.
 	 *
@@ -246,98 +250,101 @@ static void entry_table_init(struct pwstream *t, size_t start, const size_t *sto
 	 *
 	 */
 
-	for (size_t row = 0; row < t->rows; ++row) {
-		for (size_t col = 0; col < t->cols; ++col) {
-			struct entry *entry = get(t, row, col);
+	for (size_t row = 0; row < pws->position_count; ++row) {
+		for (size_t col = 0; col < pws->active_stream_count; ++col) {
+			struct entry *entry = entry_at(pws, row, col);
 			entry->start = start;
-			entry->stop = stop[row] - 1;
+			entry->stop = radix[row] - 1;
 			entry->initial = start;
 		}
 	}
 }
 
-/* Return the length of the equal-entry run at the start of e.  distribute()
+/* Return the length of the equal-entry run at the start of entry. split_group()
  * sorts equal ranges next to one another, so generation can consume every
  * row in one linear pass without repeatedly scanning unrelated workers. */
-static size_t equal_run_length(const struct entry *e, size_t len)
+static size_t equal_run(const struct entry *entry, size_t len)
 {
 	size_t count = 1; /* first entry is always equal */
 
-	while (count < len && is_equal_entries(&e[count], e))
+	while (count < len && entry_equal(&entry[count], entry))
 		++count;
+
 	return count;
 }
 
 /**
- * recurse - subdivide one group using progressively more-significant rows
+ * split_rows - subdivide one group using progressively more-significant rows
  * @pws: table being generated
- * @row: row to assign now; row 0 was assigned by generate()
+ * @row: row to assign now; row 0 was assigned by build_table()
  * @count: number of adjacent workers in this group
- * @e: cell at [row][first worker in the group]
+ * @entry: cell at [row][first worker in the group]
  *
  * Example with radix 2 and four workers:
  *
- *     current row after distribute(): [0] [0] [1] [1]
+ *     current row after split_group(): [0] [0] [1] [1]
  *                                      \____/   \____/
  *                                      group A  group B
  *
  * Each two-worker group is still indistinguishable on this row.  The loop
- * calls recurse() for each group at row + 1.  Pointer arithmetic adds
- * pws->cols to move vertically to the same worker in the next table row.
+ * calls split_rows() for each group at row + 1.  Pointer arithmetic adds
+ * pws->active_stream_count to move to the same worker in the next row.
  *
  * Once a group contains one worker, all remaining cells for that worker are
- * already full ranges from entry_table_init(), so no further work is needed.
+ * already full ranges from init_table(), so no further work is needed.
  */
-static void recurse(struct pwstream *pws, size_t row, size_t count, struct entry *e)
+static void split_rows(struct pwstream *pws, size_t row, size_t count,
+		       struct entry *entry)
 {
 	/* A one-worker group is already unique.  Its remaining rows keep the
-	 * full ranges installed by entry_table_init(). */
-	if (count == 1 || row >= pws->rows)
+	 * full ranges installed by init_table(). */
+	if (count == 1 || row >= pws->position_count)
 		return;
 
-	/* e points at this row's first cell for the current contiguous group. */
-	distribute(pws->chars_at_idx[row], count, e);
+	/* entry points at the first cell in this row's contiguous group. */
+	split_group(pws->radix[row], count, entry);
 
-	/* distribute() leaves equal ranges adjacent.  Recurse for groups that
+	/* split_group() leaves equal ranges adjacent.  Recurse for groups that
 	 * still contain multiple workers and only when another row exists.
-	 * Adding pws->cols advances one complete table row. */
+	 * Adding pws->active_stream_count advances one complete table row. */
 	size_t u = 0;
 	for (size_t i = 0; i < count; i += u) {
-		u = equal_run_length(&e[i], count - i);
-		if (u > 1 && row + 1 < pws->rows)
-			recurse(pws, row + 1, u, &e[i + pws->cols]);
+		u = equal_run(&entry[i], count - i);
+		if (u > 1 && row + 1 < pws->position_count)
+			split_rows(pws, row + 1, u,
+				   &entry[i + pws->active_stream_count]);
 	}
 }
 
 /**
- * generate - build the complete worker/position range table
- * @pws: initialized stream with rows, cols, radices, and full-range entries
+ * build_table - build the complete worker/position range table
+ * @pws: initialized stream with positions, streams, radices, and entries
  *
  * This is the algorithm's entry point after allocation:
  *
- *     entry_table_init() -> distribute row 0 -> find equal groups
- *                        -> recurse each group through rows 1..N
+ *     init_table() -> split row 0 -> find equal groups
+ *                  -> split each group through rows 1..N
  *
- * Row 0 is handled here because it spans every active worker.  recurse()
+ * Row 0 is handled here because it spans every active worker.  split_rows()
  * handles later rows because each of those rows is partitioned separately
  * inside the groups produced by the preceding row.
  */
-static void generate(struct pwstream *pws)
+static void build_table(struct pwstream *pws)
 {
 	/* Row 0 is the least-significant (last password) position. */
-	distribute(pws->chars_at_idx[0], pws->cols, pws->entry);
+	split_group(pws->radix[0], pws->active_stream_count, pws->table);
 
 	/* Group workers that received the same row-0 range and use subsequent
 	 * rows to distinguish the workers inside each group. */
-	for (size_t i = 0, u = 0; i < pws->cols; i += u) {
-		u = equal_run_length(&pws->entry[i], pws->cols - i);
+	for (size_t i = 0, u = 0; i < pws->active_stream_count; i += u) {
+		u = equal_run(&pws->table[i], pws->active_stream_count - i);
 		if (u > 1)
-			recurse(pws, 1, u, get(pws, 1, i));
+			split_rows(pws, 1, u, entry_at(pws, 1, i));
 	}
 }
 
 /**
- * generate_initial_indexes - choose each worker's first complete password
+ * set_initial - choose each worker's first complete password
  * @pws: generated range table
  * @initial: requested indexes in natural left-to-right password order
  *
@@ -371,28 +378,27 @@ static void generate(struct pwstream *pws)
  * after the request.  Its outer initial index is set to stop + 1, while
  * worker 1 starts exactly at "cc".
  */
-static void generate_initial_indexes(struct pwstream *pws,
-				     const size_t *initial)
+static void set_initial(struct pwstream *pws, const size_t *initial)
 {
 	/* Each column is an independent rectangular password subspace. */
-	for (size_t col = 0; col < pws->cols; ++col) {
+	for (size_t col = 0; col < pws->active_stream_count; ++col) {
 		bool found = true;
 
 		/* Compare the requested password from its most-significant (leftmost)
 		 * position.  Convert natural position back to the reversed table row. */
-		for (size_t pos = 0; pos < pws->rows; ++pos) {
-			size_t row = pws->rows - pos - 1;
+		for (size_t pos = 0; pos < pws->position_count; ++pos) {
+			size_t row = pws->position_count - pos - 1;
 			size_t requested = initial[pos];
-			struct entry *e = get(pws, row, col);
+			struct entry *e = entry_at(pws, row, col);
 
 			/* The worker's lowest value is already greater than the request at
 			 * this position.  The prefix is now greater, so the smallest valid
 			 * suffix is simply the start of every remaining range. */
 			if (requested < e->start) {
 				e->initial = e->start;
-				for (++pos; pos < pws->rows; ++pos) {
-					row = pws->rows - pos - 1;
-					e = get(pws, row, col);
+				for (++pos; pos < pws->position_count; ++pos) {
+					row = pws->position_count - pos - 1;
+					e = entry_at(pws, row, col);
 					e->initial = e->start;
 				}
 				break;
@@ -411,9 +417,9 @@ static void generate_initial_indexes(struct pwstream *pws,
 			found = false;
 			while (pos > 0) {
 				--pos;
-				row = pws->rows - pos - 1;
+				row = pws->position_count - pos - 1;
 				requested = initial[pos];
-				e = get(pws, row, col);
+				e = entry_at(pws, row, col);
 				if (requested < e->stop) {
 					e->initial = requested + 1;
 					found = true;
@@ -424,9 +430,9 @@ static void generate_initial_indexes(struct pwstream *pws,
 			/* After carrying, reset every less-significant position to the
 			 * smallest value owned by this worker. */
 			if (found) {
-				for (++pos; pos < pws->rows; ++pos) {
-					row = pws->rows - pos - 1;
-					e = get(pws, row, col);
+				for (++pos; pos < pws->position_count; ++pos) {
+					row = pws->position_count - pos - 1;
+					e = entry_at(pws, row, col);
 					e->initial = e->start;
 				}
 			}
@@ -437,32 +443,34 @@ static void generate_initial_indexes(struct pwstream *pws,
 		 * subspace precedes the requested password.  An initial value beyond
 		 * the outermost stop makes the consumer's first loop empty. */
 		if (!found) {
-			struct entry *e = get(pws, pws->rows - 1, col);
+			struct entry *e = entry_at(pws, pws->position_count - 1, col);
 			e->initial = e->stop + 1;
 		}
 	}
 }
 
 /**
- * ceil_streams_pool - determine how many non-empty columns to allocate
+ * pool_cols - determine how many non-empty columns to allocate
  *
- * real_cols retains the caller's requested worker count, but cols should
+ * stream_count retains the requested count, but active_stream_count should
  * never exceed the number of candidate passwords.  For example, a two-byte
  * pool and a two-character password have four candidates, so a request for
  * eight workers allocates four columns and marks workers 4..7 as empty.
  */
-static size_t ceil_streams_pool(size_t pool_len, size_t pw_len, size_t streams)
+static size_t pool_cols(size_t pool_len, size_t pw_len, size_t workers)
 {
 	size_t permutations = 1;
 
-	/* Only the comparison with streams matters.  Stop multiplying as soon
+	/* Only the comparison with workers matters.  Stop multiplying as soon
 	 * as the search space reaches that count, avoiding both integer overflow
 	 * and floating-point rounding for large password spaces. */
 	for (size_t i = 0; i < pw_len; ++i) {
-		if (permutations >= streams)
-			return streams;
-		if (pool_len > streams / permutations)
-			return streams;
+		if (permutations >= workers)
+			return workers;
+
+		if (pool_len > workers / permutations)
+			return workers;
+
 		permutations *= pool_len;
 	}
 
@@ -474,33 +482,36 @@ static bool size_mul_overflow(size_t a, size_t b, size_t *result)
 {
 	if (a && b > SIZE_MAX / a)
 		return true;
+
 	*result = a * b;
 	return false;
 }
 
 /**
- * ceil_streams_mask - mixed-radix equivalent of ceil_streams_pool
+ * mask_cols - mixed-radix equivalent of pool_cols
  *
  * For alphabets with lengths [2, 3, 2], the search space contains 12
  * candidates.  Counting stops at the requested number of workers because
  * the exact search-space size is irrelevant once it reaches that value.
  */
-static size_t ceil_streams_mask(const char *const *parsed_mask,
-				size_t parsed_mask_len, size_t streams)
+static size_t mask_cols(const char *const *mask, size_t mask_len,
+			size_t workers)
 {
 	size_t permutations = 1;
 
 	/* A mask is a mixed-radix space, so its size is the product of the
 	 * character counts at all positions.  Stop before multiplication would
-	 * overflow or exceed streams; either case means every requested worker
+	 * overflow or exceed workers; either case means every requested worker
 	 * can receive a non-empty range. */
-	for (size_t i = 0; i < parsed_mask_len; ++i) {
-		size_t len = strlen(parsed_mask[i]);
+	for (size_t i = 0; i < mask_len; ++i) {
+		size_t len = strlen(mask[i]);
 
-		if (permutations >= streams)
-			return streams;
-		if (len > streams / permutations)
-			return streams;
+		if (permutations >= workers)
+			return workers;
+
+		if (len > workers / permutations)
+			return workers;
+
 		permutations *= len;
 	}
 
@@ -517,10 +528,11 @@ int pwstream_new(struct pwstream **pws)
 	if (!p)
 		return -1;
 
-	p->entry = NULL;
-	p->rows = 0;
-	p->cols = 0;
-	p->chars_at_idx = NULL;
+	p->table = NULL;
+	p->position_count = 0;
+	p->active_stream_count = 0;
+	p->stream_count = 0;
+	p->radix = NULL;
 
 	*pws = p;
 
@@ -531,10 +543,13 @@ void pwstream_free(struct pwstream *pws)
 {
 	if (!pws)
 		return;
-	if (pws->entry)
-		free(pws->entry);
-	if (pws->chars_at_idx)
-		free(pws->chars_at_idx);
+
+	if (pws->table)
+		free(pws->table);
+
+	if (pws->radix)
+		free(pws->radix);
+
 	free(pws);
 }
 
@@ -545,74 +560,73 @@ void pwstream_free(struct pwstream *pws)
  *   1. Cap active columns to the number of possible passwords.
  *   2. Allocate rows * active columns cells.
  *   3. Fill every row radix with pool_len.
- *   4. Initialize full ranges and partition them with generate().
+ *   4. Initialize full ranges and partition them with build_table().
  *   5. Apply optional starting indexes in natural password order.
  */
 int pwstream_generate_from_pool(struct pwstream *pws, size_t pool_len, size_t pw_len,
 				size_t streams, const size_t *initial)
 {
-	struct entry *new_entry;
-	size_t *new_chars_at_idx;
-	size_t tmp_size;
+	struct entry *table;
+	size_t *radix;
+	size_t bytes;
 	size_t entry_count;
-	size_t cstrm;
+	size_t active_stream_count;
 
 	/* Reject invalid dimensions before releasing an existing table. */
 	if (!pws || !pool_len || !pw_len || !streams)
 		return -1;
+
 	if (initial) {
 		for (size_t i = 0; i < pw_len; ++i) {
 			if (initial[i] >= pool_len)
 				return -1;
 		}
 	}
-	cstrm = ceil_streams_pool(pool_len, pw_len, streams);
-	if (size_mul_overflow(cstrm, pw_len, &entry_count))
+
+	active_stream_count = pool_cols(pool_len, pw_len, streams);
+
+	if (size_mul_overflow(active_stream_count, pw_len, &entry_count))
 		return -1;
-	if (size_mul_overflow(entry_count, sizeof(struct entry), &tmp_size))
+
+	if (size_mul_overflow(entry_count, sizeof(struct entry), &bytes))
 		return -1;
-	if (size_mul_overflow(pw_len, sizeof(size_t), &tmp_size))
+
+	if (size_mul_overflow(pw_len, sizeof(size_t), &bytes))
 		return -1;
 
 	/* Allocate the complete replacement before changing the current state. */
-	new_entry = calloc(entry_count, sizeof(struct entry));
-	if (!new_entry)
+	table = calloc(entry_count, sizeof(struct entry));
+	if (!table)
 		return -1;
-	new_chars_at_idx = calloc(pw_len, sizeof(size_t));
-	if (!new_chars_at_idx) {
-		free(new_entry);
+
+	radix = calloc(pw_len, sizeof(size_t));
+	if (!radix) {
+		free(table);
 		return -1;
 	}
 
 	/* Pool mode is the uniform-radix case: every password position indexes
-	 * the same pool and therefore has the same chars_at_idx value. */
-	free(pws->entry);
-	free(pws->chars_at_idx);
-	pws->entry = new_entry;
-	pws->chars_at_idx = new_chars_at_idx;
+	 * the same pool and therefore has the same radix. */
+	free(pws->table);
+	free(pws->radix);
+	pws->table = table;
+	pws->radix = radix;
 
-	pws->rows = pw_len;
-	pws->cols = cstrm;
-	pws->real_cols = streams;
+	pws->position_count = pw_len;
+	pws->active_stream_count = active_stream_count;
+	pws->stream_count = streams;
 
 	/* when generating for a pool, all entries are identical */
 	for (size_t i = 0; i < pw_len; ++i)
-		pws->chars_at_idx[i] = pool_len;
+		pws->radix[i] = pool_len;
 
-	entry_table_init(pws, 0, pws->chars_at_idx);
-	generate(pws);
+	init_table(pws, 0, pws->radix);
+	build_table(pws);
 
 	if (initial)
-		generate_initial_indexes(pws, initial);
+		set_initial(pws, initial);
 
 	return 0;
-}
-
-int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
-		      size_t streams, const size_t *initial)
-{
-	/* Historical name retained for pool-mode callers. */
-	return pwstream_generate_from_pool(pws, pool_len, pw_len, streams, initial);
 }
 
 /**
@@ -620,7 +634,7 @@ int pwstream_generate(struct pwstream *pws, size_t pool_len, size_t pw_len,
  *
  * parsed_mask contains one alphabet per natural password position.  This
  * function needs only their lengths; character lookup remains the caller's
- * responsibility.  Lengths are reversed into chars_at_idx because table row
+ * responsibility.  Lengths are reversed into radix because table row
  * zero represents the final password character.
  *
  * The remaining setup and partitioning steps are identical to pool mode.
@@ -630,11 +644,11 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 				size_t parsed_mask_len, size_t streams,
 				const size_t *initial)
 {
-	struct entry *new_entry;
-	size_t *new_chars_at_idx;
-	size_t tmp_size;
+	struct entry *table;
+	size_t *radix;
+	size_t bytes;
 	size_t entry_count;
-	size_t cstrm;
+	size_t active_stream_count;
 
 	/* parsed_mask is supplied in natural left-to-right password order.  The
 	 * table uses the reverse order, so copy only the alphabet lengths and
@@ -644,51 +658,59 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 	 * releasing an existing table so a rejected call leaves it usable. */
 	if (!pws || !parsed_mask || !parsed_mask_len || !streams)
 		return -1;
+
 	for (size_t i = 0; i < parsed_mask_len; ++i) {
 		size_t alphabet_len;
 
 		if (!parsed_mask[i] || !parsed_mask[i][0])
 			return -1;
+
 		alphabet_len = strlen(parsed_mask[i]);
+
 		if (initial && initial[i] >= alphabet_len)
 			return -1;
 	}
-	cstrm = ceil_streams_mask(parsed_mask, parsed_mask_len, streams);
-	if (size_mul_overflow(cstrm, parsed_mask_len, &entry_count))
-		return -1;
-	if (size_mul_overflow(entry_count, sizeof(struct entry), &tmp_size))
-		return -1;
-	if (size_mul_overflow(parsed_mask_len, sizeof(size_t), &tmp_size))
+
+	active_stream_count = mask_cols(parsed_mask, parsed_mask_len, streams);
+
+	if (size_mul_overflow(active_stream_count, parsed_mask_len, &entry_count))
 		return -1;
 
-	new_entry = calloc(entry_count, sizeof(struct entry));
-	if (!new_entry)
+	if (size_mul_overflow(entry_count, sizeof(struct entry), &bytes))
 		return -1;
-	new_chars_at_idx = calloc(parsed_mask_len, sizeof(size_t));
-	if (!new_chars_at_idx) {
-		free(new_entry);
+
+	if (size_mul_overflow(parsed_mask_len, sizeof(size_t), &bytes))
+		return -1;
+
+	table = calloc(entry_count, sizeof(struct entry));
+	if (!table)
+		return -1;
+
+	radix = calloc(parsed_mask_len, sizeof(size_t));
+	if (!radix) {
+		free(table);
 		return -1;
 	}
 
-	free(pws->entry);
-	free(pws->chars_at_idx);
-	pws->entry = new_entry;
-	pws->chars_at_idx = new_chars_at_idx;
+	free(pws->table);
+	free(pws->radix);
+	pws->table = table;
+	pws->radix = radix;
 
-	pws->rows = parsed_mask_len;
-	pws->cols = cstrm;
-	pws->real_cols = streams;
+	pws->position_count = parsed_mask_len;
+	pws->active_stream_count = active_stream_count;
+	pws->stream_count = streams;
 
 	/* The stream table is least-significant-position first. */
 	for (size_t i = 0; i < parsed_mask_len; ++i)
-		pws->chars_at_idx[i] = strlen(parsed_mask[parsed_mask_len - i - 1]);
+		pws->radix[i] = strlen(parsed_mask[parsed_mask_len - i - 1]);
 
-	entry_table_init(pws, 0, pws->chars_at_idx);
-	generate(pws);
+	init_table(pws, 0, pws->radix);
+	build_table(pws);
 
 	if (initial)
 		/* Initial indexes use natural left-to-right password order. */
-		generate_initial_indexes(pws, initial);
+		set_initial(pws, initial);
 
 	return 0;
 }
@@ -697,24 +719,26 @@ const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 				       size_t pos)
 {
 	/* pos is an internal table row: pos 0 is the last password character. */
-	if (!pws || stream >= pws->cols || pos >= pws->rows)
+	if (!pws || stream >= pws->active_stream_count ||
+	    pos >= pws->position_count)
 		return &null_entry;
-	return get(pws, pos, stream);
+
+	return entry_at(pws, pos, stream);
 }
 
 size_t pwstream_get_pwlen(const struct pwstream *pws)
 {
-	return pws ? pws->rows : 0;
+	return pws ? pws->position_count : 0;
 }
 
 size_t pwstream_get_stream_count(const struct pwstream *pws)
 {
 	/* Return the requested count so callers can retain one worker object per
-	 * request.  pwstream_is_empty() identifies workers beyond active cols. */
-	return pws ? pws->real_cols : 0;
+	 * request.  pwstream_is_empty() identifies inactive streams. */
+	return pws ? pws->stream_count : 0;
 }
 
 bool pwstream_is_empty(const struct pwstream *pws, size_t stream)
 {
-	return !pws || stream >= pws->cols;
+	return !pws || stream >= pws->active_stream_count;
 }
