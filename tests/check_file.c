@@ -27,7 +27,8 @@ struct zc_file *file;
 
 void setup(void)
 {
-	zc_new(&ctx);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
 	file = NULL;
 }
 
@@ -53,8 +54,11 @@ START_TEST(test_zc_file_open_existant)
 	ck_assert_msg(zc_file_open(file) == 0,
 		      "File could not be opened.");
 	ck_assert(zc_file_isopened(file) == true);
-	zc_file_close(file);
+	ck_assert_int_eq(zc_file_open(file), -1);
+	ck_assert(zc_file_isopened(file) == true);
+	ck_assert_int_eq(zc_file_close(file), 0);
 	ck_assert(zc_file_isopened(file) == false);
+	ck_assert_int_eq(zc_file_close(file), -1);
 }
 END_TEST
 
@@ -64,6 +68,15 @@ START_TEST(test_zc_file_open_nonexistant)
 	ck_assert(zc_file_isopened(file) == false);
 	ck_assert_msg(zc_file_open(file) != 0,
 		      "Non-existant file reported having been opened.");
+	ck_assert(zc_file_isopened(file) == false);
+}
+END_TEST
+
+START_TEST(test_zc_file_open_non_zip)
+{
+	ck_assert_int_eq(zc_file_new_from_filename(ctx, DATADIR "dict.txt",
+					    &file), 0);
+	ck_assert_int_eq(zc_file_open(file), -1);
 	ck_assert(zc_file_isopened(file) == false);
 }
 END_TEST
@@ -96,6 +109,7 @@ START_TEST(test_zc_file_info_encrypted)
 	const uint32_t info_size[4] = {4658, 4464, 6879, 3165};
 	const uint32_t info_csize[4] = {1225, 1210, 1386, 1029};
 	const long info_offset[4] = {84, 1398, 2698, 4175};
+	const long info_end[4] = {1297, 2596, 4072, 5192};
 	const long info_crypt[4] = {72, 1386, 2686, 4163};
 	const char *info_filename[4] = {"lib/test_crk.c",
 					"lib/test_file.c",
@@ -111,10 +125,11 @@ START_TEST(test_zc_file_info_encrypted)
 	int i = 0;
 	info = zc_file_info_next(file, NULL);
 	do {
-		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
+		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
 		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
 		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);
@@ -157,6 +172,8 @@ START_TEST(test_zc_file_info_encrypted_2)
 	const uint32_t info_size[8] = {45297, 2331, 2092, 33463, 61989, 35564, 453798, 2034};
 	const uint32_t info_csize[8] = {13457, 779, 690, 8337, 19115, 10119, 101407, 849};
 	const long info_offset[8] = {82, 13621, 14485, 15259, 23683, 42882, 53084, 154577};
+	const long info_end[8] = {13527, 14388, 15163, 23584,
+				  42786, 52989, 154479, 155414};
 	const long info_crypt[8] = {70, 13609, 14473, 15247, 23671, 42870, 53072, 154565};
 	const char *info_filename[8] = {"config.guess",
 					"config.h",
@@ -177,10 +194,11 @@ START_TEST(test_zc_file_info_encrypted_2)
 	int i = 0;
 	info = zc_file_info_next(file, NULL);
 	do {
-		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
+		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
 		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
 		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);
@@ -208,6 +226,7 @@ START_TEST(test_zc_file_info_non_encrypted)
 	const uint32_t info_size[3] = {2898, 2647, 31002};
 	const uint32_t info_csize[3] = {940, 854, 8540};
 	const long info_offset[3] = {66, 1075, 1997};
+	const long info_end[3] = {1006, 1929, 10537};
 	const char *info_filename[3] = {"config.h",
 					"config.h.in",
 					"config.log"
@@ -221,10 +240,11 @@ START_TEST(test_zc_file_info_non_encrypted)
 	int i = 0;
 	info = zc_file_info_next(file, NULL);
 	do {
-		fail_if(strcmp(zc_file_get_filename(file), info_filename[i]) == 0);
+		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
 		ck_assert(zc_file_info_size(info) == info_size[i]);
 		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
 		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
 		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
 		ck_assert(zc_file_info_idx(info) == i);
 		buf = zc_file_info_enc_header(info);
@@ -253,6 +273,7 @@ Suite *file_suite(void)
 	tcase_add_test(tc_core, test_zc_file_new);
 	tcase_add_test(tc_core, test_zc_file_open_existant);
 	tcase_add_test(tc_core, test_zc_file_open_nonexistant);
+	tcase_add_test(tc_core, test_zc_file_open_non_zip);
 	tcase_add_test(tc_core, test_zc_file_close_opened);
 	tcase_add_test(tc_core, test_zc_file_info_encrypted);
 	tcase_add_test(tc_core, test_zc_file_info_encrypted_2);

@@ -27,8 +27,10 @@ struct zc_crk_bforce *crk;
 
 static void setup()
 {
-	zc_new(&ctx);
-	zc_crk_bforce_new(ctx, &crk);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_crk_bforce_new(ctx, &crk), 0);
+	ck_assert_ptr_nonnull(crk);
 	zc_crk_bforce_force_threads(crk, 1);
 }
 
@@ -75,6 +77,49 @@ START_TEST(test_parameter_setlen)
 	cfg.setlen = ZC_CHARSET_MAXLEN + 1;
 	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
 
+}
+END_TEST
+
+START_TEST(test_reject_invalid_length_bounds)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	strcpy(cfg.set, "ab");
+	cfg.setlen = 2;
+
+	cfg.maxlen = 0;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.maxlen = ZC_PW_MAXLEN + 1;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.maxlen = ZC_PW_MAXLEN;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.mask.str = "abcd";
+	cfg.mask.minlen = 5;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.mask.minlen = 0;
+	cfg.mask.maxlen = 3;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.mask.maxlen = ZC_PW_MAXLEN + 1;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.mask.str = "abcdefghijklmnopq";
+	cfg.mask.maxlen = 0;
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.mask.str = "abcd";
+	cfg.mask.minlen = 2;
+	cfg.mask.maxlen = 6;
+	strcpy(cfg.initial, "a");
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+
+	strcpy(cfg.initial, "ab");
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
 }
 END_TEST
 
@@ -609,6 +654,7 @@ Suite *bforce_suite(void)
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	tcase_add_test(tc_core, test_parameter_set);
 	tcase_add_test(tc_core, test_parameter_setlen);
+	tcase_add_test(tc_core, test_reject_invalid_length_bounds);
 	tcase_add_test(tc_core, test_parameter_init_leak);
 	tcase_add_test(tc_core, test_parameter_mask_init_leak);
 	tcase_add_test(tc_core, test_reinitialize_mask_as_charset);

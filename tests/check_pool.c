@@ -147,8 +147,8 @@ struct work3 {
 static int do_work3(void *in, struct list_head *list, int id)
 {
 	(void)in;
-	(void)id;
 	struct work3 *e = list_entry(list, struct work3, list);
+	ck_assert_int_eq(e->target, id);
 	ck_assert_int_lt(e->id, e->nb_units);
 	return TPEEXIT;
 }
@@ -174,7 +174,7 @@ static void test_start_submit_wait(size_t nb_workers,
 	for (size_t i = 0; i < nb_units; ++i) {
 		tmp[i] = malloc(sizeof(struct work3));
 		tmp[i]->id = i;
-		tmp[i]->target = nb_units - 1;
+		tmp[i]->target = nb_workers - (i % nb_workers) - 1;
 		tmp[i]->nb_units = nb_units;
 		threadpool_submit_work(pool, &(tmp[i]->list));
 	}
@@ -186,6 +186,17 @@ static void test_start_submit_wait(size_t nb_workers,
 		free(tmp[i]);
 	free(tmp);
 }
+
+START_TEST(test_start_submit_wait_empty)
+{
+	struct threadpool_ops ops = {
+		.do_work = do_work3,
+		.in = NULL
+	};
+
+	test_start_submit_wait(3, 0, &ops, false);
+}
+END_TEST
 
 START_TEST(test_start_submit_wait_less)
 {
@@ -282,6 +293,7 @@ Suite *threadpool_suite()
 	tcase_add_test(tc_core, test_get_nbthreads_2);
 	tcase_add_test(tc_core, test_invalid_set_ops);
 	tcase_add_test(tc_core, test_start_submit_wait1);
+	tcase_add_test(tc_core, test_start_submit_wait_empty);
 	tcase_add_test(tc_core, test_start_submit_wait_less);
 	tcase_add_test(tc_core, test_start_submit_wait_equal);
 	tcase_add_test(tc_core, test_start_submit_wait_more);

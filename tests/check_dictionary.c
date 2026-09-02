@@ -29,8 +29,10 @@ char pw[LEN];
 
 static void setup()
 {
-	zc_new(&ctx);
-	zc_crk_dict_new(ctx, &crk);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_crk_dict_new(ctx, &crk), 0);
+	ck_assert_ptr_nonnull(crk);
 }
 
 static void teardown()
@@ -51,16 +53,32 @@ START_TEST(test_init_file_found)
 }
 END_TEST
 
+START_TEST(test_start_requires_initialization)
+{
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw,
+					   LEN), -1);
+}
+END_TEST
+
+START_TEST(test_start_rejects_small_buffer)
+{
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw, 0), -1);
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw, 1), -1);
+	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw, 2), -1);
+}
+END_TEST
+
 START_TEST(test_dict_not_found)
 {
-	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
 	ck_assert_int_eq(zc_crk_dict_start(crk, "doesnotexits", pw, LEN), -1);
 }
 END_TEST
 
 START_TEST(test_dict_success)
 {
-	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
 	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "dict.txt", pw, LEN), 0);
 	ck_assert_str_eq(pw, "noradi");
 }
@@ -68,7 +86,7 @@ END_TEST
 
 START_TEST(test_dict_password_not_found)
 {
-	zc_crk_dict_init(crk, DATADIR "noradi.zip");
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
 	ck_assert_int_eq(zc_crk_dict_start(crk, DATADIR "pw.txt", pw, LEN), 1);
 }
 END_TEST
@@ -85,6 +103,8 @@ Suite *dict_suite(void)
 	tcase_add_checked_fixture(tc_core, setup, teardown);
 	tcase_add_test(tc_core, test_init_file_not_found);
 	tcase_add_test(tc_core, test_init_file_found);
+	tcase_add_test(tc_core, test_start_requires_initialization);
+	tcase_add_test(tc_core, test_start_rejects_small_buffer);
 	tcase_add_test(tc_core, test_dict_not_found);
 	tcase_add_test(tc_core, test_dict_success);
 	tcase_add_test(tc_core, test_dict_password_not_found);

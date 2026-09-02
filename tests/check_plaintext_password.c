@@ -64,8 +64,10 @@ struct test_pool pool[POOL_LEN] = {
 
 void setup_ptext()
 {
-	zc_new(&ctx);
-	zc_crk_ptext_new(ctx, &ptext, -1);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_ptr_nonnull(ptext);
 }
 
 void teardown_ptext()
@@ -76,10 +78,32 @@ void teardown_ptext()
 
 START_TEST(test_zc_crk_ptext_find_password_0)
 {
-	char pw[14];
+	char pw[14] = "unchanged";
 	struct zc_key internal_rep = { .key0 = 0x12345678, .key1 = 0x23456789, .key2 = 0x34567890 };
+	struct zc_key generated;
+
+	zc_passw_to_internal_rep(NULL, 0, &generated);
+	ck_assert_uint_eq(generated.key0, internal_rep.key0);
+	ck_assert_uint_eq(generated.key1, internal_rep.key1);
+	ck_assert_uint_eq(generated.key2, internal_rep.key2);
 	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
 						    sizeof(pw)), 0);
+	ck_assert_str_eq(pw, "unchanged");
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_find_password_rejects_small_buffer)
+{
+	char pw[14] = {0};
+	struct zc_key internal_rep = pool[0].k;
+
+	for (size_t len = 0; len < sizeof(pw) - 1; ++len)
+		ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep,
+							    pw, len), -1);
+
+	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+						    sizeof(pw) - 1), 1);
+	ck_assert_str_eq(pw, "a");
 }
 END_TEST
 
@@ -201,6 +225,14 @@ START_TEST(test_zc_crk_ptext_find_password_pool)
 	struct zc_key internal_rep;
 
 	for (int i = 0; i < POOL_LEN; ++i) {
+		struct zc_key generated;
+
+		zc_passw_to_internal_rep((const uint8_t *)pool[i].pw,
+					  pool[i].len, &generated);
+		ck_assert_uint_eq(generated.key0, pool[i].k.key0);
+		ck_assert_uint_eq(generated.key1, pool[i].k.key1);
+		ck_assert_uint_eq(generated.key2, pool[i].k.key2);
+
 		internal_rep = pool[i].k;
 		ck_assert_int_eq(zc_crk_ptext_find_password(ptext,
 							    &internal_rep,
@@ -218,6 +250,8 @@ Suite *plaintext_password_suite()
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_0);
+	tcase_add_test(tc_core,
+		       test_zc_crk_ptext_find_password_rejects_small_buffer);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_1);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2);
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3);

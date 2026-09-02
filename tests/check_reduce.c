@@ -31,8 +31,10 @@ struct zc_crk_ptext *ptext;
 
 void setup_reduce()
 {
-	zc_new(&ctx);
-	zc_crk_ptext_new(ctx, &ptext, -1);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_ptr_nonnull(ptext);
 }
 
 void teardown_reduce()
@@ -43,7 +45,19 @@ void teardown_reduce()
 
 START_TEST(test_can_get_bits_15_2)
 {
-	fail_if(ptext->bits_15_2[0] != 0);
+	for (size_t key3 = 0; key3 < 256; ++key3) {
+		const uint16_t *bits = get_bits_15_2(ptext->bits_15_2, key3);
+
+		for (size_t i = 0; i < 64; ++i) {
+			uint32_t value = bits[i];
+			uint8_t generated = ((value | 2) * (value | 3)) >> 8;
+
+			ck_assert_int_eq(generated, key3);
+			ck_assert_int_eq(value & 3, 0);
+			if (i)
+				ck_assert_uint_gt(value, bits[i - 1]);
+		}
+	}
 }
 END_TEST
 
@@ -54,9 +68,38 @@ START_TEST(test_can_generate_first_gen_key2)
 
 	bits15_2 = get_bits_15_2(ptext->bits_15_2, 0);
 	key2_first_gen = calloc((1 << 22), sizeof(uint32_t));
+	ck_assert_ptr_nonnull(key2_first_gen);
 	generate_all_key2_bits_31_2(key2_first_gen, bits15_2);
-	fail_if(key2_first_gen[0] != 0);
+	ck_assert_uint_eq(key2_first_gen[0], bits15_2[0]);
+	ck_assert_uint_eq(key2_first_gen[63], bits15_2[63]);
+	ck_assert_uint_eq(key2_first_gen[64], (1U << 16) | bits15_2[0]);
+	ck_assert_uint_eq(key2_first_gen[(1 << 22) - 1],
+			  0xffff0000U | bits15_2[63]);
 	free(key2_first_gen);
+}
+END_TEST
+
+START_TEST(test_distribute_key2_boundaries)
+{
+	const uint32_t src[] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+	uint32_t dst[3] = { UINT32_MAX, UINT32_MAX, UINT32_MAX };
+
+	ck_assert_int_eq(distribute_key2(2, 0, dst, 1, src), 2);
+	ck_assert_uint_eq(dst[0], 2);
+	ck_assert_uint_eq(dst[1], 3);
+
+	ck_assert_int_eq(distribute_key2(2, 2, dst, 0, src), 3);
+	ck_assert_uint_eq(dst[0], 0);
+	ck_assert_uint_eq(dst[1], 1);
+	ck_assert_uint_eq(dst[2], 2);
+
+	ck_assert_int_eq(distribute_key2(2, 2, dst, 2, src), 2);
+	ck_assert_uint_eq(dst[0], 6);
+	ck_assert_uint_eq(dst[1], 7);
+
+	dst[0] = UINT32_MAX;
+	ck_assert_int_eq(distribute_key2(0, 2, dst, 2, src), 0);
+	ck_assert_uint_eq(dst[0], UINT32_MAX);
 }
 END_TEST
 
@@ -100,6 +143,7 @@ Suite *reduce_suite()
 	tcase_add_checked_fixture(tc_core, setup_reduce, teardown_reduce);
 	tcase_add_test(tc_core, test_can_get_bits_15_2);
 	tcase_add_test(tc_core, test_can_generate_first_gen_key2);
+	tcase_add_test(tc_core, test_distribute_key2_boundaries);
 #ifdef EXTRACHECK
 	tcase_add_test(tc_core, test_can_generate_next_array_from_plaintext);
 #endif
