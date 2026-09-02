@@ -26,7 +26,8 @@ struct zc_ctx *ctx;
 
 void setup_ptext()
 {
-	zc_new(&ctx);
+	ck_assert_int_eq(zc_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
 }
 
 void teardown_ptext()
@@ -37,8 +38,26 @@ void teardown_ptext()
 START_TEST(test_zc_ptext_new)
 {
 	struct zc_crk_ptext *ptext;
-	ck_assert(zc_crk_ptext_new(ctx, &ptext, -1) == 0);
-	ck_assert(zc_crk_ptext_unref(ptext) == 0);
+
+	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_ptr_nonnull(ptext);
+	ck_assert_int_eq(zc_crk_ptext_key2_count(ptext), 0);
+	ck_assert_ptr_null(zc_crk_ptext_unref(ptext));
+}
+END_TEST
+
+START_TEST(test_zc_ptext_set_text_size_boundary)
+{
+	uint8_t plaintext[13] = {0};
+	uint8_t ciphertext[13] = {0};
+	struct zc_crk_ptext *ptext;
+
+	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, 1), 0);
+	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
+					      12), -1);
+	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
+					      13), 0);
+	ck_assert_ptr_null(zc_crk_ptext_unref(ptext));
 }
 END_TEST
 
@@ -68,6 +87,7 @@ START_TEST(test_zc_crk_ptext_attack)
 	ck_assert(zc_crk_ptext_unref(ptext) == 0);
 }
 END_TEST
+#endif
 
 START_TEST(test_zc_crk_ptext_find_internal_rep)
 {
@@ -80,7 +100,23 @@ START_TEST(test_zc_crk_ptext_find_internal_rep)
 		  internal_rep.key2 == 0xc661eb70);
 }
 END_TEST
-#endif
+
+START_TEST(test_zc_crk_ptext_find_internal_rep_rejects_short_input)
+{
+	struct zc_key start_key = {0};
+	struct zc_key internal_rep = {
+		.key0 = UINT32_MAX,
+		.key1 = UINT32_MAX,
+		.key2 = UINT32_MAX,
+	};
+
+	ck_assert_int_eq(zc_crk_ptext_find_internal_rep(
+		&start_key, test_encrypted_header, 11, &internal_rep), -1);
+	ck_assert_uint_eq(internal_rep.key0, UINT32_MAX);
+	ck_assert_uint_eq(internal_rep.key1, UINT32_MAX);
+	ck_assert_uint_eq(internal_rep.key2, UINT32_MAX);
+}
+END_TEST
 
 Suite *plaintext_suite()
 {
@@ -89,12 +125,15 @@ Suite *plaintext_suite()
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
 	tcase_add_test(tc_core, test_zc_ptext_new);
+	tcase_add_test(tc_core, test_zc_ptext_set_text_size_boundary);
 	tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
 #ifdef EXTRACHECK
 	tcase_add_test(tc_core, test_zc_crk_ptext_attack);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
 	tcase_set_timeout(tc_core, 60 * 60);
 #endif
+	tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
+	tcase_add_test(tc_core,
+		       test_zc_crk_ptext_find_internal_rep_rejects_short_input);
 	suite_add_tcase(s, tc_core);
 
 	return s;
