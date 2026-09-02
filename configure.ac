@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 AC_PREREQ([2.69])
-AC_INIT([zc],[0.4.4],[marc.ferland@gmail.com],[libzc],[http://github.com/mferland/libzc])
+AC_INIT([yazc],[0.4.4],[marc.ferland@gmail.com],[yazc],[https://github.com/mferland/libzc])
 m4_include([m4/ax_pthread.m4])
 AC_CONFIG_SRCDIR([lib/libzc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
@@ -62,7 +62,6 @@ AC_CONFIG_FILES([
         lib/Makefile
         yazc/Makefile
         tests/Makefile
-        lib/libzc.pc
 ])
 
 AC_OUTPUT
@@ -72,9 +71,6 @@ AC_MSG_RESULT([
 
         prefix:                 ${prefix}
         sysconfdir:             ${sysconfdir}
-        libdir:                 ${libdir}
-        includedir:             ${includedir}
-
         compiler:               ${CC}
         cflags:                 ${CFLAGS}
         cppflags:               ${CPPFLAGS}

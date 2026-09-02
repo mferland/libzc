@@ -1,5 +1,5 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: libzc
+Upstream-Name: yazc
 Upstream-Contact: Marc Ferland <marc.ferland@gmail.com>
 Source: https://github.com/mferland/libzc
 

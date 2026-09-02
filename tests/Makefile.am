@@ -13,7 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS = basic compat file pwstream pool bruteforce dictionary reduce plaintext_password plaintext
+TESTS = basic compat file pwstream pool bruteforce dictionary reduce plaintext_password plaintext cli
+TESTS_ENVIRONMENT = YAZC='$(abs_top_builddir)/yazc/yazc'; export YAZC;
 
 check_PROGRAMS = basic \
 	compat \
@@ -41,64 +42,57 @@ EXTRA_DIST = noradi.zip \
 	test_non_encrypted.zip \
 	test.zip \
 	test_zyx.zip \
-	dict.txt
+	dict.txt \
+	cli
+
+TEST_CORE = $(top_builddir)/lib/libyazc-core.la -lm $(ZLIB_LIBS)
 
 # basic functions test
 basic_SOURCES = check_basic.c
 basic_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-basic_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+basic_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # compatibility functions
 compat_SOURCES = check_compat.c
 compat_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-compat_LDADD = $(top_builddir)/lib/compat.lo @CHECK_LIBS@
+compat_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_file related functions
 file_SOURCES = check_file.c
 file_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-file_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+file_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_crk_bforce related functions
 bruteforce_SOURCES = check_bruteforce.c
 bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-bruteforce_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+bruteforce_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_crk_dict related functions
 dictionary_SOURCES = check_dictionary.c
 dictionary_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-dictionary_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+dictionary_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # pwstream related functions
 pwstream_SOURCES = check_pwstream.c
 pwstream_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-pwstream_LDADD = $(top_builddir)/lib/pwstream.lo @CHECK_LIBS@ -lm
+pwstream_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # pool related functions
 pool_SOURCES = check_pool.c
 pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-pool_LDADD = $(top_builddir)/lib/pool.lo \
-	$(top_builddir)/lib/sys.lo \
-	$(top_builddir)/lib/libzc.lo \
-	@CHECK_LIBS@
+pool_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # reduce related functions
 reduce_SOURCES = check_reduce.c test_plaintext.h
 reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-reduce_LDADD = $(top_builddir)/lib/libzc.la \
-	$(top_builddir)/lib/ptext.lo \
-	$(top_builddir)/lib/pool.lo \
-	$(top_builddir)/lib/sys.lo \
-	$(top_builddir)/lib/qsort.lo \
-	$(top_builddir)/lib/libzc.lo \
-	$(top_builddir)/lib/uniq.lo \
-	@CHECK_LIBS@
+reduce_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # plaintext password functions
 plaintext_password_SOURCES = check_plaintext_password.c
 plaintext_password_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-plaintext_password_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+plaintext_password_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # plaintext related functions
 plaintext_SOURCES = check_plaintext.c
 plaintext_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
-plaintext_LDADD = $(top_builddir)/lib/libzc.la @CHECK_LIBS@
+plaintext_LDADD = $(TEST_CORE) @CHECK_LIBS@

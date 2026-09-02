@@ -10,8 +10,8 @@
 
 # Overview
 
-libzc is a simple ZIP password-cracking library. It also includes a
-command-line tool called `yazc` (Yet Another Zip Cracker).
+`yazc` (Yet Another Zip Cracker) is a simple command-line application for
+recovering passwords and encryption keys from legacy ZIP archives.
 
 # Dependencies
 
