@@ -738,7 +738,7 @@ static int try_key_7_13(struct final_private *f)
 	return -1;
 }
 
-ZC_EXPORT int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 					 const struct zc_key *internal_rep,
 					 char *out,
 					 size_t len)

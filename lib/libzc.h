@@ -24,16 +24,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-/**
- * zc_ctx:
- *
- * library user context - reads the config and system environment,
- * user variables, allows custom logging
- */
 struct zc_ctx;
 struct zc_ctx *zc_ref(struct zc_ctx *ctx);
 struct zc_ctx *zc_unref(struct zc_ctx *ctx);
@@ -45,11 +35,6 @@ void zc_set_log_fn(struct zc_ctx *ctx,
 int zc_get_log_priority(const struct zc_ctx *ctx);
 void zc_set_log_priority(struct zc_ctx *ctx, int priority);
 
-/**
- * zc_file:
- *
- * contains information about the zip file.
- */
 struct zc_file;
 struct zc_file *zc_file_ref(struct zc_file *file);
 struct zc_file *zc_file_unref(struct zc_file *file);
@@ -77,11 +62,6 @@ struct zc_mask {
 	const char *str;
 };
 
-/**
- * zc_crk_dict:
- *
- * Dictionnary attack.
- */
 struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk);
 struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk);
 int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk);
@@ -89,11 +69,6 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
 int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
 		      size_t len);
 
-/**
- * zc_crk_bforce:
- *
- * Bruteforce attack.
- */
 #define ZC_PW_MINLEN	  1
 #define ZC_PW_MAXLEN	  16
 #define ZC_CHARSET_MAXLEN 96
@@ -115,17 +90,6 @@ void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w);
 int zc_crk_bforce_start(struct zc_crk_bforce *bforce, char *out_pw,
 			size_t out_pw_size);
 
-/**
- * zc_crk_ptext:
- *
- * Plaintext cracker. Typically you would call:
- * 1- zc_crk_ptext_new();
- * 2- zc_crk_ptext_set_text();
- * 3- zc_crk_ptext_key2_reduction();
- * 4- zc_crk_ptext_attack();
- * 5- zc_crk_ptext_find_internal_rep();
- * 6- zc_crk_ptext_unref();
- */
 struct zc_key {
 	uint32_t key0;
 	uint32_t key1;
@@ -148,13 +112,6 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 			       const struct zc_key *internal_rep, char *out,
 			       size_t len);
 
-/**
- * Utilities
- */
 void zc_passw_to_internal_rep(const uint8_t *pw, size_t len, struct zc_key *out_key);
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* _LIBZC_H_ */

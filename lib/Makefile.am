@@ -25,7 +25,6 @@ AM_CPPFLAGS = \
 
 AM_CFLAGS = \
         -Wall -Wextra  \
-	-fvisibility=hidden \
 	-ffunction-sections \
 	-fdata-sections
 

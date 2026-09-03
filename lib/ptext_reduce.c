@@ -269,7 +269,7 @@ static void reduce_private_dealloc(struct reduce_private *priv)
 	free(priv);
 }
 
-ZC_EXPORT int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
+int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 {
 	uint8_t key3i;
 	struct threadpool_ops ops;

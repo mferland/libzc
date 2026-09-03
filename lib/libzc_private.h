@@ -90,8 +90,6 @@ void zc_trace(const char *file, int line, const char *fn, const char *format,
 #  define trace(arg...) zc_log_null(NULL, ## arg)
 #endif
 
-#define ZC_EXPORT __attribute__((visibility("default")))
-
 static inline void fatal(const char *format, ...)
 {
 	va_list args;

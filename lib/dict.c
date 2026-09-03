@@ -51,7 +51,7 @@ static inline void remove_trailing_newline(char *line)
 	}
 }
 
-ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
+struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
 {
 	if (!crk)
 		return NULL;
@@ -59,7 +59,7 @@ ZC_EXPORT struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
 	return crk;
 }
 
-ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
+struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 {
 	if (!crk)
 		return NULL;
@@ -76,7 +76,7 @@ ZC_EXPORT struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 	return NULL;
 }
 
-ZC_EXPORT int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
+int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
 {
 	struct zc_crk_dict *tmp;
 
@@ -92,7 +92,7 @@ ZC_EXPORT int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
+int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 {
 	int err;
 
@@ -163,7 +163,7 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
 	return err ? false : true;
 }
 
-ZC_EXPORT int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
+int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 				char *pw, size_t len)
 {
 	FILE *f;

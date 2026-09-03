@@ -24,19 +24,6 @@
 #include "libzc.h"
 #include "libzc_private.h"
 
-/**
- * SECTION:libzc
- * @short_description: libzc context
- *
- * The context contains the default values for the library user,
- * and is passed to all library operations.
- */
-
-/**
- * zc_ctx:
- *
- * Opaque object representing the library context.
- */
 struct zc_ctx {
 	int refcount;
 	void (*log_fn)(struct zc_ctx *ctx, int priority, const char *file,
@@ -93,15 +80,7 @@ static int log_priority(const char *priority)
 	return 0;
 }
 
-/**
- * zc_new:
- * @inctx: zc library context
- *
- * Create a new library context.
- *
- * Returns: 0 on success, -1 on error.
- **/
-ZC_EXPORT int zc_new(struct zc_ctx **inctx)
+int zc_new(struct zc_ctx **inctx)
 {
 	const char *env;
 	struct zc_ctx *ctx;
@@ -126,15 +105,7 @@ ZC_EXPORT int zc_new(struct zc_ctx **inctx)
 	return 0;
 }
 
-/**
- * zc_ref:
- * @ctx: zc library context
- *
- * Take a reference of the zc library context.
- *
- * Returns: the passed zc library context
- **/
-ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
+struct zc_ctx *zc_ref(struct zc_ctx *ctx)
 {
 	if (!ctx)
 		return NULL;
@@ -142,15 +113,7 @@ ZC_EXPORT struct zc_ctx *zc_ref(struct zc_ctx *ctx)
 	return ctx;
 }
 
-/**
- * zc_unref:
- * @ctx: zc library context
- *
- * Drop a reference of the zc library context. If the refcount
- * reaches zero, the resources of the context will be released.
- *
- **/
-ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
+struct zc_ctx *zc_unref(struct zc_ctx *ctx)
 {
 	if (!ctx)
 		return NULL;
@@ -162,17 +125,7 @@ ZC_EXPORT struct zc_ctx *zc_unref(struct zc_ctx *ctx)
 	return NULL;
 }
 
-/**
- * zc_set_log_fn:
- * @ctx: zc library context
- * @log_fn: function to be called for logging messages
- *
- * The built-in logging writes to stderr. It can be
- * overridden by a custom function, to plug log messages
- * into the user's logging functionality.
- *
- **/
-ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
+void zc_set_log_fn(struct zc_ctx *ctx,
 			     void (*log_fn)(struct zc_ctx *ctx, int priority,
 					    const char *file, int line,
 					    const char *fn, const char *format,
@@ -182,26 +135,12 @@ ZC_EXPORT void zc_set_log_fn(struct zc_ctx *ctx,
 	info(ctx, "custom logging function %p registered\n", log_fn);
 }
 
-/**
- * zc_get_log_priority:
- * @ctx: zc library context
- *
- * Returns: the current logging priority
- **/
-ZC_EXPORT int zc_get_log_priority(const struct zc_ctx *ctx)
+int zc_get_log_priority(const struct zc_ctx *ctx)
 {
 	return ctx->log_priority;
 }
 
-/**
- * zc_set_log_priority:
- * @ctx: zc library context
- * @priority: the new logging priority
- *
- * Set the current logging priority. The value controls which messages
- * are logged.
- **/
-ZC_EXPORT void zc_set_log_priority(struct zc_ctx *ctx, int priority)
+void zc_set_log_priority(struct zc_ctx *ctx, int priority)
 {
 	ctx->log_priority = priority;
 }

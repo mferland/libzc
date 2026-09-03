@@ -910,7 +910,7 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
+int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 				 const char *filename,
 				 const struct zc_crk_pwcfg *cfg)
 {
@@ -951,7 +951,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
+int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 {
 	struct zc_crk_bforce *tmp;
 	int err;
@@ -988,7 +988,7 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 	return 0;
 }
 
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
+struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
 {
 	if (!crk)
 		return NULL;
@@ -996,7 +996,7 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
 	return crk;
 }
 
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
+struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 {
 	if (!crk)
 		return NULL;
@@ -1014,18 +1014,18 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	return NULL;
 }
 
-ZC_EXPORT const char *
+const char *
 zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }
 
-ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
+void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 {
 	bforce->force_threads = w;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
+int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 				  size_t len)
 {
 	size_t w;

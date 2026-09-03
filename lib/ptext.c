@@ -87,7 +87,7 @@ static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 	return 0;
 }
 
-ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
+struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 {
 	if (!ptext)
 		return NULL;
@@ -95,7 +95,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
 	return ptext;
 }
 
-ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
+struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 {
 	if (!ptext)
 		return NULL;
@@ -109,7 +109,7 @@ ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
 	return NULL;
 }
 
-ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
+int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
 			       long force_threads)
 {
 	struct zc_crk_ptext *new;
@@ -141,7 +141,7 @@ err1:
 	return -1;
 }
 
-ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
+int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 				    const uint8_t *plaintext,
 				    const uint8_t *ciphertext, size_t size)
 {
@@ -155,7 +155,7 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 	return 0;
 }
 
-ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
+size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
 	return ptext->key2_size;
 }

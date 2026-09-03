@@ -90,19 +90,6 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 }
 #endif
 
-/**
- * SECTION:file
- * @short_description: libzc zip file
- *
- * The file structure contains information about the targeted zip
- * file.
- */
-
-/**
- * zc_file:
- *
- * Opaque object representing the zip file.
- */
 struct zc_file {
 	struct zc_ctx *ctx;
 	int refcount;
@@ -1093,7 +1080,7 @@ err1:
 	return -1;
 }
 
-ZC_EXPORT struct zc_file *zc_file_ref(struct zc_file *f)
+struct zc_file *zc_file_ref(struct zc_file *f)
 {
 	if (!f)
 		return NULL;
@@ -1101,7 +1088,7 @@ ZC_EXPORT struct zc_file *zc_file_ref(struct zc_file *f)
 	return f;
 }
 
-ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *f)
+struct zc_file *zc_file_unref(struct zc_file *f)
 {
 	if (!f)
 		return NULL;
@@ -1114,16 +1101,7 @@ ZC_EXPORT struct zc_file *zc_file_unref(struct zc_file *f)
 	return NULL;
 }
 
-/**
- * zc_file_new_from_filename:
- *
- * Allocate a new zc_file from the given filename. The file existence
- * is not verified at this stage.
- *
- * @retval 0      Success
- * @retval -1     Error
- */
-ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx,
+int zc_file_new_from_filename(struct zc_ctx *ctx,
 					const char *filename,
 					struct zc_file **file)
 {
@@ -1142,24 +1120,12 @@ ZC_EXPORT int zc_file_new_from_filename(struct zc_ctx *ctx,
 	return 0;
 }
 
-/**
- * zc_file_get_filename:
- *
- * @retval Filename of the passed zc_file object.
- */
-ZC_EXPORT const char *zc_file_get_filename(const struct zc_file *f)
+const char *zc_file_get_filename(const struct zc_file *f)
 {
 	return f->filename;
 }
 
-/**
- * zc_file_open:
- *
- * Open the file for reading.
- *
- * @retval Returns the fopen() return value.
- */
-ZC_EXPORT int zc_file_open(struct zc_file *f)
+int zc_file_open(struct zc_file *f)
 {
 	FILE *stream;
 
@@ -1206,14 +1172,7 @@ err:
 	return -1;
 }
 
-/**
- * zc_file_close:
- *
- * Close the file.
- *
- * @retval Returns the fclose() return value.
- */
-ZC_EXPORT int zc_file_close(struct zc_file *f)
+int zc_file_close(struct zc_file *f)
 {
 	if (!zc_file_isopened(f))
 		return -1;
@@ -1232,12 +1191,7 @@ ZC_EXPORT int zc_file_close(struct zc_file *f)
 	return 0;
 }
 
-/**
- * zc_file_isopened:
- *
- * @retval Whether or not the file is opened.
- */
-ZC_EXPORT bool zc_file_isopened(const struct zc_file *f)
+bool zc_file_isopened(const struct zc_file *f)
 {
 	return (f->stream != NULL);
 }
@@ -1338,7 +1292,7 @@ err:
 	return -1;
 }
 
-ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *f,
+struct zc_info *zc_file_info_next(struct zc_file *f,
 					    struct zc_info *info)
 {
 	struct zc_info *i;
@@ -1354,46 +1308,46 @@ ZC_EXPORT struct zc_info *zc_file_info_next(struct zc_file *f,
 	return i;
 }
 
-ZC_EXPORT const char *zc_file_info_name(const struct zc_info *info)
+const char *zc_file_info_name(const struct zc_info *info)
 {
 	return info->header.filename;
 }
 
-ZC_EXPORT uint64_t zc_file_info_size(const struct zc_info *info)
+uint64_t zc_file_info_size(const struct zc_info *info)
 {
 	if (info->header.uncomp_size == UINT32_MAX)
 		return info->extra.uncomp_size;
 	return info->header.uncomp_size;
 }
 
-ZC_EXPORT uint64_t zc_file_info_compressed_size(const struct zc_info *info)
+uint64_t zc_file_info_compressed_size(const struct zc_info *info)
 {
 	if (info->header.comp_size == UINT32_MAX)
 		return info->extra.comp_size;
 	return info->header.comp_size;
 }
 
-ZC_EXPORT off_t zc_file_info_offset_begin(const struct zc_info *info)
+off_t zc_file_info_offset_begin(const struct zc_info *info)
 {
 	return info->begin_offset;
 }
 
-ZC_EXPORT off_t zc_file_info_offset_end(const struct zc_info *info)
+off_t zc_file_info_offset_end(const struct zc_info *info)
 {
 	return info->end_offset;
 }
 
-ZC_EXPORT off_t zc_file_info_crypt_header_offset(const struct zc_info *info)
+off_t zc_file_info_crypt_header_offset(const struct zc_info *info)
 {
 	return info->header_offset;
 }
 
-ZC_EXPORT const uint8_t *zc_file_info_enc_header(const struct zc_info *info)
+const uint8_t *zc_file_info_enc_header(const struct zc_info *info)
 {
 	return info->encrypt_header.buf;
 }
 
-ZC_EXPORT int zc_file_info_idx(const struct zc_info *info)
+int zc_file_info_idx(const struct zc_info *info)
 {
 	return info->idx;
 }
