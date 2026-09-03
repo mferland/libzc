@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 VALGRIND=`which valgrind`
-YAZC="yazc/yazc"
+YAZC="src/yazc"
 OPTS="--tool=memcheck --leak-check=full --show-leak-kinds=all --log-file=valgrind_run.txt"
 CMD="$VALGRIND $OPTS $YAZC"
 

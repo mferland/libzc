@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ZIP=$(which zip)
-CMD="../yazc/yazc"
+CMD="../src/yazc"
 
 create_dummy_files() {
     for i in $(seq 0 2)

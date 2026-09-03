@@ -16,7 +16,7 @@
 AC_PREREQ([2.69])
 AC_INIT([yazc],[0.4.4],[marc.ferland@gmail.com],[yazc],[https://github.com/mferland/libzc])
 m4_include([m4/ax_pthread.m4])
-AC_CONFIG_SRCDIR([lib/libzc.c])
+AC_CONFIG_SRCDIR([src/yazc.c])
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-extra-portability])
 AC_SYS_LARGEFILE
 AC_CONFIG_MACRO_DIR([m4])
@@ -59,8 +59,7 @@ AS_IF([test "x$enable_debug" = "xyes"], [
 AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
         Makefile
-        lib/Makefile
-        yazc/Makefile
+        src/Makefile
         tests/Makefile
 ])
 

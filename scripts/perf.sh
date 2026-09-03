@@ -9,7 +9,7 @@ PERF_DATA=./perf/perf.data
 PERF_SCRIPT=./perf/perf.script
 PERF_FOLDED=./perf/perf.folded
 PERF_SVG=./perf/perf.svg
-CMD="yazc/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64"
+CMD="src/yazc plaintext -t24 -o data/perfdata_ptext.zip 64 141029 data/perfdata_ctext.zip 76 141041 64"
 
 echo "Starting perf script..."
 

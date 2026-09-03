@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 TESTS = basic compat file pwstream pool bruteforce dictionary reduce plaintext_password plaintext cli
-TESTS_ENVIRONMENT = YAZC='$(abs_top_builddir)/yazc/yazc'; export YAZC;
+TESTS_ENVIRONMENT = YAZC='$(abs_top_builddir)/src/yazc'; export YAZC;
 
 check_PROGRAMS = basic \
 	compat \
@@ -45,54 +45,54 @@ EXTRA_DIST = noradi.zip \
 	dict.txt \
 	cli
 
-TEST_CORE = $(top_builddir)/lib/libyazc-core.a -lm $(ZLIB_LIBS)
+TEST_CORE = $(top_builddir)/src/libyazc-core.a -lm $(ZLIB_LIBS)
 
 # basic functions test
 basic_SOURCES = check_basic.c
-basic_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+basic_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 basic_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # compatibility functions
 compat_SOURCES = check_compat.c
-compat_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+compat_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 compat_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_file related functions
 file_SOURCES = check_file.c
-file_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+file_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 file_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_crk_bforce related functions
 bruteforce_SOURCES = check_bruteforce.c
-bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 bruteforce_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_crk_dict related functions
 dictionary_SOURCES = check_dictionary.c
-dictionary_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+dictionary_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 dictionary_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # pwstream related functions
 pwstream_SOURCES = check_pwstream.c
-pwstream_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+pwstream_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 pwstream_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # pool related functions
 pool_SOURCES = check_pool.c
-pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+pool_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 pool_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # reduce related functions
 reduce_SOURCES = check_reduce.c test_plaintext.h
-reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+reduce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 reduce_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # plaintext password functions
 plaintext_password_SOURCES = check_plaintext_password.c
-plaintext_password_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+plaintext_password_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 plaintext_password_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # plaintext related functions
 plaintext_SOURCES = check_plaintext.c
-plaintext_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/lib
+plaintext_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 plaintext_LDADD = $(TEST_CORE) @CHECK_LIBS@

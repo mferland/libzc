@@ -24,12 +24,12 @@ AM_CPPFLAGS = \
 	-DLIBEXECDIR=\""$(libexecdir)"\"
 
 AM_CFLAGS = \
-        -Wall -Wextra  \
+	-Wall -Wextra \
 	-ffunction-sections \
 	-fdata-sections
 
 noinst_LIBRARIES = libyazc-core.a
-libyazc_core_a_SOURCES =\
+libyazc_core_a_SOURCES = \
 	common.c \
 	compat.c \
 	compat.h \
@@ -58,6 +58,21 @@ libyazc_core_a_SOURCES =\
 	qsort.h \
 	qsort.c \
 	uniq.c
+
+bin_PROGRAMS = yazc
+yazc_SOURCES = \
+	yazc.c \
+	bruteforce.c \
+	dictionary.c \
+	plaintext.c \
+	info.c \
+	yazc.h
+yazc_CFLAGS = $(AM_CFLAGS)
+yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS)
+
+dist_man_MANS = yazc.1
+docdir = $(datadir)/doc/yazc
+dist_doc_DATA = $(top_srcdir)/README.md
 
 BUILT_SOURCES = mask_parser.c mask_parser.h mask_scanner.c
 

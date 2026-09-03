@@ -1,6 +1,0 @@
-.dirstamp
-.deps/
-*.a
-libzc.pc
-test_libzc
-valgrind_run.txt

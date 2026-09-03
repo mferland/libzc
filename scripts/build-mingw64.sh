@@ -28,7 +28,7 @@ ARCHIVE_DIR=yazc-v${V}
 mkdir ${D}/${ARCHIVE_DIR}
 cp ${MINGW_LOCAL_PATH}/bin/pthreadGC3.dll ${D}/${ARCHIVE_DIR}
 cp ${MINGW_LIB_PATH}/zlib1.dll ${D}/${ARCHIVE_DIR}
-cp yazc/yazc.exe ${D}/${ARCHIVE_DIR}
+cp src/yazc.exe ${D}/${ARCHIVE_DIR}
 zip -r ${D}/${ARCHIVE} ./${ARCHIVE_DIR}
 
 echo archive ${ARCHIVE} ready

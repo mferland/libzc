@@ -16,5 +16,5 @@
 if USE_CHECK
 MAYBE_TESTS = tests
 endif
-SUBDIRS = lib yazc $(MAYBE_TESTS)
+SUBDIRS = src $(MAYBE_TESTS)
 ACLOCAL_AMFLAGS = -I m4

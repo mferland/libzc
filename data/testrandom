@@ -17,7 +17,7 @@
 
 ZIP=$(which zip)
 ARCHIVE="archive.zip"
-YAZC="../yazc/yazc"
+YAZC="../src/yazc"
 CMD="$YAZC"
 
 

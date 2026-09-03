@@ -22,7 +22,7 @@ License: GPL-3+
  On Debian systems, the complete text of the GNU General
  Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
 
-Files: lib/qsort.h
+Files: src/qsort.h
 Copyright: 1991, 1992, 1996, 1997, 1999, Free Software Foundation, Inc.
 License: LGPL-2.1+
  The GNU C Library is free software; you can redistribute it and/or

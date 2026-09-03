@@ -26,6 +26,6 @@ OPTIONS="\
 -M80 \
 --suffix=none \
 "
-astyle $OPTIONS "./yazc/*.c" "./yazc/*.h" "./lib/*.c" "./lib/*.h" "./tests/*.c" "./tests/*.h"
+astyle $OPTIONS "./src/*.c" "./src/*.h" "./tests/*.c" "./tests/*.h"
 
 exit 0
