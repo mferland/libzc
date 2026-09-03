@@ -17,7 +17,8 @@ export PTHREAD_LIBS="-I${MINGW_LOCAL_PATH}/include -L${MINGW_LOCAL_PATH}/lib -lp
 export PTHREAD_CFLAGS="-I${MINGW_LOCAL_PATH}/include"
 ../configure --host=x86_64-w64-mingw32 \
 	     CPPFLAGS="-D_FILE_OFFSET_BITS=64" \
-	     LDFLAGS="-L${MINGW_LIB_PATH} -lmman ${PTHREAD_LIBS}"
+	     LDFLAGS="-L${MINGW_LIB_PATH}" \
+	     LIBS="-lmman"
 make V=1
 
 V=$(../configure -V | grep 'zc configure' | cut -d' ' -f3)
