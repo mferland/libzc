@@ -45,7 +45,7 @@ EXTRA_DIST = noradi.zip \
 	dict.txt \
 	cli
 
-TEST_CORE = $(top_builddir)/lib/libyazc-core.la -lm $(ZLIB_LIBS)
+TEST_CORE = $(top_builddir)/lib/libyazc-core.a -lm $(ZLIB_LIBS)
 
 # basic functions test
 basic_SOURCES = check_basic.c

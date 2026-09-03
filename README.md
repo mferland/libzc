@@ -17,7 +17,7 @@ recovering passwords and encryption keys from legacy ZIP archives.
 
 On Ubuntu, install the required packages with:
 
-    sudo apt install -y autoconf libtool zlib1g-dev pkg-config
+    sudo apt install -y autoconf automake bison flex zlib1g-dev pkg-config
 
 Building the unit tests also requires
 [Check](https://github.com/libcheck/check).

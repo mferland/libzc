@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ZIP=$(which zip)
-CMD="libtool --mode=execute ../yazc/yazc"
+CMD="../yazc/yazc"
 
 create_dummy_files() {
     for i in $(seq 0 2)
@@ -57,8 +57,8 @@ while true; do
     COFF2=$(echo ${EINFO} | cut -d' ' -f5)
     CBEGN=$(echo ${EINFO} | cut -d' ' -f3)
 
-    echo libtool exe ../yazc/yazc plaintext -o ${P} ${POFF1} ${POFF2} ${E} ${COFF1} ${COFF2} ${CBEGN}
-    if ! libtool exe ../yazc/yazc plaintext -o ${P} ${POFF1} ${POFF2} ${E} ${COFF1} ${COFF2} ${CBEGN}; then
+    echo ${CMD} plaintext -o ${P} ${POFF1} ${POFF2} ${E} ${COFF1} ${COFF2} ${CBEGN}
+    if ! ${CMD} plaintext -o ${P} ${POFF1} ${POFF2} ${E} ${COFF1} ${COFF2} ${CBEGN}; then
 	echo >&2 "ERROR"
 	exit 1
     fi

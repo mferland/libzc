@@ -25,7 +25,7 @@ example:
 
 Go to the `__w/libzc/libzc` directory and start `gdb`:
 
-    $ libtool exe gdb
+    $ gdb
 
 Open the `pool` executable and load the coredump:
 

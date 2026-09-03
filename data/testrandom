@@ -18,7 +18,7 @@
 ZIP=$(which zip)
 ARCHIVE="archive.zip"
 YAZC="../yazc/yazc"
-CMD="libtool --mode=execute $YAZC"
+CMD="$YAZC"
 
 
 if [ ! -f "${ZIP}" ]; then

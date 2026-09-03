@@ -1,8 +1,6 @@
 .dirstamp
 .deps/
-.libs/
-*.la
-*.lo
+*.a
 libzc.pc
 test_libzc
 valgrind_run.txt

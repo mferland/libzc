@@ -22,7 +22,7 @@ yazc_SOURCES = \
 	info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS) -Wall -Wextra -I$(top_srcdir)/lib
-yazc_LDADD = $(top_builddir)/lib/libyazc-core.la -lm $(ZLIB_LIBS)
+yazc_LDADD = $(top_builddir)/lib/libyazc-core.a -lm $(ZLIB_LIBS)
 dist_man_MANS = yazc.1
 docdir = $(datadir)/doc/yazc
 dist_doc_DATA = $(top_srcdir)/README.md

@@ -28,8 +28,8 @@ AM_CFLAGS = \
 	-ffunction-sections \
 	-fdata-sections
 
-noinst_LTLIBRARIES = libyazc-core.la
-libyazc_core_la_SOURCES =\
+noinst_LIBRARIES = libyazc-core.a
+libyazc_core_a_SOURCES =\
 	common.c \
 	compat.c \
 	compat.h \

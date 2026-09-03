@@ -4,7 +4,7 @@ FROM gcc:latest
 
 RUN apt update \
     && apt upgrade -y \
-    && apt install -y git make automake libtool autoconf zlib1g-dev pkg-config check \
+    && apt install -y git make automake autoconf zlib1g-dev pkg-config check \
     && apt clean
 
 RUN useradd --create-home --shell /bin/bash dev

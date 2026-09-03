@@ -18,7 +18,7 @@
 VALGRIND=`which valgrind`
 YAZC="yazc/yazc"
 OPTS="--tool=memcheck --leak-check=full --show-leak-kinds=all --log-file=valgrind_run.txt"
-CMD="libtool --mode=execute $VALGRIND $OPTS $YAZC"
+CMD="$VALGRIND $OPTS $YAZC"
 
 check_output() {
     if cat valgrind_run.txt | grep -q "no leaks are possible"

@@ -16,8 +16,6 @@ cd ${D}
 export PTHREAD_LIBS="-I${MINGW_LOCAL_PATH}/include -L${MINGW_LOCAL_PATH}/lib -lpthreadGC3"
 export PTHREAD_CFLAGS="-I${MINGW_LOCAL_PATH}/include"
 ../configure --host=x86_64-w64-mingw32 \
-	     --enable-static \
-	     --disable-shared \
 	     CPPFLAGS="-D_FILE_OFFSET_BITS=64" \
 	     LDFLAGS="-L${MINGW_LIB_PATH} -lmman ${PTHREAD_LIBS}"
 make V=1
