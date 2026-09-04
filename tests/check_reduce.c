@@ -26,21 +26,17 @@
 
 #define KEY3(index) test_plaintext[index] ^ test_ciphertext[index]
 
-struct zc_ctx *ctx;
 struct zc_crk_ptext *ptext;
 
 void setup_reduce()
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
 	ck_assert_ptr_nonnull(ptext);
 }
 
 void teardown_reduce()
 {
 	zc_crk_ptext_unref(ptext);
-	zc_unref(ctx);
 }
 
 START_TEST(test_can_get_bits_15_2)

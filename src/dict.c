@@ -25,7 +25,6 @@
 #include "libzc_private.h"
 
 struct zc_crk_dict {
-	struct zc_ctx *ctx;
 	int refcount;
 	char *filename;
 	struct zc_header header[HEADER_MAX];
@@ -76,7 +75,7 @@ struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 	return NULL;
 }
 
-int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
+int zc_crk_dict_new(struct zc_crk_dict **crk)
 {
 	struct zc_crk_dict *tmp;
 
@@ -84,7 +83,6 @@ int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk)
 	if (!tmp)
 		return -1;
 
-	tmp->ctx = ctx;
 	tmp->refcount = 1;
 
 	*crk = tmp;
@@ -98,23 +96,23 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->inflate = malloc(INFLATE_CHUNK);
 	if (!crk->inflate) {
-		err(crk->ctx, "malloc() failed: %s\n", strerror(errno));
+		err("malloc() failed: %s\n", strerror(errno));
 		goto err1;
 	}
 
-	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
+	err = fill_header(filename, crk->header, HEADER_MAX);
 	if (err < 1) {
-		err(crk->ctx, "failed to read validation data\n");
+		err("failed to read validation data\n");
 		goto err2;
 	}
 
 	crk->header_size = err;
 
-	err = fill_test_cipher(crk->ctx, filename, &crk->cipher,
+	err = fill_test_cipher(filename, &crk->cipher,
 			       &crk->cipher_size, &crk->original_crc,
 			       &crk->cipher_is_deflated);
 	if (err) {
-		err(crk->ctx, "failed to read cipher data\n");
+		err("failed to read cipher data\n");
 		goto err2;
 	}
 
@@ -164,7 +162,7 @@ static bool test_password(struct zc_crk_dict *crk, const char *pw)
 }
 
 int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
-				char *pw, size_t len)
+		      char *pw, size_t len)
 {
 	FILE *f;
 	int err = 1;
@@ -182,7 +180,7 @@ int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 	if (dict) {
 		f = fopen(dict, "r");
 		if (!f) {
-			err(crk->ctx, "fopen() failed: %s\n", strerror(errno));
+			err("fopen() failed: %s\n", strerror(errno));
 			return -1;
 		}
 	} else
@@ -195,11 +193,11 @@ int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 			if (feof(f))
 				err = 1;
 			else if (ferror(f)) {
-				err(crk->ctx, "fgets() failed: %s\n",
+				err("fgets() failed: %s\n",
 				    strerror(tmp));
 				err = -1;
 			} else {
-				err(crk->ctx, "unknown failure, errno: %d\n",
+				err("unknown failure, errno: %d\n",
 				    tmp);
 				err = -1;
 			}

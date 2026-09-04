@@ -127,13 +127,9 @@ enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
 static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
 {
-	struct zc_ctx *ctx;
 	struct zc_file *f;
 	const char *filename, *entry;
 	int err = 0, matches = 0;
-
-	if (zc_new(&ctx))
-		return -1;
 
 	for (int src = SRC_PLAIN; src < SRC_NUM; ++src) {
 		filename = argv[optind++];
@@ -143,7 +139,7 @@ static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
 		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
 		    entry);
 
-		err = zc_file_new_from_filename(ctx, filename, &f);
+		err = zc_file_new_from_filename(filename, &f);
 		if (err)
 			goto err1;
 
@@ -185,7 +181,6 @@ next:
 		zc_file_unref(f);
 	}
 err1:
-	zc_unref(ctx);
 	if (err)
 		return err;
 	return matches == 2 ? 0 : -1;
@@ -361,19 +356,13 @@ static void print_original_password(const char *pw, size_t len)
 
 static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 {
-	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
 	struct timeval begin, end;
 	int len, ret = EXIT_FAILURE;
 
-	if (zc_new(&ctx)) {
-		err("zc_new() failed!\n");
-		return ret;
-	}
-
-	if (zc_crk_ptext_new(ctx, &ptext, opts->thread_count) < 0) {
+	if (zc_crk_ptext_new(&ptext, opts->thread_count) < 0) {
 		err("zc_crk_ptext_new() failed!\n");
-		goto err1;
+		return ret;
 	}
 
 	printf("Recovering original password...");
@@ -400,8 +389,6 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 	ret = EXIT_FAILURE;
 err2:
 	zc_crk_ptext_unref(ptext);
-err1:
-	zc_unref(ctx);
 	return ret;
 }
 
@@ -425,7 +412,6 @@ static int do_plaintext(int argc, char *argv[])
 	bool arg_use_file = false;
 	bool arg_from_internal_rep = false;
 	bool arg_internal_rep_from_passw = false;
-	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
 	struct timeval begin, end;
 	int err = 0;
@@ -552,15 +538,10 @@ static int do_plaintext(int argc, char *argv[])
 		goto error1;
 	}
 
-	if (zc_new(&ctx)) {
-		err("zc_new() failed!\n");
-		goto error2;
-	}
-
-	err = zc_crk_ptext_new(ctx, &ptext, opts.thread_count);
+	err = zc_crk_ptext_new(&ptext, opts.thread_count);
 	if (err < 0) {
 		err("zc_crk_ptext_new() failed!\n");
-		goto error3;
+		goto error2;
 	}
 
 	err = zc_crk_ptext_set_text(
@@ -641,8 +622,6 @@ static int do_plaintext(int argc, char *argv[])
 
 error4:
 	zc_crk_ptext_unref(ptext);
-error3:
-	zc_unref(ctx);
 error2:
 	unmap_text_buf(&opts.cipher);
 error1:

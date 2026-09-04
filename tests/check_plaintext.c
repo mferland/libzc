@@ -22,24 +22,11 @@
 #include "libzc.h"
 #include "test_plaintext.h"
 
-struct zc_ctx *ctx;
-
-void setup_ptext()
-{
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-}
-
-void teardown_ptext()
-{
-	zc_unref(ctx);
-}
-
 START_TEST(test_zc_ptext_new)
 {
 	struct zc_crk_ptext *ptext;
 
-	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
 	ck_assert_ptr_nonnull(ptext);
 	ck_assert_int_eq(zc_crk_ptext_key2_count(ptext), 0);
 	ck_assert_ptr_null(zc_crk_ptext_unref(ptext));
@@ -52,11 +39,11 @@ START_TEST(test_zc_ptext_set_text_size_boundary)
 	uint8_t ciphertext[13] = {0};
 	struct zc_crk_ptext *ptext;
 
-	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, 1), 0);
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, 1), 0);
 	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
-					      12), -1);
+					       12), -1);
 	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
-					      13), 0);
+					       13), 0);
 	ck_assert_ptr_null(zc_crk_ptext_unref(ptext));
 }
 END_TEST
@@ -64,7 +51,7 @@ END_TEST
 START_TEST(test_zc_ptext_set_cipher_and_plaintext)
 {
 	struct zc_crk_ptext *ptext;
-	ck_assert(zc_crk_ptext_new(ctx, &ptext, -1) == 0);
+	ck_assert(zc_crk_ptext_new(&ptext, -1) == 0);
 	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
 					TEST_PLAINTEXT_SIZE) == 0);
 	ck_assert(zc_crk_ptext_unref(ptext) == 0);
@@ -76,7 +63,7 @@ START_TEST(test_zc_crk_ptext_attack)
 {
 	struct zc_crk_ptext *ptext;
 	struct zc_key out_key;
-	ck_assert(zc_crk_ptext_new(ctx, &ptext, -1) == 0);
+	ck_assert(zc_crk_ptext_new(&ptext, -1) == 0);
 	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
 					TEST_PLAINTEXT_SIZE) == 0);
 	ck_assert(zc_crk_ptext_key2_reduction(ptext) == 0);
@@ -111,7 +98,7 @@ START_TEST(test_zc_crk_ptext_find_internal_rep_rejects_short_input)
 	};
 
 	ck_assert_int_eq(zc_crk_ptext_find_internal_rep(
-		&start_key, test_encrypted_header, 11, &internal_rep), -1);
+				 &start_key, test_encrypted_header, 11, &internal_rep), -1);
 	ck_assert_uint_eq(internal_rep.key0, UINT32_MAX);
 	ck_assert_uint_eq(internal_rep.key1, UINT32_MAX);
 	ck_assert_uint_eq(internal_rep.key2, UINT32_MAX);
@@ -123,7 +110,6 @@ Suite *plaintext_suite()
 	Suite *s = suite_create("plaintext");
 
 	TCase *tc_core = tcase_create("Core");
-	tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
 	tcase_add_test(tc_core, test_zc_ptext_new);
 	tcase_add_test(tc_core, test_zc_ptext_set_text_size_boundary);
 	tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);

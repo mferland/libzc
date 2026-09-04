@@ -18,59 +18,15 @@
 
 #include <check.h>
 #include <stdlib.h>
-#include <syslog.h>
-
 /* libzc */
 #include <libzc.h>
-
-struct zc_ctx *ctx;
-
-void setup(void)
-{
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-}
-
-void teardown(void)
-{
-	zc_unref(ctx);
-}
-
-START_TEST(test_zc_log_priority)
-{
-	ck_assert_int_eq(zc_get_log_priority(ctx), LOG_ERR);
-
-	zc_set_log_priority(ctx, 2);
-	ck_assert_int_eq(zc_get_log_priority(ctx), 2);
-}
-END_TEST
-
-START_TEST(test_zc_refcount)
-{
-	struct zc_ctx *p;
-
-	ck_assert_ptr_null(zc_ref(NULL));
-
-	ck_assert_ptr_eq(zc_ref(ctx), ctx);    /* inc */
-
-	p = zc_unref(ctx);
-	ck_assert_ptr_eq(p, ctx);              /* dec */
-	ctx = p;
-
-	p = zc_unref(ctx);
-	ck_assert_ptr_eq(p, NULL);             /* dec */
-	ctx = p;
-
-	ck_assert_ptr_eq(zc_unref(NULL), NULL);
-}
-END_TEST
 
 START_TEST(test_zc_file_refcount)
 {
 	struct zc_file *file, *tmp;
 	int ret;
 
-	ret = zc_file_new_from_filename(ctx, "dummy", &file);
+	ret = zc_file_new_from_filename("dummy", &file);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(file);
 	ck_assert_ptr_null(zc_file_ref(NULL));
@@ -95,7 +51,7 @@ START_TEST(test_zc_crk_dict_refcount)
 	struct zc_crk_dict *p, *tmp;
 	int ret;
 
-	ret = zc_crk_dict_new(ctx, &p);
+	ret = zc_crk_dict_new(&p);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(p);
 	ck_assert_ptr_null(zc_crk_dict_ref(NULL));
@@ -120,7 +76,7 @@ START_TEST(test_zc_crk_bforce_refcount)
 	struct zc_crk_bforce *p, *tmp;
 	int ret;
 
-	ret = zc_crk_bforce_new(ctx, &p);
+	ret = zc_crk_bforce_new(&p);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(p);
 	ck_assert_ptr_null(zc_crk_bforce_ref(NULL));
@@ -145,7 +101,7 @@ START_TEST(test_zc_crk_ptext_refcount)
 	struct zc_crk_ptext *p, *tmp;
 	int ret;
 
-	ret = zc_crk_ptext_new(ctx, &p, -1);
+	ret = zc_crk_ptext_new(&p, -1);
 	ck_assert_int_eq(ret, 0);
 	ck_assert_ptr_nonnull(p);
 	ck_assert_ptr_null(zc_crk_ptext_ref(NULL));
@@ -174,9 +130,6 @@ Suite *basic_suite(void)
 
 	tc_core = tcase_create("Core");
 
-	tcase_add_checked_fixture(tc_core, setup, teardown);
-	tcase_add_test(tc_core, test_zc_log_priority);
-	tcase_add_test(tc_core, test_zc_refcount);
 	tcase_add_test(tc_core, test_zc_file_refcount);
 	tcase_add_test(tc_core, test_zc_crk_dict_refcount);
 	tcase_add_test(tc_core, test_zc_crk_bforce_refcount);

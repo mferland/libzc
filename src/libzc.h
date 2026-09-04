@@ -19,27 +19,17 @@
 #ifndef _LIBZC_H_
 #define _LIBZC_H_
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-struct zc_ctx;
-struct zc_ctx *zc_ref(struct zc_ctx *ctx);
-struct zc_ctx *zc_unref(struct zc_ctx *ctx);
-int zc_new(struct zc_ctx **inctx);
-void zc_set_log_fn(struct zc_ctx *ctx,
-		   void (*log_fn)(struct zc_ctx *ctx, int priority,
-				  const char *file, int line, const char *fn,
-				  const char *format, va_list args));
-int zc_get_log_priority(const struct zc_ctx *ctx);
-void zc_set_log_priority(struct zc_ctx *ctx, int priority);
+void zc_log_init(void);
+int zc_get_log_priority(void);
 
 struct zc_file;
 struct zc_file *zc_file_ref(struct zc_file *file);
 struct zc_file *zc_file_unref(struct zc_file *file);
-int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename,
-			      struct zc_file **file);
+int zc_file_new_from_filename(const char *filename, struct zc_file **file);
 const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
@@ -64,7 +54,7 @@ struct zc_mask {
 
 struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk);
 struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk);
-int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk);
+int zc_crk_dict_new(struct zc_crk_dict **crk);
 int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
 int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
 		      size_t len);
@@ -82,7 +72,7 @@ struct zc_crk_pwcfg {
 struct zc_crk_bforce;
 struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);
 struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *bforce);
-int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **bforce);
+int zc_crk_bforce_new(struct zc_crk_bforce **bforce);
 int zc_crk_bforce_init(struct zc_crk_bforce *bforce, const char *fname,
 		       const struct zc_crk_pwcfg *cfg);
 const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
@@ -98,8 +88,7 @@ struct zc_key {
 struct zc_crk_ptext;
 struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
 struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
-		     long force_threads);
+int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads);
 int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext, const uint8_t *plaintext,
 			  const uint8_t *ciphertext, size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);

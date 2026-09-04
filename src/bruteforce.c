@@ -122,20 +122,14 @@ static char *make_charset(int flags, char *out, size_t outlen)
 
 static int launch_crack(const struct bruteforce_opts *opts)
 {
-	struct zc_ctx *ctx;
 	struct zc_crk_bforce *crk;
 	char pw[ZC_PW_MAXLEN + 1];
 	struct timeval begin, end;
 	int err = -1;
 
-	if (zc_new(&ctx)) {
-		err("zc_new() failed!\n");
-		return EXIT_FAILURE;
-	}
-
-	if (zc_crk_bforce_new(ctx, &crk)) {
+	if (zc_crk_bforce_new(&crk)) {
 		err("zc_crk_bforce_new() failed!\n");
-		goto err1;
+		return EXIT_FAILURE;
 	}
 
 	if (zc_crk_bforce_init(crk, opts->filename, &opts->pwcfg)) {
@@ -173,8 +167,6 @@ static int launch_crack(const struct bruteforce_opts *opts)
 err2:
 	zc_crk_bforce_unref(crk);
 
-err1:
-	zc_unref(ctx);
 	return err;
 }
 

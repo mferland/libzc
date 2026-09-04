@@ -21,13 +21,13 @@
 #include "decrypt_byte.h"
 #include "libzc_private.h"
 
-int fill_header(struct zc_ctx *ctx, const char *filename, struct zc_header *h,
+int fill_header(const char *filename, struct zc_header *h,
 		size_t len)
 {
 	struct zc_file *file;
 	int err;
 
-	err = zc_file_new_from_filename(ctx, filename, &file);
+	err = zc_file_new_from_filename(filename, &file);
 	if (err)
 		return -1;
 
@@ -45,14 +45,14 @@ int fill_header(struct zc_ctx *ctx, const char *filename, struct zc_header *h,
 	return size;
 }
 
-int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
+int fill_test_cipher(const char *filename,
 		     unsigned char **buf, size_t *len, uint32_t *original_crc,
 		     bool *is_deflated)
 {
 	struct zc_file *file;
 	int err;
 
-	err = zc_file_new_from_filename(ctx, filename, &file);
+	err = zc_file_new_from_filename(filename, &file);
 	if (err)
 		goto err1;
 
@@ -111,7 +111,7 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 }
 
 void zc_passw_to_internal_rep(const uint8_t *pw, size_t len,
-					struct zc_key *out_key)
+			      struct zc_key *out_key)
 {
 	update_default_keys_from_array(out_key, pw, len);
 }

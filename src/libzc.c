@@ -24,21 +24,19 @@
 #include "libzc.h"
 #include "libzc_private.h"
 
-struct zc_ctx {
-	int refcount;
-	void (*log_fn)(struct zc_ctx *ctx, int priority, const char *file,
-		       int line, const char *fn, const char *format,
-		       va_list args);
-	int log_priority;
-};
+static int current_log_priority = LOG_ERR;
+static bool log_initialized;
 
-void zc_log(struct zc_ctx *ctx, int priority, const char *file, int line,
-	    const char *fn, const char *format, ...)
+void zc_log(int priority __attribute__((__unused__)),
+	    const char *file __attribute__((__unused__)),
+	    int line __attribute__((__unused__)), const char *fn,
+	    const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	ctx->log_fn(ctx, priority, file, line, fn, format, args);
+	fprintf(stderr, "yazc: %s: ", fn);
+	vfprintf(stderr, format, args);
 	va_end(args);
 }
 
@@ -51,16 +49,6 @@ void zc_trace(const char *file, int line, const char *fn, const char *format,
 	fprintf(stderr, "trace: %s:%d:%s: ", file, line, fn);
 	vfprintf(stderr, format, args);
 	va_end(args);
-}
-
-static void log_stderr(struct zc_ctx *ctx __attribute__((__unused__)),
-		       int priority __attribute__((__unused__)),
-		       const char *file __attribute__((__unused__)),
-		       int line __attribute__((__unused__)), const char *fn,
-		       const char *format, va_list args)
-{
-	fprintf(stderr, "libzc: %s: ", fn);
-	vfprintf(stderr, format, args);
 }
 
 static int log_priority(const char *priority)
@@ -80,67 +68,22 @@ static int log_priority(const char *priority)
 	return 0;
 }
 
-int zc_new(struct zc_ctx **inctx)
+void zc_log_init(void)
 {
 	const char *env;
-	struct zc_ctx *ctx;
 
-	ctx = calloc(1, sizeof(struct zc_ctx));
-	if (!ctx)
-		return -1;
+	if (log_initialized)
+		return;
+	log_initialized = true;
 
-	ctx->refcount = 1;
-	ctx->log_fn = log_stderr;
-	ctx->log_priority = LOG_ERR;
-
-	/* environment overwrites config */
 	env = getenv("ZC_LOG");
 	if (env)
-		zc_set_log_priority(ctx, log_priority(env));
+		current_log_priority = log_priority(env);
 
-	info(ctx, "ctx %p created\n", ctx);
-	dbg(ctx, "log_priority=%d\n", ctx->log_priority);
-	*inctx = ctx;
-
-	return 0;
+	dbg("log_priority=%d\n", current_log_priority);
 }
 
-struct zc_ctx *zc_ref(struct zc_ctx *ctx)
+int zc_get_log_priority(void)
 {
-	if (!ctx)
-		return NULL;
-	ctx->refcount++;
-	return ctx;
-}
-
-struct zc_ctx *zc_unref(struct zc_ctx *ctx)
-{
-	if (!ctx)
-		return NULL;
-	ctx->refcount--;
-	if (ctx->refcount > 0)
-		return ctx;
-	info(ctx, "ctx %p released\n", ctx);
-	free(ctx);
-	return NULL;
-}
-
-void zc_set_log_fn(struct zc_ctx *ctx,
-			     void (*log_fn)(struct zc_ctx *ctx, int priority,
-					    const char *file, int line,
-					    const char *fn, const char *format,
-					    va_list args))
-{
-	ctx->log_fn = log_fn;
-	info(ctx, "custom logging function %p registered\n", log_fn);
-}
-
-int zc_get_log_priority(const struct zc_ctx *ctx)
-{
-	return ctx->log_priority;
-}
-
-void zc_set_log_priority(struct zc_ctx *ctx, int priority)
-{
-	ctx->log_priority = priority;
+	return current_log_priority;
 }

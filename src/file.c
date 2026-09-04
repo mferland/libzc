@@ -91,7 +91,6 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 #endif
 
 struct zc_file {
-	struct zc_ctx *ctx;
 	int refcount;
 	char *filename;
 	FILE *stream;
@@ -578,9 +577,9 @@ static size_t zfread(struct zc_file *f, void *ptr, size_t size, size_t nmemb)
 	size_t ret = fread(ptr, size, nmemb, f->stream);
 	if (ret != nmemb) {
 		if (ferror(f->stream))
-			err(f->ctx, "fread() failed: %zu\n", ret);
+			err("fread() failed: %zu\n", ret);
 		else if (feof(f->stream))
-			err(f->ctx, "fread() failed, eof reached: %zu\n", ret);
+			err("fread() failed, eof reached: %zu\n", ret);
 	}
 	return ret;
 }
@@ -589,7 +588,7 @@ static int zfseeko(struct zc_file *f, off_t offset, int whence)
 {
 	int ret = fseeko(f->stream, offset, whence);
 	if (ret)
-		err(f->ctx, "fseeko() failed: %s\n", strerror(errno));
+		err("fseeko() failed: %s\n", strerror(errno));
 	return ret;
 }
 
@@ -605,7 +604,7 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 
 	/* standard zip */
 	if (eocd->cd_start_offset != UINT32_MAX) {
-		dbg(f->ctx, "Detected standard zip EOCD: cd_offset: 0x%x, nbentries: %d\n",
+		dbg("Detected standard zip EOCD: cd_offset: 0x%x, nbentries: %d\n",
 		    eocd->cd_start_offset,
 		    eocd->entries_in_cd);
 		*cd_offset = eocd->cd_start_offset;
@@ -613,11 +612,11 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 		return 0;
 	}
 
-	dbg(f->ctx, "Detected zip64 EOCD\n");
+	dbg("Detected zip64 EOCD\n");
 
 	/* zip64 - go back EOCD64_LOC_LEN bytes */
 	if (from - EOCD64_LOC_LEN < f->buf) {
-		dbg(f->ctx, "error reading zip64 end of central directory locator\n");
+		dbg("error reading zip64 end of central directory locator\n");
 		return -1;
 	}
 
@@ -627,12 +626,12 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 	parse_eocd64_loc(loc_ptr, &eocd64_loc);
 
 	if (eocd64_loc.sig != EOCD64_LOC_SIG) {
-		err(f->ctx, "found invalid EOCD64 locator signature: 0x%08x\n", eocd64_loc.sig);
+		err("found invalid EOCD64 locator signature: 0x%08x\n", eocd64_loc.sig);
 		return -1;
 	}
 
-	dbg(f->ctx, "Reading EOCD locator:\n");
-	dbg(f->ctx, "\tsig: 0x%08x, disk_num: %d, cd_start_offset: 0x%016jx, disk_total: %d\n",
+	dbg("Reading EOCD locator:\n");
+	dbg("\tsig: 0x%08x, disk_num: %d, cd_start_offset: 0x%016jx, disk_total: %d\n",
 	    eocd64_loc.sig,
 	    eocd64_loc.disk_num,
 	    eocd64_loc.cd_start_offset,
@@ -640,12 +639,12 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 
 	if (eocd64_loc.cd_start_offset > INT64_MAX) {
 		/* offset is too large, malformed zip file? */
-		dbg(f->ctx, "central directory locator offset too large, skipping...\n");
+		dbg("central directory locator offset too large, skipping...\n");
 		return -1;
 	}
 
 	if (eocd64_loc.disk_num || eocd64_loc.disk_total > 1) {
-		err(f->ctx, "multi-disk zip files not supported\n");
+		err("multi-disk zip files not supported\n");
 		return -1;
 	}
 
@@ -661,22 +660,22 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 	parse_eocd64(f->buf, &eocd64);
 	if (eocd64.cd_start_offset > INT64_MAX) {
 		/* offset is too large, malformed zip file? */
-		dbg(f->ctx, "central directory offset too large, skipping...\n");
+		dbg("central directory offset too large, skipping...\n");
 		return -1;
 	}
 
-	dbg(f->ctx, "Reading zip64 EOCD:\n");
-	dbg(f->ctx, "\tsig: 0x%08x, eocd64_size: %zu, version_made_by: %d, version_needed: %d,\n",
+	dbg("Reading zip64 EOCD:\n");
+	dbg("\tsig: 0x%08x, eocd64_size: %zu, version_made_by: %d, version_needed: %d,\n",
 	    eocd64.sig,
 	    eocd64.eocd64_size,
 	    eocd64.version_made_by,
 	    eocd64.version_needed);
-	dbg(f->ctx, "\tdisk_num: %d, disk_num_cd_start: %d, entries_in_cd: %zu, entries_in_cd_total: %zu,\n",
+	dbg("\tdisk_num: %d, disk_num_cd_start: %d, entries_in_cd: %zu, entries_in_cd_total: %zu,\n",
 	    eocd64.disk_num,
 	    eocd64.disk_num_cd_start,
 	    eocd64.entries_in_cd,
 	    eocd64.entries_in_cd_total);
-	dbg(f->ctx, "\tcd_size: %zu, cd_start_offset: 0x%016jx\n",
+	dbg("\tcd_size: %zu, cd_start_offset: 0x%016jx\n",
 	    eocd64.cd_size,
 	    eocd64.cd_start_offset);
 
@@ -695,7 +694,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	size_t len;
 	int ret;
 
-	dbg(f->ctx, "Reading central directory entry at: 0x%016jx\n", cd_offset);
+	dbg("Reading central directory entry at: 0x%016jx\n", cd_offset);
 
 	/* seek to beginning of entry */
 	ret = zfseeko(f, cd_offset, SEEK_SET);
@@ -710,33 +709,33 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 
 	sig = get_le32_at(f->buf, 0);
 	if (sig != CD_SIG) {
-		dbg(f->ctx, "found invalid central directory entry signature: 0x08%x\n", sig);
+		dbg("found invalid central directory entry signature: 0x08%x\n", sig);
 		return -1;
 	}
 
 	parse_cd(f->buf, header);
 
-	dbg(f->ctx, "\tsig: 0x%08x, version_made_by: %d, version_needed: %d, gen_bit_flag: 0x%04x,\n",
+	dbg("\tsig: 0x%08x, version_made_by: %d, version_needed: %d, gen_bit_flag: 0x%04x,\n",
 	    sig,
 	    header->version_made_by,
 	    header->version_needed,
 	    header->gen_bit_flag);
-	dbg(f->ctx, "\tcomp_method: %d, last_mod_time: %d, last_mod_date: %d, crc32: 0x%08x,\n",
+	dbg("\tcomp_method: %d, last_mod_time: %d, last_mod_date: %d, crc32: 0x%08x,\n",
 	    header->comp_method,
 	    header->last_mod_time,
 	    header->last_mod_date,
 	    header->crc32);
-	dbg(f->ctx, "\tcomp_size: %"PRIu32", uncomp_size: %"PRIu32", filename_length: %d, extra_length: %d,\n",
+	dbg("\tcomp_size: %"PRIu32", uncomp_size: %"PRIu32", filename_length: %d, extra_length: %d,\n",
 	    header->comp_size,
 	    header->uncomp_size,
 	    header->filename_length,
 	    header->extra_length);
-	dbg(f->ctx, "\tcomment_length: %d, disk_num_start: %d, int_fattrs: 0x%04x, ext_fattrs: 0x%08x,\n",
+	dbg("\tcomment_length: %d, disk_num_start: %d, int_fattrs: 0x%04x, ext_fattrs: 0x%08x,\n",
 	    header->comment_length,
 	    header->disk_num_start,
 	    header->int_fattrs,
 	    header->ext_fattrs);
-	dbg(f->ctx, "\tloc_header_offt: 0x%08x\n",
+	dbg("\tloc_header_offt: 0x%08x\n",
 	    header->loc_header_offt);
 
 	/*
@@ -745,14 +744,14 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	 */
 	if (is_encrypted(header->gen_bit_flag) &&
 	    header->comp_size < ENC_HEADER_LEN) {
-		err(f->ctx, "encrypted file size (%"PRIu32") smaller than %d\n",
+		err("encrypted file size (%"PRIu32") smaller than %d\n",
 		    header->comp_size, ENC_HEADER_LEN);
 		return -1;
 	}
 
 	if (!header->filename_length ||
 	    header->filename_length > MAX_FN_LEN) {
-		err(f->ctx, "invalid filename length: %d\n",
+		err("invalid filename length: %d\n",
 		    header->filename_length);
 		return -1;
 	}
@@ -764,9 +763,9 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	len = zfread(f, header->filename, header->filename_length, 1);
 	if (len != 1)
 		goto err;
-	dbg(f->ctx, "\tfilename: %s\n", header->filename);
+	dbg("\tfilename: %s\n", header->filename);
 
-	dbg(f->ctx, "\textra_length: %d\n", header->extra_length);
+	dbg("\textra_length: %d\n", header->extra_length);
 	if (header->extra_length) {
 		len = zfread(f, header->extra, header->extra_length, 1);
 		if (len != 1)
@@ -790,7 +789,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 			extra->tag = get_le16_at(header->extra, header_id_index);
 			extra->size = get_le16_at(header->extra, header_id_index + 2);
 
-			dbg(f->ctx, "Reading extra tag: 0x%x, size: %d\n", extra->tag, extra->size);
+			dbg("Reading extra tag: 0x%x, size: %d\n", extra->tag, extra->size);
 
 			if (extra->tag != EXTRA_TAG_ZIP64) {
 				int next_index = header_id_index + extra->size + 4; /* 4 ==> tag + size */
@@ -808,7 +807,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 
 		/* zip64 extra field is always >= 8 bytes */
 		if (extra->size < 8) {
-			err(f->ctx, "extra field is %d bytes, expected >= 8\n", extra->size);
+			err("extra field is %d bytes, expected >= 8\n", extra->size);
 			goto err;
 		}
 
@@ -826,7 +825,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		if (header->uncomp_size == UINT32_MAX) {
 			extra->uncomp_size = get_le64_at(header->extra, header_id_index);
 			header_id_index += 8;
-			dbg(f->ctx, "\t\tzip64 extra field: uncompressed file size: %"PRIu64"\n",
+			dbg("\t\tzip64 extra field: uncompressed file size: %"PRIu64"\n",
 			    extra->uncomp_size);
 		}
 
@@ -834,7 +833,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		if (header->comp_size == UINT32_MAX) {
 			extra->comp_size = get_le64_at(header->extra, header_id_index);
 			header_id_index += 8;
-			dbg(f->ctx, "\t\tzip64 extra field: compressed file size: %"PRIu64"\n",
+			dbg("\t\tzip64 extra field: compressed file size: %"PRIu64"\n",
 			    extra->comp_size);
 		}
 
@@ -842,14 +841,14 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		if (header->loc_header_offt == UINT32_MAX) {
 			extra->local_offset = get_le64_at(header->extra, header_id_index);
 			header_id_index += 8;
-			dbg(f->ctx, "\t\tzip64 extra field: local header offset: 0x%016jx\n",
+			dbg("\t\tzip64 extra field: local header offset: 0x%016jx\n",
 			    extra->local_offset);
 		}
 
 		/* Number of the disk on which this file starts */
 		if (header->disk_num_start == UINT16_MAX) {
 			extra->disk_num = get_le32_at(header->extra, header_id_index); /* last field */
-			dbg(f->ctx, "\t\tzip64 extra field: local header offset: %d\n",
+			dbg("\t\tzip64 extra field: local header offset: %d\n",
 			    extra->disk_num);
 		}
 	}
@@ -874,7 +873,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 		if (!info)
 			goto err;
 
-		dbg(f->ctx, "Reading entry: %"PRIu64"\n", i);
+		dbg("Reading entry: %"PRIu64"\n", i);
 
 		ret = read_single_entry_at(f, cd_offset, &info->header,
 					   &info->extra, &cd_offset);
@@ -896,7 +895,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 	list_for_each_entry(info, &f->info_head, list) {
 		uint8_t buf[LOCAL_HEADER_LEN];
 
-		dbg(f->ctx, "Reading local file header at: 0x%016jx\n", info->local_offset);
+		dbg("Reading local file header at: 0x%016jx\n", info->local_offset);
 
 		ret = zfseeko(f, info->local_offset, SEEK_SET);
 		if (ret)
@@ -908,11 +907,11 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 
 		parse_local_header(buf, &loc);
 
-		dbg(f->ctx, "\tsig: 0x%08x, version_needed: %d, gen_bit_flag: 0x%04x, comp_method: %d,\n",
+		dbg("\tsig: 0x%08x, version_needed: %d, gen_bit_flag: 0x%04x, comp_method: %d,\n",
 		    loc.sig, loc.version_needed, loc.gen_bit_flag, loc.comp_method);
-		dbg(f->ctx, "\tlast_mod_time: %d, last_mod_date: %d, crc32: 0x%08x, comp_size: %"PRIu32",\n",
+		dbg("\tlast_mod_time: %d, last_mod_date: %d, crc32: 0x%08x, comp_size: %"PRIu32",\n",
 		    loc.last_mod_time, loc.last_mod_date, loc.crc32, loc.comp_size);
-		dbg(f->ctx, "\tuncomp_size: %"PRIu32", filename_length: %d, extra_length: %d\n",
+		dbg("\tuncomp_size: %"PRIu32", filename_length: %d, extra_length: %d\n",
 		    loc.uncomp_size, loc.filename_length, loc.extra_length);
 
 		if (loc.sig != LOCAL_SIG)
@@ -949,7 +948,7 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 			info->end_offset = info->begin_offset + comp_size;
 		}
 
-		dbg(f->ctx, "\tencrypt_header: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x, magic: 0x%02x\n",
+		dbg("\tencrypt_header: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x, magic: 0x%02x\n",
 		    info->encrypt_header.buf[0], info->encrypt_header.buf[1],
 		    info->encrypt_header.buf[2], info->encrypt_header.buf[3],
 		    info->encrypt_header.buf[4], info->encrypt_header.buf[5],
@@ -978,13 +977,13 @@ static int fill_info_list_central_directory(struct zc_file *f)
 
 	fd = fileno(f->stream);
 	if (fd < 0) {
-		err(f->ctx, "fileno() failed: %s\n", strerror(errno));
+		err("fileno() failed: %s\n", strerror(errno));
 		return -1;
 	}
 
 	err = fstat(fd, &sb);
 	if (err < 0) {
-		err(f->ctx, "fstat() failed: %s\n", strerror(errno));
+		err("fstat() failed: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -995,8 +994,8 @@ static int fill_info_list_central_directory(struct zc_file *f)
 	if (sb.st_size < CD_BUF_LEN)
 		to_read = sb.st_size;
 
-	dbg(f->ctx, "Detected file size: %zu bytes\n", sb.st_size);
-	dbg(f->ctx, "Bytes to read: %zu\n", to_read);
+	dbg("Detected file size: %zu bytes\n", sb.st_size);
+	dbg("Bytes to read: %zu\n", to_read);
 
 	err = zfseeko(f, -(off_t)to_read, SEEK_END);
 	if (err)
@@ -1021,13 +1020,13 @@ static int fill_info_list_central_directory(struct zc_file *f)
 			 * end of central directory signature not
 			 * found, bail out
 			 */
-			err(f->ctx, "EOCD signature not found\n");
+			err("EOCD signature not found\n");
 			goto err1;
 		}
 
 		rem = end - from + 1;
 
-		dbg(f->ctx, "Found EOCD signature at: 0x%016jx\n", sb.st_size - rem);
+		dbg("Found EOCD signature at: 0x%016jx\n", sb.st_size - rem);
 
 		/* make sure we have enough to read */
 		if (rem < EOCD_LEN)
@@ -1035,16 +1034,16 @@ static int fill_info_list_central_directory(struct zc_file *f)
 
 		parse_eocd(from, &eocd);
 
-		dbg(f->ctx, "\tsig: 0x%08x, disk_num: %d, disk_cd_start: %d, entries_in_cd: %d,\n",
+		dbg("\tsig: 0x%08x, disk_num: %d, disk_cd_start: %d, entries_in_cd: %d,\n",
 		    eocd.sig,
 		    eocd.disk_num,
 		    eocd.disk_cd_start,
 		    eocd.entries_in_cd);
-		dbg(f->ctx, "\tentries_in_cd_total: %d, cd_size: %"PRIu32", cd_start_offset: 0x%x\n",
+		dbg("\tentries_in_cd_total: %d, cd_size: %"PRIu32", cd_start_offset: 0x%x\n",
 		    eocd.entries_in_cd_total,
 		    eocd.cd_size,
 		    eocd.cd_start_offset);
-		dbg(f->ctx, "\tcomment_len: %d\n",
+		dbg("\tcomment_len: %d\n",
 		    eocd.comment_len);
 
 		err = find_cd_offset_from_eocd(f, &eocd, from, &cd_offset,
@@ -1057,7 +1056,7 @@ static int fill_info_list_central_directory(struct zc_file *f)
 
 		/* basic sanity checks */
 		if (!entries_in_cd || cd_offset > sb.st_size) {
-			err(f->ctx, "detected invalid zip file: entries_in_cd: %"PRIu64", cd_offset: 0x%016jx\n",
+			err("detected invalid zip file: entries_in_cd: %"PRIu64", cd_offset: 0x%016jx\n",
 			    entries_in_cd, cd_offset);
 			to_read = rem;
 			from++;
@@ -1095,15 +1094,13 @@ struct zc_file *zc_file_unref(struct zc_file *f)
 	f->refcount--;
 	if (f->refcount > 0)
 		return f;
-	dbg(f->ctx, "file %p released\n", f);
+	dbg("file %p released\n", f);
 	free(f->filename);
 	free(f);
 	return NULL;
 }
 
-int zc_file_new_from_filename(struct zc_ctx *ctx,
-					const char *filename,
-					struct zc_file **file)
+int zc_file_new_from_filename(const char *filename, struct zc_file **file)
 {
 	struct zc_file *newfile;
 
@@ -1111,12 +1108,11 @@ int zc_file_new_from_filename(struct zc_ctx *ctx,
 	if (!newfile)
 		return -1;
 
-	newfile->ctx = ctx;
 	newfile->refcount = 1;
 	newfile->filename = strdup(filename);
 	INIT_LIST_HEAD(&newfile->info_head);
 	*file = newfile;
-	dbg(ctx, "file %p created for %s\n", newfile, filename);
+	dbg("file %p created for %s\n", newfile, filename);
 	return 0;
 }
 
@@ -1149,18 +1145,18 @@ int zc_file_open(struct zc_file *f)
 	 */
 	stream = fopen(f->filename, "rb");
 	if (!stream) {
-		err(f->ctx, "fopen(%s) failed: %s.\n",
+		err("fopen(%s) failed: %s.\n",
 		    f->filename,
 		    strerror(errno));
 		return -1;
 	}
 
-	dbg(f->ctx, "file %s open returned: %p\n", f->filename, stream);
+	dbg("file %s open returned: %p\n", f->filename, stream);
 
 	f->stream = stream;
 
 	if (fill_info_list_central_directory(f)) {
-		err(f->ctx, "failure while reading headers.\n");
+		err("failure while reading headers.\n");
 		goto err;
 	}
 
@@ -1180,11 +1176,11 @@ int zc_file_close(struct zc_file *f)
 	clear_info_list(f);
 
 	if (fclose(f->stream)) {
-		err(f->ctx, "fclose() failed: %s.\n", strerror(errno));
+		err("fclose() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
-	dbg(f->ctx, "file %p closed\n", f);
+	dbg("file %p closed\n", f);
 
 	f->stream = NULL;
 
@@ -1272,7 +1268,7 @@ int read_crypt_data(struct zc_file *f, unsigned char **buf,
 
 	unsigned char *tmp = malloc(to_read);
 	if (!tmp) {
-		err(f->ctx, "malloc() failed(): %s\n", strerror(errno));
+		err("malloc() failed(): %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -1293,7 +1289,7 @@ err:
 }
 
 struct zc_info *zc_file_info_next(struct zc_file *f,
-					    struct zc_info *info)
+				  struct zc_info *info)
 {
 	struct zc_info *i;
 

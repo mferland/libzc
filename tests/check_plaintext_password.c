@@ -21,7 +21,6 @@
 
 #include "libzc.h"
 
-struct zc_ctx *ctx;
 struct zc_crk_ptext *ptext;
 
 struct test_pool {
@@ -64,16 +63,13 @@ struct test_pool pool[POOL_LEN] = {
 
 void setup_ptext()
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-	ck_assert_int_eq(zc_crk_ptext_new(ctx, &ptext, -1), 0);
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
 	ck_assert_ptr_nonnull(ptext);
 }
 
 void teardown_ptext()
 {
 	zc_crk_ptext_unref(ptext);
-	zc_unref(ctx);
 }
 
 START_TEST(test_zc_crk_ptext_find_password_0)
@@ -228,7 +224,7 @@ START_TEST(test_zc_crk_ptext_find_password_pool)
 		struct zc_key generated;
 
 		zc_passw_to_internal_rep((const uint8_t *)pool[i].pw,
-					  pool[i].len, &generated);
+					 pool[i].len, &generated);
 		ck_assert_uint_eq(generated.key0, pool[i].k.key0);
 		ck_assert_uint_eq(generated.key1, pool[i].k.key1);
 		ck_assert_uint_eq(generated.key2, pool[i].k.key2);

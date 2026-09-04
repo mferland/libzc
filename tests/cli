@@ -24,6 +24,23 @@ if "$YAZC" invalid >"$tmpdir/invalid.out" 2>"$tmpdir/invalid.err"; then
 fi
 grep -q "invalid command" "$tmpdir/invalid.err"
 
+if ZC_LOG=0 "$YAZC" info "$tmpdir/missing.zip" \
+	>"$tmpdir/log-off.out" 2>"$tmpdir/log-off.err"; then
+	echo "yazc opened a missing zip file" >&2
+	exit 1
+fi
+if grep -q "^libzc:" "$tmpdir/log-off.err"; then
+	echo "ZC_LOG=0 did not suppress engine logging" >&2
+	exit 1
+fi
+
+if ZC_LOG=err "$YAZC" info "$tmpdir/missing.zip" \
+	>"$tmpdir/log-error.out" 2>"$tmpdir/log-error.err"; then
+	echo "yazc opened a missing zip file" >&2
+	exit 1
+fi
+grep -q "^libzc: zc_file_open: fopen" "$tmpdir/log-error.err"
+
 "$YAZC" info "$test_srcdir/noradi.zip" >"$tmpdir/info.out" 2>"$tmpdir/info.err"
 grep -q "^INDEX NAME" "$tmpdir/info.out"
 

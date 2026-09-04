@@ -23,22 +23,18 @@
 #include "libzc.h"
 
 #define LEN 20
-struct zc_ctx *ctx;
 struct zc_crk_dict *crk;
 char pw[LEN];
 
 static void setup()
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-	ck_assert_int_eq(zc_crk_dict_new(ctx, &crk), 0);
+	ck_assert_int_eq(zc_crk_dict_new(&crk), 0);
 	ck_assert_ptr_nonnull(crk);
 }
 
 static void teardown()
 {
 	zc_crk_dict_unref(crk);
-	zc_unref(ctx);
 }
 
 START_TEST(test_init_file_not_found)
