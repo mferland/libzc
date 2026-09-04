@@ -16,9 +16,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 VALGRIND=`which valgrind`
-YAZC="yazc/yazc"
+YAZC="src/yazc"
 OPTS="--tool=memcheck --leak-check=full --show-leak-kinds=all --log-file=valgrind_run.txt"
-CMD="libtool --mode=execute $VALGRIND $OPTS $YAZC"
+CMD="$VALGRIND $OPTS $YAZC"
 
 check_output() {
     if cat valgrind_run.txt | grep -q "no leaks are possible"

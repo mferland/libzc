@@ -31,10 +31,12 @@ do
     make -j8
     for i in $(seq 1 10)
     do
-        if [ -x yazc/yazc ]; then
-            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe yazc/yazc bruteforce -a ${TMP}/noradi.zip
+        if [ -x src/yazc ]; then
+            /usr/bin/time -a -o ${OUT} -f "${r} %e" src/yazc bruteforce -a ${TMP}/noradi.zip
+        elif [ -x yazc/yazc ]; then
+            /usr/bin/time -a -o ${OUT} -f "${r} %e" yazc/yazc bruteforce -a ${TMP}/noradi.zip
         else
-            /usr/bin/time -a -o ${OUT} -f "${r} %e" libtool exe bin/yazc bruteforce -a ${TMP}/noradi.zip
+            /usr/bin/time -a -o ${OUT} -f "${r} %e" bin/yazc bruteforce -a ${TMP}/noradi.zip
         fi
     done
     git clean -d -X -f

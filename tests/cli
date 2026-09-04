@@ -1,0 +1,53 @@
+#!/bin/sh
+
+set -eu
+
+test_srcdir=$(dirname "$0")
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/yazc-cli.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+
+"$YAZC" --help >"$tmpdir/help.out" 2>"$tmpdir/help.err"
+grep -q "Commands:" "$tmpdir/help.out"
+
+"$YAZC" --version >"$tmpdir/version.out" 2>"$tmpdir/version.err"
+grep -q "^yazc " "$tmpdir/version.err"
+
+if "$YAZC" >"$tmpdir/missing.out" 2>"$tmpdir/missing.err"; then
+	echo "yazc accepted a missing command" >&2
+	exit 1
+fi
+grep -q "missing command" "$tmpdir/missing.err"
+
+if "$YAZC" invalid >"$tmpdir/invalid.out" 2>"$tmpdir/invalid.err"; then
+	echo "yazc accepted an invalid command" >&2
+	exit 1
+fi
+grep -q "invalid command" "$tmpdir/invalid.err"
+
+if ZC_LOG=0 "$YAZC" info "$tmpdir/missing.zip" \
+	>"$tmpdir/log-off.out" 2>"$tmpdir/log-off.err"; then
+	echo "yazc opened a missing zip file" >&2
+	exit 1
+fi
+if grep -q "^yazc:" "$tmpdir/log-off.err"; then
+	echo "ZC_LOG=0 did not suppress engine logging" >&2
+	exit 1
+fi
+
+if ZC_LOG=err "$YAZC" info "$tmpdir/missing.zip" \
+	>"$tmpdir/log-error.out" 2>"$tmpdir/log-error.err"; then
+	echo "yazc opened a missing zip file" >&2
+	exit 1
+fi
+grep -q "^yazc: zc_file_open: fopen" "$tmpdir/log-error.err"
+
+"$YAZC" info "$test_srcdir/noradi.zip" >"$tmpdir/info.out" 2>"$tmpdir/info.err"
+grep -q "^INDEX NAME" "$tmpdir/info.out"
+
+"$YAZC" dictionary -d "$test_srcdir/dict.txt" "$test_srcdir/noradi.zip" \
+	>"$tmpdir/dictionary.out" 2>"$tmpdir/dictionary.err"
+grep -q "Password is: noradi" "$tmpdir/dictionary.out"
+
+"$YAZC" bruteforce -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
+grep -q "Password is: a" "$tmpdir/bruteforce.out"

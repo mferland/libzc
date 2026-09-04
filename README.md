@@ -10,14 +10,14 @@
 
 # Overview
 
-libzc is a simple ZIP password-cracking library. It also includes a
-command-line tool called `yazc` (Yet Another Zip Cracker).
+`yazc` (Yet Another Zip Cracker) is a simple command-line application for
+recovering passwords and encryption keys from legacy ZIP archives.
 
 # Dependencies
 
 On Ubuntu, install the required packages with:
 
-    sudo apt install -y autoconf libtool zlib1g-dev pkg-config
+    sudo apt install -y autoconf automake bison flex zlib1g-dev pkg-config
 
 Building the unit tests also requires
 [Check](https://github.com/libcheck/check).

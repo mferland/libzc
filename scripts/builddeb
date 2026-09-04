@@ -1,12 +1,10 @@
 #!/bin/sh
 
 # Simple debian package build script
-# Debian package tracker: https://tracker.debian.org/pkg/libzc
-
 set -e
 
 D="build-deb"
-PN="libzc"
+PN="yazc"
 PV="0.4.4"
 PF="${PN}-${PV}"
 PE="orig.tar.gz"

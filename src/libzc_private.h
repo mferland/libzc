@@ -20,6 +20,7 @@
 #define _LIBZC_PRIVATE_H_
 
 #include <stdbool.h>
+#include <stdarg.h>
 #include <stdint.h>
 #ifndef WIN32
 #include <syslog.h>
@@ -48,23 +49,22 @@
 #define __ZC_PRINTF_FORMAT printf
 #endif
 
-static inline void __attribute__((always_inline, format(__ZC_PRINTF_FORMAT, 2, 3)))
-zc_log_null(struct zc_ctx *ctx __attribute__((__unused__)),
-	    const char *format __attribute__((__unused__)), ...)
+static inline void __attribute__((always_inline, format(__ZC_PRINTF_FORMAT, 1, 2)))
+zc_log_null(const char *format __attribute__((__unused__)), ...)
 {
 }
 
-void zc_log(struct zc_ctx *ctx, int priority, const char *file, int line,
-	    const char *fn, const char *format, ...)
-	__attribute__((format(__ZC_PRINTF_FORMAT, 6, 7)));
+void zc_log(int priority, const char *file, int line, const char *fn,
+	    const char *format, ...)
+__attribute__((format(__ZC_PRINTF_FORMAT, 5, 6)));
 
 void zc_trace(const char *file, int line, const char *fn, const char *format,
 	      ...) __attribute__((format(__ZC_PRINTF_FORMAT, 4, 5)));
 
-#define zc_log_cond(ctx, prio, arg...)                                      \
+#define zc_log_cond(prio, arg...)                                           \
 	do {                                                                \
-		if (zc_get_log_priority(ctx) >= prio)                       \
-			zc_log(ctx, prio, __FILE__, __LINE__, __FUNCTION__, \
+		if (zc_get_log_priority() >= prio)                          \
+			zc_log(prio, __FILE__, __LINE__, __FUNCTION__,      \
 			       ##arg);                                      \
 	} while (0)
 
@@ -75,22 +75,20 @@ void zc_trace(const char *file, int line, const char *fn, const char *format,
 
 #ifdef ENABLE_LOGGING
 #  ifdef ENABLE_DEBUG
-#    define dbg(ctx, arg...) zc_log_cond(ctx, LOG_DEBUG, ## arg)
+#    define dbg(arg...) zc_log_cond(LOG_DEBUG, ## arg)
 #    define trace(arg...) zc_log_trace(arg)
 #  else
-#    define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#    define trace(arg...) zc_log_null(NULL, ## arg)
+#    define dbg(arg...) zc_log_null(arg)
+#    define trace(arg...) zc_log_null(arg)
 #  endif
-#  define info(ctx, arg...) zc_log_cond(ctx, LOG_INFO, ## arg)
-#  define err(ctx, arg...) zc_log_cond(ctx, LOG_ERR, ## arg)
+#  define info(arg...) zc_log_cond(LOG_INFO, ## arg)
+#  define err(arg...) zc_log_cond(LOG_ERR, ## arg)
 #else
-#  define dbg(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define info(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define err(ctx, arg...) zc_log_null(ctx, ## arg)
-#  define trace(arg...) zc_log_null(NULL, ## arg)
+#  define dbg(arg...) zc_log_null(arg)
+#  define info(arg...) zc_log_null(arg)
+#  define err(arg...) zc_log_null(arg)
+#  define trace(arg...) zc_log_null(arg)
 #endif
-
-#define ZC_EXPORT __attribute__((visibility("default")))
 
 static inline void fatal(const char *format, ...)
 {
@@ -182,10 +180,10 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 
 size_t threads_to_create(long forced);
 
-int fill_header(struct zc_ctx *ctx, const char *filename, struct zc_header *h,
+int fill_header(const char *filename, struct zc_header *h,
 		size_t len);
 
-int fill_test_cipher(struct zc_ctx *ctx, const char *filename,
+int fill_test_cipher(const char *filename,
 		     unsigned char **buf, size_t *len, uint32_t *original_crc,
 		     bool *is_deflated);
 

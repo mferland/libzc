@@ -7,7 +7,6 @@ config.h.in
 config.h
 config.log
 config.status
-libtool
 stamp-h1
 configure
 autom4te.cache
@@ -22,12 +21,10 @@ config.guess
 config.sub
 depcomp
 install-sh
-ltmain.sh
 missing
 test-driver
 /valgrind_run.txt
 tests/.deps
-tests/.libs
 tests/basic
 tests/bruteforce
 tests/dictionary
@@ -39,8 +36,8 @@ tests/reduce
 tests/pool
 debtest/
 libzc-*.tar.gz
-lib/mask_parser.c
-lib/mask_parser.h
-lib/mask_scanner.c
-lib/mask_scanner.h
+src/mask_parser.c
+src/mask_parser.h
+src/mask_scanner.c
+src/mask_scanner.h
 ylwrap

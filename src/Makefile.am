@@ -24,29 +24,12 @@ AM_CPPFLAGS = \
 	-DLIBEXECDIR=\""$(libexecdir)"\"
 
 AM_CFLAGS = \
-        -Wall -Wextra  \
-	-fvisibility=hidden \
+	-Wall -Wextra \
 	-ffunction-sections \
 	-fdata-sections
 
-# - Start with version information of '0:0:0' for each libtool library.
-# - Update the version information only immediately before a public release
-#   of your software. More frequent updates are unnecessary, and only
-#   guarantee that the current interface number gets larger faster.
-# - If the library source code has changed at all since the last update,
-#   then increment revision ('c:r:a' becomes 'c:r+1:a').
-# - If any interfaces have been added, removed, or changed since the last
-#   update, increment current, and set revision to 0.
-# - If any interfaces have been added since the last public release, then
-#   increment age.
-# - If any interfaces have been removed or changed since the last public
-#   release, then set age to 0. 
-LIBZC_CURRENT=6
-LIBZC_REVISION=0
-LIBZC_AGE=0
-
-lib_LTLIBRARIES = libzc.la
-libzc_la_SOURCES =\
+noinst_LIBRARIES = libyazc-core.a
+libyazc_core_a_SOURCES = \
 	common.c \
 	compat.c \
 	compat.h \
@@ -76,14 +59,20 @@ libzc_la_SOURCES =\
 	qsort.c \
 	uniq.c
 
-include_HEADERS = libzc.h
+bin_PROGRAMS = yazc
+yazc_SOURCES = \
+	yazc.c \
+	bruteforce.c \
+	dictionary.c \
+	plaintext.c \
+	info.c \
+	yazc.h
+yazc_CFLAGS = $(AM_CFLAGS)
+yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS)
 
-libzc_la_LDFLAGS = $(AM_LDFLAGS) -version-info $(LIBZC_CURRENT):$(LIBZC_REVISION):$(LIBZC_AGE)
-libzc_la_LIBADD = -lm ${ZLIB_LIBS}
-
-pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = libzc.pc
-CLEANFILES += libzc.pc
+dist_man_MANS = yazc.1
+docdir = $(datadir)/doc/yazc
+dist_doc_DATA = $(top_srcdir)/README.md
 
 BUILT_SOURCES = mask_parser.c mask_parser.h mask_scanner.c
 

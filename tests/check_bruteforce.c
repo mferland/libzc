@@ -22,22 +22,18 @@
 
 #include "libzc.h"
 
-struct zc_ctx *ctx;
 struct zc_crk_bforce *crk;
 
 static void setup()
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-	ck_assert_int_eq(zc_crk_bforce_new(ctx, &crk), 0);
+	ck_assert_int_eq(zc_crk_bforce_new(&crk), 0);
 	ck_assert_ptr_nonnull(crk);
 	zc_crk_bforce_force_threads(crk, 1);
 }
 
 static void teardown()
 {
-	zc_crk_bforce_unref(crk);
-	zc_unref(ctx);
+	zc_crk_bforce_destroy(crk);
 }
 
 START_TEST(test_parameter_set)
@@ -361,7 +357,7 @@ static void assert_mask_config_finds_options_password(const char *mask,
 	cfg.mask.maxlen = maxlen;
 
 	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "mask_options.zip",
-					      &cfg), 0);
+					    &cfg), 0);
 	zc_crk_bforce_force_threads(crk, 8);
 	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
 	ck_assert_mem_eq(out, mask_options_password,
@@ -568,7 +564,7 @@ START_TEST(test_bruteforce_rejects_unsupported_compression)
 	cfg.maxlen = 2;
 
 	ck_assert_int_eq(zc_crk_bforce_init(
-		crk, DATADIR "bruteforce_unsupported_method.zip", &cfg), -1);
+				 crk, DATADIR "bruteforce_unsupported_method.zip", &cfg), -1);
 }
 END_TEST
 

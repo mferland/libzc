@@ -18,150 +18,52 @@
 
 #include <check.h>
 #include <stdlib.h>
-#include <syslog.h>
-
 /* libzc */
 #include <libzc.h>
 
-struct zc_ctx *ctx;
-
-void setup(void)
+START_TEST(test_zc_file_lifecycle)
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
-}
+	struct zc_file *file;
 
-void teardown(void)
-{
-	zc_unref(ctx);
-}
-
-START_TEST(test_zc_log_priority)
-{
-	ck_assert_int_eq(zc_get_log_priority(ctx), LOG_ERR);
-
-	zc_set_log_priority(ctx, 2);
-	ck_assert_int_eq(zc_get_log_priority(ctx), 2);
-}
-END_TEST
-
-START_TEST(test_zc_refcount)
-{
-	struct zc_ctx *p;
-
-	ck_assert_ptr_null(zc_ref(NULL));
-
-	ck_assert_ptr_eq(zc_ref(ctx), ctx);    /* inc */
-
-	p = zc_unref(ctx);
-	ck_assert_ptr_eq(p, ctx);              /* dec */
-	ctx = p;
-
-	p = zc_unref(ctx);
-	ck_assert_ptr_eq(p, NULL);             /* dec */
-	ctx = p;
-
-	ck_assert_ptr_eq(zc_unref(NULL), NULL);
-}
-END_TEST
-
-START_TEST(test_zc_file_refcount)
-{
-	struct zc_file *file, *tmp;
-	int ret;
-
-	ret = zc_file_new_from_filename(ctx, "dummy", &file);
-	ck_assert_int_eq(ret, 0);
+	ck_assert_int_eq(zc_file_new_from_filename(DATADIR "test.zip", &file), 0);
 	ck_assert_ptr_nonnull(file);
-	ck_assert_ptr_null(zc_file_ref(NULL));
-
-	tmp = zc_file_ref(file);
-	ck_assert_ptr_eq(tmp, file);                 /* inc */
-	file = tmp;
-
-	tmp = zc_file_unref(file);
-	ck_assert_ptr_eq(tmp, file);                 /* dec */
-	file = tmp;
-
-	tmp = zc_file_unref(file);
-	ck_assert_ptr_eq(tmp, NULL);                 /* dec */
-
-	ck_assert_ptr_eq(zc_file_unref(NULL), NULL); /* dec */
+	ck_assert_int_eq(zc_file_open(file), 0);
+	zc_file_destroy(file);
+	zc_file_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_dict_refcount)
+START_TEST(test_zc_crk_dict_lifecycle)
 {
-	struct zc_crk_dict *p, *tmp;
-	int ret;
+	struct zc_crk_dict *crk;
 
-	ret = zc_crk_dict_new(ctx, &p);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(p);
-	ck_assert_ptr_null(zc_crk_dict_ref(NULL));
-
-	tmp = zc_crk_dict_ref(p);
-	ck_assert_ptr_eq(tmp, p);                        /* inc */
-	p = tmp;
-
-	tmp = zc_crk_dict_unref(p);
-	ck_assert_ptr_eq(tmp, p);                        /* dec */
-	p = tmp;
-
-	tmp = zc_crk_dict_unref(p);
-	ck_assert_ptr_eq(tmp, NULL);                     /* dec */
-
-	ck_assert_ptr_eq(zc_crk_dict_unref(NULL), NULL); /* dec */
+	ck_assert_int_eq(zc_crk_dict_new(&crk), 0);
+	ck_assert_ptr_nonnull(crk);
+	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
+	zc_crk_dict_destroy(crk);
+	zc_crk_dict_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_bforce_refcount)
+START_TEST(test_zc_crk_bforce_lifecycle)
 {
-	struct zc_crk_bforce *p, *tmp;
-	int ret;
+	struct zc_crk_bforce *crk;
 
-	ret = zc_crk_bforce_new(ctx, &p);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(p);
-	ck_assert_ptr_null(zc_crk_bforce_ref(NULL));
-
-	tmp = zc_crk_bforce_ref(p);
-	ck_assert_ptr_eq(tmp, p);                          /* inc */
-	p = tmp;
-
-	tmp = zc_crk_bforce_unref(p);
-	ck_assert_ptr_eq(tmp, p);                          /* dec */
-	p = tmp;
-
-	tmp = zc_crk_bforce_unref(p);
-	ck_assert_ptr_eq(tmp, NULL);                       /* dec */
-
-	ck_assert_ptr_eq(zc_crk_bforce_unref(NULL), NULL); /* dec */
+	ck_assert_int_eq(zc_crk_bforce_new(&crk), 0);
+	ck_assert_ptr_nonnull(crk);
+	zc_crk_bforce_destroy(crk);
+	zc_crk_bforce_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_refcount)
+START_TEST(test_zc_crk_ptext_lifecycle)
 {
-	struct zc_crk_ptext *p, *tmp;
-	int ret;
+	struct zc_crk_ptext *ptext;
 
-	ret = zc_crk_ptext_new(ctx, &p, -1);
-	ck_assert_int_eq(ret, 0);
-	ck_assert_ptr_nonnull(p);
-	ck_assert_ptr_null(zc_crk_ptext_ref(NULL));
-
-	tmp = zc_crk_ptext_ref(p);
-	ck_assert_ptr_eq(tmp, p);                         /* inc */
-	p = tmp;
-
-	tmp = zc_crk_ptext_unref(p);
-	ck_assert_ptr_eq(tmp, p);                         /* dec */
-	p = tmp;
-
-	tmp = zc_crk_ptext_unref(p);
-	ck_assert_ptr_eq(tmp, NULL);                      /* dec */
-
-	ck_assert_ptr_eq(zc_crk_ptext_unref(NULL), NULL); /* dec */
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
+	ck_assert_ptr_nonnull(ptext);
+	zc_crk_ptext_destroy(ptext);
+	zc_crk_ptext_destroy(NULL);
 }
 END_TEST
 
@@ -174,13 +76,10 @@ Suite *basic_suite(void)
 
 	tc_core = tcase_create("Core");
 
-	tcase_add_checked_fixture(tc_core, setup, teardown);
-	tcase_add_test(tc_core, test_zc_log_priority);
-	tcase_add_test(tc_core, test_zc_refcount);
-	tcase_add_test(tc_core, test_zc_file_refcount);
-	tcase_add_test(tc_core, test_zc_crk_dict_refcount);
-	tcase_add_test(tc_core, test_zc_crk_bforce_refcount);
-	tcase_add_test(tc_core, test_zc_crk_ptext_refcount);
+	tcase_add_test(tc_core, test_zc_file_lifecycle);
+	tcase_add_test(tc_core, test_zc_crk_dict_lifecycle);
+	tcase_add_test(tc_core, test_zc_crk_bforce_lifecycle);
+	tcase_add_test(tc_core, test_zc_crk_ptext_lifecycle);
 	suite_add_tcase(s, tc_core);
 
 	return s;

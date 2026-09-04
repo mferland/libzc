@@ -34,8 +34,6 @@ static const struct option long_opts[] = {
 	{ NULL, 0, 0, 0 }
 };
 
-struct zc_ctx *ctx;
-
 static void print_help(const char *cmdname)
 {
 	fprintf(stderr,
@@ -72,15 +70,9 @@ static int do_info(int argc, char *argv[])
 
 	filename = argv[optind];
 
-	if (zc_new(&ctx)) {
-		err("zc_new() failed!\n");
-		return EXIT_FAILURE;
-	}
-
-	if (zc_file_new_from_filename(ctx, filename, &file)) {
+	if (zc_file_new_from_filename(filename, &file)) {
 		err("zc_file_new_from_filename() failed!\n");
-		err = EXIT_FAILURE;
-		goto err1;
+		return EXIT_FAILURE;
 	}
 
 	if (zc_file_open(file)) {
@@ -170,9 +162,7 @@ static int do_info(int argc, char *argv[])
 
 	zc_file_close(file);
 err2:
-	zc_file_unref(file);
-err1:
-	zc_unref(ctx);
+	zc_file_destroy(file);
 	return err;
 }
 

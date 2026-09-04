@@ -4,7 +4,7 @@ FROM ubuntu:22.04
 
 RUN apt update \
     && apt upgrade -y \
-    && apt install -y git make automake libtool-bin autoconf zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip \
+    && apt install -y git make automake autoconf zlib1g-dev pkg-config check gcc mingw-w64 mingw-w64-x86-64-dev libz-mingw-w64-dev zip \
     && apt clean
 
 RUN useradd --create-home --shell /bin/bash dev

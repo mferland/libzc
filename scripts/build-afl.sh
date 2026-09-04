@@ -30,4 +30,4 @@ make install
 
 # TODO: add more examples zip files
 cp ${S}/tests/noradi.zip ${IN}
-LD_LIBRARY_PATH=${INST}/lib afl-fuzz -i ${IN} -o ${OUT} -t 2000 -- ${INST}/bin/yazc info @@
+afl-fuzz -i ${IN} -o ${OUT} -t 2000 -- ${INST}/bin/yazc info @@

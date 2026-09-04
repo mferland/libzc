@@ -26,6 +26,7 @@
 #include <sys/time.h>
 
 #include "config.h"
+#include "libzc.h"
 #include "yazc.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
@@ -110,6 +111,8 @@ int main(int argc, char *argv[])
 	const char *cmd;
 	bool found = false;
 	size_t i;
+
+	zc_log_init();
 
 	for (;;) {
 		int c;

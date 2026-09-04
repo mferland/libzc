@@ -22,25 +22,21 @@
 /* libzc */
 #include <libzc.h>
 
-struct zc_ctx *ctx;
 struct zc_file *file;
 
 void setup(void)
 {
-	ck_assert_int_eq(zc_new(&ctx), 0);
-	ck_assert_ptr_nonnull(ctx);
 	file = NULL;
 }
 
 void teardown(void)
 {
-	zc_file_unref(file);
-	zc_unref(ctx);
+	zc_file_destroy(file);
 }
 
 START_TEST(test_zc_file_new)
 {
-	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_new_from_filename(DATADIR "test.zip", &file);
 	ck_assert_msg(strcmp(zc_file_get_filename(file), DATADIR "test.zip") == 0,
 		      "Filename does not match.");
 	ck_assert(zc_file_isopened(file) == false);
@@ -49,7 +45,7 @@ END_TEST
 
 START_TEST(test_zc_file_open_existant)
 {
-	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_new_from_filename(DATADIR "test.zip", &file);
 	ck_assert(zc_file_isopened(file) == false);
 	ck_assert_msg(zc_file_open(file) == 0,
 		      "File could not be opened.");
@@ -64,7 +60,7 @@ END_TEST
 
 START_TEST(test_zc_file_open_nonexistant)
 {
-	zc_file_new_from_filename(ctx, "doesnotexists.zip", &file);
+	zc_file_new_from_filename("doesnotexists.zip", &file);
 	ck_assert(zc_file_isopened(file) == false);
 	ck_assert_msg(zc_file_open(file) != 0,
 		      "Non-existant file reported having been opened.");
@@ -74,8 +70,8 @@ END_TEST
 
 START_TEST(test_zc_file_open_non_zip)
 {
-	ck_assert_int_eq(zc_file_new_from_filename(ctx, DATADIR "dict.txt",
-					    &file), 0);
+	ck_assert_int_eq(zc_file_new_from_filename(DATADIR "dict.txt",
+						   &file), 0);
 	ck_assert_int_eq(zc_file_open(file), -1);
 	ck_assert(zc_file_isopened(file) == false);
 }
@@ -83,7 +79,7 @@ END_TEST
 
 START_TEST(test_zc_file_close_opened)
 {
-	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_new_from_filename(DATADIR "test.zip", &file);
 	zc_file_open(file);
 	ck_assert_msg(zc_file_close(file) == 0,
 		      "Closing existant file failed.");
@@ -119,7 +115,7 @@ START_TEST(test_zc_file_info_encrypted)
 	struct zc_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(ctx, DATADIR "test.zip", &file);
+	zc_file_new_from_filename(DATADIR "test.zip", &file);
 	zc_file_open(file);
 
 	int i = 0;
@@ -173,7 +169,8 @@ START_TEST(test_zc_file_info_encrypted_2)
 	const uint32_t info_csize[8] = {13457, 779, 690, 8337, 19115, 10119, 101407, 849};
 	const long info_offset[8] = {82, 13621, 14485, 15259, 23683, 42882, 53084, 154577};
 	const long info_end[8] = {13527, 14388, 15163, 23584,
-				  42786, 52989, 154479, 155414};
+				  42786, 52989, 154479, 155414
+				 };
 	const long info_crypt[8] = {70, 13609, 14473, 15247, 23671, 42870, 53072, 154565};
 	const char *info_filename[8] = {"config.guess",
 					"config.h",
@@ -187,7 +184,7 @@ START_TEST(test_zc_file_info_encrypted_2)
 	struct zc_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(ctx, DATADIR "test_zyx.zip", &file);
+	zc_file_new_from_filename(DATADIR "test_zyx.zip", &file);
 	ck_assert_msg(zc_file_open(file) == 0,
 		      "zc_file_open() failed");
 
@@ -234,7 +231,7 @@ START_TEST(test_zc_file_info_non_encrypted)
 	struct zc_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(ctx, DATADIR "test_non_encrypted.zip", &file);
+	zc_file_new_from_filename(DATADIR "test_non_encrypted.zip", &file);
 	zc_file_open(file);
 
 	int i = 0;

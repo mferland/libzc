@@ -295,8 +295,8 @@ static int do_work_attack(void *in, struct list_head *list, int id)
 	return TPEEXIT;
 }
 
-ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
-				  struct zc_key *out_key)
+int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
+			struct zc_key *out_key)
 {
 	size_t nbthreads = threadpool_get_nbthreads(ptext->pool);
 	size_t nbunits = ptext->key2_size < nbthreads ? ptext->key2_size : nbthreads;
@@ -352,10 +352,10 @@ ZC_EXPORT int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 	return err;
 }
 
-ZC_EXPORT int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
-					     const uint8_t *ciphertext,
-					     size_t size,
-					     struct zc_key *internal_rep)
+int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
+				   const uint8_t *ciphertext,
+				   size_t size,
+				   struct zc_key *internal_rep)
 {
 	struct zc_key k;
 	uint32_t i;

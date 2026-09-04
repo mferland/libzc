@@ -19,42 +19,16 @@
 #ifndef _LIBZC_H_
 #define _LIBZC_H_
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+void zc_log_init(void);
+int zc_get_log_priority(void);
 
-/**
- * zc_ctx:
- *
- * library user context - reads the config and system environment,
- * user variables, allows custom logging
- */
-struct zc_ctx;
-struct zc_ctx *zc_ref(struct zc_ctx *ctx);
-struct zc_ctx *zc_unref(struct zc_ctx *ctx);
-int zc_new(struct zc_ctx **inctx);
-void zc_set_log_fn(struct zc_ctx *ctx,
-		   void (*log_fn)(struct zc_ctx *ctx, int priority,
-				  const char *file, int line, const char *fn,
-				  const char *format, va_list args));
-int zc_get_log_priority(const struct zc_ctx *ctx);
-void zc_set_log_priority(struct zc_ctx *ctx, int priority);
-
-/**
- * zc_file:
- *
- * contains information about the zip file.
- */
 struct zc_file;
-struct zc_file *zc_file_ref(struct zc_file *file);
-struct zc_file *zc_file_unref(struct zc_file *file);
-int zc_file_new_from_filename(struct zc_ctx *ctx, const char *filename,
-			      struct zc_file **file);
+void zc_file_destroy(struct zc_file *file);
+int zc_file_new_from_filename(const char *filename, struct zc_file **file);
 const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
@@ -77,23 +51,13 @@ struct zc_mask {
 	const char *str;
 };
 
-/**
- * zc_crk_dict:
- *
- * Dictionnary attack.
- */
-struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk);
-struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk);
-int zc_crk_dict_new(struct zc_ctx *ctx, struct zc_crk_dict **crk);
+struct zc_crk_dict;
+void zc_crk_dict_destroy(struct zc_crk_dict *crk);
+int zc_crk_dict_new(struct zc_crk_dict **crk);
 int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
 int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
 		      size_t len);
 
-/**
- * zc_crk_bforce:
- *
- * Bruteforce attack.
- */
 #define ZC_PW_MINLEN	  1
 #define ZC_PW_MAXLEN	  16
 #define ZC_CHARSET_MAXLEN 96
@@ -105,9 +69,8 @@ struct zc_crk_pwcfg {
 	struct zc_mask mask;
 };
 struct zc_crk_bforce;
-struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *bforce);
-struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *bforce);
-int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **bforce);
+void zc_crk_bforce_destroy(struct zc_crk_bforce *bforce);
+int zc_crk_bforce_new(struct zc_crk_bforce **bforce);
 int zc_crk_bforce_init(struct zc_crk_bforce *bforce, const char *fname,
 		       const struct zc_crk_pwcfg *cfg);
 const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
@@ -115,27 +78,14 @@ void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w);
 int zc_crk_bforce_start(struct zc_crk_bforce *bforce, char *out_pw,
 			size_t out_pw_size);
 
-/**
- * zc_crk_ptext:
- *
- * Plaintext cracker. Typically you would call:
- * 1- zc_crk_ptext_new();
- * 2- zc_crk_ptext_set_text();
- * 3- zc_crk_ptext_key2_reduction();
- * 4- zc_crk_ptext_attack();
- * 5- zc_crk_ptext_find_internal_rep();
- * 6- zc_crk_ptext_unref();
- */
 struct zc_key {
 	uint32_t key0;
 	uint32_t key1;
 	uint32_t key2;
 };
 struct zc_crk_ptext;
-struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext);
-struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
-		     long force_threads);
+void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext);
+int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads);
 int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext, const uint8_t *plaintext,
 			  const uint8_t *ciphertext, size_t size);
 int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
@@ -148,13 +98,6 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 			       const struct zc_key *internal_rep, char *out,
 			       size_t len);
 
-/**
- * Utilities
- */
 void zc_passw_to_internal_rep(const uint8_t *pw, size_t len, struct zc_key *out_key);
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 #endif /* _LIBZC_H_ */

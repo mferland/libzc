@@ -16,7 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ZIP=$(which zip)
-CMD="libtool --mode=execute ../yazc/yazc"
+CMD="../src/yazc"
 
 create_dummy_files() {
     for i in $(seq 0 2)
@@ -49,8 +49,8 @@ while true; do
 
     EINFO=$(${CMD} info ${E} | grep file_0 | sed 's/\ \+/ /g')
 
-    echo libtool exe ../yazc/yazc bruteforce -aA -l7 ${E}
-    if ! libtool exe ../yazc/yazc bruteforce -aA -l7 ${E}; then
+    echo ${CMD} bruteforce -aA -l7 ${E}
+    if ! ${CMD} bruteforce -aA -l7 ${E}; then
 	echo >&2 "ERROR"
 	exit 1
     fi

@@ -35,9 +35,6 @@
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
-	struct zc_ctx *ctx;
-	int refcount;
-
 	/* validation data */
 	struct zc_header header[HEADER_MAX];
 	size_t header_size;
@@ -648,7 +645,7 @@ static void fill_initial_pwstream_mask(size_t *initial, const char *ipw,
 		const char *alphabet = parsed_mask[i];
 
 		initial[i] = (const char *)memchr(alphabet, ipw[i],
-						    strlen(alphabet)) - alphabet;
+						  strlen(alphabet)) - alphabet;
 	}
 }
 
@@ -818,7 +815,7 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 
 		ret = parse_mask(cfg->mask.str, &parsed);
 		if (ret <= 0) {
-			err(crk->ctx, "mask parsing failed!\n");
+			err("mask parsing failed!\n");
 			return -1;
 		}
 
@@ -867,7 +864,7 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 		/* Initial password should have the same length as the
 		   minimum mask length. */
 		if (crk->ipwlen != crk->mask_minlen) {
-			err(crk->ctx, "initial password length (%zu) different from minimum mask length (%zu)\n",
+			err("initial password length (%zu) different from minimum mask length (%zu)\n",
 			    crk->ipwlen,
 			    crk->mask_minlen);
 			return -1;
@@ -910,21 +907,21 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
-				 const char *filename,
-				 const struct zc_crk_pwcfg *cfg)
+int zc_crk_bforce_init(struct zc_crk_bforce *crk,
+		       const char *filename,
+		       const struct zc_crk_pwcfg *cfg)
 {
 	int err;
 
 	err = set_pwcfg(crk, cfg);
 	if (err) {
-		err(crk->ctx, "failed to set password configuration\n");
+		err("failed to set password configuration\n");
 		return -1;
 	}
 
-	err = fill_header(crk->ctx, filename, crk->header, HEADER_MAX);
+	err = fill_header(filename, crk->header, HEADER_MAX);
 	if (err < 1) {
-		err(crk->ctx, "failed to read validation data, no usable entry found\n");
+		err("failed to read validation data, no usable entry found\n");
 		return -1;
 	}
 
@@ -936,11 +933,11 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 		free(crk->cipher);
 		crk->cipher = NULL;
 	}
-	err = fill_test_cipher(crk->ctx, filename, &crk->cipher,
+	err = fill_test_cipher(filename, &crk->cipher,
 			       &crk->cipher_size, &crk->original_crc,
 			       &crk->cipher_is_deflated);
 	if (err) {
-		err(crk->ctx, "failed to read cipher data\n");
+		err("failed to read cipher data\n");
 		return -1;
 	}
 
@@ -951,7 +948,7 @@ ZC_EXPORT int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 	return 0;
 }
 
-ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
+int zc_crk_bforce_new(struct zc_crk_bforce **crk)
 {
 	struct zc_crk_bforce *tmp;
 	int err;
@@ -962,21 +959,19 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 
 	err = pthread_mutex_init(&tmp->mutex, NULL);
 	if (err) {
-		err(ctx, "pthread_mutex_init() failed: %s\n", strerror(err));
+		err("pthread_mutex_init() failed: %s\n", strerror(err));
 		free(tmp);
 		return -1;
 	}
 
 	err = pthread_cond_init(&tmp->cond, NULL);
 	if (err) {
-		err(ctx, "pthread_cond_init() failed: %s\n", strerror(err));
+		err("pthread_cond_init() failed: %s\n", strerror(err));
 		pthread_mutex_destroy(&tmp->mutex);
 		free(tmp);
 		return -1;
 	}
 
-	tmp->ctx = ctx;
-	tmp->refcount = 1;
 	tmp->force_threads = -1;
 
 	INIT_LIST_HEAD(&tmp->workers_head);
@@ -984,25 +979,14 @@ ZC_EXPORT int zc_crk_bforce_new(struct zc_ctx *ctx, struct zc_crk_bforce **crk)
 
 	*crk = tmp;
 
-	dbg(ctx, "cracker %p created\n", tmp);
+	dbg("cracker %p created\n", tmp);
 	return 0;
 }
 
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
+void zc_crk_bforce_destroy(struct zc_crk_bforce *crk)
 {
 	if (!crk)
-		return NULL;
-	crk->refcount++;
-	return crk;
-}
-
-ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
-{
-	if (!crk)
-		return NULL;
-	crk->refcount--;
-	if (crk->refcount > 0)
-		return crk;
+		return;
 	if (crk->filename)
 		free(crk->filename);
 	if (crk->cipher)
@@ -1011,22 +995,21 @@ ZC_EXPORT struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	pthread_cond_destroy(&crk->cond);
 	pthread_mutex_destroy(&crk->mutex);
 	free(crk);
-	return NULL;
 }
 
-ZC_EXPORT const char *
+const char *
 zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
 {
 	return crk->set;
 }
 
-ZC_EXPORT void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
+void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
 {
 	bforce->force_threads = w;
 }
 
-ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
-				  size_t len)
+int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
+			size_t len)
 {
 	size_t w;
 
@@ -1036,18 +1019,18 @@ ZC_EXPORT int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 	w = threads_to_create(crk->force_threads);
 
 	if (alloc_pwstreams(crk, w)) {
-		err(crk->ctx, "failed to allocate password streams\n");
+		err("failed to allocate password streams\n");
 		goto err1;
 	}
 
 	if (alloc_workers(crk, w)) {
-		err(crk->ctx, "failed to allocate workers\n");
+		err("failed to allocate workers\n");
 		goto err2;
 	}
 
 	crk->found = false;
 	if (create_workers(crk, &w))
-		err(crk->ctx, "failed to create workers\n");
+		err("failed to create workers\n");
 
 	wait_workers(crk, w, pw, len);
 

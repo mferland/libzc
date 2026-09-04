@@ -35,7 +35,7 @@ struct yazc_cmd {
 
 #ifndef WIN32
 void yazc_log(int prio, const char *format, ...)
-	__attribute__((format(printf, 2, 3)));
+__attribute__((format(printf, 2, 3)));
 
 static inline void __attribute__((always_inline, format(printf, 2, 3)))
 yazc_log_null(__attribute__((__unused__)) int prio,
@@ -44,7 +44,7 @@ yazc_log_null(__attribute__((__unused__)) int prio,
 }
 #else
 void yazc_log(int prio, const char *format, ...)
-	__attribute__((format(gnu_printf, 2, 3)));
+__attribute__((format(gnu_printf, 2, 3)));
 
 static inline void __attribute__((always_inline, format(gnu_printf, 2, 3)))
 yazc_log_null(__attribute__((__unused__)) int prio,

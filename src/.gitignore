@@ -1,0 +1,8 @@
+.dirstamp
+.deps/
+*.a
+mask_parser.c
+mask_parser.h
+mask_scanner.c
+mask_scanner.h
+yazc

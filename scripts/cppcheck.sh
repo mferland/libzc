@@ -33,8 +33,8 @@ options=(
     --suppress=staticFunction
     --suppress=normalCheckLevelMaxBranches
     --suppress=checkersReport
-    -i lib/mask_parser.c
-    -i lib/mask_scanner.c
+    -i src/mask_parser.c
+    -i src/mask_scanner.c
 )
 
 # Autoconf feature and package macros are normally supplied to every build.
@@ -44,4 +44,4 @@ if [ -f config.h ]; then
     options+=(--include=config.h)
 fi
 
-"${BIN}" "${options[@]}" yazc/ lib/
+"${BIN}" "${options[@]}" src/

@@ -27,8 +27,6 @@
 
 #define LINE_BUF_LEN 256
 
-static bool stats = false;
-
 static const char short_opts[] = "d:hS";
 static const struct option long_opts[] = {
 	{ "dictionary", required_argument, 0, 'd' },
@@ -49,22 +47,17 @@ static void print_help(const char *cmdname)
 		cmdname);
 }
 
-static int launch_crack(const char *dict_filename, const char *zip_filename)
+static int launch_crack(const char *dict_filename, const char *zip_filename,
+			bool stats)
 {
-	struct zc_ctx *ctx;
 	struct zc_crk_dict *crk;
 	char pw[LINE_BUF_LEN];
 	struct timeval begin, end;
 	int err = -1;
 
-	if (zc_new(&ctx)) {
-		err("zc_new() failed!\n");
-		return -1;
-	}
-
-	if (zc_crk_dict_new(ctx, &crk)) {
+	if (zc_crk_dict_new(&crk)) {
 		err("zc_crk_dict_new() failed!\n");
-		goto err1;
+		return -1;
 	}
 
 	if (zc_crk_dict_init(crk, zip_filename)) {
@@ -87,10 +80,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename)
 		err("zc_crk_dict_start failed!\n");
 
 err2:
-	zc_crk_dict_unref(crk);
-
-err1:
-	zc_unref(ctx);
+	zc_crk_dict_destroy(crk);
 
 	return err;
 }
@@ -99,6 +89,7 @@ static int do_dictionary(int argc, char *argv[])
 {
 	const char *dict_filename = NULL;
 	const char *zip_filename = NULL;
+	bool stats = false;
 	int err;
 
 	for (;;) {
@@ -136,7 +127,7 @@ static int do_dictionary(int argc, char *argv[])
 		printf("Filename: %s\n", zip_filename);
 	}
 
-	err = launch_crack(dict_filename, zip_filename);
+	err = launch_crack(dict_filename, zip_filename, stats);
 
 	return err;
 }

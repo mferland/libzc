@@ -87,30 +87,17 @@ static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 	return 0;
 }
 
-ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
+void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext)
 {
 	if (!ptext)
-		return NULL;
-	ptext->refcount++;
-	return ptext;
-}
-
-ZC_EXPORT struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
-{
-	if (!ptext)
-		return NULL;
-	ptext->refcount--;
-	if (ptext->refcount > 0)
-		return ptext;
-	dbg(ptext->ctx, "ptext %p released\n", ptext);
+		return;
+	dbg("ptext %p released\n", ptext);
 	threadpool_destroy(ptext->pool);
 	free((void *)ptext->bits_15_2);
 	free(ptext);
-	return NULL;
 }
 
-ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
-			       long force_threads)
+int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads)
 {
 	struct zc_crk_ptext *new;
 
@@ -125,12 +112,9 @@ ZC_EXPORT int zc_crk_ptext_new(struct zc_ctx *ctx, struct zc_crk_ptext **ptext,
 		goto err2;
 
 	generate_key0_lsb(new);
-	new->ctx = ctx;
-	new->refcount = 1;
-
 	*ptext = new;
 
-	dbg(ctx, "ptext %p created\n", new);
+	dbg("ptext %p created\n", new);
 
 	return 0;
 
@@ -141,9 +125,9 @@ err1:
 	return -1;
 }
 
-ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
-				    const uint8_t *plaintext,
-				    const uint8_t *ciphertext, size_t size)
+int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
+			  const uint8_t *plaintext,
+			  const uint8_t *ciphertext, size_t size)
 {
 	if (size < 13)
 		return -1;
@@ -155,7 +139,7 @@ ZC_EXPORT int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
 	return 0;
 }
 
-ZC_EXPORT size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
+size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
 {
 	return ptext->key2_size;
 }
