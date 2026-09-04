@@ -145,7 +145,7 @@ static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
 
 		err = zc_file_open(f);
 		if (err) {
-			zc_file_unref(f);
+			zc_file_destroy(f);
 			goto err1;
 		}
 
@@ -178,7 +178,7 @@ next:
 			info = zc_file_info_next(f, info);
 		}
 		zc_file_close(f);
-		zc_file_unref(f);
+		zc_file_destroy(f);
 	}
 err1:
 	if (err)
@@ -388,7 +388,7 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 
 	ret = EXIT_FAILURE;
 err2:
-	zc_crk_ptext_unref(ptext);
+	zc_crk_ptext_destroy(ptext);
 	return ret;
 }
 
@@ -621,7 +621,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = EXIT_SUCCESS;
 
 error4:
-	zc_crk_ptext_unref(ptext);
+	zc_crk_ptext_destroy(ptext);
 error2:
 	unmap_text_buf(&opts.cipher);
 error1:

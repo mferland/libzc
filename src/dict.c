@@ -25,7 +25,6 @@
 #include "libzc_private.h"
 
 struct zc_crk_dict {
-	int refcount;
 	char *filename;
 	struct zc_header header[HEADER_MAX];
 	size_t header_size;
@@ -50,21 +49,10 @@ static inline void remove_trailing_newline(char *line)
 	}
 }
 
-struct zc_crk_dict *zc_crk_dict_ref(struct zc_crk_dict *crk)
+void zc_crk_dict_destroy(struct zc_crk_dict *crk)
 {
 	if (!crk)
-		return NULL;
-	crk->refcount++;
-	return crk;
-}
-
-struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
-{
-	if (!crk)
-		return NULL;
-	crk->refcount--;
-	if (crk->refcount > 0)
-		return crk;
+		return;
 	free(crk->filename);
 	free(crk->cipher);
 	free(crk->plaintext);
@@ -72,7 +60,6 @@ struct zc_crk_dict *zc_crk_dict_unref(struct zc_crk_dict *crk)
 	if (crk->zlib)
 		inflate_destroy(crk->zlib);
 	free(crk);
-	return NULL;
 }
 
 int zc_crk_dict_new(struct zc_crk_dict **crk)
@@ -82,8 +69,6 @@ int zc_crk_dict_new(struct zc_crk_dict **crk)
 	tmp = calloc(1, sizeof(struct zc_crk_dict));
 	if (!tmp)
 		return -1;
-
-	tmp->refcount = 1;
 
 	*crk = tmp;
 

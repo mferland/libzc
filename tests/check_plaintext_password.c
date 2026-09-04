@@ -69,7 +69,7 @@ void setup_ptext()
 
 void teardown_ptext()
 {
-	zc_crk_ptext_unref(ptext);
+	zc_crk_ptext_destroy(ptext);
 }
 
 START_TEST(test_zc_crk_ptext_find_password_0)

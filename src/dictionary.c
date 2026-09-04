@@ -80,7 +80,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename,
 		err("zc_crk_dict_start failed!\n");
 
 err2:
-	zc_crk_dict_unref(crk);
+	zc_crk_dict_destroy(crk);
 
 	return err;
 }

@@ -28,8 +28,6 @@
 #define KEY2_ARRAY_LEN (1 << 22)
 
 struct zc_crk_ptext {
-	int refcount;
-
 	/* plain and cipher text buffers, both have the same size */
 	const uint8_t *plaintext;
 	const uint8_t *ciphertext;

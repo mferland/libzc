@@ -29,7 +29,7 @@ if ZC_LOG=0 "$YAZC" info "$tmpdir/missing.zip" \
 	echo "yazc opened a missing zip file" >&2
 	exit 1
 fi
-if grep -q "^libzc:" "$tmpdir/log-off.err"; then
+if grep -q "^yazc:" "$tmpdir/log-off.err"; then
 	echo "ZC_LOG=0 did not suppress engine logging" >&2
 	exit 1
 fi
@@ -39,7 +39,7 @@ if ZC_LOG=err "$YAZC" info "$tmpdir/missing.zip" \
 	echo "yazc opened a missing zip file" >&2
 	exit 1
 fi
-grep -q "^libzc: zc_file_open: fopen" "$tmpdir/log-error.err"
+grep -q "^yazc: zc_file_open: fopen" "$tmpdir/log-error.err"
 
 "$YAZC" info "$test_srcdir/noradi.zip" >"$tmpdir/info.out" 2>"$tmpdir/info.err"
 grep -q "^INDEX NAME" "$tmpdir/info.out"

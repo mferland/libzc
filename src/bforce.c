@@ -35,8 +35,6 @@
 
 /* bruteforce cracker */
 struct zc_crk_bforce {
-	int refcount;
-
 	/* validation data */
 	struct zc_header header[HEADER_MAX];
 	size_t header_size;
@@ -974,7 +972,6 @@ int zc_crk_bforce_new(struct zc_crk_bforce **crk)
 		return -1;
 	}
 
-	tmp->refcount = 1;
 	tmp->force_threads = -1;
 
 	INIT_LIST_HEAD(&tmp->workers_head);
@@ -986,21 +983,10 @@ int zc_crk_bforce_new(struct zc_crk_bforce **crk)
 	return 0;
 }
 
-struct zc_crk_bforce *zc_crk_bforce_ref(struct zc_crk_bforce *crk)
+void zc_crk_bforce_destroy(struct zc_crk_bforce *crk)
 {
 	if (!crk)
-		return NULL;
-	crk->refcount++;
-	return crk;
-}
-
-struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
-{
-	if (!crk)
-		return NULL;
-	crk->refcount--;
-	if (crk->refcount > 0)
-		return crk;
+		return;
 	if (crk->filename)
 		free(crk->filename);
 	if (crk->cipher)
@@ -1009,7 +995,6 @@ struct zc_crk_bforce *zc_crk_bforce_unref(struct zc_crk_bforce *crk)
 	pthread_cond_destroy(&crk->cond);
 	pthread_mutex_destroy(&crk->mutex);
 	free(crk);
-	return NULL;
 }
 
 const char *

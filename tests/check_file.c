@@ -31,7 +31,7 @@ void setup(void)
 
 void teardown(void)
 {
-	zc_file_unref(file);
+	zc_file_destroy(file);
 }
 
 START_TEST(test_zc_file_new)

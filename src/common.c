@@ -33,14 +33,14 @@ int fill_header(const char *filename, struct zc_header *h,
 
 	err = zc_file_open(file);
 	if (err) {
-		zc_file_unref(file);
+		zc_file_destroy(file);
 		return -1;
 	}
 
 	int size = read_zc_header(file, h, len);
 
 	zc_file_close(file);
-	zc_file_unref(file);
+	zc_file_destroy(file);
 
 	return size;
 }
@@ -62,12 +62,12 @@ int fill_test_cipher(const char *filename,
 
 	err = read_crypt_data(file, buf, len, original_crc, is_deflated);
 	zc_file_close(file);
-	zc_file_unref(file);
+	zc_file_destroy(file);
 
 	return err ? -1 : 0;
 
 err2:
-	zc_file_unref(file);
+	zc_file_destroy(file);
 err1:
 	return -1;
 }

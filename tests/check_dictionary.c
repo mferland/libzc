@@ -34,7 +34,7 @@ static void setup()
 
 static void teardown()
 {
-	zc_crk_dict_unref(crk);
+	zc_crk_dict_destroy(crk);
 }
 
 START_TEST(test_init_file_not_found)

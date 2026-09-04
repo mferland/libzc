@@ -162,7 +162,7 @@ static int do_info(int argc, char *argv[])
 
 	zc_file_close(file);
 err2:
-	zc_file_unref(file);
+	zc_file_destroy(file);
 	return err;
 }
 

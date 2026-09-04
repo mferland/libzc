@@ -36,7 +36,7 @@ void setup_reduce()
 
 void teardown_reduce()
 {
-	zc_crk_ptext_unref(ptext);
+	zc_crk_ptext_destroy(ptext);
 }
 
 START_TEST(test_can_get_bits_15_2)

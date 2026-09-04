@@ -91,7 +91,6 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 #endif
 
 struct zc_file {
-	int refcount;
 	char *filename;
 	FILE *stream;
 
@@ -1079,25 +1078,17 @@ err1:
 	return -1;
 }
 
-struct zc_file *zc_file_ref(struct zc_file *f)
+void zc_file_destroy(struct zc_file *f)
 {
 	if (!f)
-		return NULL;
-	f->refcount++;
-	return f;
-}
-
-struct zc_file *zc_file_unref(struct zc_file *f)
-{
-	if (!f)
-		return NULL;
-	f->refcount--;
-	if (f->refcount > 0)
-		return f;
+		return;
+	if (f->stream) {
+		clear_info_list(f);
+		fclose(f->stream);
+	}
 	dbg("file %p released\n", f);
 	free(f->filename);
 	free(f);
-	return NULL;
 }
 
 int zc_file_new_from_filename(const char *filename, struct zc_file **file)
@@ -1108,7 +1099,6 @@ int zc_file_new_from_filename(const char *filename, struct zc_file **file)
 	if (!newfile)
 		return -1;
 
-	newfile->refcount = 1;
 	newfile->filename = strdup(filename);
 	INIT_LIST_HEAD(&newfile->info_head);
 	*file = newfile;

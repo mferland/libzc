@@ -165,7 +165,7 @@ static int launch_crack(const struct bruteforce_opts *opts)
 		err("zc_crk_bforce_start failed!\n");
 
 err2:
-	zc_crk_bforce_unref(crk);
+	zc_crk_bforce_destroy(crk);
 
 	return err;
 }

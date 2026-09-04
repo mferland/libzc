@@ -87,26 +87,14 @@ static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 	return 0;
 }
 
-struct zc_crk_ptext *zc_crk_ptext_ref(struct zc_crk_ptext *ptext)
+void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext)
 {
 	if (!ptext)
-		return NULL;
-	ptext->refcount++;
-	return ptext;
-}
-
-struct zc_crk_ptext *zc_crk_ptext_unref(struct zc_crk_ptext *ptext)
-{
-	if (!ptext)
-		return NULL;
-	ptext->refcount--;
-	if (ptext->refcount > 0)
-		return ptext;
+		return;
 	dbg("ptext %p released\n", ptext);
 	threadpool_destroy(ptext->pool);
 	free((void *)ptext->bits_15_2);
 	free(ptext);
-	return NULL;
 }
 
 int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads)
@@ -124,8 +112,6 @@ int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads)
 		goto err2;
 
 	generate_key0_lsb(new);
-	new->refcount = 1;
-
 	*ptext = new;
 
 	dbg("ptext %p created\n", new);

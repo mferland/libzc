@@ -33,7 +33,7 @@ static void setup()
 
 static void teardown()
 {
-	zc_crk_bforce_unref(crk);
+	zc_crk_bforce_destroy(crk);
 }
 
 START_TEST(test_parameter_set)
