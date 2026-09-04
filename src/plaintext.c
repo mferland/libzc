@@ -57,11 +57,13 @@ struct filed {
 	void *map;
 };
 
-static struct filed cipher = { NULL, 0, 0, 0, -1, NULL };
-static struct filed plain = { NULL, 0, 0, 0, -1, NULL };
-static long thread_count;
-static bool stats = false;
-static struct zc_key internal_rep;
+struct plaintext_opts {
+	struct filed cipher;
+	struct filed plain;
+	long thread_count;
+	bool stats;
+	struct zc_key internal_rep;
+};
 
 static void usage(const char *name)
 {
@@ -123,7 +125,7 @@ static int parse_single_key(const char *tok, uint32_t *key)
 
 enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
-static int parse_zip_entry_opts(const char *argv[])
+static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
 {
 	struct zc_ctx *ctx;
 	struct zc_file *f;
@@ -165,7 +167,7 @@ static int parse_zip_entry_opts(const char *argv[])
 				goto next;
 
 			/* found match */
-			struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
+			struct filed *fd = src == SRC_PLAIN ? &opts->plain : &opts->cipher;
 			fd->txt_begin = zc_file_info_offset_begin(info);
 			fd->txt_end = zc_file_info_offset_end(info);
 			fd->file_begin = zc_file_info_crypt_header_offset(info);
@@ -189,7 +191,7 @@ err1:
 	return matches == 2 ? 0 : -1;
 }
 
-static int parse_file_opts(const char *argv[])
+static int parse_file_opts(const char *argv[], struct plaintext_opts *opts)
 {
 	const char *filename;
 	struct stat st;
@@ -200,7 +202,7 @@ static int parse_file_opts(const char *argv[])
 		dbg("%s: %s\n",
 		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename);
 
-		struct filed *fd = src == SRC_PLAIN ? &plain : &cipher;
+		struct filed *fd = src == SRC_PLAIN ? &opts->plain : &opts->cipher;
 		fd->txt_begin = src == SRC_PLAIN ? 0 : 12;
 		int err = stat(filename, &st);
 		if (err < 0) {
@@ -216,68 +218,68 @@ static int parse_file_opts(const char *argv[])
 	}
 
 	/* adjust txt_end */
-	if (plain.txt_end + 12 < cipher.txt_end)
-		cipher.txt_end = plain.txt_end + 12;
-	else if (plain.txt_end + 12 > cipher.txt_end)
-		plain.txt_end = cipher.txt_end - 12;
+	if (opts->plain.txt_end + 12 < opts->cipher.txt_end)
+		opts->cipher.txt_end = opts->plain.txt_end + 12;
+	else if (opts->plain.txt_end + 12 > opts->cipher.txt_end)
+		opts->plain.txt_end = opts->cipher.txt_end - 12;
 
 	return 0;
 }
 
-static int parse_offset_opts(char *argv[])
+static int parse_offset_opts(char *argv[], struct plaintext_opts *opts)
 {
-	plain.name = argv[optind++];
-	if (parse_offset(argv[optind++], &plain.txt_begin))
+	opts->plain.name = argv[optind++];
+	if (parse_offset(argv[optind++], &opts->plain.txt_begin))
 		return -1;
-	if (parse_offset(argv[optind++], &plain.txt_end))
-		return -1;
-
-	cipher.name = argv[optind++];
-	if (parse_offset(argv[optind++], &cipher.txt_begin))
-		return -1;
-	if (parse_offset(argv[optind++], &cipher.txt_end))
-		return -1;
-	if (parse_offset(argv[optind], &cipher.file_begin))
+	if (parse_offset(argv[optind++], &opts->plain.txt_end))
 		return -1;
 
-	dbg("plaintext: %s %lld %lld\n", plain.name, (long long)plain.txt_begin,
-	    (long long)plain.txt_end);
-	dbg("ciphertext: %s %lld %lld %lld\n", cipher.name,
-	    (long long)cipher.txt_begin, (long long)cipher.txt_end,
-	    (long long)cipher.file_begin);
+	opts->cipher.name = argv[optind++];
+	if (parse_offset(argv[optind++], &opts->cipher.txt_begin))
+		return -1;
+	if (parse_offset(argv[optind++], &opts->cipher.txt_end))
+		return -1;
+	if (parse_offset(argv[optind], &opts->cipher.file_begin))
+		return -1;
+
+	dbg("plaintext: %s %lld %lld\n", opts->plain.name,
+	    (long long)opts->plain.txt_begin, (long long)opts->plain.txt_end);
+	dbg("ciphertext: %s %lld %lld %lld\n", opts->cipher.name,
+	    (long long)opts->cipher.txt_begin, (long long)opts->cipher.txt_end,
+	    (long long)opts->cipher.file_begin);
 
 	return 0;
 }
 
-static int parse_internal_rep(char *argv[])
+static int parse_internal_rep(char *argv[], struct zc_key *internal_rep)
 {
-	if (parse_single_key(argv[optind++], &internal_rep.key0))
+	if (parse_single_key(argv[optind++], &internal_rep->key0))
 		return -1;
-	if (parse_single_key(argv[optind++], &internal_rep.key1))
+	if (parse_single_key(argv[optind++], &internal_rep->key1))
 		return -1;
-	if (parse_single_key(argv[optind++], &internal_rep.key2))
+	if (parse_single_key(argv[optind++], &internal_rep->key2))
 		return -1;
 
-	dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep.key0,
-	    internal_rep.key1, internal_rep.key2);
+	dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep->key0,
+	    internal_rep->key1, internal_rep->key2);
 
 	return 0;
 }
 
-static bool validate_offsets()
+static bool validate_offsets(const struct plaintext_opts *opts)
 {
-	if (plain.txt_begin >= plain.txt_end ||
-	    cipher.txt_begin >= cipher.txt_end)
+	if (opts->plain.txt_begin >= opts->plain.txt_end ||
+	    opts->cipher.txt_begin >= opts->cipher.txt_end)
 		return false;
-	if (plain.txt_end - plain.txt_begin < 13 ||
-	    cipher.txt_end - cipher.txt_begin < 13)
+	if (opts->plain.txt_end - opts->plain.txt_begin < 13 ||
+	    opts->cipher.txt_end - opts->cipher.txt_begin < 13)
 		return false;
-	if (plain.txt_end - plain.txt_begin !=
-	    cipher.txt_end - cipher.txt_begin)
+	if (opts->plain.txt_end - opts->plain.txt_begin !=
+	    opts->cipher.txt_end - opts->cipher.txt_begin)
 		return false;
-	if (cipher.file_begin > cipher.txt_begin)
+	if (opts->cipher.file_begin > opts->cipher.txt_begin)
 		return false;
-	if (cipher.txt_begin - cipher.file_begin < 12)
+	if (opts->cipher.txt_begin - opts->cipher.file_begin < 12)
 		return false;
 	return true;
 }
@@ -357,7 +359,7 @@ static void print_original_password(const char *pw, size_t len)
 	printf("\n");
 }
 
-static int find_password_from_internal_rep(void)
+static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 {
 	struct zc_ctx *ctx;
 	struct zc_crk_ptext *ptext;
@@ -369,7 +371,7 @@ static int find_password_from_internal_rep(void)
 		return ret;
 	}
 
-	if (zc_crk_ptext_new(ctx, &ptext, thread_count) < 0) {
+	if (zc_crk_ptext_new(ctx, &ptext, opts->thread_count) < 0) {
 		err("zc_crk_ptext_new() failed!\n");
 		goto err1;
 	}
@@ -380,7 +382,8 @@ static int find_password_from_internal_rep(void)
 	gettimeofday(&begin, NULL);
 
 	char pw[14];
-	len = zc_crk_ptext_find_password(ptext, &internal_rep, pw, sizeof(pw));
+	len = zc_crk_ptext_find_password(ptext, &opts->internal_rep, pw,
+					 sizeof(pw));
 	if (len < 0) {
 		err(" failed!\n");
 		goto err2;
@@ -391,7 +394,7 @@ static int find_password_from_internal_rep(void)
 	printf("\nOriginal password: ");
 	print_original_password(pw, len);
 
-	if (stats)
+	if (opts->stats)
 		print_runtime_stats(&begin, &end);
 
 	ret = EXIT_FAILURE;
@@ -413,6 +416,10 @@ static void get_internal_rep_from_password(const char *pw)
 
 static int do_plaintext(int argc, char *argv[])
 {
+	struct plaintext_opts opts = {
+		.cipher = { .file_begin = -1 },
+		.plain = { .file_begin = -1 },
+	};
 	const char *arg_threads = NULL;
 	bool arg_use_offsets = false;
 	bool arg_use_file = false;
@@ -439,7 +446,7 @@ static int do_plaintext(int argc, char *argv[])
 			arg_threads = optarg;
 			break;
 		case 'S':
-			stats = true;
+			opts.stats = true;
 			break;
 		case 'i':
 			arg_from_internal_rep = true;
@@ -462,16 +469,16 @@ static int do_plaintext(int argc, char *argv[])
 	/* number of threads */
 	if (arg_threads) {
 		if (strcmp(arg_threads, "auto") == 0)
-			thread_count = -1; /* auto */
+			opts.thread_count = -1; /* auto */
 		else {
-			thread_count = atol(arg_threads);
-			if (thread_count < 1) {
+			opts.thread_count = atol(arg_threads);
+			if (opts.thread_count < 1) {
 				err("number of threads can't be less than one.\n");
 				return EXIT_FAILURE;
 			}
 		}
 	} else
-		thread_count = -1;	/* auto */
+		opts.thread_count = -1;	/* auto */
 
 	if (arg_from_internal_rep && (arg_use_offsets || arg_use_file)) {
 		err("the offset and file options are mutually exclusive from"
@@ -491,12 +498,12 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 3)
 			goto missing;
 
-		if (parse_internal_rep(argv) < 0) {
+		if (parse_internal_rep(argv, &opts.internal_rep) < 0) {
 			err("error parsing internal representation.\n");
 			return EXIT_FAILURE;
 		}
 
-		return find_password_from_internal_rep();
+		return find_password_from_internal_rep(&opts);
 	} else if (arg_internal_rep_from_passw) {
 		if (argc - optind < 1)
 			goto missing;
@@ -509,14 +516,14 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 7)
 			goto missing;
 
-		if (parse_offset_opts(argv)) {
+		if (parse_offset_opts(argv, &opts)) {
 			err("error parsing offsets.\n");
 			return EXIT_FAILURE;
 		}
 	} else if (arg_use_file) {
 		if (argc - optind < 2)
 			goto missing;
-		if (parse_file_opts((const char **)argv)) {
+		if (parse_file_opts((const char **)argv, &opts)) {
 			err("error opening files.\n");
 			return EXIT_FAILURE;
 		}
@@ -524,23 +531,23 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 4)
 			goto missing;
 		/* get offsets from entry names */
-		if (parse_zip_entry_opts((const char **)argv)) {
+		if (parse_zip_entry_opts((const char **)argv, &opts)) {
 			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
 	}
 
-	if (!validate_offsets()) {
+	if (!validate_offsets(&opts)) {
 		err("offsets validation failed.\n");
 		return EXIT_FAILURE;
 	}
 
-	if (mmap_text_buf(&plain) < 0) {
+	if (mmap_text_buf(&opts.plain) < 0) {
 		err("mapping plaintext data failed.\n");
 		return EXIT_FAILURE;
 	}
 
-	if (mmap_text_buf(&cipher) < 0) {
+	if (mmap_text_buf(&opts.cipher) < 0) {
 		err("mapping ciphertext data failed.\n");
 		goto error1;
 	}
@@ -550,27 +557,29 @@ static int do_plaintext(int argc, char *argv[])
 		goto error2;
 	}
 
-	err = zc_crk_ptext_new(ctx, &ptext, thread_count);
+	err = zc_crk_ptext_new(ctx, &ptext, opts.thread_count);
 	if (err < 0) {
 		err("zc_crk_ptext_new() failed!\n");
 		goto error3;
 	}
 
 	err = zc_crk_ptext_set_text(
-		      ptext, &((const uint8_t *)plain.map)[plain.txt_begin],
-		      &((const uint8_t *)cipher.map)[cipher.txt_begin],
-		      size_of_map(&plain));
+		      ptext,
+		      &((const uint8_t *)opts.plain.map)[opts.plain.txt_begin],
+		      &((const uint8_t *)opts.cipher.map)[opts.cipher.txt_begin],
+		      size_of_map(&opts.plain));
 	if (err < 0) {
 		err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
 	}
 
 	printf("Using plaintext bytes %lld..%lld (%lld bytes)\n",
-	       (long long)plain.txt_begin, (long long)plain.txt_end,
-	       (long long)(plain.txt_end - plain.txt_begin + 1));
+	       (long long)opts.plain.txt_begin, (long long)opts.plain.txt_end,
+	       (long long)(opts.plain.txt_end - opts.plain.txt_begin + 1));
 
 	printf("Using ciphertext bytes %lld..%lld\n",
-	       (long long)cipher.txt_begin, (long long)cipher.txt_end);
+	       (long long)opts.cipher.txt_begin,
+	       (long long)opts.cipher.txt_end);
 
 	printf("Key2 reduction...");
 	fflush(stdout);
@@ -599,8 +608,9 @@ static int do_plaintext(int argc, char *argv[])
 
 	struct zc_key int_rep;
 	err = zc_crk_ptext_find_internal_rep(
-		      &out_key, &((const uint8_t *)cipher.map)[cipher.file_begin],
-		      cipher.txt_begin - cipher.file_begin, &int_rep);
+		      &out_key,
+		      &((const uint8_t *)opts.cipher.map)[opts.cipher.file_begin],
+		      opts.cipher.txt_begin - opts.cipher.file_begin, &int_rep);
 	if (err < 0) {
 		err("finding internal representation failed.\n");
 		goto error4;
@@ -624,7 +634,7 @@ static int do_plaintext(int argc, char *argv[])
 	printf("\nOriginal password: ");
 	print_original_password(pw, err);
 
-	if (stats)
+	if (opts.stats)
 		print_runtime_stats(&begin, &end);
 
 	err = EXIT_SUCCESS;
@@ -634,9 +644,9 @@ error4:
 error3:
 	zc_unref(ctx);
 error2:
-	unmap_text_buf(&cipher);
+	unmap_text_buf(&opts.cipher);
 error1:
-	unmap_text_buf(&plain);
+	unmap_text_buf(&opts.plain);
 	return err;
 
 missing:

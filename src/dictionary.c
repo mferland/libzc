@@ -27,8 +27,6 @@
 
 #define LINE_BUF_LEN 256
 
-static bool stats = false;
-
 static const char short_opts[] = "d:hS";
 static const struct option long_opts[] = {
 	{ "dictionary", required_argument, 0, 'd' },
@@ -49,7 +47,8 @@ static void print_help(const char *cmdname)
 		cmdname);
 }
 
-static int launch_crack(const char *dict_filename, const char *zip_filename)
+static int launch_crack(const char *dict_filename, const char *zip_filename,
+			bool stats)
 {
 	struct zc_ctx *ctx;
 	struct zc_crk_dict *crk;
@@ -99,6 +98,7 @@ static int do_dictionary(int argc, char *argv[])
 {
 	const char *dict_filename = NULL;
 	const char *zip_filename = NULL;
+	bool stats = false;
 	int err;
 
 	for (;;) {
@@ -136,7 +136,7 @@ static int do_dictionary(int argc, char *argv[])
 		printf("Filename: %s\n", zip_filename);
 	}
 
-	err = launch_crack(dict_filename, zip_filename);
+	err = launch_crack(dict_filename, zip_filename, stats);
 
 	return err;
 }

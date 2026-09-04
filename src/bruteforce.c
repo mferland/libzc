@@ -35,10 +35,12 @@
 #define PWSET_NUMB  (1 << 2)
 #define PWSET_SPEC  (1 << 3)
 
-static const char *filename;
-static struct zc_crk_pwcfg pwcfg;
-static long thread_count;
-static bool stats = false;
+struct bruteforce_opts {
+	const char *filename;
+	struct zc_crk_pwcfg pwcfg;
+	long thread_count;
+	bool stats;
+};
 
 static const char short_opts[] = "c:i:l:aAnsm:k:x:St:h";
 static const struct option long_opts[] = {
@@ -118,7 +120,7 @@ static char *make_charset(int flags, char *out, size_t outlen)
 	return out;
 }
 
-static int launch_crack(void)
+static int launch_crack(const struct bruteforce_opts *opts)
 {
 	struct zc_ctx *ctx;
 	struct zc_crk_bforce *crk;
@@ -136,29 +138,29 @@ static int launch_crack(void)
 		goto err1;
 	}
 
-	if (zc_crk_bforce_init(crk, filename, &pwcfg)) {
+	if (zc_crk_bforce_init(crk, opts->filename, &opts->pwcfg)) {
 		err("zc_crk_bforce_init() failed!\n");
 		goto err2;
 	}
 
-	zc_crk_bforce_force_threads(crk, thread_count);
+	zc_crk_bforce_force_threads(crk, opts->thread_count);
 
-	if (stats) {
-		if (thread_count == -1)
+	if (opts->stats) {
+		if (opts->thread_count == -1)
 			puts("Worker threads: auto");
 		else
-			printf("Worker threads: %ld\n", thread_count);
-		printf("Maximum length: %zu\n", pwcfg.maxlen);
+			printf("Worker threads: %ld\n", opts->thread_count);
+		printf("Maximum length: %zu\n", opts->pwcfg.maxlen);
 		printf("Character set: %s\n",
 		       zc_crk_bforce_sanitized_charset(crk));
-		printf("Filename: %s\n", filename);
+		printf("Filename: %s\n", opts->filename);
 	}
 
 	gettimeofday(&begin, NULL);
 	err = zc_crk_bforce_start(crk, pw, sizeof(pw));
 	gettimeofday(&end, NULL);
 
-	if (stats)
+	if (opts->stats)
 		print_runtime_stats(&begin, &end);
 
 	if (err > 0)
@@ -178,6 +180,7 @@ err1:
 
 static int do_bruteforce(int argc, char *argv[])
 {
+	struct bruteforce_opts opts = { 0 };
 	const char *arg_set = NULL;
 	const char *arg_initial = NULL;
 	const char *arg_threads = NULL;
@@ -228,7 +231,7 @@ static int do_bruteforce(int argc, char *argv[])
 			arg_threads = optarg;
 			break;
 		case 'S':
-			stats = true;
+			opts.stats = true;
 			break;
 		case 'h':
 			print_help(basename(argv[0]));
@@ -244,78 +247,79 @@ static int do_bruteforce(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	filename = argv[optind];
+	opts.filename = argv[optind];
 
 	/* password stop length */
 	if (arg_maxlen) {
-		pwcfg.maxlen = atoi(arg_maxlen);
-		if (pwcfg.maxlen < ZC_PW_MINLEN ||
-		    pwcfg.maxlen > ZC_PW_MAXLEN) {
+		opts.pwcfg.maxlen = atoi(arg_maxlen);
+		if (opts.pwcfg.maxlen < ZC_PW_MINLEN ||
+		    opts.pwcfg.maxlen > ZC_PW_MAXLEN) {
 			err("maximum password length must be between %d and %d.\n",
 			    ZC_PW_MINLEN, ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else
-		pwcfg.maxlen = PW_LEN_DEFAULT;
+		opts.pwcfg.maxlen = PW_LEN_DEFAULT;
 
 	/* number of threads */
 	if (arg_threads) {
 		if (strcmp(arg_threads, "auto") == 0)
-			thread_count = -1; /* auto */
+			opts.thread_count = -1; /* auto */
 		else {
-			thread_count = atol(arg_threads);
-			if (thread_count < 1) {
+			opts.thread_count = atol(arg_threads);
+			if (opts.thread_count < 1) {
 				err("number of threads can't be less than one.\n");
 				return EXIT_FAILURE;
 			}
 		}
 	} else
-		thread_count = -1;	/* auto */
+		opts.thread_count = -1;	/* auto */
 
 	if (arg_mask) {
 		if (arg_mask_minlen) {
-			pwcfg.mask.minlen = atoi(arg_mask_minlen);
-			if (pwcfg.mask.minlen < 1) {
+			opts.pwcfg.mask.minlen = atoi(arg_mask_minlen);
+			if (opts.pwcfg.mask.minlen < 1) {
 				err("minimum mask length must be greater than one.\n");
 				return EXIT_FAILURE;
 			}
 		} else
-			pwcfg.mask.minlen = 0;
+			opts.pwcfg.mask.minlen = 0;
 
 		if (arg_mask_maxlen) {
-			pwcfg.mask.maxlen = atoi(arg_mask_maxlen);
-			if (pwcfg.mask.minlen && pwcfg.mask.maxlen < pwcfg.mask.minlen) {
+			opts.pwcfg.mask.maxlen = atoi(arg_mask_maxlen);
+			if (opts.pwcfg.mask.minlen &&
+			    opts.pwcfg.mask.maxlen < opts.pwcfg.mask.minlen) {
 				err("maximum mask length must be greater than the minimum length.\n");
 				return EXIT_FAILURE;
 			}
 		} else
-			pwcfg.mask.maxlen = 0;
+			opts.pwcfg.mask.maxlen = 0;
 
-		pwcfg.mask.str = arg_mask;
+		opts.pwcfg.mask.str = arg_mask;
 	} else if (!arg_set) {
 		if (!arg_charset_flag) {
 			err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		const char *tmp = make_charset(arg_charset_flag, pwcfg.set,
+		const char *tmp = make_charset(arg_charset_flag, opts.pwcfg.set,
 					       ZC_CHARSET_MAXLEN);
 		if (!tmp) {
 			err("generating character set failed.\n");
 			return EXIT_FAILURE;
 		}
 	} else
-		strncpy(pwcfg.set, arg_set, ZC_CHARSET_MAXLEN);
+		strncpy(opts.pwcfg.set, arg_set, ZC_CHARSET_MAXLEN);
 
 	/* character set length */
-	pwcfg.setlen = strnlen(pwcfg.set, ZC_CHARSET_MAXLEN);
+	opts.pwcfg.setlen = strnlen(opts.pwcfg.set, ZC_CHARSET_MAXLEN);
 
 	/* initial password */
 	if (arg_initial)
-		strncpy(pwcfg.initial, arg_initial, ZC_PW_MAXLEN);
+		strncpy(opts.pwcfg.initial, arg_initial, ZC_PW_MAXLEN);
 	else
-		memset(pwcfg.initial, 0, ZC_PW_MAXLEN);
+		memset(opts.pwcfg.initial, 0, ZC_PW_MAXLEN);
 
-	return launch_crack();
+	return launch_crack(&opts);
 }
 
 const struct yazc_cmd yazc_cmd_bruteforce = {
