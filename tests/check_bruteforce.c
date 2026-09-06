@@ -219,6 +219,17 @@ START_TEST(test_mask_parser_recovers_after_invalid_range)
 }
 END_TEST
 
+START_TEST(test_mask_parser_rejects_nul)
+{
+	struct zc_crk_pwcfg cfg = {0};
+
+	/* Masks are represented as NUL-terminated strings throughout the
+	 * password-stream implementation, so an embedded NUL cannot be valid. */
+	cfg.mask.str = "\\x00";
+	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+}
+END_TEST
+
 START_TEST(test_bruteforce_password_found)
 {
 	struct zc_crk_pwcfg cfg = {0};
@@ -657,6 +668,7 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_reject_initial_password_outside_set);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_mask);
 	tcase_add_test(tc_core, test_mask_parser_recovers_after_invalid_range);
+	tcase_add_test(tc_core, test_mask_parser_rejects_nul);
 	tcase_add_test(tc_core, test_bruteforce_password_found);
 	tcase_add_test(tc_core, test_bruteforce_password_found_multicall);
 	tcase_add_test(tc_core, test_bruteforce_password_not_found);

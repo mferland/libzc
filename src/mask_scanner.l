@@ -84,6 +84,10 @@ int handle_static(const char *yytext, YYSTYPE *yylval)
 	if (yytext[1] == 'x' && yytext[2] != '\0') {
 	    char *endptr;
 	    long decimal = strtol(&yytext[2], &endptr, 16);
+	    if (decimal == 0) {
+		yyerror("NUL character is not supported in masks");
+		return -1;
+	    }
 	    yylval->sval = decimal;
 	} else
 	    yylval->sval = yytext[1];
