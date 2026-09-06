@@ -313,6 +313,8 @@ int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 	       priv->key2,
 	       priv->key2_size * sizeof(uint32_t));
 	ptext->key2_size = priv->key2_size;
+	if (!ptext->key2_size)
+		err = -1;
 
 	for (size_t i = 0; i < nbthreads; ++i) {
 		free(priv->unit[i].key2i);
