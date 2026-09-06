@@ -18,6 +18,7 @@
 
 #include <check.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libzc.h"
 #include "test_plaintext.h"
@@ -74,6 +75,44 @@ START_TEST(test_zc_crk_ptext_attack)
 	zc_crk_ptext_destroy(ptext);
 }
 END_TEST
+
+START_TEST(test_zc_crk_ptext_attack_rejects_invalid_plaintext)
+{
+	uint8_t plaintext[TEST_PLAINTEXT_SIZE];
+	struct zc_crk_ptext *ptext;
+	struct zc_key out_key;
+
+	memcpy(plaintext, test_plaintext, sizeof(plaintext));
+	plaintext[0] ^= 0xff;
+
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
+	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext,
+					       test_ciphertext,
+					       TEST_PLAINTEXT_SIZE), 0);
+	ck_assert_int_eq(zc_crk_ptext_key2_reduction(ptext), 0);
+	ck_assert_int_eq(zc_crk_ptext_attack(ptext, &out_key), -1);
+	zc_crk_ptext_destroy(ptext);
+}
+END_TEST
+
+START_TEST(test_zc_crk_ptext_key2_reduction_rejects_no_candidates)
+{
+	uint8_t plaintext[TEST_PLAINTEXT_SIZE];
+	struct zc_crk_ptext *ptext;
+
+	memcpy(plaintext, test_plaintext, sizeof(plaintext));
+	for (size_t i = 11; i < sizeof(plaintext); ++i)
+		plaintext[i] ^= 0xff;
+
+	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
+	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext,
+					       test_ciphertext,
+					       TEST_PLAINTEXT_SIZE), 0);
+	ck_assert_int_eq(zc_crk_ptext_key2_reduction(ptext), -1);
+	ck_assert_int_eq(zc_crk_ptext_key2_count(ptext), 0);
+	zc_crk_ptext_destroy(ptext);
+}
+END_TEST
 #endif
 
 START_TEST(test_zc_crk_ptext_find_internal_rep)
@@ -115,6 +154,10 @@ Suite *plaintext_suite()
 	tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
 #ifdef EXTRACHECK
 	tcase_add_test(tc_core, test_zc_crk_ptext_attack);
+	tcase_add_test(tc_core,
+		       test_zc_crk_ptext_attack_rejects_invalid_plaintext);
+	tcase_add_test(tc_core,
+		       test_zc_crk_ptext_key2_reduction_rejects_no_candidates);
 	tcase_set_timeout(tc_core, 60 * 60);
 #endif
 	tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
