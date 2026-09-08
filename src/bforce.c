@@ -807,7 +807,7 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 
 	if (cfg->mask.str) {
 		/* use mask */
-		char **parsed;
+		char **parsed = NULL;
 		int ret;
 		size_t parsed_len;
 		size_t mask_minlen;
