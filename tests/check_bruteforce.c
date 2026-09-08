@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include "libzc.h"
+#include "mask_parser.h"
 
 struct zc_crk_bforce *crk;
 
@@ -216,6 +217,39 @@ START_TEST(test_mask_parser_recovers_after_invalid_range)
 	cfg.mask.str = "p[b][s][s]";
 	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
 	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+}
+END_TEST
+
+START_TEST(test_mask_parser_failure_clears_output)
+{
+	char *sentinel = NULL;
+	char **parsed = &sentinel;
+
+	/* The literal is already on item_head and the leading range character is
+	 * held by current_range when the descending range aborts the parse. */
+	ck_assert_int_eq(parse_mask("a[az-a]", &parsed), -1);
+	ck_assert_ptr_null(parsed);
+}
+END_TEST
+
+START_TEST(test_mask_parser_long_input_uses_bounded_stack)
+{
+	enum { mask_len = 512 };
+	char mask[mask_len + 1];
+	char **parsed = NULL;
+
+	/* input is left-recursive, so parsing more symbols than YYINITDEPTH does
+	 * not require the generated parser to relocate its stacks. */
+	memset(mask, 'a', mask_len);
+	mask[mask_len] = '\0';
+
+	ck_assert_int_eq(parse_mask(mask, &parsed), mask_len);
+	ck_assert_ptr_nonnull(parsed);
+	for (size_t i = 0; i < mask_len; ++i) {
+		ck_assert_str_eq(parsed[i], "a");
+		free(parsed[i]);
+	}
+	free(parsed);
 }
 END_TEST
 
@@ -668,6 +702,8 @@ Suite *bforce_suite(void)
 	tcase_add_test(tc_core, test_reject_initial_password_outside_set);
 	tcase_add_test(tc_core, test_reject_initial_password_outside_mask);
 	tcase_add_test(tc_core, test_mask_parser_recovers_after_invalid_range);
+	tcase_add_test(tc_core, test_mask_parser_failure_clears_output);
+	tcase_add_test(tc_core, test_mask_parser_long_input_uses_bounded_stack);
 	tcase_add_test(tc_core, test_mask_parser_rejects_nul);
 	tcase_add_test(tc_core, test_bruteforce_password_found);
 	tcase_add_test(tc_core, test_bruteforce_password_found_multicall);

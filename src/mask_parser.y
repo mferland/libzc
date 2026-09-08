@@ -9,6 +9,14 @@
 #include "mask_scanner.h"
 #include "list.h"
 
+/*
+ * Both repeating productions below are left-recursive, so parser stack depth
+ * does not grow with mask length.  The initial Bison stack is therefore ample;
+ * keeping its maximum at the same size avoids unnecessary dynamic relocation.
+ */
+#define YYINITDEPTH 200
+#define YYMAXDEPTH YYINITDEPTH
+
 int yylex(void);
 void mask_scanner_reset(void);
 
@@ -215,6 +223,11 @@ int parse_mask(const char *input, char ***output)
 	YY_BUFFER_STATE buffer;
 	int ret;
 	char **tmp;
+	size_t copied = 0;
+
+	if (!input || !output)
+		return -1;
+	*output = NULL;
 
 	/* current_range is normally cleared when a complete range is reduced.
 	 * A previous syntax error may have interrupted that reduction. */
@@ -230,7 +243,7 @@ int parse_mask(const char *input, char ***output)
 	ret = yyparse();
 	if (ret) {
 		ret = -1;
-		goto err_del_buffer;
+		goto err_dealloc_items;
 	}
 
 	list_for_each_entry(item, &item_head, list)
@@ -242,11 +255,20 @@ int parse_mask(const char *input, char ***output)
 		goto err_dealloc_items;
 	}
 
-	ret = 0;
 	list_for_each_entry(item, &item_head, list) {
-		tmp[ret++] = strdup(item->set);
+		tmp[copied] = strdup(item->set);
+		if (!tmp[copied]) {
+			yyerror("strdup() failed");
+			while (copied)
+				free(tmp[--copied]);
+			free(tmp);
+			ret = -1;
+			goto err_dealloc_items;
+		}
+		copied++;
 	}
 
+	ret = (int)copied;
 	*output = tmp;
 
 err_dealloc_items:
@@ -256,7 +278,6 @@ err_dealloc_items:
 		current_range = NULL;
 	}
 	dealloc_item_list(&item_head);
-err_del_buffer:
 	yy_delete_buffer(buffer);
 	return ret;
 }
