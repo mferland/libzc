@@ -23,9 +23,9 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#include "libzc_private.h"
 #include "ptext_private.h"
 #include "pool.h"
+#include "zc.h"
 
 struct reduc_work_unit {
 	uint32_t *key2ip1;

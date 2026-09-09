@@ -21,7 +21,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "libzc_private.h"
 #include "pool.h"
 
 START_TEST(test_new_destroy)

@@ -23,10 +23,10 @@
 #include <string.h>
 
 #include "crc32.h"
-#include "libzc_private.h"
 #include "list.h"
 #include "ptext_private.h"
 #include "pool.h"
+#include "zc.h"
 
 #define k2(index) priv->key2_final[index]
 #define k1(index) priv->key1_final[index]

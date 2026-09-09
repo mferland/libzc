@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc_private.h"
 #include "pwstream.h"
 
 static const struct entry null_entry = { SIZE_MAX, SIZE_MAX, SIZE_MAX };

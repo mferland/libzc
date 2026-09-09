@@ -26,9 +26,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc_private.h"
 #include "ptext_private.h"
 #include "pool.h"
+#include "zc.h"
 
 static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb_value,
 			     uint8_t mul)

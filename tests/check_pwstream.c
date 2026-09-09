@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc_private.h"
 #include "pwstream.h"
 
 struct pwstream *pws;

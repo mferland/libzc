@@ -19,6 +19,9 @@
 #ifndef _PWSTREAM_H_
 #define _PWSTREAM_H_
 
+#include <stdbool.h>
+#include <stddef.h>
+
 struct pwstream;
 struct entry {
 	size_t start, stop, initial;

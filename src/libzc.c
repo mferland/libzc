@@ -21,8 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc.h"
-#include "libzc_private.h"
+#include "zc.h"
 
 static int current_log_priority = LOG_ERR;
 static bool log_initialized;

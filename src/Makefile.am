@@ -58,7 +58,8 @@ libyazc_core_a_SOURCES = \
 	sys.c \
 	qsort.h \
 	qsort.c \
-	uniq.c
+	uniq.c \
+	zc.h
 
 bin_PROGRAMS = yazc
 yazc_SOURCES = \

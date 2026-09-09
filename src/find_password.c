@@ -24,7 +24,7 @@
 #include "list.h"
 #include "pool.h"
 #include "crc32.h"
-#include "libzc_private.h"
+#include "zc.h"
 #include "ptext_private.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
