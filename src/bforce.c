@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "compat.h"
+#include "inflate.h"
 #include "libzc.h"
 #include "libzc_private.h"
 #include "list.h"

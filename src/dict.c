@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "inflate.h"
 #include "libzc.h"
 #include "libzc_private.h"
 

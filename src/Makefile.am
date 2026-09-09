@@ -37,6 +37,7 @@ libyazc_core_a_SOURCES = \
 	decrypt_byte.h \
 	find_password.c \
 	inflate.c \
+	inflate.h \
 	libzc.c \
 	libzc.h \
 	libzc_private.h \
