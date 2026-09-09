@@ -112,7 +112,7 @@ START_TEST(test_zc_file_info_encrypted)
 					"lib/test_pwgen.c",
 					"lib/test_pwdict.c"
 				       };
-	struct zc_info *info;
+	const struct zc_info *info;
 	const uint8_t *buf;
 
 	zc_file_new_from_filename(DATADIR "test.zip", &file);
@@ -181,7 +181,7 @@ START_TEST(test_zc_file_info_encrypted_2)
 					"configure",
 					"configure.ac"
 				       };
-	struct zc_info *info;
+	const struct zc_info *info;
 	const uint8_t *buf;
 
 	zc_file_new_from_filename(DATADIR "test_zyx.zip", &file);
@@ -228,7 +228,7 @@ START_TEST(test_zc_file_info_non_encrypted)
 					"config.h.in",
 					"config.log"
 				       };
-	struct zc_info *info;
+	const struct zc_info *info;
 	const uint8_t *buf;
 
 	zc_file_new_from_filename(DATADIR "test_non_encrypted.zip", &file);

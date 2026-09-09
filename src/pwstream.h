@@ -38,7 +38,7 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 				size_t parsed_mask_len,
 				size_t streams, const size_t *initial);
 
-const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
+const struct entry *pwstream_get_entry(const struct pwstream *pws, size_t stream,
 				       size_t pos);
 
 size_t pwstream_get_pwlen(const struct pwstream *pws);

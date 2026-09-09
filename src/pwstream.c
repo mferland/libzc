@@ -130,6 +130,11 @@ static struct entry *entry_at(struct pwstream *pws, size_t row, size_t col)
 	return &pws->table[pws->active_stream_count * row + col];
 }
 
+static const struct entry *const_entry_at(const struct pwstream *pws, size_t row, size_t col)
+{
+	return &pws->table[pws->active_stream_count * row + col];
+}
+
 /* Fewer streams than values: divide the values into contiguous ranges.
  * Example: five values over three streams -> [0,0], [1,2], [3,4]. */
 static void split_ranges(size_t values, size_t workers, struct entry *entry)
@@ -715,7 +720,7 @@ int pwstream_generate_from_mask(struct pwstream *pws,
 	return 0;
 }
 
-const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
+const struct entry *pwstream_get_entry(const struct pwstream *pws, size_t stream,
 				       size_t pos)
 {
 	/* pos is an internal table row: pos 0 is the last password character. */
@@ -723,7 +728,7 @@ const struct entry *pwstream_get_entry(struct pwstream *pws, size_t stream,
 	    pos >= pws->position_count)
 		return &null_entry;
 
-	return entry_at(pws, pos, stream);
+	return const_entry_at(pws, pos, stream);
 }
 
 size_t pwstream_get_pwlen(const struct pwstream *pws)

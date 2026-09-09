@@ -1202,9 +1202,9 @@ static bool consider_file(const struct zc_info *info)
  * @retval 0  No encryption data found in this file.
  * @retval >0 The number of encryption data objects read.
  */
-size_t read_zc_header(struct zc_file *f, struct zc_header *h, size_t len)
+size_t read_zc_header(const struct zc_file *f, struct zc_header *h, size_t len)
 {
-	struct zc_info *info;
+	const struct zc_info *info;
 	size_t valid = 0;
 
 	list_for_each_entry(info, &f->info_head, list) {
@@ -1221,9 +1221,9 @@ size_t read_zc_header(struct zc_file *f, struct zc_header *h, size_t len)
 	return valid;
 }
 
-static struct zc_info *find_file_smallest(struct zc_file *f)
+static const struct zc_info *find_file_smallest(const struct zc_file *f)
 {
-	struct zc_info *info, *ret = NULL;
+	const struct zc_info *info, *ret = NULL;
 	long s = LONG_MAX;
 
 	list_for_each_entry(info, &f->info_head, list) {
@@ -1242,7 +1242,7 @@ static struct zc_info *find_file_smallest(struct zc_file *f)
 int read_crypt_data(struct zc_file *f, unsigned char **buf,
 		    size_t *out_len, uint32_t *original_crc, bool *deflated)
 {
-	struct zc_info *info;
+	const struct zc_info *info;
 	size_t to_read;
 	int err;
 
@@ -1278,18 +1278,18 @@ err:
 	return -1;
 }
 
-struct zc_info *zc_file_info_next(struct zc_file *f,
-				  struct zc_info *info)
+const struct zc_info *zc_file_info_next(const struct zc_file *f,
+					const struct zc_info *info)
 {
-	struct zc_info *i;
+	const struct zc_info *i;
 
 	if (!info)
-		return list_entry(f->info_head.next, struct zc_info, list);
+		return list_entry(f->info_head.next, const struct zc_info, list);
 
 	if (info->list.next == &f->info_head)
 		return NULL;
 
-	i = list_entry(info->list.next, struct zc_info, list);
+	i = list_entry(info->list.next, const struct zc_info, list);
 
 	return i;
 }

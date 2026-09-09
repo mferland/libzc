@@ -221,7 +221,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 	return TPEMORE;
 }
 
-static int reduce_private_alloc(struct zc_crk_ptext *ptext,
+static int reduce_private_alloc(const struct zc_crk_ptext *ptext,
 				struct reduce_private **priv,
 				size_t nbthreads)
 {

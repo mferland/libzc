@@ -125,7 +125,7 @@ static int parse_single_key(const char *tok, uint32_t *key)
 
 enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
-static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
+static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 {
 	struct zc_file *f;
 	const char *filename, *entry;
@@ -149,7 +149,7 @@ static int parse_zip_entry_opts(const char *argv[], struct plaintext_opts *opts)
 			goto err1;
 		}
 
-		struct zc_info *info = zc_file_info_next(f, NULL);
+		const struct zc_info *info = zc_file_info_next(f, NULL);
 		while (info) {
 			if (strcmp(zc_file_info_name(info), entry) != 0)
 				/* filenames do not match */
@@ -186,7 +186,7 @@ err1:
 	return matches == 2 ? 0 : -1;
 }
 
-static int parse_file_opts(const char *argv[], struct plaintext_opts *opts)
+static int parse_file_opts(char *const argv[], struct plaintext_opts *opts)
 {
 	const char *filename;
 	struct stat st;
@@ -221,7 +221,7 @@ static int parse_file_opts(const char *argv[], struct plaintext_opts *opts)
 	return 0;
 }
 
-static int parse_offset_opts(char *argv[], struct plaintext_opts *opts)
+static int parse_offset_opts(char *const argv[], struct plaintext_opts *opts)
 {
 	opts->plain.name = argv[optind++];
 	if (parse_offset(argv[optind++], &opts->plain.txt_begin))
@@ -246,7 +246,7 @@ static int parse_offset_opts(char *argv[], struct plaintext_opts *opts)
 	return 0;
 }
 
-static int parse_internal_rep(char *argv[], struct zc_key *internal_rep)
+static int parse_internal_rep(char *const argv[], struct zc_key *internal_rep)
 {
 	if (parse_single_key(argv[optind++], &internal_rep->key0))
 		return -1;
@@ -396,7 +396,7 @@ static void get_internal_rep_from_password(const char *pw)
 {
 	struct zc_key k;
 
-	zc_passw_to_internal_rep((uint8_t *)pw, strlen(pw), &k);
+	zc_passw_to_internal_rep((const uint8_t *)pw, strlen(pw), &k);
 
 	printf("0x%x 0x%x 0x%x\n", k.key0, k.key1, k.key2);
 }
@@ -509,7 +509,7 @@ static int do_plaintext(int argc, char *argv[])
 	} else if (arg_use_file) {
 		if (argc - optind < 2)
 			goto missing;
-		if (parse_file_opts((const char **)argv, &opts)) {
+		if (parse_file_opts(argv, &opts)) {
 			err("error opening files.\n");
 			return EXIT_FAILURE;
 		}
@@ -517,7 +517,7 @@ static int do_plaintext(int argc, char *argv[])
 		if (argc - optind < 4)
 			goto missing;
 		/* get offsets from entry names */
-		if (parse_zip_entry_opts((const char **)argv, &opts)) {
+		if (parse_zip_entry_opts(argv, &opts)) {
 			err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}

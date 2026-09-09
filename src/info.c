@@ -48,7 +48,7 @@ static int do_info(int argc, char *argv[])
 {
 	const char *filename;
 	struct zc_file *file;
-	struct zc_info *info;
+	const struct zc_info *info;
 	int err = EXIT_SUCCESS, c, idx;
 
 	c = getopt_long(argc, argv, short_opts, long_opts, &idx);

@@ -74,7 +74,7 @@ static uint32_t *key2_get_arr(struct attack_private *priv, size_t i)
 	return priv->key2[i];
 }
 
-static uint32_t key2_get_key(struct attack_private *priv, size_t i, size_t j)
+static uint32_t key2_get_key(const struct attack_private *priv, size_t i, size_t j)
 {
 	return priv->key2[i][j];
 }
@@ -84,7 +84,7 @@ static void key2_set_size(struct attack_private *priv, size_t i, size_t size)
 	priv->key2_size[i] = size;
 }
 
-static size_t key2_get_size(struct attack_private *priv, size_t i)
+static size_t key2_get_size(const struct attack_private *priv, size_t i)
 {
 	return priv->key2_size[i];
 }
@@ -229,7 +229,7 @@ static void compute_key1(struct attack_private *priv)
 	}
 }
 
-static uint32_t compute_key1_msb(struct attack_private *priv,
+static uint32_t compute_key1_msb(const struct attack_private *priv,
 				 uint32_t current_idx)
 {
 	const uint32_t key2i = k2(current_idx);
