@@ -187,7 +187,7 @@ int fill_test_cipher(const char *filename,
 		     unsigned char **buf, size_t *len, uint32_t *original_crc,
 		     bool *is_deflated);
 
-size_t read_zc_header(struct zc_file *file, struct zc_header *h, size_t len);
+size_t read_zc_header(const struct zc_file *file, struct zc_header *h, size_t len);
 
 int read_crypt_data(struct zc_file *file, unsigned char **buf, size_t *len,
 		    uint32_t *original_crc, bool *is_deflated);
@@ -206,7 +206,7 @@ int inflate_buffer(struct zlib_state *zlib, const unsigned char *in,
 		   size_t inlen, unsigned char *out, size_t outlen,
 		   uint32_t original_crc);
 
-int test_buffer_crc(unsigned char *in, size_t inlen, uint32_t original_crc);
+int test_buffer_crc(const unsigned char *in, size_t inlen, uint32_t original_crc);
 
 #if defined(__AVX2__)
 void uint32_qsort_avx2(uint32_t *x, long long n);

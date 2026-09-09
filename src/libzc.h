@@ -35,7 +35,7 @@ int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(const struct zc_file *file);
 
 struct zc_info;
-struct zc_info *zc_file_info_next(struct zc_file *, struct zc_info *info);
+const struct zc_info *zc_file_info_next(const struct zc_file *, const struct zc_info *info);
 const char *zc_file_info_name(const struct zc_info *info);
 uint64_t zc_file_info_size(const struct zc_info *info);
 uint64_t zc_file_info_compressed_size(const struct zc_info *info);

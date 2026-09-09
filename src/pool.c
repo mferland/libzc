@@ -45,7 +45,7 @@ struct threadpool {
 	/*
 	 * Function pointers.
 	 */
-	struct threadpool_ops *ops;
+	const struct threadpool_ops *ops;
 
 	/*
 	 * Number of threads we were asked to create.
@@ -184,7 +184,7 @@ void threadpool_destroy(struct threadpool *p)
 	free(p);
 }
 
-int threadpool_set_ops(struct threadpool *p, struct threadpool_ops *ops)
+int threadpool_set_ops(struct threadpool *p, const struct threadpool_ops *ops)
 {
 	if (!ops->do_work)
 		return -1;

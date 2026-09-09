@@ -145,7 +145,7 @@ static bool pw_in_set(const char *pw, const char *set, size_t len)
 	return true;
 }
 
-static bool pw_in_mask(const char *pw, char **parsed, size_t len)
+static bool pw_in_mask(const char *pw, char *const *parsed, size_t len)
 {
 	if (strlen(pw) != len)
 		return false;
@@ -428,14 +428,14 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 }
 // clang-format on
 
-static void fill_limits(struct pwstream *pws, struct entry *limit, size_t count,
+static void fill_limits(const struct pwstream *pws, struct entry *limit, size_t count,
 			size_t stream)
 {
 	for (size_t i = 0, j = count - 1; i < count; ++i, --j)
 		limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
-static void do_work(struct worker *w, struct pwstream *pws, size_t stream,
+static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 		    char *pw)
 {
 	size_t level = pwstream_get_pwlen(pws);
