@@ -45,7 +45,7 @@ libyazc_core_a_SOURCES = \
 	mask_scanner.l \
 	mask_parser.y \
 	ptext_attack.c \
-	ptext_private.h \
+	ptext.h \
 	ptext_reduce.c \
 	pwstream.c \
 	pwstream.h \

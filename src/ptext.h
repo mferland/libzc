@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _PTEXT_PRIVATE_H_
-#define _PTEXT_PRIVATE_H_
+#ifndef PTEXT_H
+#define PTEXT_H
 
 #include <stdint.h>
 
@@ -57,4 +57,4 @@ size_t key2r_compute_single(uint32_t key2i_plus_1, uint32_t *key2i,
 			    const uint16_t *key2im1_bits_15_2,
 			    uint32_t common_bits_mask);
 
-#endif /* _PTEXT_PRIVATE_H_ */
+#endif /* PTEXT_H */

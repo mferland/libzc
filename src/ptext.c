@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ptext_private.h"
+#include "ptext.h"
 #include "pool.h"
 #include "zc.h"
 

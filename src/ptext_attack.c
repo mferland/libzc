@@ -24,7 +24,7 @@
 
 #include "crc32.h"
 #include "list.h"
-#include "ptext_private.h"
+#include "ptext.h"
 #include "pool.h"
 #include "zc.h"
 
