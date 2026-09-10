@@ -23,8 +23,8 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "libzc.h"
 #include "yazc.h"
+#include "zc.h"
 
 #define MAX(a, b) ((a > b) ? a : b)
 
@@ -58,25 +58,25 @@ static int do_info(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			err("unexpected getopt_long() value '%c'.\n", c);
+			cli_err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		err("missing filename.\n");
+		cli_err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 
 	filename = argv[optind];
 
 	if (zc_file_new_from_filename(filename, &file)) {
-		err("zc_file_new_from_filename() failed!\n");
+		cli_err("zc_file_new_from_filename() failed!\n");
 		return EXIT_FAILURE;
 	}
 
 	if (zc_file_open(file)) {
-		err("zc_file_open() failed!\n");
+		cli_err("zc_file_open() failed!\n");
 		err = EXIT_FAILURE;
 		goto err2;
 	}

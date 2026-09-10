@@ -22,8 +22,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#include "libzc.h"
 #include "yazc.h"
+#include "zc.h"
 
 #define LINE_BUF_LEN 256
 
@@ -56,12 +56,12 @@ static int launch_crack(const char *dict_filename, const char *zip_filename,
 	int err = -1;
 
 	if (zc_crk_dict_new(&crk)) {
-		err("zc_crk_dict_new() failed!\n");
+		cli_err("zc_crk_dict_new() failed!\n");
 		return -1;
 	}
 
 	if (zc_crk_dict_init(crk, zip_filename)) {
-		err("zc_crk_dict_init() failed!\n");
+		cli_err("zc_crk_dict_init() failed!\n");
 		goto err2;
 	}
 
@@ -77,7 +77,7 @@ static int launch_crack(const char *dict_filename, const char *zip_filename,
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		err("zc_crk_dict_start failed!\n");
+		cli_err("zc_crk_dict_start failed!\n");
 
 err2:
 	zc_crk_dict_destroy(crk);
@@ -109,13 +109,13 @@ static int do_dictionary(int argc, char *argv[])
 			print_help(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			err("unexpected getopt_long() value '%c'.\n", c);
+			cli_err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		err("missing filename.\n");
+		cli_err("missing filename.\n");
 		return EXIT_FAILURE;
 	}
 

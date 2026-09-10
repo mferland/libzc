@@ -63,6 +63,20 @@ __attribute__((format(__ZC_PRINTF_FORMAT, 5, 6)));
 void zc_trace(const char *file, int line, const char *fn, const char *format,
 	      ...) __attribute__((format(__ZC_PRINTF_FORMAT, 4, 5)));
 
+/*
+ * User-facing command messages are deliberately not filtered by ZC_LOG.
+ * Passing no source context keeps their established error:/info:/dbg: form,
+ * while engine diagnostics below retain their function-name context.
+ */
+#define cli_err(arg...)  zc_log(LOG_ERR, NULL, 0, NULL, ##arg)
+#define cli_info(arg...) zc_log(LOG_INFO, NULL, 0, NULL, ##arg)
+
+#ifdef ENABLE_DEBUG
+#define cli_dbg(arg...) zc_log(LOG_DEBUG, NULL, 0, NULL, ##arg)
+#else
+#define cli_dbg(arg...) zc_log_null(arg)
+#endif
+
 #define zc_log_cond(prio, arg...)                                           \
 	do {                                                                \
 		if (zc_get_log_priority() >= prio)                          \

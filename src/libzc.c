@@ -26,15 +26,21 @@
 static int current_log_priority = LOG_ERR;
 static bool log_initialized;
 
-void zc_log(int priority __attribute__((__unused__)),
-	    const char *file __attribute__((__unused__)),
+void zc_log(int priority, const char *file __attribute__((__unused__)),
 	    int line __attribute__((__unused__)), const char *fn,
 	    const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	fprintf(stderr, "yazc: %s: ", fn);
+	if (fn)
+		fprintf(stderr, "yazc: %s: ", fn);
+	else if (priority == LOG_DEBUG)
+		fprintf(stderr, "dbg: ");
+	else if (priority == LOG_ERR)
+		fprintf(stderr, "error: ");
+	else if (priority == LOG_INFO)
+		fprintf(stderr, "info: ");
 	vfprintf(stderr, format, args);
 	va_end(args);
 }

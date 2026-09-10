@@ -18,7 +18,6 @@
 
 #include <getopt.h>
 #include <libgen.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,8 +25,8 @@
 #include <sys/time.h>
 
 #include "config.h"
-#include "libzc.h"
 #include "yazc.h"
+#include "zc.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
@@ -91,21 +90,6 @@ static const struct yazc_cmd yazc_cmd_help = {
 	.help = "show help message",
 };
 
-void yazc_log(int prio, const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	if (prio == LOG_DEBUG)
-		fprintf(stderr, "dbg: ");
-	if (prio == LOG_ERR)
-		fprintf(stderr, "error: ");
-	if (prio == LOG_INFO)
-		fprintf(stderr, "info: ");
-	vfprintf(stderr, format, args);
-	va_end(args);
-}
-
 int main(int argc, char *argv[])
 {
 	const char *cmd;
@@ -131,13 +115,13 @@ int main(int argc, char *argv[])
 		case '?':
 			return EXIT_FAILURE;
 		default:
-			err("unexpected getopt_long() value '%c'.\n", c);
+			cli_err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (optind >= argc) {
-		err("missing command.\n");
+		cli_err("missing command.\n");
 		goto fail;
 	}
 
@@ -151,7 +135,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (!found) {
-		err("invalid command '%s'.\n", cmd);
+		cli_err("invalid command '%s'.\n", cmd);
 		goto fail;
 	}
 

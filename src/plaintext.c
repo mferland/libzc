@@ -31,8 +31,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "libzc.h"
 #include "yazc.h"
+#include "zc.h"
 
 static const char short_opts[] = "t:ofipSh";
 static const struct option long_opts[] = {
@@ -135,7 +135,7 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 		filename = argv[optind++];
 		entry = argv[optind++];
 
-		dbg("%s: %s %s\n",
+		cli_dbg("%s: %s %s\n",
 		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
 		    entry);
 
@@ -169,12 +169,12 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 			fd->file_begin = zc_file_info_crypt_header_offset(info);
 			fd->name = filename;
 			matches++;
-			dbg("found match: %s %lld %lld %lld\n", entry,
+			cli_dbg("found match: %s %lld %lld %lld\n", entry,
 			    (long long)fd->txt_begin, (long long)fd->txt_end,
 			    (long long)fd->file_begin);
 			break;
 next:
-			dbg("skipping %s\n", zc_file_info_name(info));
+			cli_dbg("skipping %s\n", zc_file_info_name(info));
 			info = zc_file_info_next(f, info);
 		}
 		zc_file_close(f);
@@ -194,17 +194,17 @@ static int parse_file_opts(char *const argv[], struct plaintext_opts *opts)
 	for (int src = SRC_PLAIN; src < SRC_NUM; ++src) {
 		filename = argv[optind++];
 
-		dbg("%s: %s\n",
+		cli_dbg("%s: %s\n",
 		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename);
 
 		struct filed *fd = src == SRC_PLAIN ? &opts->plain : &opts->cipher;
 		fd->txt_begin = src == SRC_PLAIN ? 0 : 12;
 		int err = stat(filename, &st);
 		if (err < 0) {
-			err("stat() failed: %s\n", strerror(errno));
+			cli_err("stat() failed: %s\n", strerror(errno));
 			return err;
 		} else if (st.st_size == 0) {
-			err("file %s is empty\n", filename);
+			cli_err("file %s is empty\n", filename);
 			return -1;
 		}
 		fd->txt_end = st.st_size - 1;
@@ -237,9 +237,9 @@ static int parse_offset_opts(char *const argv[], struct plaintext_opts *opts)
 	if (parse_offset(argv[optind], &opts->cipher.file_begin))
 		return -1;
 
-	dbg("plaintext: %s %lld %lld\n", opts->plain.name,
+	cli_dbg("plaintext: %s %lld %lld\n", opts->plain.name,
 	    (long long)opts->plain.txt_begin, (long long)opts->plain.txt_end);
-	dbg("ciphertext: %s %lld %lld %lld\n", opts->cipher.name,
+	cli_dbg("ciphertext: %s %lld %lld %lld\n", opts->cipher.name,
 	    (long long)opts->cipher.txt_begin, (long long)opts->cipher.txt_end,
 	    (long long)opts->cipher.file_begin);
 
@@ -255,7 +255,7 @@ static int parse_internal_rep(char *const argv[], struct zc_key *internal_rep)
 	if (parse_single_key(argv[optind++], &internal_rep->key2))
 		return -1;
 
-	dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep->key0,
+	cli_dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep->key0,
 	    internal_rep->key1, internal_rep->key2);
 
 	return 0;
@@ -297,29 +297,29 @@ static int mmap_text_buf(struct filed *file)
 
 	fd = open(file->name, O_RDONLY);
 	if (fd < 0) {
-		err("open() failed: %s.\n", strerror(errno));
+		cli_err("open() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
 	if (fstat(fd, &filestat) < 0) {
-		err("fstat() failed: %s.\n", strerror(errno));
+		cli_err("fstat() failed: %s.\n", strerror(errno));
 		goto error;
 	}
 
 	if (filestat.st_size == 0) {
-		err("file %s is empty.\n", file->name);
+		cli_err("file %s is empty.\n", file->name);
 		goto error;
 	}
 
 	if (file->txt_end >= filestat.st_size) {
-		err("end offset (%lld) goes past the end of the file.\n",
+		cli_err("end offset (%lld) goes past the end of the file.\n",
 		    (long long)file->txt_end);
 		goto error;
 	}
 
 	map = mmap(NULL, filestat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (map == MAP_FAILED) {
-		err("mmap() failed: %s.\n", strerror(errno));
+		cli_err("mmap() failed: %s.\n", strerror(errno));
 		goto error;
 	}
 
@@ -330,16 +330,16 @@ static int mmap_text_buf(struct filed *file)
 
 error:
 	if (close(fd))
-		err("close() failed: %s\n", strerror(errno));
+		cli_err("close() failed: %s\n", strerror(errno));
 	return -1;
 }
 
 static int unmap_text_buf(struct filed *file)
 {
 	if (munmap(file->map, size_of_map(file)) < 0)
-		err("munmap() failed: %s.\n", strerror(errno));
+		cli_err("munmap() failed: %s.\n", strerror(errno));
 	if (close(file->fd))
-		err("close() failed: %s.\n", strerror(errno));
+		cli_err("close() failed: %s.\n", strerror(errno));
 	return 0;
 }
 
@@ -361,7 +361,7 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 	int len, ret = EXIT_FAILURE;
 
 	if (zc_crk_ptext_new(&ptext, opts->thread_count) < 0) {
-		err("zc_crk_ptext_new() failed!\n");
+		cli_err("zc_crk_ptext_new() failed!\n");
 		return ret;
 	}
 
@@ -374,7 +374,7 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 	len = zc_crk_ptext_find_password(ptext, &opts->internal_rep, pw,
 					 sizeof(pw));
 	if (len < 0) {
-		err(" failed!\n");
+		cli_err(" failed!\n");
 		goto err2;
 	}
 
@@ -444,7 +444,7 @@ static int do_plaintext(int argc, char *argv[])
 			usage(basename(argv[0]));
 			return EXIT_SUCCESS;
 		default:
-			err("unexpected getopt_long() value '%c'.\n", c);
+			cli_err("unexpected getopt_long() value '%c'.\n", c);
 			return EXIT_FAILURE;
 		}
 	}
@@ -459,7 +459,7 @@ static int do_plaintext(int argc, char *argv[])
 		else {
 			opts.thread_count = atol(arg_threads);
 			if (opts.thread_count < 1) {
-				err("number of threads can't be less than one.\n");
+				cli_err("number of threads can't be less than one.\n");
 				return EXIT_FAILURE;
 			}
 		}
@@ -467,13 +467,13 @@ static int do_plaintext(int argc, char *argv[])
 		opts.thread_count = -1;	/* auto */
 
 	if (arg_from_internal_rep && (arg_use_offsets || arg_use_file)) {
-		err("the offset and file options are mutually exclusive from"
+		cli_err("the offset and file options are mutually exclusive from"
 		    "the password-from-internal-rep option.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (arg_internal_rep_from_passw && (arg_use_offsets || arg_use_file)) {
-		err("the offset and file options are mutually exclusive from"
+		cli_err("the offset and file options are mutually exclusive from"
 		    "the internal-rep-from-password option.\n");
 		return EXIT_FAILURE;
 	}
@@ -485,7 +485,7 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 
 		if (parse_internal_rep(argv, &opts.internal_rep) < 0) {
-			err("error parsing internal representation.\n");
+			cli_err("error parsing internal representation.\n");
 			return EXIT_FAILURE;
 		}
 
@@ -503,14 +503,14 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 
 		if (parse_offset_opts(argv, &opts)) {
-			err("error parsing offsets.\n");
+			cli_err("error parsing offsets.\n");
 			return EXIT_FAILURE;
 		}
 	} else if (arg_use_file) {
 		if (argc - optind < 2)
 			goto missing;
 		if (parse_file_opts(argv, &opts)) {
-			err("error opening files.\n");
+			cli_err("error opening files.\n");
 			return EXIT_FAILURE;
 		}
 	} else {
@@ -518,29 +518,29 @@ static int do_plaintext(int argc, char *argv[])
 			goto missing;
 		/* get offsets from entry names */
 		if (parse_zip_entry_opts(argv, &opts)) {
-			err("error parsing entries.\n");
+			cli_err("error parsing entries.\n");
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (!validate_offsets(&opts)) {
-		err("offsets validation failed.\n");
+		cli_err("offsets validation failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (mmap_text_buf(&opts.plain) < 0) {
-		err("mapping plaintext data failed.\n");
+		cli_err("mapping plaintext data failed.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (mmap_text_buf(&opts.cipher) < 0) {
-		err("mapping ciphertext data failed.\n");
+		cli_err("mapping ciphertext data failed.\n");
 		goto error1;
 	}
 
 	err = zc_crk_ptext_new(&ptext, opts.thread_count);
 	if (err < 0) {
-		err("zc_crk_ptext_new() failed!\n");
+		cli_err("zc_crk_ptext_new() failed!\n");
 		goto error2;
 	}
 
@@ -550,7 +550,7 @@ static int do_plaintext(int argc, char *argv[])
 		      &((const uint8_t *)opts.cipher.map)[opts.cipher.txt_begin],
 		      size_of_map(&opts.plain));
 	if (err < 0) {
-		err("zc_crk_ptext_set_text() failed!\n");
+		cli_err("zc_crk_ptext_set_text() failed!\n");
 		goto error4;
 	}
 
@@ -568,7 +568,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = zc_crk_ptext_key2_reduction(ptext);
 	if (err < 0) {
 		printf("\n");
-		err("reducing key2 candidates failed.\n");
+		cli_err("reducing key2 candidates failed.\n");
 		goto error4;
 	}
 	printf(" done! %zu keys found.\n", zc_crk_ptext_key2_count(ptext));
@@ -579,7 +579,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = zc_crk_ptext_attack(ptext, &out_key);
 	if (err < 0) {
 		printf("\n");
-		err("attack failed! Wrong plaintext?\n");
+		cli_err("attack failed! Wrong plaintext?\n");
 		goto error4;
 	}
 	printf(" done!\n");
@@ -593,7 +593,7 @@ static int do_plaintext(int argc, char *argv[])
 		      &((const uint8_t *)opts.cipher.map)[opts.cipher.file_begin],
 		      opts.cipher.txt_begin - opts.cipher.file_begin, &int_rep);
 	if (err < 0) {
-		err("finding internal representation failed.\n");
+		cli_err("finding internal representation failed.\n");
 		goto error4;
 	}
 
@@ -605,7 +605,7 @@ static int do_plaintext(int argc, char *argv[])
 	char pw[14];
 	err = zc_crk_ptext_find_password(ptext, &int_rep, pw, sizeof(pw));
 	if (err < 0) {
-		err(" failed!\n");
+		cli_err(" failed!\n");
 		err = EXIT_FAILURE;
 		goto error4;
 	}
@@ -629,7 +629,7 @@ error1:
 	return err;
 
 missing:
-	err("missing argument.\n");
+	cli_err("missing argument.\n");
 	usage(basename(argv[0]));
 	return EXIT_FAILURE;
 }
