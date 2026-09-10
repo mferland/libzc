@@ -26,6 +26,9 @@
 void zc_log_init(void);
 int zc_get_log_priority(void);
 
+/* TODO: remove */
+struct zc_header;
+
 struct zc_file;
 void zc_file_destroy(struct zc_file *file);
 int zc_file_new_from_filename(const char *filename, struct zc_file **file);
@@ -33,6 +36,10 @@ const char *zc_file_get_filename(const struct zc_file *file);
 int zc_file_open(struct zc_file *file);
 int zc_file_close(struct zc_file *file);
 bool zc_file_isopened(const struct zc_file *file);
+int zc_fill_header(const char *filename, struct zc_header *h, size_t len);
+int zc_fill_test_cipher(const char *filename,
+			unsigned char **buf, size_t *len, uint32_t *original_crc,
+			bool *is_deflated);
 
 struct zc_info;
 const struct zc_info *zc_file_info_next(const struct zc_file *, const struct zc_info *info);

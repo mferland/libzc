@@ -86,7 +86,7 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 		goto err1;
 	}
 
-	err = fill_header(filename, crk->header, HEADER_MAX);
+	err = zc_fill_header(filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err("failed to read validation data\n");
 		goto err2;
@@ -94,9 +94,9 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->header_size = err;
 
-	err = fill_test_cipher(filename, &crk->cipher,
-			       &crk->cipher_size, &crk->original_crc,
-			       &crk->cipher_is_deflated);
+	err = zc_fill_test_cipher(filename, &crk->cipher,
+				  &crk->cipher_size, &crk->original_crc,
+				  &crk->cipher_is_deflated);
 	if (err) {
 		err("failed to read cipher data\n");
 		goto err2;
