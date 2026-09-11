@@ -20,7 +20,6 @@
 #define _LIBZC_H_
 
 #include <stddef.h>
-#include <stdint.h>
 
 void zc_log_init(void);
 int zc_get_log_priority(void);
@@ -57,25 +56,5 @@ const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
 void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w);
 int zc_crk_bforce_start(struct zc_crk_bforce *bforce, char *out_pw,
 			size_t out_pw_size);
-
-struct zc_key {
-	uint32_t key0;
-	uint32_t key1;
-	uint32_t key2;
-};
-struct zc_crk_ptext;
-void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads);
-int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext, const uint8_t *plaintext,
-			  const uint8_t *ciphertext, size_t size);
-int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
-size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext);
-int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);
-int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
-				   const uint8_t *ciphertext, size_t size,
-				   struct zc_key *internal_rep);
-int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
-			       const struct zc_key *internal_rep, char *out,
-			       size_t len);
 
 #endif /* _LIBZC_H_ */

@@ -29,7 +29,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "libzc_private.h"
+#include "zc.h"
 #include "list.h"
 #include "zip.h"
 

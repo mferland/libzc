@@ -1243,7 +1243,7 @@ void uint32_qsort_avx2(uint32_t *buf, long long n)
 #else
 
 #include <stddef.h>
-#include "qsort.h"
+#include "qsort_inline.h"
 
 void uint32_qsort_portable(uint32_t *buf, size_t n)
 {

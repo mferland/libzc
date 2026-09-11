@@ -26,7 +26,7 @@
 #include "compat.h"
 #include "inflate.h"
 #include "libzc.h"
-#include "libzc_private.h"
+#include "zc.h"
 #include "list.h"
 #include "pwstream.h"
 #include "mask_parser.h"

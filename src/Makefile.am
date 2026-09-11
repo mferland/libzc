@@ -30,7 +30,6 @@ AM_CFLAGS = \
 
 noinst_LIBRARIES = libyazc-core.a
 libyazc_core_a_SOURCES = \
-	common.c \
 	compat.c \
 	compat.h \
 	crc32.h \
@@ -40,7 +39,6 @@ libyazc_core_a_SOURCES = \
 	inflate.h \
 	libzc.c \
 	libzc.h \
-	libzc_private.h \
 	list.h \
 	mask_scanner.l \
 	mask_parser.y \
@@ -56,10 +54,11 @@ libyazc_core_a_SOURCES = \
 	ptext.c \
 	zip.c \
 	zip.h \
-	sys.c \
 	qsort.h \
+	qsort_inline.h \
 	qsort.c \
 	uniq.c \
+	zc.c \
 	zc.h
 
 bin_PROGRAMS = yazc

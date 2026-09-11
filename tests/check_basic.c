@@ -20,6 +20,7 @@
 #include <stdlib.h>
 /* libzc */
 #include <libzc.h>
+#include "ptext.h"
 #include "zip.h"
 
 START_TEST(test_zc_zip_lifecycle)

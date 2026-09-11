@@ -26,7 +26,7 @@
 
 #include "list.h"
 #include "pool.h"
-#include "libzc_private.h"
+#include "zc.h"
 
 struct threadpool {
 	/*

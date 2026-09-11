@@ -23,7 +23,7 @@
 
 #include "inflate.h"
 #include "libzc.h"
-#include "libzc_private.h"
+#include "zc.h"
 #include "zip.h"
 
 struct zc_crk_dict {

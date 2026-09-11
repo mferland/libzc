@@ -19,7 +19,7 @@
 #include <check.h>
 #include <stdlib.h>
 
-#include "libzc.h"
+#include "ptext.h"
 #include "zc.h"
 
 struct zc_crk_ptext *ptext;

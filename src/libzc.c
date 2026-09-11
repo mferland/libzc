@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "decrypt_byte.h"
 #include "zc.h"
 
 static int current_log_priority = LOG_ERR;

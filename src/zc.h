@@ -20,6 +20,7 @@
 #define ZC_H
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -133,6 +134,12 @@ struct zc_header {
 	uint8_t magic;
 };
 
+struct zc_key {
+	uint32_t key0;
+	uint32_t key1;
+	uint32_t key2;
+};
+
 static inline uint32_t mask_msb(uint32_t v)
 {
 	return v & 0xff000000;
@@ -188,5 +195,15 @@ static inline uint8_t decrypt_byte(uint32_t k)
 	k |= 2;
 	return ((k * (k ^ 1)) >> 8) & 0xff;
 }
+
+uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic);
+
+bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
+		     size_t len);
+
+void decrypt(const unsigned char *in, unsigned char *out, size_t len,
+	     const struct zc_key *key);
+
+size_t threads_to_create(long forced);
 
 #endif /* ZC_H */

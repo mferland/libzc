@@ -19,7 +19,6 @@
 #include <check.h>
 #include <stdlib.h>
 
-#include "libzc.h"
 #include "ptext.h"
 #include "test_plaintext.h"
 #include "ptext_reduce.c"

@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "yazc.h"
+#include "ptext.h"
 #include "zc.h"
 #include "zip.h"
 
