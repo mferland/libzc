@@ -393,6 +393,12 @@ err2:
 	return ret;
 }
 
+static void zc_passw_to_internal_rep(const uint8_t *pw, size_t len,
+				     struct zc_key *out_key)
+{
+	update_default_keys_from_array(out_key, pw, len);
+}
+
 static void get_internal_rep_from_password(const char *pw)
 {
 	struct zc_key k;

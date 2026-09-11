@@ -169,7 +169,7 @@ static inline void set_default_encryption_keys(struct zc_key *k)
 }
 
 static inline void update_default_keys_from_array(struct zc_key *out,
-					  const uint8_t *s, size_t len)
+						  const uint8_t *s, size_t len)
 {
 	set_default_encryption_keys(out);
 

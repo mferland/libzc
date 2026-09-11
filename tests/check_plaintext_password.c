@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "libzc.h"
+#include "zc.h"
 
 struct zc_crk_ptext *ptext;
 
@@ -60,6 +61,12 @@ struct test_pool pool[POOL_LEN] = {
 	{ { 0x9986f7db, 0x67338fae, 0x131eb6d7 }, "0098ikjmn3@@", 12 },
 #endif
 };
+
+static void zc_passw_to_internal_rep(const uint8_t *pw, size_t len,
+				     struct zc_key *out_key)
+{
+	update_default_keys_from_array(out_key, pw, len);
+}
 
 void setup_ptext()
 {
