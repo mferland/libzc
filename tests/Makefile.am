@@ -13,12 +13,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS = basic compat file pwstream pool bruteforce dictionary reduce plaintext_password plaintext cli
+TESTS = basic compat zip pwstream pool bruteforce dictionary reduce plaintext_password plaintext cli
 TESTS_ENVIRONMENT = YAZC='$(abs_top_builddir)/src/yazc'; export YAZC;
 
 check_PROGRAMS = basic \
 	compat \
-	file \
+	zip \
 	pwstream \
 	pool \
 	bruteforce \
@@ -57,10 +57,10 @@ compat_SOURCES = check_compat.c
 compat_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 compat_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
-# zc_file related functions
-file_SOURCES = check_file.c
-file_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
-file_LDADD = $(TEST_CORE) @CHECK_LIBS@
+# zc_zip related functions
+zip_SOURCES = check_zip.c
+zip_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
+zip_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
 # zc_crk_bforce related functions
 bruteforce_SOURCES = check_bruteforce.c

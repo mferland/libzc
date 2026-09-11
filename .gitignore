@@ -29,6 +29,7 @@ tests/basic
 tests/bruteforce
 tests/dictionary
 tests/file
+tests/zip
 tests/plaintext
 tests/plaintext_password
 tests/pwstream

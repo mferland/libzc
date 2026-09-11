@@ -29,9 +29,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "libzc.h"
 #include "libzc_private.h"
 #include "list.h"
+#include "zip.h"
 
 #define LOCAL_HEADER_LEN      30
 #define GP_BIT_HAS_DATA_DESC  (1 << 3)
@@ -90,7 +90,7 @@ memmem(const void *l, size_t l_len, const void *s, size_t s_len)
 }
 #endif
 
-struct zc_file {
+struct zc_zip {
 	char *filename;
 	FILE *stream;
 
@@ -506,7 +506,7 @@ struct zc_extra_zip64_ext {
 	uint32_t disk_num;
 };
 
-struct zc_info {
+struct zc_zip_info {
 	/* parsed headers */
 	struct zc_cdheader header;
 	struct zc_extra_zip64_ext extra;
@@ -553,10 +553,10 @@ static uint8_t check_byte(const struct zc_cdheader *h)
 	return h->crc32 >> 24;
 }
 
-static void clear_info_list(struct zc_file *f)
+static void clear_info_list(struct zc_zip *zip)
 {
-	struct zc_info *i, *tmp;
-	list_for_each_entry_safe(i, tmp, &f->info_head, list) {
+	struct zc_zip_info *i, *tmp;
+	list_for_each_entry_safe(i, tmp, &zip->info_head, list) {
 		list_del(&i->list);
 		dealloc_cdheader(&i->header);
 		free(i);
@@ -571,27 +571,28 @@ static bool is_zip64(const struct zc_cdheader *h)
 		h->loc_header_offt == UINT32_MAX);
 }
 
-static size_t zfread(struct zc_file *f, void *ptr, size_t size, size_t nmemb)
+static size_t zfread(struct zc_zip *zip, void *ptr, size_t size, size_t nmemb)
 {
-	size_t ret = fread(ptr, size, nmemb, f->stream);
+	size_t ret = fread(ptr, size, nmemb, zip->stream);
 	if (ret != nmemb) {
-		if (ferror(f->stream))
+		if (ferror(zip->stream))
 			err("fread() failed: %zu\n", ret);
-		else if (feof(f->stream))
+		else if (feof(zip->stream))
 			err("fread() failed, eof reached: %zu\n", ret);
 	}
 	return ret;
 }
 
-static int zfseeko(struct zc_file *f, off_t offset, int whence)
+static int zfseeko(struct zc_zip *zip, off_t offset, int whence)
 {
-	int ret = fseeko(f->stream, offset, whence);
+	int ret = fseeko(zip->stream, offset, whence);
 	if (ret)
 		err("fseeko() failed: %s\n", strerror(errno));
 	return ret;
 }
 
-static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eocd,
+static int find_cd_offset_from_eocd(struct zc_zip *zip,
+				    const struct zc_eocd *eocd,
 				    const uint8_t *from, off_t *cd_offset,
 				    uint64_t *nbentries)
 {
@@ -614,7 +615,7 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 	dbg("Detected zip64 EOCD\n");
 
 	/* zip64 - go back EOCD64_LOC_LEN bytes */
-	if (from - EOCD64_LOC_LEN < f->buf) {
+	if (from - EOCD64_LOC_LEN < zip->buf) {
 		dbg("error reading zip64 end of central directory locator\n");
 		return -1;
 	}
@@ -647,16 +648,16 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 		return -1;
 	}
 
-	ret = zfseeko(f, (off_t)eocd64_loc.cd_start_offset, SEEK_SET);
+	ret = zfseeko(zip, (off_t)eocd64_loc.cd_start_offset, SEEK_SET);
 	if (ret < 0)
 		return ret;
 
 	/* read zip64 End of Central Directory */
-	len = zfread(f, f->buf, EOCD64_LEN, 1);
+	len = zfread(zip, zip->buf, EOCD64_LEN, 1);
 	if (len != 1)
 		return -1;
 
-	parse_eocd64(f->buf, &eocd64);
+	parse_eocd64(zip->buf, &eocd64);
 	if (eocd64.cd_start_offset > INT64_MAX) {
 		/* offset is too large, malformed zip file? */
 		dbg("central directory offset too large, skipping...\n");
@@ -684,7 +685,7 @@ static int find_cd_offset_from_eocd(struct zc_file *f, const struct zc_eocd *eoc
 	return 0;
 }
 
-static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
+static int read_single_entry_at(struct zc_zip *zip, off_t cd_offset,
 				struct zc_cdheader *header,
 				struct zc_extra_zip64_ext *extra,
 				off_t *next)
@@ -696,23 +697,23 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	dbg("Reading central directory entry at: 0x%016jx\n", cd_offset);
 
 	/* seek to beginning of entry */
-	ret = zfseeko(f, cd_offset, SEEK_SET);
+	ret = zfseeko(zip, cd_offset, SEEK_SET);
 	if (ret)
 		return ret;
 
 	/* read central directory entry, optionnaly followed
 	   by a zip64 entry */
-	len = zfread(f, f->buf, CD_ENTRY_LEN, 1);
+	len = zfread(zip, zip->buf, CD_ENTRY_LEN, 1);
 	if (len != 1)
 		return -1;
 
-	sig = get_le32_at(f->buf, 0);
+	sig = get_le32_at(zip->buf, 0);
 	if (sig != CD_SIG) {
 		dbg("found invalid central directory entry signature: 0x08%x\n", sig);
 		return -1;
 	}
 
-	parse_cd(f->buf, header);
+	parse_cd(zip->buf, header);
 
 	dbg("\tsig: 0x%08x, version_made_by: %d, version_needed: %d, gen_bit_flag: 0x%04x,\n",
 	    sig,
@@ -738,12 +739,12 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	    header->loc_header_offt);
 
 	/*
-	 * encrypted files should always have a minimum compressed
+	 * Encrypted entries should always have a minimum compressed
 	 * size of ENC_HEADER_LEN. See APPNOTE.txt.
 	 */
 	if (is_encrypted(header->gen_bit_flag) &&
 	    header->comp_size < ENC_HEADER_LEN) {
-		err("encrypted file size (%"PRIu32") smaller than %d\n",
+		err("encrypted entry size (%"PRIu32") smaller than %d\n",
 		    header->comp_size, ENC_HEADER_LEN);
 		return -1;
 	}
@@ -759,20 +760,20 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 	if (ret)
 		return -1;
 
-	len = zfread(f, header->filename, header->filename_length, 1);
+	len = zfread(zip, header->filename, header->filename_length, 1);
 	if (len != 1)
 		goto err;
 	dbg("\tfilename: %s\n", header->filename);
 
 	dbg("\textra_length: %d\n", header->extra_length);
 	if (header->extra_length) {
-		len = zfread(f, header->extra, header->extra_length, 1);
+		len = zfread(zip, header->extra, header->extra_length, 1);
 		if (len != 1)
 			goto err;
 	}
 
 	if (header->comment_length) {
-		len = zfread(f, header->comment, header->comment_length, 1);
+		len = zfread(zip, header->comment, header->comment_length, 1);
 		if (len != 1)
 			goto err;
 	}
@@ -852,7 +853,7 @@ static int read_single_entry_at(struct zc_file *f, off_t cd_offset,
 		}
 	}
 
-	*next = ftello(f->stream);
+	*next = ftello(zip->stream);
 
 	return 0;
 err:
@@ -860,21 +861,22 @@ err:
 	return -1;
 }
 
-static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nbentries)
+static int read_all_entries_at(struct zc_zip *zip, off_t cd_offset,
+			       uint64_t nbentries)
 {
-	struct zc_info *info;
+	struct zc_zip_info *info;
 	struct zc_local_header loc;
 	size_t len;
 	int ret;
 
 	for (uint64_t i = 0; i < nbentries; ++i) {
-		info = calloc(1, sizeof(struct zc_info));
+		info = calloc(1, sizeof(struct zc_zip_info));
 		if (!info)
 			goto err;
 
 		dbg("Reading entry: %"PRIu64"\n", i);
 
-		ret = read_single_entry_at(f, cd_offset, &info->header,
+		ret = read_single_entry_at(zip, cd_offset, &info->header,
 					   &info->extra, &cd_offset);
 		if (ret) {
 			free(info);
@@ -887,20 +889,20 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 			info->local_offset = info->header.loc_header_offt;
 
 		info->idx = i;
-		list_add_tail(&info->list, &f->info_head);
+		list_add_tail(&info->list, &zip->info_head);
 	}
 
 	/* fill out data offsets */
-	list_for_each_entry(info, &f->info_head, list) {
+	list_for_each_entry(info, &zip->info_head, list) {
 		uint8_t buf[LOCAL_HEADER_LEN];
 
 		dbg("Reading local file header at: 0x%016jx\n", info->local_offset);
 
-		ret = zfseeko(f, info->local_offset, SEEK_SET);
+		ret = zfseeko(zip, info->local_offset, SEEK_SET);
 		if (ret)
 			goto err;
 
-		len = zfread(f, buf, LOCAL_HEADER_LEN, 1);
+		len = zfread(zip, buf, LOCAL_HEADER_LEN, 1);
 		if (len != 1)
 			goto err;
 
@@ -917,12 +919,12 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 			goto err;
 
 		/* skip filename */
-		ret = zfseeko(f, loc.filename_length, SEEK_CUR);
+		ret = zfseeko(zip, loc.filename_length, SEEK_CUR);
 		if (ret)
 			goto err;
 
 		/* skip extra field */
-		ret = zfseeko(f, loc.extra_length, SEEK_CUR);
+		ret = zfseeko(zip, loc.extra_length, SEEK_CUR);
 		if (ret)
 			goto err;
 
@@ -934,16 +936,16 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 
 		if (is_encrypted(info->header.gen_bit_flag)) {
 			info->encrypt_header.magic = check_byte(&info->header);
-			info->header_offset = ftello(f->stream);
+			info->header_offset = ftello(zip->stream);
 			info->begin_offset = info->header_offset + ENC_HEADER_LEN;
 			info->end_offset = info->header_offset + comp_size;
-			len = zfread(f, info->encrypt_header.buf, ENC_HEADER_LEN, 1);
+			len = zfread(zip, info->encrypt_header.buf, ENC_HEADER_LEN, 1);
 			if (len != 1)
 				goto err;
 		} else {
 			info->encrypt_header.magic = 0;
 			info->header_offset = -1;
-			info->begin_offset = ftello(f->stream);
+			info->begin_offset = ftello(zip->stream);
 			info->end_offset = info->begin_offset + comp_size;
 		}
 
@@ -960,11 +962,11 @@ static int read_all_entries_at(struct zc_file *f, off_t cd_offset, uint64_t nben
 	return 0;
 
 err:
-	clear_info_list(f);
+	clear_info_list(zip);
 	return -1;
 }
 
-static int fill_info_list_central_directory(struct zc_file *f)
+static int fill_info_list_central_directory(struct zc_zip *zip)
 {
 	int err, fd;
 	struct stat sb;
@@ -974,7 +976,7 @@ static int fill_info_list_central_directory(struct zc_file *f)
 	const uint8_t *end;
 	size_t len, to_read = CD_BUF_LEN;
 
-	fd = fileno(f->stream);
+	fd = fileno(zip->stream);
 	if (fd < 0) {
 		err("fileno() failed: %s\n", strerror(errno));
 		return -1;
@@ -987,25 +989,25 @@ static int fill_info_list_central_directory(struct zc_file *f)
 	}
 
 	/*
-	 * file is actually smaller than max buffer size, read the
-	 * whole file in this case.
+	 * If the ZIP is smaller than the maximum buffer size, read the
+	 * whole archive.
 	 */
 	if (sb.st_size < CD_BUF_LEN)
 		to_read = sb.st_size;
 
-	dbg("Detected file size: %zu bytes\n", sb.st_size);
+	dbg("Detected ZIP size: %zu bytes\n", sb.st_size);
 	dbg("Bytes to read: %zu\n", to_read);
 
-	err = zfseeko(f, -(off_t)to_read, SEEK_END);
+	err = zfseeko(zip, -(off_t)to_read, SEEK_END);
 	if (err)
 		return -1;
 
-	len = zfread(f, f->search_buf, to_read, 1);
+	len = zfread(zip, zip->search_buf, to_read, 1);
 	if (len != 1)
 		return -1;
 
 	/* start searching from beginning of the buffer */
-	from = f->search_buf;
+	from = zip->search_buf;
 	end = from + to_read - 1;
 
 	while (1) {
@@ -1045,7 +1047,7 @@ static int fill_info_list_central_directory(struct zc_file *f)
 		dbg("\tcomment_len: %d\n",
 		    eocd.comment_len);
 
-		err = find_cd_offset_from_eocd(f, &eocd, from, &cd_offset,
+		err = find_cd_offset_from_eocd(zip, &eocd, from, &cd_offset,
 					       &entries_in_cd);
 		if (err) {
 			to_read = rem;
@@ -1055,14 +1057,14 @@ static int fill_info_list_central_directory(struct zc_file *f)
 
 		/* basic sanity checks */
 		if (!entries_in_cd || cd_offset > sb.st_size) {
-			err("detected invalid zip file: entries_in_cd: %"PRIu64", cd_offset: 0x%016jx\n",
+			err("detected invalid ZIP: entries_in_cd: %"PRIu64", cd_offset: 0x%016jx\n",
 			    entries_in_cd, cd_offset);
 			to_read = rem;
 			from++;
 			continue;
 		}
 
-		err = read_all_entries_at(f, cd_offset, entries_in_cd);
+		err = read_all_entries_at(zip, cd_offset, entries_in_cd);
 		if (!err)
 			break;
 		else {
@@ -1078,44 +1080,44 @@ err1:
 	return -1;
 }
 
-void zc_file_destroy(struct zc_file *f)
+void zc_zip_destroy(struct zc_zip *zip)
 {
-	if (!f)
+	if (!zip)
 		return;
-	if (f->stream) {
-		clear_info_list(f);
-		fclose(f->stream);
+	if (zip->stream) {
+		clear_info_list(zip);
+		fclose(zip->stream);
 	}
-	dbg("file %p released\n", f);
-	free(f->filename);
-	free(f);
+	dbg("zip %p released\n", zip);
+	free(zip->filename);
+	free(zip);
 }
 
-int zc_file_new_from_filename(const char *filename, struct zc_file **file)
+int zc_zip_new_from_filename(const char *filename, struct zc_zip **zip)
 {
-	struct zc_file *newfile;
+	struct zc_zip *newzip;
 
-	newfile = calloc(1, sizeof(struct zc_file));
-	if (!newfile)
+	newzip = calloc(1, sizeof(struct zc_zip));
+	if (!newzip)
 		return -1;
 
-	newfile->filename = strdup(filename);
-	INIT_LIST_HEAD(&newfile->info_head);
-	*file = newfile;
-	dbg("file %p created for %s\n", newfile, filename);
+	newzip->filename = strdup(filename);
+	INIT_LIST_HEAD(&newzip->info_head);
+	*zip = newzip;
+	dbg("zip %p created for %s\n", newzip, filename);
 	return 0;
 }
 
-const char *zc_file_get_filename(const struct zc_file *f)
+const char *zc_zip_get_filename(const struct zc_zip *zip)
 {
-	return f->filename;
+	return zip->filename;
 }
 
-int zc_file_open(struct zc_file *f)
+int zc_zip_open(struct zc_zip *zip)
 {
 	FILE *stream;
 
-	if (zc_file_isopened(f))
+	if (zc_zip_isopened(zip))
 		return -1;
 
 	/*
@@ -1133,19 +1135,19 @@ int zc_file_open(struct zc_file *f)
 	 *
 	 * Required for the Windows (minmgw64) build.
 	 */
-	stream = fopen(f->filename, "rb");
+	stream = fopen(zip->filename, "rb");
 	if (!stream) {
 		err("fopen(%s) failed: %s.\n",
-		    f->filename,
+		    zip->filename,
 		    strerror(errno));
 		return -1;
 	}
 
-	dbg("file %s open returned: %p\n", f->filename, stream);
+	dbg("zip %s open returned: %p\n", zip->filename, stream);
 
-	f->stream = stream;
+	zip->stream = stream;
 
-	if (fill_info_list_central_directory(f)) {
+	if (fill_info_list_central_directory(zip)) {
 		err("failure while reading headers.\n");
 		goto err;
 	}
@@ -1153,36 +1155,36 @@ int zc_file_open(struct zc_file *f)
 	return 0;
 
 err:
-	fclose(f->stream);
-	f->stream = NULL;
+	fclose(zip->stream);
+	zip->stream = NULL;
 	return -1;
 }
 
-int zc_file_close(struct zc_file *f)
+int zc_zip_close(struct zc_zip *zip)
 {
-	if (!zc_file_isopened(f))
+	if (!zc_zip_isopened(zip))
 		return -1;
 
-	clear_info_list(f);
+	clear_info_list(zip);
 
-	if (fclose(f->stream)) {
+	if (fclose(zip->stream)) {
 		err("fclose() failed: %s.\n", strerror(errno));
 		return -1;
 	}
 
-	dbg("file %p closed\n", f);
+	dbg("zip %p closed\n", zip);
 
-	f->stream = NULL;
+	zip->stream = NULL;
 
 	return 0;
 }
 
-bool zc_file_isopened(const struct zc_file *f)
+bool zc_zip_isopened(const struct zc_zip *zip)
 {
-	return (f->stream != NULL);
+	return zip->stream != NULL;
 }
 
-static bool consider_file(const struct zc_info *info)
+static bool consider_entry(const struct zc_zip_info *info)
 {
 	if (!is_encrypted(info->header.gen_bit_flag) ||
 	    (!is_deflated(info->header.comp_method) &&
@@ -1194,21 +1196,22 @@ static bool consider_file(const struct zc_info *info)
 /**
  * read_zc_header:
  *
- * Read the validation data from the file and store them in the header
+ * Read the validation data from the ZIP and store them in the header
  * array. At most nmemb elements will be stored in the array.
  *
- * The file must be opened before calling this function.
+ * The ZIP must be opened before calling this function.
  *
- * @retval 0  No encryption data found in this file.
+ * @retval 0  No encryption data found in this ZIP.
  * @retval >0 The number of encryption data objects read.
  */
-size_t read_zc_header(const struct zc_file *f, struct zc_header *h, size_t len)
+static size_t read_zc_header(const struct zc_zip *zip, struct zc_header *h,
+			     size_t len)
 {
-	const struct zc_info *info;
+	const struct zc_zip_info *info;
 	size_t valid = 0;
 
-	list_for_each_entry(info, &f->info_head, list) {
-		if (!consider_file(info))
+	list_for_each_entry(info, &zip->info_head, list) {
+		if (!consider_entry(info))
 			continue;
 
 		h[valid].magic = info->encrypt_header.magic;
@@ -1221,13 +1224,13 @@ size_t read_zc_header(const struct zc_file *f, struct zc_header *h, size_t len)
 	return valid;
 }
 
-static const struct zc_info *find_file_smallest(const struct zc_file *f)
+static const struct zc_zip_info *find_smallest_entry(const struct zc_zip *zip)
 {
-	const struct zc_info *info, *ret = NULL;
+	const struct zc_zip_info *info, *ret = NULL;
 	long s = LONG_MAX;
 
-	list_for_each_entry(info, &f->info_head, list) {
-		if (!consider_file(info))
+	list_for_each_entry(info, &zip->info_head, list) {
+		if (!consider_entry(info))
 			continue;
 		long tmp = info->end_offset - info->begin_offset;
 		if (tmp < s) {
@@ -1239,20 +1242,21 @@ static const struct zc_info *find_file_smallest(const struct zc_file *f)
 	return ret;
 }
 
-int read_crypt_data(struct zc_file *f, unsigned char **buf,
-		    size_t *out_len, uint32_t *original_crc, bool *deflated)
+static int read_crypt_data(struct zc_zip *zip, unsigned char **buf,
+			   size_t *out_len, uint32_t *original_crc,
+			   bool *deflated)
 {
-	const struct zc_info *info;
+	const struct zc_zip_info *info;
 	size_t to_read;
 	int err;
 
-	info = find_file_smallest(f);
+	info = find_smallest_entry(zip);
 	if (!info)
 		return -1;
 
 	to_read = info->end_offset - info->header_offset;
 
-	err = zfseeko(f, info->header_offset, SEEK_SET);
+	err = zfseeko(zip, info->header_offset, SEEK_SET);
 	if (err)
 		return -1;
 
@@ -1262,7 +1266,7 @@ int read_crypt_data(struct zc_file *f, unsigned char **buf,
 		return -1;
 	}
 
-	size_t len = zfread(f, tmp, 1, to_read);
+	size_t len = zfread(zip, tmp, 1, to_read);
 	if (len != to_read)
 		goto err;
 
@@ -1278,113 +1282,113 @@ err:
 	return -1;
 }
 
-const struct zc_info *zc_file_info_next(const struct zc_file *f,
-					const struct zc_info *info)
+const struct zc_zip_info *zc_zip_info_next(const struct zc_zip *zip,
+					   const struct zc_zip_info *info)
 {
-	const struct zc_info *i;
+	const struct zc_zip_info *i;
 
 	if (!info)
-		return list_entry(f->info_head.next, const struct zc_info, list);
+		return list_entry(zip->info_head.next, const struct zc_zip_info,
+				  list);
 
-	if (info->list.next == &f->info_head)
+	if (info->list.next == &zip->info_head)
 		return NULL;
 
-	i = list_entry(info->list.next, const struct zc_info, list);
+	i = list_entry(info->list.next, const struct zc_zip_info, list);
 
 	return i;
 }
 
-const char *zc_file_info_name(const struct zc_info *info)
+const char *zc_zip_info_name(const struct zc_zip_info *info)
 {
 	return info->header.filename;
 }
 
-uint64_t zc_file_info_size(const struct zc_info *info)
+uint64_t zc_zip_info_size(const struct zc_zip_info *info)
 {
 	if (info->header.uncomp_size == UINT32_MAX)
 		return info->extra.uncomp_size;
 	return info->header.uncomp_size;
 }
 
-uint64_t zc_file_info_compressed_size(const struct zc_info *info)
+uint64_t zc_zip_info_compressed_size(const struct zc_zip_info *info)
 {
 	if (info->header.comp_size == UINT32_MAX)
 		return info->extra.comp_size;
 	return info->header.comp_size;
 }
 
-off_t zc_file_info_offset_begin(const struct zc_info *info)
+off_t zc_zip_info_offset_begin(const struct zc_zip_info *info)
 {
 	return info->begin_offset;
 }
 
-off_t zc_file_info_offset_end(const struct zc_info *info)
+off_t zc_zip_info_offset_end(const struct zc_zip_info *info)
 {
 	return info->end_offset;
 }
 
-off_t zc_file_info_crypt_header_offset(const struct zc_info *info)
+off_t zc_zip_info_crypt_header_offset(const struct zc_zip_info *info)
 {
 	return info->header_offset;
 }
 
-const uint8_t *zc_file_info_enc_header(const struct zc_info *info)
+const uint8_t *zc_zip_info_enc_header(const struct zc_zip_info *info)
 {
 	return info->encrypt_header.buf;
 }
 
-int zc_file_info_idx(const struct zc_info *info)
+int zc_zip_info_idx(const struct zc_zip_info *info)
 {
 	return info->idx;
 }
 
-int zc_fill_header(const char *filename, struct zc_header *h,
-		   size_t len)
+int zc_zip_fill_header(const char *filename, struct zc_header *h, size_t len)
 {
-	struct zc_file *file;
+	struct zc_zip *zip;
 	int err;
 
-	err = zc_file_new_from_filename(filename, &file);
+	err = zc_zip_new_from_filename(filename, &zip);
 	if (err)
 		return -1;
 
-	err = zc_file_open(file);
+	err = zc_zip_open(zip);
 	if (err) {
-		zc_file_destroy(file);
+		zc_zip_destroy(zip);
 		return -1;
 	}
 
-	int size = read_zc_header(file, h, len);
+	int size = read_zc_header(zip, h, len);
 
-	zc_file_close(file);
-	zc_file_destroy(file);
+	zc_zip_close(zip);
+	zc_zip_destroy(zip);
 
 	return size;
 }
 
-int zc_fill_test_cipher(const char *filename,
-			unsigned char **buf, size_t *len, uint32_t *original_crc,
-			bool *is_deflated)
+int zc_zip_fill_test_cipher(const char *filename, unsigned char **buf,
+			    size_t *len, uint32_t *original_crc,
+			    bool *is_deflated)
 {
-	struct zc_file *file;
+	struct zc_zip *zip;
 	int err;
 
-	err = zc_file_new_from_filename(filename, &file);
+	err = zc_zip_new_from_filename(filename, &zip);
 	if (err)
 		goto err1;
 
-	err = zc_file_open(file);
+	err = zc_zip_open(zip);
 	if (err)
 		goto err2;
 
-	err = read_crypt_data(file, buf, len, original_crc, is_deflated);
-	zc_file_close(file);
-	zc_file_destroy(file);
+	err = read_crypt_data(zip, buf, len, original_crc, is_deflated);
+	zc_zip_close(zip);
+	zc_zip_destroy(zip);
 
 	return err ? -1 : 0;
 
 err2:
-	zc_file_destroy(file);
+	zc_zip_destroy(zip);
 err1:
 	return -1;
 }

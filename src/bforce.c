@@ -30,6 +30,7 @@
 #include "list.h"
 #include "pwstream.h"
 #include "mask_parser.h"
+#include "zip.h"
 
 /* The length here refers to the length of the 'candidate' field. */
 #define LEN 64UL
@@ -920,7 +921,7 @@ int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 		return -1;
 	}
 
-	err = zc_fill_header(filename, crk->header, HEADER_MAX);
+	err = zc_zip_fill_header(filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err("failed to read validation data, no usable entry found\n");
 		return -1;
@@ -934,7 +935,7 @@ int zc_crk_bforce_init(struct zc_crk_bforce *crk,
 		free(crk->cipher);
 		crk->cipher = NULL;
 	}
-	err = zc_fill_test_cipher(filename, &crk->cipher,
+	err = zc_zip_fill_test_cipher(filename, &crk->cipher,
 				  &crk->cipher_size, &crk->original_crc,
 				  &crk->cipher_is_deflated);
 	if (err) {

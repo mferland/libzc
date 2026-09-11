@@ -28,11 +28,6 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 
 size_t threads_to_create(long forced);
 
-size_t read_zc_header(const struct zc_file *file, struct zc_header *h, size_t len);
-
-int read_crypt_data(struct zc_file *file, unsigned char **buf, size_t *len,
-		    uint32_t *original_crc, bool *is_deflated);
-
 void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 	     const struct zc_key *key);
 

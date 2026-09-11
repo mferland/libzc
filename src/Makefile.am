@@ -54,7 +54,8 @@ libyazc_core_a_SOURCES = \
 	bforce.c \
 	dict.c \
 	ptext.c \
-	file.c \
+	zip.c \
+	zip.h \
 	sys.c \
 	qsort.h \
 	qsort.c \

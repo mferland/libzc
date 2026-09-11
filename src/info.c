@@ -25,6 +25,7 @@
 
 #include "yazc.h"
 #include "zc.h"
+#include "zip.h"
 
 #define MAX(a, b) ((a > b) ? a : b)
 
@@ -47,8 +48,8 @@ static void print_help(const char *cmdname)
 static int do_info(int argc, char *argv[])
 {
 	const char *filename;
-	struct zc_file *file;
-	const struct zc_info *info;
+	struct zc_zip *zip;
+	const struct zc_zip_info *info;
 	int err = EXIT_SUCCESS, c, idx;
 
 	c = getopt_long(argc, argv, short_opts, long_opts, &idx);
@@ -70,58 +71,58 @@ static int do_info(int argc, char *argv[])
 
 	filename = argv[optind];
 
-	if (zc_file_new_from_filename(filename, &file)) {
-		cli_err("zc_file_new_from_filename() failed!\n");
+	if (zc_zip_new_from_filename(filename, &zip)) {
+		cli_err("zc_zip_new_from_filename() failed!\n");
 		return EXIT_FAILURE;
 	}
 
-	if (zc_file_open(file)) {
-		cli_err("zc_file_open() failed!\n");
+	if (zc_zip_open(zip)) {
+		cli_err("zc_zip_open() failed!\n");
 		err = EXIT_FAILURE;
 		goto err2;
 	}
 
 	size_t fn_max_len = 0, crypt_max_len = 0, offset_begin_max_len = 0,
 	       offset_end_max_len = 0, size_max_len = 0, csize_max_len = 0;
-	info = zc_file_info_next(file, NULL);
+	info = zc_zip_info_next(zip, NULL);
 	while (info) {
 		char buf[256];
 		/* filename */
-		size_t tmp1 = strlen(zc_file_info_name(info));
+		size_t tmp1 = strlen(zc_zip_info_name(info));
 		if (tmp1 > fn_max_len)
 			fn_max_len = tmp1;
 		/* offset encrypted header */
 		snprintf(buf, sizeof(buf), "%jd",
-			 (intmax_t)zc_file_info_crypt_header_offset(info));
+			 (intmax_t)zc_zip_info_crypt_header_offset(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > crypt_max_len)
 			crypt_max_len = tmp1;
 		/* offset begin */
 		snprintf(buf, sizeof(buf), "%jd",
-			 zc_file_info_offset_begin(info));
+			 zc_zip_info_offset_begin(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_begin_max_len)
 			offset_begin_max_len = tmp1;
 		/* offset end */
 		snprintf(buf, sizeof(buf), "%jd",
-			 zc_file_info_offset_end(info));
+			 zc_zip_info_offset_end(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > offset_end_max_len)
 			offset_end_max_len = tmp1;
 		/* size */
 		snprintf(buf, sizeof(buf), "%"PRIu64,
-			 zc_file_info_size(info));
+			 zc_zip_info_size(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > size_max_len)
 			size_max_len = tmp1;
 		/* compressed size */
 		snprintf(buf, sizeof(buf), "%"PRIu64,
-			 zc_file_info_compressed_size(info));
+			 zc_zip_info_compressed_size(info));
 		tmp1 = strlen(buf);
 		if (tmp1 > csize_max_len)
 			csize_max_len = tmp1;
 
-		info = zc_file_info_next(file, info);
+		info = zc_zip_info_next(zip, info);
 	}
 
 	printf("%-5s %*s %*s %*s %*s %-24s\n",
@@ -138,31 +139,31 @@ static int do_info(int argc, char *argv[])
 	       "CSIZE",
 	       "ENCRYPTED HEADER");
 
-	info = zc_file_info_next(file, NULL);
+	info = zc_zip_info_next(zip, NULL);
 	while (info) {
-		const uint8_t *ehdr = zc_file_info_enc_header(info);
+		const uint8_t *ehdr = zc_zip_info_enc_header(info);
 		printf("%5d %*s %*jd %*jd %*jd %*"PRIu64" %*"PRIu64" %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-		       zc_file_info_idx(info),
+		       zc_zip_info_idx(info),
 		       (int)(-MAX(fn_max_len, 8)),
-		       zc_file_info_name(info),
+		       zc_zip_info_name(info),
 		       (int)(-crypt_max_len),
-		       (intmax_t)zc_file_info_crypt_header_offset(info),
+		       (intmax_t)zc_zip_info_crypt_header_offset(info),
 		       (int)(-offset_begin_max_len),
-		       (intmax_t)zc_file_info_offset_begin(info),
+		       (intmax_t)zc_zip_info_offset_begin(info),
 		       (int)(-offset_end_max_len),
-		       (intmax_t)zc_file_info_offset_end(info),
+		       (intmax_t)zc_zip_info_offset_end(info),
 		       (int)(-MAX(size_max_len, 4)),
-		       zc_file_info_size(info),
+		       zc_zip_info_size(info),
 		       (int)(-MAX(csize_max_len, 5)),
-		       zc_file_info_compressed_size(info),
+		       zc_zip_info_compressed_size(info),
 		       ehdr[0], ehdr[1], ehdr[2], ehdr[3], ehdr[4], ehdr[5],
 		       ehdr[6], ehdr[7], ehdr[8], ehdr[9], ehdr[10], ehdr[11]);
-		info = zc_file_info_next(file, info);
+		info = zc_zip_info_next(zip, info);
 	}
 
-	zc_file_close(file);
+	zc_zip_close(zip);
 err2:
-	zc_file_destroy(file);
+	zc_zip_destroy(zip);
 	return err;
 }
 

@@ -24,6 +24,7 @@
 #include "inflate.h"
 #include "libzc.h"
 #include "libzc_private.h"
+#include "zip.h"
 
 struct zc_crk_dict {
 	char *filename;
@@ -86,7 +87,7 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 		goto err1;
 	}
 
-	err = zc_fill_header(filename, crk->header, HEADER_MAX);
+	err = zc_zip_fill_header(filename, crk->header, HEADER_MAX);
 	if (err < 1) {
 		err("failed to read validation data\n");
 		goto err2;
@@ -94,7 +95,7 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 
 	crk->header_size = err;
 
-	err = zc_fill_test_cipher(filename, &crk->cipher,
+	err = zc_zip_fill_test_cipher(filename, &crk->cipher,
 				  &crk->cipher_size, &crk->original_crc,
 				  &crk->cipher_is_deflated);
 	if (err) {

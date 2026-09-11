@@ -20,16 +20,17 @@
 #include <stdlib.h>
 /* libzc */
 #include <libzc.h>
+#include "zip.h"
 
-START_TEST(test_zc_file_lifecycle)
+START_TEST(test_zc_zip_lifecycle)
 {
-	struct zc_file *file;
+	struct zc_zip *zip;
 
-	ck_assert_int_eq(zc_file_new_from_filename(DATADIR "test.zip", &file), 0);
-	ck_assert_ptr_nonnull(file);
-	ck_assert_int_eq(zc_file_open(file), 0);
-	zc_file_destroy(file);
-	zc_file_destroy(NULL);
+	ck_assert_int_eq(zc_zip_new_from_filename(DATADIR "test.zip", &zip), 0);
+	ck_assert_ptr_nonnull(zip);
+	ck_assert_int_eq(zc_zip_open(zip), 0);
+	zc_zip_destroy(zip);
+	zc_zip_destroy(NULL);
 }
 END_TEST
 
@@ -76,7 +77,7 @@ Suite *basic_suite(void)
 
 	tc_core = tcase_create("Core");
 
-	tcase_add_test(tc_core, test_zc_file_lifecycle);
+	tcase_add_test(tc_core, test_zc_zip_lifecycle);
 	tcase_add_test(tc_core, test_zc_crk_dict_lifecycle);
 	tcase_add_test(tc_core, test_zc_crk_bforce_lifecycle);
 	tcase_add_test(tc_core, test_zc_crk_ptext_lifecycle);

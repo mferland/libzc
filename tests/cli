@@ -33,7 +33,7 @@ if grep -q "^yazc:" "$tmpdir/log-off.err"; then
 	echo "ZC_LOG=0 did not suppress engine logging" >&2
 	exit 1
 fi
-grep -q "^error: zc_file_open() failed" "$tmpdir/log-off.err"
+grep -q "^error: zc_zip_open() failed" "$tmpdir/log-off.err"
 
 if ZC_LOG=err "$YAZC" info "$tmpdir/missing.zip" \
 	>"$tmpdir/log-error.out" 2>"$tmpdir/log-error.err"; then
@@ -42,7 +42,7 @@ if ZC_LOG=err "$YAZC" info "$tmpdir/missing.zip" \
 fi
 config_h=$(dirname "$YAZC")/../config.h
 if grep -q "^#define ENABLE_LOGGING 1" "$config_h"; then
-	grep -q "^yazc: zc_file_open: fopen" "$tmpdir/log-error.err"
+	grep -q "^yazc: zc_zip_open: fopen" "$tmpdir/log-error.err"
 elif grep -q "^yazc:" "$tmpdir/log-error.err"; then
 	echo "engine logging was not disabled" >&2
 	exit 1

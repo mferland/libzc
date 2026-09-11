@@ -33,6 +33,7 @@
 
 #include "yazc.h"
 #include "zc.h"
+#include "zip.h"
 
 static const char short_opts[] = "t:ofipSh";
 static const struct option long_opts[] = {
@@ -127,7 +128,7 @@ enum text_src { SRC_PLAIN = 0, SRC_CIPHER, SRC_NUM };
 
 static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 {
-	struct zc_file *f;
+	struct zc_zip *zip;
 	const char *filename, *entry;
 	int err = 0, matches = 0;
 
@@ -139,34 +140,34 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
 		    entry);
 
-		err = zc_file_new_from_filename(filename, &f);
+		err = zc_zip_new_from_filename(filename, &zip);
 		if (err)
 			goto err1;
 
-		err = zc_file_open(f);
+		err = zc_zip_open(zip);
 		if (err) {
-			zc_file_destroy(f);
+			zc_zip_destroy(zip);
 			goto err1;
 		}
 
-		const struct zc_info *info = zc_file_info_next(f, NULL);
+		const struct zc_zip_info *info = zc_zip_info_next(zip, NULL);
 		while (info) {
-			if (strcmp(zc_file_info_name(info), entry) != 0)
+			if (strcmp(zc_zip_info_name(info), entry) != 0)
 				/* filenames do not match */
 				goto next;
 
 			if ((src == SRC_PLAIN &&
-			     zc_file_info_crypt_header_offset(info) != -1) ||
+			     zc_zip_info_crypt_header_offset(info) != -1) ||
 			    (src == SRC_CIPHER &&
-			     zc_file_info_crypt_header_offset(info) == -1))
+			     zc_zip_info_crypt_header_offset(info) == -1))
 				/* plaintext is encrypted or ciphertext is not encrypted ? */
 				goto next;
 
 			/* found match */
 			struct filed *fd = src == SRC_PLAIN ? &opts->plain : &opts->cipher;
-			fd->txt_begin = zc_file_info_offset_begin(info);
-			fd->txt_end = zc_file_info_offset_end(info);
-			fd->file_begin = zc_file_info_crypt_header_offset(info);
+			fd->txt_begin = zc_zip_info_offset_begin(info);
+			fd->txt_end = zc_zip_info_offset_end(info);
+			fd->file_begin = zc_zip_info_crypt_header_offset(info);
 			fd->name = filename;
 			matches++;
 			cli_dbg("found match: %s %lld %lld %lld\n", entry,
@@ -174,11 +175,11 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 			    (long long)fd->file_begin);
 			break;
 next:
-			cli_dbg("skipping %s\n", zc_file_info_name(info));
-			info = zc_file_info_next(f, info);
+			cli_dbg("skipping %s\n", zc_zip_info_name(info));
+			info = zc_zip_info_next(zip, info);
 		}
-		zc_file_close(f);
-		zc_file_destroy(f);
+		zc_zip_close(zip);
+		zc_zip_destroy(zip);
 	}
 err1:
 	if (err)

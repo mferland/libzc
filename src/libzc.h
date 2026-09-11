@@ -19,38 +19,11 @@
 #ifndef _LIBZC_H_
 #define _LIBZC_H_
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 void zc_log_init(void);
 int zc_get_log_priority(void);
-
-/* TODO: remove */
-struct zc_header;
-
-struct zc_file;
-void zc_file_destroy(struct zc_file *file);
-int zc_file_new_from_filename(const char *filename, struct zc_file **file);
-const char *zc_file_get_filename(const struct zc_file *file);
-int zc_file_open(struct zc_file *file);
-int zc_file_close(struct zc_file *file);
-bool zc_file_isopened(const struct zc_file *file);
-int zc_fill_header(const char *filename, struct zc_header *h, size_t len);
-int zc_fill_test_cipher(const char *filename,
-			unsigned char **buf, size_t *len, uint32_t *original_crc,
-			bool *is_deflated);
-
-struct zc_info;
-const struct zc_info *zc_file_info_next(const struct zc_file *, const struct zc_info *info);
-const char *zc_file_info_name(const struct zc_info *info);
-uint64_t zc_file_info_size(const struct zc_info *info);
-uint64_t zc_file_info_compressed_size(const struct zc_info *info);
-off_t zc_file_info_offset_begin(const struct zc_info *info);
-off_t zc_file_info_offset_end(const struct zc_info *info);
-off_t zc_file_info_crypt_header_offset(const struct zc_info *info);
-const uint8_t *zc_file_info_enc_header(const struct zc_info *info);
-int zc_file_info_idx(const struct zc_info *info);
 
 struct zc_mask {
 	size_t minlen;		/* 0 --> use mask length */
