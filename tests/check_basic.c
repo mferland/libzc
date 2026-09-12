@@ -20,6 +20,7 @@
 #include <stdlib.h>
 /* libzc */
 #include <libzc.h>
+#include "dict.h"
 #include "ptext.h"
 #include "zip.h"
 

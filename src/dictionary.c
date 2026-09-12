@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#include "dict.h"
 #include "yazc.h"
 #include "zc.h"
 

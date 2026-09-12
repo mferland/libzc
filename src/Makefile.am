@@ -51,6 +51,7 @@ libyazc_core_a_SOURCES = \
 	pool.h \
 	bforce.c \
 	dict.c \
+	dict.h \
 	ptext.c \
 	zip.c \
 	zip.h \

@@ -30,13 +30,6 @@ struct zc_mask {
 	const char *str;
 };
 
-struct zc_crk_dict;
-void zc_crk_dict_destroy(struct zc_crk_dict *crk);
-int zc_crk_dict_new(struct zc_crk_dict **crk);
-int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
-int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
-		      size_t len);
-
 #define ZC_PW_MINLEN	  1
 #define ZC_PW_MAXLEN	  16
 #define ZC_CHARSET_MAXLEN 96

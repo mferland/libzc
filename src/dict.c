@@ -21,8 +21,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dict.h"
 #include "inflate.h"
-#include "libzc.h"
 #include "zc.h"
 #include "zip.h"
 
