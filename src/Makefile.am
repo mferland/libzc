@@ -66,10 +66,10 @@ libyazc_core_a_SOURCES = \
 bin_PROGRAMS = yazc
 yazc_SOURCES = \
 	yazc.c \
-	bruteforce.c \
-	dictionary.c \
-	plaintext.c \
-	info.c \
+	yazc-bruteforce.c \
+	yazc-dictionary.c \
+	yazc-plaintext.c \
+	yazc-info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS)
 yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS)
