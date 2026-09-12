@@ -24,6 +24,7 @@
 
 #include "crc32.h"
 #include "list.h"
+#include "log.h"
 #include "ptext.h"
 #include "pool.h"
 #include "zc.h"

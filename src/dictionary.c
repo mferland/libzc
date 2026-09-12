@@ -23,8 +23,8 @@
 #include <sys/time.h>
 
 #include "dict.h"
+#include "log.h"
 #include "yazc.h"
-#include "zc.h"
 
 #define LINE_BUF_LEN 256
 

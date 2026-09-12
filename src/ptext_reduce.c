@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 
+#include "log.h"
 #include "ptext.h"
 #include "pool.h"
 #include "zc.h"

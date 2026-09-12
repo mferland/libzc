@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "list.h"
+#include "log.h"
 #include "pool.h"
 #include "zc.h"
 

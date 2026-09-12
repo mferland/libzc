@@ -23,8 +23,8 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "log.h"
 #include "yazc.h"
-#include "zc.h"
 #include "zip.h"
 
 #define MAX(a, b) ((a > b) ? a : b)

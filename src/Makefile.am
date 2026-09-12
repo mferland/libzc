@@ -37,8 +37,8 @@ libyazc_core_a_SOURCES = \
 	find_password.c \
 	inflate.c \
 	inflate.h \
-	libzc.c \
-	libzc.h \
+	log.c \
+	log.h \
 	list.h \
 	mask_scanner.l \
 	mask_parser.y \
@@ -50,6 +50,7 @@ libyazc_core_a_SOURCES = \
 	pool.c \
 	pool.h \
 	bforce.c \
+	bforce.h \
 	dict.c \
 	dict.h \
 	ptext.c \

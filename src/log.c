@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  zc - zip crack application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,13 @@
  */
 
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "decrypt_byte.h"
-#include "zc.h"
+#include "log.h"
 
 static int current_log_priority = LOG_ERR;
 static bool log_initialized;
@@ -55,6 +56,17 @@ void zc_trace(const char *file, int line, const char *fn, const char *format,
 	fprintf(stderr, "trace: %s:%d:%s: ", file, line, fn);
 	vfprintf(stderr, format, args);
 	va_end(args);
+}
+
+void fatal(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	exit(EXIT_FAILURE);
 }
 
 static int log_priority(const char *priority)

@@ -23,9 +23,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bforce.h"
 #include "compat.h"
 #include "inflate.h"
-#include "libzc.h"
+#include "log.h"
 #include "zc.h"
 #include "list.h"
 #include "pwstream.h"

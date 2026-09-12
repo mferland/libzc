@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "libzc.h"
+#include "bforce.h"
 #include "mask_parser.h"
 
 struct zc_crk_bforce *crk;

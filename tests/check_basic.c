@@ -18,8 +18,7 @@
 
 #include <check.h>
 #include <stdlib.h>
-/* libzc */
-#include <libzc.h>
+#include "bforce.h"
 #include "dict.h"
 #include "ptext.h"
 #include "zip.h"

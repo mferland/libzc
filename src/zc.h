@@ -19,104 +19,11 @@
 #ifndef ZC_H
 #define ZC_H
 
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-#include "config.h"
-
-#ifndef WIN32
-#include <syslog.h>
-#endif
 
 #include "crc32.h"
-#include "libzc.h"
-
-#ifdef WIN32
-#define LOG_EMERG   0 /* system is unusable */
-#define LOG_ALERT   1 /* action must be taken immediately */
-#define LOG_CRIT    2 /* critical conditions */
-#define LOG_ERR     3 /* error conditions */
-#define LOG_WARNING 4 /* warning conditions */
-#define LOG_NOTICE  5 /* normal but significant condition */
-#define LOG_INFO    6 /* informational */
-#define LOG_DEBUG   7 /* debug-level messages */
-#endif
-
-#ifdef __MINGW64__
-#define __ZC_PRINTF_FORMAT __MINGW_PRINTF_FORMAT
-#else
-#define __ZC_PRINTF_FORMAT printf
-#endif
-
-static inline void __attribute__((always_inline, format(__ZC_PRINTF_FORMAT, 1, 2)))
-zc_log_null(const char *format __attribute__((__unused__)), ...)
-{
-}
-
-void zc_log(int priority, const char *file, int line, const char *fn,
-	    const char *format, ...)
-__attribute__((format(__ZC_PRINTF_FORMAT, 5, 6)));
-
-void zc_trace(const char *file, int line, const char *fn, const char *format,
-	      ...) __attribute__((format(__ZC_PRINTF_FORMAT, 4, 5)));
-
-/*
- * User-facing command messages are deliberately not filtered by ZC_LOG.
- * Passing no source context keeps their established error:/info:/dbg: form,
- * while engine diagnostics below retain their function-name context.
- */
-#define cli_err(arg...)  zc_log(LOG_ERR, NULL, 0, NULL, ##arg)
-#define cli_info(arg...) zc_log(LOG_INFO, NULL, 0, NULL, ##arg)
-
-#ifdef ENABLE_DEBUG
-#define cli_dbg(arg...) zc_log(LOG_DEBUG, NULL, 0, NULL, ##arg)
-#else
-#define cli_dbg(arg...) zc_log_null(arg)
-#endif
-
-#define zc_log_cond(prio, arg...)                                           \
-	do {                                                                \
-		if (zc_get_log_priority() >= prio)                          \
-			zc_log(prio, __FILE__, __LINE__, __FUNCTION__,      \
-			       ##arg);                                      \
-	} while (0)
-
-#define zc_log_trace(arg...)                                     \
-	do {                                                     \
-		zc_trace(__FILE__, __LINE__, __FUNCTION__, arg); \
-	} while (0)
-
-#ifdef ENABLE_LOGGING
-#  ifdef ENABLE_DEBUG
-#    define dbg(arg...) zc_log_cond(LOG_DEBUG, ## arg)
-#    define trace(arg...) zc_log_trace(arg)
-#  else
-#    define dbg(arg...) zc_log_null(arg)
-#    define trace(arg...) zc_log_null(arg)
-#  endif
-#  define info(arg...) zc_log_cond(LOG_INFO, ## arg)
-#  define err(arg...) zc_log_cond(LOG_ERR, ## arg)
-#else
-#  define dbg(arg...) zc_log_null(arg)
-#  define info(arg...) zc_log_null(arg)
-#  define err(arg...) zc_log_null(arg)
-#  define trace(arg...) zc_log_null(arg)
-#endif
-
-static inline void fatal(const char *format, ...)
-{
-	va_list args;
-
-	va_start(args, format);
-	vfprintf(stderr, format, args);
-	va_end(args);
-
-	exit(EXIT_FAILURE);
-}
 
 #define MULT           134775813u
 #define MULTINV        3645876429u /* modular multiplicative inverse mod2^32 */

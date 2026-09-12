@@ -25,8 +25,8 @@
 #include <sys/time.h>
 
 #include "config.h"
+#include "log.h"
 #include "yazc.h"
-#include "zc.h"
 
 #define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 

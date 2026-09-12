@@ -23,6 +23,7 @@
 
 #include "dict.h"
 #include "inflate.h"
+#include "log.h"
 #include "zc.h"
 #include "zip.h"
 

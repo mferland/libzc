@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "log.h"
 #include "yazc.h"
 #include "ptext.h"
 #include "zc.h"
