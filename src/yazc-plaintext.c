@@ -33,7 +33,7 @@
 
 #include "log.h"
 #include "yazc.h"
-#include "ptext.h"
+#include "plaintext.h"
 #include "zc.h"
 #include "zip.h"
 

@@ -25,7 +25,7 @@
 #include "pool.h"
 #include "crc32.h"
 #include "zc.h"
-#include "ptext.h"
+#include "plaintext.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
                                  * 0x12345678, found by exhaustive

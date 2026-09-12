@@ -23,7 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bforce.h"
+#include "bruteforce.h"
 #include "compat.h"
 #include "inflate.h"
 #include "log.h"

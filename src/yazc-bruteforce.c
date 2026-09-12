@@ -25,7 +25,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "bforce.h"
+#include "bruteforce.h"
 #include "log.h"
 #include "yazc.h"
 

@@ -18,9 +18,9 @@
 
 #include <check.h>
 #include <stdlib.h>
-#include "bforce.h"
-#include "dict.h"
-#include "ptext.h"
+#include "bruteforce.h"
+#include "dictionary.h"
+#include "plaintext.h"
 #include "zip.h"
 
 START_TEST(test_zc_zip_lifecycle)

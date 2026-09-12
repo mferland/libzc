@@ -19,9 +19,9 @@
 #include <check.h>
 #include <stdlib.h>
 
-#include "ptext.h"
+#include "plaintext.h"
 #include "test_plaintext.h"
-#include "ptext_reduce.c"
+#include "plaintext_reduce.c"
 
 #define KEY3(index) test_plaintext[index] ^ test_ciphertext[index]
 

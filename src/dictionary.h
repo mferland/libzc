@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef DICT_H
-#define DICT_H
+#ifndef DICTIONARY_H
+#define DICTIONARY_H
 
 #include <stddef.h>
 
@@ -29,4 +29,4 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
 int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
 		      size_t len);
 
-#endif /* DICT_H */
+#endif /* DICTIONARY_H */

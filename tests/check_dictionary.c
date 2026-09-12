@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "dict.h"
+#include "dictionary.h"
 
 #define LEN 20
 struct zc_crk_dict *crk;

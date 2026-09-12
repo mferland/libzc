@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef BFORCE_H
-#define BFORCE_H
+#ifndef BRUTEFORCE_H
+#define BRUTEFORCE_H
 
 #include <stddef.h>
 
@@ -50,4 +50,4 @@ void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w);
 int zc_crk_bforce_start(struct zc_crk_bforce *bforce, char *out_pw,
 			size_t out_pw_size);
 
-#endif /* BFORCE_H */
+#endif /* BRUTEFORCE_H */

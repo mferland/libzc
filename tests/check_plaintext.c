@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ptext.h"
+#include "plaintext.h"
 #include "test_plaintext.h"
 
 START_TEST(test_zc_ptext_new)

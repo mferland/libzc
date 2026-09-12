@@ -42,18 +42,18 @@ libyazc_core_a_SOURCES = \
 	list.h \
 	mask_scanner.l \
 	mask_parser.y \
-	ptext_attack.c \
-	ptext.h \
-	ptext_reduce.c \
+	plaintext_attack.c \
+	plaintext.h \
+	plaintext_reduce.c \
 	pwstream.c \
 	pwstream.h \
 	pool.c \
 	pool.h \
-	bforce.c \
-	bforce.h \
-	dict.c \
-	dict.h \
-	ptext.c \
+	bruteforce.c \
+	bruteforce.h \
+	dictionary.c \
+	dictionary.h \
+	plaintext.c \
 	zip.c \
 	zip.h \
 	qsort.h \

@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dict.h"
+#include "dictionary.h"
 #include "inflate.h"
 #include "log.h"
 #include "zc.h"
