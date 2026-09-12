@@ -36,7 +36,7 @@ tests/pwstream
 tests/reduce
 tests/pool
 debtest/
-libzc-*.tar.gz
+yazc-*.tar.gz
 src/mask_parser.c
 src/mask_parser.h
 src/mask_scanner.c

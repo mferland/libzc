@@ -1,4 +1,4 @@
-# libzc gcc:latest build environment
+# yazc gcc:latest build environment
 
 FROM gcc:latest
 

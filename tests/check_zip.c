@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 #include <check.h>
 #include <stdlib.h>
 
-/* libzc */
+/* ZIP engine */
 #include "zip.h"
 
 struct zc_zip *zip;

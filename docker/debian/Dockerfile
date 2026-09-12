@@ -1,4 +1,4 @@
-# libzc debian build environment
+# yazc Debian build environment
 
 FROM debian:unstable
 

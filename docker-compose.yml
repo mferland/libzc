@@ -1,11 +1,11 @@
 services:
   gcc:
-    # will build libzc with gcc
+    # will build yazc with gcc
     build: ./docker/gcc
     volumes:
       - ./:/home/dev/libzc
   clang:
-    # will build libzc with clang
+    # will build yazc with clang
     build: ./docker/clang
     volumes:
       - ./:/home/dev/libzc

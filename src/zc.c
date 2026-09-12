@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2020 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
