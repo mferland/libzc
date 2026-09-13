@@ -44,6 +44,12 @@ uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
 }
 
+static inline void reset_encryption_keys(const struct zc_key *base,
+					 struct zc_key *k)
+{
+	*k = *base;
+}
+
 bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 		     size_t len)
 {

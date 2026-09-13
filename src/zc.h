@@ -91,12 +91,6 @@ static inline void update_default_keys_from_array(struct zc_key *out,
 		update_keys(s[i], out, out);
 }
 
-static inline void reset_encryption_keys(const struct zc_key *base,
-					 struct zc_key *k)
-{
-	*k = *base;
-}
-
 static inline uint8_t decrypt_byte(uint32_t k)
 {
 	k |= 2;
