@@ -38,7 +38,7 @@
 
 struct bruteforce_opts {
 	const char *filename;
-	struct zc_crk_pwcfg pwcfg;
+	struct zc_bruteforce_config config;
 	long thread_count;
 	bool stats;
 };
@@ -123,36 +123,36 @@ static char *make_charset(int flags, char *out, size_t outlen)
 
 static int launch_crack(const struct bruteforce_opts *opts)
 {
-	struct zc_crk_bforce *crk;
+	struct zc_bruteforce *ctx;
 	char pw[ZC_PW_MAXLEN + 1];
 	struct timeval begin, end;
 	int err = -1;
 
-	if (zc_crk_bforce_new(&crk)) {
-		cli_err("zc_crk_bforce_new() failed!\n");
+	if (zc_bruteforce_new(&ctx)) {
+		cli_err("zc_bruteforce_new() failed!\n");
 		return EXIT_FAILURE;
 	}
 
-	if (zc_crk_bforce_init(crk, opts->filename, &opts->pwcfg)) {
-		cli_err("zc_crk_bforce_init() failed!\n");
+	if (zc_bruteforce_init(ctx, opts->filename, &opts->config)) {
+		cli_err("zc_bruteforce_init() failed!\n");
 		goto err2;
 	}
 
-	zc_crk_bforce_force_threads(crk, opts->thread_count);
+	zc_bruteforce_force_threads(ctx, opts->thread_count);
 
 	if (opts->stats) {
 		if (opts->thread_count == -1)
 			puts("Worker threads: auto");
 		else
 			printf("Worker threads: %ld\n", opts->thread_count);
-		printf("Maximum length: %zu\n", opts->pwcfg.maxlen);
+		printf("Maximum length: %zu\n", opts->config.maxlen);
 		printf("Character set: %s\n",
-		       zc_crk_bforce_sanitized_charset(crk));
+		       zc_bruteforce_sanitized_charset(ctx));
 		printf("Filename: %s\n", opts->filename);
 	}
 
 	gettimeofday(&begin, NULL);
-	err = zc_crk_bforce_start(crk, pw, sizeof(pw));
+	err = zc_bruteforce_start(ctx, pw, sizeof(pw));
 	gettimeofday(&end, NULL);
 
 	if (opts->stats)
@@ -163,10 +163,10 @@ static int launch_crack(const struct bruteforce_opts *opts)
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		cli_err("zc_crk_bforce_start failed!\n");
+		cli_err("zc_bruteforce_start failed!\n");
 
 err2:
-	zc_crk_bforce_destroy(crk);
+	zc_bruteforce_destroy(ctx);
 
 	return err;
 }
@@ -244,15 +244,15 @@ static int do_bruteforce(int argc, char *argv[])
 
 	/* password stop length */
 	if (arg_maxlen) {
-		opts.pwcfg.maxlen = atoi(arg_maxlen);
-		if (opts.pwcfg.maxlen < ZC_PW_MINLEN ||
-		    opts.pwcfg.maxlen > ZC_PW_MAXLEN) {
+		opts.config.maxlen = atoi(arg_maxlen);
+		if (opts.config.maxlen < ZC_PW_MINLEN ||
+		    opts.config.maxlen > ZC_PW_MAXLEN) {
 			cli_err("maximum password length must be between %d and %d.\n",
 				ZC_PW_MINLEN, ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else
-		opts.pwcfg.maxlen = PW_LEN_DEFAULT;
+		opts.config.maxlen = PW_LEN_DEFAULT;
 
 	/* number of threads */
 	if (arg_threads) {
@@ -270,47 +270,47 @@ static int do_bruteforce(int argc, char *argv[])
 
 	if (arg_mask) {
 		if (arg_mask_minlen) {
-			opts.pwcfg.mask.minlen = atoi(arg_mask_minlen);
-			if (opts.pwcfg.mask.minlen < 1) {
+			opts.config.mask.minlen = atoi(arg_mask_minlen);
+			if (opts.config.mask.minlen < 1) {
 				cli_err("minimum mask length must be greater than one.\n");
 				return EXIT_FAILURE;
 			}
 		} else
-			opts.pwcfg.mask.minlen = 0;
+			opts.config.mask.minlen = 0;
 
 		if (arg_mask_maxlen) {
-			opts.pwcfg.mask.maxlen = atoi(arg_mask_maxlen);
-			if (opts.pwcfg.mask.minlen &&
-			    opts.pwcfg.mask.maxlen < opts.pwcfg.mask.minlen) {
+			opts.config.mask.maxlen = atoi(arg_mask_maxlen);
+			if (opts.config.mask.minlen &&
+			    opts.config.mask.maxlen < opts.config.mask.minlen) {
 				cli_err("maximum mask length must be greater than the minimum length.\n");
 				return EXIT_FAILURE;
 			}
 		} else
-			opts.pwcfg.mask.maxlen = 0;
+			opts.config.mask.maxlen = 0;
 
-		opts.pwcfg.mask.str = arg_mask;
+		opts.config.mask.str = arg_mask;
 	} else if (!arg_set) {
 		if (!arg_charset_flag) {
 			cli_err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		const char *tmp = make_charset(arg_charset_flag, opts.pwcfg.set,
+		const char *tmp = make_charset(arg_charset_flag, opts.config.set,
 					       ZC_CHARSET_MAXLEN);
 		if (!tmp) {
 			cli_err("generating character set failed.\n");
 			return EXIT_FAILURE;
 		}
 	} else
-		strncpy(opts.pwcfg.set, arg_set, ZC_CHARSET_MAXLEN);
+		strncpy(opts.config.set, arg_set, ZC_CHARSET_MAXLEN);
 
 	/* character set length */
-	opts.pwcfg.setlen = strnlen(opts.pwcfg.set, ZC_CHARSET_MAXLEN);
+	opts.config.setlen = strnlen(opts.config.set, ZC_CHARSET_MAXLEN);
 
 	/* initial password */
 	if (arg_initial)
-		strncpy(opts.pwcfg.initial, arg_initial, ZC_PW_MAXLEN);
+		strncpy(opts.config.initial, arg_initial, ZC_PW_MAXLEN);
 	else
-		memset(opts.pwcfg.initial, 0, ZC_PW_MAXLEN);
+		memset(opts.config.initial, 0, ZC_PW_MAXLEN);
 
 	return launch_crack(&opts);
 }

@@ -30,7 +30,7 @@
 
 struct threadpool;
 
-struct zc_crk_ptext {
+struct zc_plaintext {
 	/* plain and cipher text buffers, both have the same size */
 	const uint8_t *plaintext;
 	const uint8_t *ciphertext;
@@ -53,17 +53,17 @@ struct zc_crk_ptext {
 #define generate_key3(s, i)	     (s->plaintext[i] ^ s->ciphertext[i])
 #define get_bits_15_2(bits_15_2, k3) (&bits_15_2[k3 * 64])
 
-void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext);
-int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads);
-int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext, const uint8_t *plaintext,
+void zc_plaintext_destroy(struct zc_plaintext *ctx);
+int zc_plaintext_new(struct zc_plaintext **ctx, long force_threads);
+int zc_plaintext_set_text(struct zc_plaintext *ctx, const uint8_t *plaintext,
 			  const uint8_t *ciphertext, size_t size);
-int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext);
-size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext);
-int zc_crk_ptext_attack(struct zc_crk_ptext *ptext, struct zc_key *out_key);
-int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
+int zc_plaintext_key2_reduction(struct zc_plaintext *ctx);
+size_t zc_plaintext_key2_count(const struct zc_plaintext *ctx);
+int zc_plaintext_attack(struct zc_plaintext *ctx, struct zc_key *out_key);
+int zc_plaintext_find_internal_rep(const struct zc_key *start_key,
 				   const uint8_t *ciphertext, size_t size,
 				   struct zc_key *internal_rep);
-int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+int zc_plaintext_find_password(struct zc_plaintext *ctx,
 			       const struct zc_key *internal_rep, char *out,
 			       size_t len);
 

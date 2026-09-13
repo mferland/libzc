@@ -21,12 +21,13 @@
 
 #include <stddef.h>
 
-struct zc_crk_dict;
+struct zc_dictionary;
 
-void zc_crk_dict_destroy(struct zc_crk_dict *crk);
-int zc_crk_dict_new(struct zc_crk_dict **crk);
-int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename);
-int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict, char *pw,
-		      size_t len);
+void zc_dictionary_destroy(struct zc_dictionary *ctx);
+int zc_dictionary_new(struct zc_dictionary **ctx);
+int zc_dictionary_init(struct zc_dictionary *ctx, const char *filename);
+int zc_dictionary_start(struct zc_dictionary *ctx, const char *dictionary_filename,
+			char *pw,
+			size_t len);
 
 #endif /* DICTIONARY_H */

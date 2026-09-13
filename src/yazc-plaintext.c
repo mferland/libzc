@@ -359,12 +359,12 @@ static void print_original_password(const char *pw, size_t len)
 
 static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 {
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 	struct timeval begin, end;
 	int len, ret = EXIT_FAILURE;
 
-	if (zc_crk_ptext_new(&ptext, opts->thread_count) < 0) {
-		cli_err("zc_crk_ptext_new() failed!\n");
+	if (zc_plaintext_new(&ctx, opts->thread_count) < 0) {
+		cli_err("zc_plaintext_new() failed!\n");
 		return ret;
 	}
 
@@ -374,7 +374,7 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 	gettimeofday(&begin, NULL);
 
 	char pw[14];
-	len = zc_crk_ptext_find_password(ptext, &opts->internal_rep, pw,
+	len = zc_plaintext_find_password(ctx, &opts->internal_rep, pw,
 					 sizeof(pw));
 	if (len < 0) {
 		cli_err(" failed!\n");
@@ -391,7 +391,7 @@ static int find_password_from_internal_rep(const struct plaintext_opts *opts)
 
 	ret = EXIT_FAILURE;
 err2:
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 	return ret;
 }
 
@@ -421,7 +421,7 @@ static int do_plaintext(int argc, char *argv[])
 	bool arg_use_file = false;
 	bool arg_from_internal_rep = false;
 	bool arg_internal_rep_from_passw = false;
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 	struct timeval begin, end;
 	int err = 0;
 
@@ -547,19 +547,19 @@ static int do_plaintext(int argc, char *argv[])
 		goto error1;
 	}
 
-	err = zc_crk_ptext_new(&ptext, opts.thread_count);
+	err = zc_plaintext_new(&ctx, opts.thread_count);
 	if (err < 0) {
-		cli_err("zc_crk_ptext_new() failed!\n");
+		cli_err("zc_plaintext_new() failed!\n");
 		goto error2;
 	}
 
-	err = zc_crk_ptext_set_text(
-		      ptext,
+	err = zc_plaintext_set_text(
+		      ctx,
 		      &((const uint8_t *)opts.plain.map)[opts.plain.txt_begin],
 		      &((const uint8_t *)opts.cipher.map)[opts.cipher.txt_begin],
 		      size_of_map(&opts.plain));
 	if (err < 0) {
-		cli_err("zc_crk_ptext_set_text() failed!\n");
+		cli_err("zc_plaintext_set_text() failed!\n");
 		goto error4;
 	}
 
@@ -574,18 +574,18 @@ static int do_plaintext(int argc, char *argv[])
 	printf("Key2 reduction...");
 	fflush(stdout);
 	gettimeofday(&begin, NULL);
-	err = zc_crk_ptext_key2_reduction(ptext);
+	err = zc_plaintext_key2_reduction(ctx);
 	if (err < 0) {
 		printf("\n");
 		cli_err("reducing key2 candidates failed.\n");
 		goto error4;
 	}
-	printf(" done! %zu keys found.\n", zc_crk_ptext_key2_count(ptext));
+	printf(" done! %zu keys found.\n", zc_plaintext_key2_count(ctx));
 
 	printf("Attack running...");
 	fflush(stdout);
 	struct zc_key out_key;
-	err = zc_crk_ptext_attack(ptext, &out_key);
+	err = zc_plaintext_attack(ctx, &out_key);
 	if (err < 0) {
 		printf("\n");
 		cli_err("attack failed! Wrong plaintext?\n");
@@ -597,7 +597,7 @@ static int do_plaintext(int argc, char *argv[])
 	       out_key.key2);
 
 	struct zc_key int_rep;
-	err = zc_crk_ptext_find_internal_rep(
+	err = zc_plaintext_find_internal_rep(
 		      &out_key,
 		      &((const uint8_t *)opts.cipher.map)[opts.cipher.file_begin],
 		      opts.cipher.txt_begin - opts.cipher.file_begin, &int_rep);
@@ -612,7 +612,7 @@ static int do_plaintext(int argc, char *argv[])
 	printf("Recovering original password...");
 	fflush(stdout);
 	char pw[14];
-	err = zc_crk_ptext_find_password(ptext, &int_rep, pw, sizeof(pw));
+	err = zc_plaintext_find_password(ctx, &int_rep, pw, sizeof(pw));
 	if (err < 0) {
 		cli_err(" failed!\n");
 		err = EXIT_FAILURE;
@@ -630,7 +630,7 @@ static int do_plaintext(int argc, char *argv[])
 	err = EXIT_SUCCESS;
 
 error4:
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 error2:
 	unmap_text_buf(&opts.cipher);
 error1:

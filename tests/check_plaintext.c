@@ -23,103 +23,103 @@
 #include "plaintext.h"
 #include "test_plaintext.h"
 
-START_TEST(test_zc_ptext_new)
+START_TEST(test_zc_plaintext_new)
 {
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_ptr_nonnull(ptext);
-	ck_assert_int_eq(zc_crk_ptext_key2_count(ptext), 0);
-	zc_crk_ptext_destroy(ptext);
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_plaintext_key2_count(ctx), 0);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 
-START_TEST(test_zc_ptext_set_text_size_boundary)
+START_TEST(test_zc_plaintext_set_text_size_boundary)
 {
 	uint8_t plaintext[13] = {0};
 	uint8_t ciphertext[13] = {0};
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, 1), 0);
-	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
+	ck_assert_int_eq(zc_plaintext_new(&ctx, 1), 0);
+	ck_assert_int_eq(zc_plaintext_set_text(ctx, plaintext, ciphertext,
 					       12), -1);
-	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext, ciphertext,
+	ck_assert_int_eq(zc_plaintext_set_text(ctx, plaintext, ciphertext,
 					       13), 0);
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 
-START_TEST(test_zc_ptext_set_cipher_and_plaintext)
+START_TEST(test_zc_plaintext_set_cipher_and_plaintext)
 {
-	struct zc_crk_ptext *ptext;
-	ck_assert(zc_crk_ptext_new(&ptext, -1) == 0);
-	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
+	struct zc_plaintext *ctx;
+	ck_assert(zc_plaintext_new(&ctx, -1) == 0);
+	ck_assert(zc_plaintext_set_text(ctx, test_plaintext, test_ciphertext,
 					TEST_PLAINTEXT_SIZE) == 0);
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 
 #ifdef EXTRACHECK
-START_TEST(test_zc_crk_ptext_attack)
+START_TEST(test_zc_plaintext_attack)
 {
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 	struct zc_key out_key;
-	ck_assert(zc_crk_ptext_new(&ptext, -1) == 0);
-	ck_assert(zc_crk_ptext_set_text(ptext, test_plaintext, test_ciphertext,
+	ck_assert(zc_plaintext_new(&ctx, -1) == 0);
+	ck_assert(zc_plaintext_set_text(ctx, test_plaintext, test_ciphertext,
 					TEST_PLAINTEXT_SIZE) == 0);
-	ck_assert(zc_crk_ptext_key2_reduction(ptext) == 0);
-	ck_assert(zc_crk_ptext_attack(ptext, &out_key) == 0);
+	ck_assert(zc_plaintext_key2_reduction(ctx) == 0);
+	ck_assert(zc_plaintext_attack(ctx, &out_key) == 0);
 	ck_assert(out_key.key0 == 0x6b1e4593 &&
 		  out_key.key1 == 0xd81e41ed &&
 		  out_key.key2 == 0x9a616e02);
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_attack_rejects_invalid_plaintext)
+START_TEST(test_zc_plaintext_attack_rejects_invalid_plaintext)
 {
 	uint8_t plaintext[TEST_PLAINTEXT_SIZE];
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 	struct zc_key out_key;
 
 	memcpy(plaintext, test_plaintext, sizeof(plaintext));
 	plaintext[0] ^= 0xff;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext,
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_int_eq(zc_plaintext_set_text(ctx, plaintext,
 					       test_ciphertext,
 					       TEST_PLAINTEXT_SIZE), 0);
-	ck_assert_int_eq(zc_crk_ptext_key2_reduction(ptext), 0);
-	ck_assert_int_eq(zc_crk_ptext_attack(ptext, &out_key), -1);
-	zc_crk_ptext_destroy(ptext);
+	ck_assert_int_eq(zc_plaintext_key2_reduction(ctx), 0);
+	ck_assert_int_eq(zc_plaintext_attack(ctx, &out_key), -1);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_key2_reduction_rejects_no_candidates)
+START_TEST(test_zc_plaintext_key2_reduction_rejects_no_candidates)
 {
 	uint8_t plaintext[TEST_PLAINTEXT_SIZE];
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 
 	memcpy(plaintext, test_plaintext, sizeof(plaintext));
 	for (size_t i = 11; i < sizeof(plaintext); ++i)
 		plaintext[i] ^= 0xff;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_int_eq(zc_crk_ptext_set_text(ptext, plaintext,
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_int_eq(zc_plaintext_set_text(ctx, plaintext,
 					       test_ciphertext,
 					       TEST_PLAINTEXT_SIZE), 0);
-	ck_assert_int_eq(zc_crk_ptext_key2_reduction(ptext), -1);
-	ck_assert_int_eq(zc_crk_ptext_key2_count(ptext), 0);
-	zc_crk_ptext_destroy(ptext);
+	ck_assert_int_eq(zc_plaintext_key2_reduction(ctx), -1);
+	ck_assert_int_eq(zc_plaintext_key2_count(ctx), 0);
+	zc_plaintext_destroy(ctx);
 }
 END_TEST
 #endif
 
-START_TEST(test_zc_crk_ptext_find_internal_rep)
+START_TEST(test_zc_plaintext_find_internal_rep)
 {
 	struct zc_key out_key = { .key0 = 0x6b1e4593, .key1 = 0xd81e41ed, .key2 = 0x9a616e02 };
 	struct zc_key internal_rep;
-	ck_assert(zc_crk_ptext_find_internal_rep(&out_key, test_encrypted_header, 12,
+	ck_assert(zc_plaintext_find_internal_rep(&out_key, test_encrypted_header, 12,
 						 &internal_rep) == 0);
 	ck_assert(internal_rep.key0 == 0x9ccebdf4 &&
 		  internal_rep.key1 == 0x758c65be &&
@@ -127,7 +127,7 @@ START_TEST(test_zc_crk_ptext_find_internal_rep)
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_internal_rep_rejects_short_input)
+START_TEST(test_zc_plaintext_find_internal_rep_rejects_short_input)
 {
 	struct zc_key start_key = {0};
 	struct zc_key internal_rep = {
@@ -136,7 +136,7 @@ START_TEST(test_zc_crk_ptext_find_internal_rep_rejects_short_input)
 		.key2 = UINT32_MAX,
 	};
 
-	ck_assert_int_eq(zc_crk_ptext_find_internal_rep(
+	ck_assert_int_eq(zc_plaintext_find_internal_rep(
 				 &start_key, test_encrypted_header, 11, &internal_rep), -1);
 	ck_assert_uint_eq(internal_rep.key0, UINT32_MAX);
 	ck_assert_uint_eq(internal_rep.key1, UINT32_MAX);
@@ -149,20 +149,20 @@ Suite *plaintext_suite()
 	Suite *s = suite_create("plaintext");
 
 	TCase *tc_core = tcase_create("Core");
-	tcase_add_test(tc_core, test_zc_ptext_new);
-	tcase_add_test(tc_core, test_zc_ptext_set_text_size_boundary);
-	tcase_add_test(tc_core, test_zc_ptext_set_cipher_and_plaintext);
+	tcase_add_test(tc_core, test_zc_plaintext_new);
+	tcase_add_test(tc_core, test_zc_plaintext_set_text_size_boundary);
+	tcase_add_test(tc_core, test_zc_plaintext_set_cipher_and_plaintext);
 #ifdef EXTRACHECK
-	tcase_add_test(tc_core, test_zc_crk_ptext_attack);
+	tcase_add_test(tc_core, test_zc_plaintext_attack);
 	tcase_add_test(tc_core,
-		       test_zc_crk_ptext_attack_rejects_invalid_plaintext);
+		       test_zc_plaintext_attack_rejects_invalid_plaintext);
 	tcase_add_test(tc_core,
-		       test_zc_crk_ptext_key2_reduction_rejects_no_candidates);
+		       test_zc_plaintext_key2_reduction_rejects_no_candidates);
 	tcase_set_timeout(tc_core, 60 * 60);
 #endif
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_internal_rep);
+	tcase_add_test(tc_core, test_zc_plaintext_find_internal_rep);
 	tcase_add_test(tc_core,
-		       test_zc_crk_ptext_find_internal_rep_rejects_short_input);
+		       test_zc_plaintext_find_internal_rep_rejects_short_input);
 	suite_add_tcase(s, tc_core);
 
 	return s;

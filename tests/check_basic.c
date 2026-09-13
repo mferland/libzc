@@ -35,37 +35,37 @@ START_TEST(test_zc_zip_lifecycle)
 }
 END_TEST
 
-START_TEST(test_zc_crk_dict_lifecycle)
+START_TEST(test_zc_dictionary_lifecycle)
 {
-	struct zc_crk_dict *crk;
+	struct zc_dictionary *ctx;
 
-	ck_assert_int_eq(zc_crk_dict_new(&crk), 0);
-	ck_assert_ptr_nonnull(crk);
-	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
-	zc_crk_dict_destroy(crk);
-	zc_crk_dict_destroy(NULL);
+	ck_assert_int_eq(zc_dictionary_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_dictionary_init(ctx, DATADIR "noradi.zip"), 0);
+	zc_dictionary_destroy(ctx);
+	zc_dictionary_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_bforce_lifecycle)
+START_TEST(test_zc_bruteforce_lifecycle)
 {
-	struct zc_crk_bforce *crk;
+	struct zc_bruteforce *ctx;
 
-	ck_assert_int_eq(zc_crk_bforce_new(&crk), 0);
-	ck_assert_ptr_nonnull(crk);
-	zc_crk_bforce_destroy(crk);
-	zc_crk_bforce_destroy(NULL);
+	ck_assert_int_eq(zc_bruteforce_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	zc_bruteforce_destroy(ctx);
+	zc_bruteforce_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_lifecycle)
+START_TEST(test_zc_plaintext_lifecycle)
 {
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_ptr_nonnull(ptext);
-	zc_crk_ptext_destroy(ptext);
-	zc_crk_ptext_destroy(NULL);
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_ptr_nonnull(ctx);
+	zc_plaintext_destroy(ctx);
+	zc_plaintext_destroy(NULL);
 }
 END_TEST
 
@@ -79,9 +79,9 @@ Suite *basic_suite(void)
 	tc_core = tcase_create("Core");
 
 	tcase_add_test(tc_core, test_zc_zip_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_dict_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_bforce_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_ptext_lifecycle);
+	tcase_add_test(tc_core, test_zc_dictionary_lifecycle);
+	tcase_add_test(tc_core, test_zc_bruteforce_lifecycle);
+	tcase_add_test(tc_core, test_zc_plaintext_lifecycle);
 	suite_add_tcase(s, tc_core);
 
 	return s;

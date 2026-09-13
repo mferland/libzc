@@ -31,7 +31,7 @@ struct zc_mask {
 	const char *str;
 };
 
-struct zc_crk_pwcfg {
+struct zc_bruteforce_config {
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
 	size_t maxlen;
@@ -39,15 +39,15 @@ struct zc_crk_pwcfg {
 	struct zc_mask mask;
 };
 
-struct zc_crk_bforce;
+struct zc_bruteforce;
 
-void zc_crk_bforce_destroy(struct zc_crk_bforce *bforce);
-int zc_crk_bforce_new(struct zc_crk_bforce **bforce);
-int zc_crk_bforce_init(struct zc_crk_bforce *bforce, const char *fname,
-		       const struct zc_crk_pwcfg *cfg);
-const char *zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *bforce);
-void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w);
-int zc_crk_bforce_start(struct zc_crk_bforce *bforce, char *out_pw,
+void zc_bruteforce_destroy(struct zc_bruteforce *ctx);
+int zc_bruteforce_new(struct zc_bruteforce **ctx);
+int zc_bruteforce_init(struct zc_bruteforce *ctx, const char *fname,
+		       const struct zc_bruteforce_config *cfg);
+const char *zc_bruteforce_sanitized_charset(const struct zc_bruteforce *ctx);
+void zc_bruteforce_force_threads(struct zc_bruteforce *ctx, long w);
+int zc_bruteforce_start(struct zc_bruteforce *ctx, char *out_pw,
 			size_t out_pw_size);
 
 #endif /* BRUTEFORCE_H */

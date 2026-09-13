@@ -738,7 +738,7 @@ static int try_key_7_13(struct final_private *f)
 	return -1;
 }
 
-int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+int zc_plaintext_find_password(struct zc_plaintext *ctx,
 			       const struct zc_key *internal_rep,
 			       char *out,
 			       size_t len)
@@ -755,11 +755,11 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 		return 0;               /* password has 0 bytes */
 
 	/* initialise final structure */
-	f.lsbk0_lookup = ptext->lsbk0_lookup;
-	f.lsbk0_count = ptext->lsbk0_count;
+	f.lsbk0_lookup = ctx->lsbk0_lookup;
+	f.lsbk0_count = ctx->lsbk0_count;
 	f.k[0] = *internal_rep;
 	f.internal_rep = *internal_rep;
-	f.pool = ptext->pool;
+	f.pool = ctx->pool;
 
 	ret = try_key_1_4(&f);
 	if (ret > 0)

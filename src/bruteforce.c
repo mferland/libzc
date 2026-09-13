@@ -37,7 +37,7 @@
 #define LEN 64UL
 
 /* bruteforce cracker */
-struct zc_crk_bforce {
+struct zc_bruteforce {
 	/* validation data */
 	struct zc_header header[HEADER_MAX];
 	size_t header_size;
@@ -101,15 +101,15 @@ struct worker {
 		uint64_t candidate;
 	} h;
 
-	struct zc_crk_bforce *crk;
+	struct zc_bruteforce *ctx;
 };
 
-static inline unsigned char candidate_char(const struct zc_crk_bforce *crk,
+static inline unsigned char candidate_char(const struct zc_bruteforce *ctx,
 					   size_t pos, size_t index)
 {
-	if (crk->parsed_mask_len)
-		return (unsigned char)crk->parsed_mask[pos][index];
-	return (unsigned char)crk->set[index];
+	if (ctx->parsed_mask_len)
+		return (unsigned char)ctx->parsed_mask[pos][index];
+	return (unsigned char)ctx->set[index];
 }
 
 static size_t uniq(char *str, size_t len)
@@ -166,41 +166,41 @@ static bool test_password(struct worker *w, const struct zc_key *key)
 {
 	int err;
 
-	decrypt(w->crk->cipher, w->plaintext, w->crk->cipher_size, key);
+	decrypt(w->ctx->cipher, w->plaintext, w->ctx->cipher_size, key);
 
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	if (w->crk->cipher_is_deflated)
+	if (w->ctx->cipher_is_deflated)
 		err = inflate_buffer(w->zlib, &w->plaintext[12],
-				     w->crk->cipher_size - 12, w->inflate,
-				     INFLATE_CHUNK, w->crk->original_crc);
+				     w->ctx->cipher_size - 12, w->inflate,
+				     INFLATE_CHUNK, w->ctx->original_crc);
 	else
 		err = test_buffer_crc(&w->plaintext[12],
-				      w->crk->cipher_size - 12,
-				      w->crk->original_crc);
+				      w->ctx->cipher_size - 12,
+				      w->ctx->original_crc);
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	return err ? false : true;
 }
 
-static bool try_decrypt(const struct zc_crk_bforce *crk,
+static bool try_decrypt(const struct zc_bruteforce *ctx,
 			const struct zc_key *base)
 {
-	return decrypt_headers(base, crk->header, crk->header_size);
+	return decrypt_headers(base, ctx->header, ctx->header_size);
 }
 
 static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 			    char *pw, struct zc_key *cache, struct entry *limit)
 {
-	const struct zc_crk_bforce *crk = w->crk;
+	const struct zc_bruteforce *ctx = w->ctx;
 	size_t first = limit[0].initial;
 	size_t last = limit[0].stop + 1;
 
 	if (level == 1) {
 		for (size_t p = first; p < last; ++p) {
-			update_keys(candidate_char(crk, level_count - 1, p), &cache[level_count - 1],
+			update_keys(candidate_char(ctx, level_count - 1, p), &cache[level_count - 1],
 				    &cache[level_count]);
-			if (try_decrypt(crk, &cache[level_count])) {
+			if (try_decrypt(ctx, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
-					pw[level_count - 1] = candidate_char(crk, level_count - 1, p);
+					pw[level_count - 1] = candidate_char(ctx, level_count - 1, p);
 					w->found = true;
 					pthread_exit(w);
 				}
@@ -209,7 +209,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 	} else {
 		size_t i = level_count - level;
 		for (size_t p = first; p < last; ++p) {
-			pw[i] = candidate_char(crk, i, p);
+			pw[i] = candidate_char(ctx, i, p);
 			update_keys(pw[i], &cache[i], &cache[i + 1]);
 			do_work_recurse(w, level - 1, level_count, pw, cache,
 					&limit[1]);
@@ -218,7 +218,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 	limit[0].initial = limit[0].start;
 }
 
-static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
+static uint64_t try_decrypt_fast(const struct zc_bruteforce *ctx,
 				 struct hash *h)
 {
 	uint8_t check[LEN];
@@ -232,7 +232,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 
 	/* first pass */
 	for (size_t i = 0; i < 11; ++i) {
-		uint8_t b = crk->header[0].buf[i];
+		uint8_t b = ctx->header[0].buf[i];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
@@ -270,7 +270,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 	}
 
 	for (size_t j = 0; j < LEN; ++j)
-		check[j] = crk->pre_magic_xor_header ^ decrypt_byte(k2[j]);
+		check[j] = ctx->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
 	for (size_t j = 0; j < LEN; ++j)
 		h->candidate |= (uint64_t)(check[j] == 0) << j;
@@ -278,7 +278,7 @@ static uint64_t try_decrypt_fast(const struct zc_crk_bforce *crk,
 	return h->candidate;
 }
 
-static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
+static int try_decrypt2(const struct zc_bruteforce *ctx, struct worker *w)
 {
 	struct zc_key key;
 	struct hash *h = &w->h;
@@ -294,13 +294,13 @@ static int try_decrypt2(const struct zc_crk_bforce *crk, struct worker *w)
 		int ctz = __builtin_ctzll(h->candidate);
 		h->candidate &= h->candidate - 1;
 		size_t j = 1;
-		for (; j < crk->header_size; ++j) {
+		for (; j < ctx->header_size; ++j) {
 			RESET();
-			if (decrypt_header(crk->header[j].buf, &key,
-					   crk->header[j].magic))
+			if (decrypt_header(ctx->header[j].buf, &key,
+					   ctx->header[j].magic))
 				break;
 		}
-		if (j == crk->header_size) {
+		if (j == ctx->header_size) {
 			RESET();
 			if (test_password(w, &key))
 				return ctz;
@@ -340,7 +340,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 			     char *pw, struct zc_key *cache,
 			     struct entry *limit)
 {
-	const struct zc_crk_bforce *crk = w->crk;
+	const struct zc_bruteforce *ctx = w->ctx;
 	if (level_count > 5 && level == 6) {
 		size_t first[6], last[6], p[6], out[6], in[6];
 		int ret;
@@ -352,17 +352,17 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		}
 
 		for (p[0] = first[0]; p[0] < last[0]; ++p[0]) {
-			update_keys(candidate_char(crk, level_count - 6, p[0]), &cache[0], &cache[1]);
+			update_keys(candidate_char(ctx, level_count - 6, p[0]), &cache[0], &cache[1]);
 			for (p[1] = first[1]; p[1] < last[1]; ++p[1]) {
-				update_keys(candidate_char(crk, level_count - 5, p[1]), &cache[1], &cache[2]);
+				update_keys(candidate_char(ctx, level_count - 5, p[1]), &cache[1], &cache[2]);
 				for (p[2] = first[2]; p[2] < last[2]; ++p[2]) {
-					update_keys(candidate_char(crk, level_count - 4, p[2]), &cache[2], &cache[3]);
+					update_keys(candidate_char(ctx, level_count - 4, p[2]), &cache[2], &cache[3]);
 					for (p[3] = first[3]; p[3] < last[3]; ++p[3]) {
-						update_keys(candidate_char(crk, level_count - 3, p[3]), &cache[3], &cache[4]);
+						update_keys(candidate_char(ctx, level_count - 3, p[3]), &cache[3], &cache[4]);
 						for (p[4] = first[4]; p[4] < last[4]; ++p[4]) {
-							update_keys(candidate_char(crk, level_count - 2, p[4]), &cache[4], &cache[5]);
+							update_keys(candidate_char(ctx, level_count - 2, p[4]), &cache[4], &cache[5]);
 							for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
-								update_keys(candidate_char(crk, level_count - 1, p[5]), &cache[5], &cache[6]);
+								update_keys(candidate_char(ctx, level_count - 1, p[5]), &cache[5], &cache[6]);
 
 								/* save password hashes */
 								w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
@@ -372,10 +372,10 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								if (++pwi % LEN)
 									continue;
 
-								if (try_decrypt_fast(crk, &w->h) == 0)
+								if (try_decrypt_fast(ctx, &w->h) == 0)
 									continue;
 
-								ret = try_decrypt2(crk, w);
+								ret = try_decrypt2(ctx, w);
 								if (ret < 0)
 									continue;
 
@@ -388,7 +388,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								pwi = pwi - (LEN - 1 - ret) - 1;
 								indexes_from_raw_counter(pwi, in, out);
 								for (int i = 0; i < 6; ++i)
-									pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
+									pw[i] = candidate_char(ctx, level_count - 6 + i, out[i] + first[i]);
 
 								w->found = true;
 								pthread_exit(w);
@@ -403,7 +403,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		   has been filtered by try_decrypt_fast. */
 		w->h.candidate = UINT64_MAX >> (pwi % LEN);
 
-		ret = try_decrypt2(crk, w);
+		ret = try_decrypt2(ctx, w);
 		if (ret < 0)
 			return;
 
@@ -413,7 +413,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		pwi = pwi - ((pwi % LEN) - 1 - ret) - 1;
 		indexes_from_raw_counter(pwi, in, out);
 		for (int i = 0; i < 6; ++i)
-			pw[i] = candidate_char(crk, level_count - 6 + i, out[i] + first[i]);
+			pw[i] = candidate_char(ctx, level_count - 6 + i, out[i] + first[i]);
 
 		w->found = true;
 		pthread_exit(w);
@@ -421,7 +421,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		size_t first = limit[0].initial;
 		size_t last = limit[0].stop + 1;
 		for (size_t p = first; p < last; ++p) {
-			pw[0] = candidate_char(crk, level_count - level, p);
+			pw[0] = candidate_char(ctx, level_count - level, p);
 			update_keys(pw[0], &cache[0], &cache[1]);
 			do_work_recurse2(w, level - 1, level_count, &pw[1],
 					 &cache[1], &limit[1]);
@@ -460,16 +460,16 @@ static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 static void worker_cleanup_handler(void *p)
 {
 	struct worker *w = (struct worker *)p;
-	pthread_mutex_lock(&w->crk->mutex);
-	list_move(&w->list, &w->crk->cleanup_head);
-	pthread_cond_signal(&w->crk->cond);
-	pthread_mutex_unlock(&w->crk->mutex);
+	pthread_mutex_lock(&w->ctx->mutex);
+	list_move(&w->list, &w->ctx->cleanup_head);
+	pthread_cond_signal(&w->ctx->cond);
+	pthread_mutex_unlock(&w->ctx->mutex);
 }
 
-static void dealloc_workers(struct zc_crk_bforce *crk)
+static void dealloc_workers(struct zc_bruteforce *ctx)
 {
 	struct worker *w, *wtmp;
-	list_for_each_entry_safe(w, wtmp, &crk->workers_head, list) {
+	list_for_each_entry_safe(w, wtmp, &ctx->workers_head, list) {
 		list_del(&w->list);
 		free(w->inflate);
 		free(w->plaintext);
@@ -478,7 +478,7 @@ static void dealloc_workers(struct zc_crk_bforce *crk)
 	}
 }
 
-static int alloc_workers(struct zc_crk_bforce *crk, size_t count)
+static int alloc_workers(struct zc_bruteforce *ctx, size_t count)
 {
 	struct worker *w;
 
@@ -488,17 +488,17 @@ static int alloc_workers(struct zc_crk_bforce *crk, size_t count)
 			goto err1;
 
 		w->found = false;
-		w->crk = crk;
+		w->ctx = ctx;
 		w->id = i;
 		w->inflate = malloc(INFLATE_CHUNK);
 		if (!w->inflate)
 			goto err2;
-		w->plaintext = malloc(crk->cipher_size);
+		w->plaintext = malloc(ctx->cipher_size);
 		if (!w->plaintext)
 			goto err3;
 		if (inflate_new(&w->zlib) < 0)
 			goto err4;
-		list_add(&w->list, &crk->workers_head);
+		list_add(&w->list, &ctx->workers_head);
 	}
 
 	return 0;
@@ -509,20 +509,20 @@ err3:
 err2:
 	free(w);
 err1:
-	dealloc_workers(crk);
+	dealloc_workers(ctx);
 	return -1;
 }
 
 /*
  * Returns -1 on error, 1 on success.
  */
-static int wait_workers_created(struct zc_crk_bforce *crk)
+static int wait_workers_created(struct zc_bruteforce *ctx)
 {
-	pthread_mutex_lock(&crk->mutex);
-	while (!crk->pthread_create_err)
-		pthread_cond_wait(&crk->cond, &crk->mutex);
-	pthread_mutex_unlock(&crk->mutex);
-	return crk->pthread_create_err;
+	pthread_mutex_lock(&ctx->mutex);
+	while (!ctx->pthread_create_err)
+		pthread_cond_wait(&ctx->cond, &ctx->mutex);
+	pthread_mutex_unlock(&ctx->mutex);
+	return ctx->pthread_create_err;
 }
 
 static void *worker(void *p)
@@ -532,15 +532,15 @@ static void *worker(void *p)
 	/* https://gcc.gnu.org/bugzilla//show_bug.cgi?id=82109 */
 	pthread_cleanup_push(worker_cleanup_handler, w);
 
-	if (wait_workers_created(w->crk) < 0)
+	if (wait_workers_created(w->ctx) < 0)
 		goto end;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
-	for (size_t i = 0; i < w->crk->pwslen; ++i) {
-		if (pwstream_is_empty(w->crk->pws[i], w->id))
+	for (size_t i = 0; i < w->ctx->pwslen; ++i) {
+		if (pwstream_is_empty(w->ctx->pws[i], w->id))
 			continue;
-		do_work(w, w->crk->pws[i], w->id, w->pw);
+		do_work(w, w->ctx->pws[i], w->id, w->pw);
 		pthread_testcancel();
 	}
 
@@ -549,44 +549,44 @@ end:
 	return NULL;
 }
 
-static void broadcast_workers_err(struct zc_crk_bforce *crk, int err)
+static void broadcast_workers_err(struct zc_bruteforce *ctx, int err)
 {
-	pthread_mutex_lock(&crk->mutex);
-	crk->pthread_create_err = err;
-	pthread_cond_broadcast(&crk->cond);
-	pthread_mutex_unlock(&crk->mutex);
+	pthread_mutex_lock(&ctx->mutex);
+	ctx->pthread_create_err = err;
+	pthread_cond_broadcast(&ctx->cond);
+	pthread_mutex_unlock(&ctx->mutex);
 }
 
-static int create_workers(struct zc_crk_bforce *crk, size_t *cnt)
+static int create_workers(struct zc_bruteforce *ctx, size_t *cnt)
 {
 	struct worker *w;
 	size_t created = 0;
 
-	pthread_mutex_lock(&crk->mutex);
-	list_for_each_entry(w, &crk->workers_head, list) {
+	pthread_mutex_lock(&ctx->mutex);
+	list_for_each_entry(w, &ctx->workers_head, list) {
 		if (pthread_create(&w->thread_id, NULL, worker, w)) {
 			perror("pthread_create failed");
-			pthread_mutex_unlock(&crk->mutex);
-			broadcast_workers_err(crk, -1); /* failure */
+			pthread_mutex_unlock(&ctx->mutex);
+			broadcast_workers_err(ctx, -1); /* failure */
 			*cnt = created;
 			return -1;
 		}
 		++created;
 	}
-	pthread_mutex_unlock(&crk->mutex);
+	pthread_mutex_unlock(&ctx->mutex);
 
-	broadcast_workers_err(crk, 1); /* success */
+	broadcast_workers_err(ctx, 1); /* success */
 	*cnt = created;
 
 	return 0;
 }
 
 /* called while holding mutex */
-static void cancel_workers(struct zc_crk_bforce *crk)
+static void cancel_workers(struct zc_bruteforce *ctx)
 {
 	struct worker *w;
 
-	list_for_each_entry(w, &crk->workers_head, list) {
+	list_for_each_entry(w, &ctx->workers_head, list) {
 		int err = pthread_cancel(w->thread_id);
 		if (err)
 			perror("pthread_cancel failed");
@@ -594,25 +594,25 @@ static void cancel_workers(struct zc_crk_bforce *crk)
 	}
 }
 
-static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
+static void wait_workers(struct zc_bruteforce *ctx, size_t workers, char *pw,
 			 size_t len)
 {
 	int workers_left = workers;
 
 	/* waits for workers on the 'cleanup' list */
 	do {
-		pthread_mutex_lock(&crk->mutex);
-		while (list_empty(&crk->cleanup_head))
-			pthread_cond_wait(&crk->cond, &crk->mutex);
+		pthread_mutex_lock(&ctx->mutex);
+		while (list_empty(&ctx->cleanup_head))
+			pthread_cond_wait(&ctx->cond, &ctx->mutex);
 		struct worker *w, *tmp;
-		list_for_each_entry_safe(w, tmp, &crk->cleanup_head, list) {
+		list_for_each_entry_safe(w, tmp, &ctx->cleanup_head, list) {
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
 			if (w->found) {
 				memset(pw, 0, len);
 				strncpy(pw, w->pw, len);
-				crk->found = true;
-				cancel_workers(crk);
+				ctx->found = true;
+				cancel_workers(ctx);
 			}
 			free(w->inflate);
 			free(w->plaintext);
@@ -620,17 +620,17 @@ static void wait_workers(struct zc_crk_bforce *crk, size_t workers, char *pw,
 			free(w);
 			--workers_left;
 		}
-		pthread_mutex_unlock(&crk->mutex);
+		pthread_mutex_unlock(&ctx->mutex);
 	} while (workers_left);
 }
 
-static void dealloc_pwstreams(struct zc_crk_bforce *crk)
+static void dealloc_pwstreams(struct zc_bruteforce *ctx)
 {
-	for (size_t l = 0; l < crk->pwslen; ++l) {
-		if (crk->pws[l])
-			pwstream_free(crk->pws[l]);
+	for (size_t l = 0; l < ctx->pwslen; ++l) {
+		if (ctx->pws[l])
+			pwstream_free(ctx->pws[l]);
 	}
-	free(crk->pws);
+	free(ctx->pws);
 }
 
 static void fill_initial_pwstream(size_t *initial, const char *ipw,
@@ -675,35 +675,35 @@ static int alloc_first_pwstream(struct pwstream **pws, const char *ipw,
 	return 0;
 }
 
-static int alloc_pwstream_pool(struct zc_crk_bforce *crk, size_t workers)
+static int alloc_pwstream_pool(struct zc_bruteforce *ctx, size_t workers)
 {
-	const char *ipw = crk->ipw;
-	size_t ipwlen = crk->ipwlen;
-	size_t maxlen = crk->maxlen;
+	const char *ipw = ctx->ipw;
+	size_t ipwlen = ctx->ipwlen;
+	size_t maxlen = ctx->maxlen;
 	size_t to_alloc = maxlen - ipwlen + 1;
-	const char *set = crk->set;
-	size_t setlen = crk->setlen;
+	const char *set = ctx->set;
+	size_t setlen = ctx->setlen;
 
-	crk->pws = calloc(1, sizeof(struct pwstream *) * to_alloc);
-	if (!crk->pws)
+	ctx->pws = calloc(1, sizeof(struct pwstream *) * to_alloc);
+	if (!ctx->pws)
 		return -1;
 
-	if (alloc_first_pwstream(&crk->pws[0], ipw, ipwlen, set, setlen,
+	if (alloc_first_pwstream(&ctx->pws[0], ipw, ipwlen, set, setlen,
 				 workers)) {
-		free(crk->pws);
+		free(ctx->pws);
 		return -1;
 	}
 
-	crk->pwslen = 1;
+	ctx->pwslen = 1;
 	for (size_t i = 1; i < to_alloc; ++i) {
-		if (pwstream_new(&crk->pws[i])) {
-			dealloc_pwstreams(crk);
+		if (pwstream_new(&ctx->pws[i])) {
+			dealloc_pwstreams(ctx);
 			return -1;
 		}
-		crk->pwslen++;
-		if (pwstream_generate_from_pool(crk->pws[i], setlen, ipwlen + i,
+		ctx->pwslen++;
+		if (pwstream_generate_from_pool(ctx->pws[i], setlen, ipwlen + i,
 						workers, NULL)) {
-			dealloc_pwstreams(crk);
+			dealloc_pwstreams(ctx);
 			return -1;
 		}
 	}
@@ -754,35 +754,35 @@ static void free_parsed_mask(char **parsed_mask, size_t parsed_mask_len)
 	free(parsed_mask);
 }
 
-static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
+static int alloc_pwstream_mask(struct zc_bruteforce *ctx, size_t workers)
 {
-	size_t to_alloc = crk->mask_maxlen - crk->mask_minlen + 1;
-	size_t initial[crk->mask_minlen];
+	size_t to_alloc = ctx->mask_maxlen - ctx->mask_minlen + 1;
+	size_t initial[ctx->mask_minlen];
 
-	fill_initial_pwstream_mask(initial, crk->ipw, crk->ipwlen,
-				   (const char *const *)crk->parsed_mask);
+	fill_initial_pwstream_mask(initial, ctx->ipw, ctx->ipwlen,
+				   (const char *const *)ctx->parsed_mask);
 
-	crk->pws = calloc(to_alloc, sizeof(struct pwstream *));
-	if (!crk->pws)
+	ctx->pws = calloc(to_alloc, sizeof(struct pwstream *));
+	if (!ctx->pws)
 		return -1;
 
-	crk->pwslen = 0;
-	for (size_t len = crk->mask_minlen; len <= crk->mask_maxlen; ++len) {
-		size_t stream = len - crk->mask_minlen;
+	ctx->pwslen = 0;
+	for (size_t len = ctx->mask_minlen; len <= ctx->mask_maxlen; ++len) {
+		size_t stream = len - ctx->mask_minlen;
 
-		if (pwstream_new(&crk->pws[stream])) {
-			dealloc_pwstreams(crk);
+		if (pwstream_new(&ctx->pws[stream])) {
+			dealloc_pwstreams(ctx);
 			return -1;
 		}
-		crk->pwslen++;
+		ctx->pwslen++;
 
 		/* parsed_mask is fully expanded to maxlen.  Passing len makes
 		 * pwstream use the prefix corresponding to this password length. */
-		if (pwstream_generate_from_mask(crk->pws[stream],
-						(const char *const *)crk->parsed_mask,
+		if (pwstream_generate_from_mask(ctx->pws[stream],
+						(const char *const *)ctx->parsed_mask,
 						len, workers,
 						stream == 0 ? initial : NULL)) {
-			dealloc_pwstreams(crk);
+			dealloc_pwstreams(ctx);
 			return -1;
 		}
 	}
@@ -790,23 +790,24 @@ static int alloc_pwstream_mask(struct zc_crk_bforce *crk, size_t workers)
 	return 0;
 }
 
-static int alloc_pwstreams(struct zc_crk_bforce *crk, size_t workers)
+static int alloc_pwstreams(struct zc_bruteforce *ctx, size_t workers)
 {
-	if (crk->parsed_mask_len)
-		return alloc_pwstream_mask(crk, workers);
-	return alloc_pwstream_pool(crk, workers);
+	if (ctx->parsed_mask_len)
+		return alloc_pwstream_mask(ctx, workers);
+	return alloc_pwstream_pool(ctx, workers);
 }
 
-static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
+static int set_bruteforce_config(struct zc_bruteforce *ctx,
+				 const struct zc_bruteforce_config *cfg)
 {
 	/* A cracker may be initialized more than once.  Drop the previous mask
 	 * before selecting the new mode so mask storage is not leaked and a
 	 * later charset configuration cannot be mistaken for mask mode. */
-	free_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
-	crk->parsed_mask = NULL;
-	crk->parsed_mask_len = 0;
-	crk->mask_minlen = 0;
-	crk->mask_maxlen = 0;
+	free_parsed_mask(ctx->parsed_mask, ctx->parsed_mask_len);
+	ctx->parsed_mask = NULL;
+	ctx->parsed_mask_len = 0;
+	ctx->mask_minlen = 0;
+	ctx->mask_maxlen = 0;
 
 	if (cfg->mask.str) {
 		/* use mask */
@@ -844,36 +845,36 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 			}
 		}
 
-		crk->parsed_mask = parsed;
-		crk->parsed_mask_len = parsed_len;
-		crk->mask_minlen = mask_minlen;
-		crk->mask_maxlen = mask_maxlen;
+		ctx->parsed_mask = parsed;
+		ctx->parsed_mask_len = parsed_len;
+		ctx->mask_minlen = mask_minlen;
+		ctx->mask_maxlen = mask_maxlen;
 
-		memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
-		crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+		memcpy(ctx->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
 
-		if (!crk->ipwlen) {
+		if (!ctx->ipwlen) {
 			/*
 			 * No initial password supplied: start at the first
 			 * candidate of the shortest requested mask.
 			 */
 			size_t i;
-			for (i = 0; i < crk->mask_minlen; ++i)
-				crk->ipw[i] = crk->parsed_mask[i][0];
-			crk->ipw[i] = '\0';
-			crk->ipwlen = crk->mask_minlen;
+			for (i = 0; i < ctx->mask_minlen; ++i)
+				ctx->ipw[i] = ctx->parsed_mask[i][0];
+			ctx->ipw[i] = '\0';
+			ctx->ipwlen = ctx->mask_minlen;
 		}
 
 		/* Initial password should have the same length as the
 		   minimum mask length. */
-		if (crk->ipwlen != crk->mask_minlen) {
+		if (ctx->ipwlen != ctx->mask_minlen) {
 			err("initial password length (%zu) different from minimum mask length (%zu)\n",
-			    crk->ipwlen,
-			    crk->mask_minlen);
+			    ctx->ipwlen,
+			    ctx->mask_minlen);
 			return -1;
 		}
 
-		if (!pw_in_mask(crk->ipw, crk->parsed_mask, crk->ipwlen))
+		if (!pw_in_mask(ctx->ipw, ctx->parsed_mask, ctx->ipwlen))
 			return -1;
 	} else {
 		/* use character set */
@@ -886,132 +887,131 @@ static int set_pwcfg(struct zc_crk_bforce *crk, const struct zc_crk_pwcfg *cfg)
 		if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
 			return -1;
 
-		memcpy(crk->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
-		memcpy(crk->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
-		crk->maxlen = cfg->maxlen;
-		crk->setlen = sanitize_set(crk->set, cfg->setlen);
-		crk->ipwlen = strnlen(crk->ipw, ZC_PW_MAXLEN);
+		memcpy(ctx->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
+		memcpy(ctx->set, cfg->set, ZC_CHARSET_MAXLEN + 1);
+		ctx->maxlen = cfg->maxlen;
+		ctx->setlen = sanitize_set(ctx->set, cfg->setlen);
+		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
 
-		if (!crk->ipwlen) {
+		if (!ctx->ipwlen) {
 			/* no initial password supplied, use first set character */
-			crk->ipw[0] = crk->set[0];
-			crk->ipw[1] = '\0';
-			crk->ipwlen = 1;
+			ctx->ipw[0] = ctx->set[0];
+			ctx->ipw[1] = '\0';
+			ctx->ipwlen = 1;
 			return 0;
 		}
 
-		if (crk->ipwlen > crk->maxlen)
+		if (ctx->ipwlen > ctx->maxlen)
 			return -1;
 
-		if (!pw_in_set(crk->ipw, crk->set, crk->setlen))
+		if (!pw_in_set(ctx->ipw, ctx->set, ctx->setlen))
 			return -1;
 	}
 
 	return 0;
 }
 
-int zc_crk_bforce_init(struct zc_crk_bforce *crk,
+int zc_bruteforce_init(struct zc_bruteforce *ctx,
 		       const char *filename,
-		       const struct zc_crk_pwcfg *cfg)
+		       const struct zc_bruteforce_config *cfg)
 {
 	int err;
 
-	err = set_pwcfg(crk, cfg);
+	err = set_bruteforce_config(ctx, cfg);
 	if (err) {
 		err("failed to set password configuration\n");
 		return -1;
 	}
 
-	err = zc_zip_fill_header(filename, crk->header, HEADER_MAX);
+	err = zc_zip_fill_header(filename, ctx->header, HEADER_MAX);
 	if (err < 1) {
 		err("failed to read validation data, no usable entry found\n");
 		return -1;
 	}
 
-	crk->header_size = err;
-	crk->pre_magic_xor_header = crk->header[0].magic ^
-				    crk->header[0].buf[11];
+	ctx->header_size = err;
+	ctx->pre_magic_xor_header = ctx->header[0].magic ^
+				    ctx->header[0].buf[11];
 
-	if (crk->cipher) {
-		free(crk->cipher);
-		crk->cipher = NULL;
+	if (ctx->cipher) {
+		free(ctx->cipher);
+		ctx->cipher = NULL;
 	}
-	err = zc_zip_fill_test_cipher(filename, &crk->cipher,
-				      &crk->cipher_size, &crk->original_crc,
-				      &crk->cipher_is_deflated);
+	err = zc_zip_fill_test_cipher(filename, &ctx->cipher,
+				      &ctx->cipher_size, &ctx->original_crc,
+				      &ctx->cipher_is_deflated);
 	if (err) {
 		err("failed to read cipher data\n");
 		return -1;
 	}
 
-	if (crk->filename)
-		free(crk->filename);
-	crk->filename = strdup(filename);
+	if (ctx->filename)
+		free(ctx->filename);
+	ctx->filename = strdup(filename);
 
 	return 0;
 }
 
-int zc_crk_bforce_new(struct zc_crk_bforce **crk)
+int zc_bruteforce_new(struct zc_bruteforce **ctx)
 {
-	struct zc_crk_bforce *tmp;
 	int err;
 
-	tmp = calloc(1, sizeof(struct zc_crk_bforce));
-	if (!tmp)
+	*ctx = calloc(1, sizeof(struct zc_bruteforce));
+	if (!*ctx)
 		return -1;
 
-	err = pthread_mutex_init(&tmp->mutex, NULL);
+	err = pthread_mutex_init(&(*ctx)->mutex, NULL);
 	if (err) {
 		err("pthread_mutex_init() failed: %s\n", strerror(err));
-		free(tmp);
+		free(*ctx);
+		*ctx = NULL;
 		return -1;
 	}
 
-	err = pthread_cond_init(&tmp->cond, NULL);
+	err = pthread_cond_init(&(*ctx)->cond, NULL);
 	if (err) {
 		err("pthread_cond_init() failed: %s\n", strerror(err));
-		pthread_mutex_destroy(&tmp->mutex);
-		free(tmp);
+		pthread_mutex_destroy(&(*ctx)->mutex);
+		free(*ctx);
+		*ctx = NULL;
 		return -1;
 	}
 
-	tmp->force_threads = -1;
+	(*ctx)->force_threads = -1;
 
-	INIT_LIST_HEAD(&tmp->workers_head);
-	INIT_LIST_HEAD(&tmp->cleanup_head);
+	INIT_LIST_HEAD(&(*ctx)->workers_head);
+	INIT_LIST_HEAD(&(*ctx)->cleanup_head);
 
-	*crk = tmp;
-
-	dbg("cracker %p created\n", tmp);
+	dbg("bruteforce context %p created\n", *ctx);
 	return 0;
 }
 
-void zc_crk_bforce_destroy(struct zc_crk_bforce *crk)
+void zc_bruteforce_destroy(struct zc_bruteforce *ctx)
 {
-	if (!crk)
+	if (!ctx)
 		return;
-	if (crk->filename)
-		free(crk->filename);
-	if (crk->cipher)
-		free(crk->cipher);
-	free_parsed_mask(crk->parsed_mask, crk->parsed_mask_len);
-	pthread_cond_destroy(&crk->cond);
-	pthread_mutex_destroy(&crk->mutex);
-	free(crk);
+	if (ctx->filename)
+		free(ctx->filename);
+	if (ctx->cipher)
+		free(ctx->cipher);
+	free_parsed_mask(ctx->parsed_mask, ctx->parsed_mask_len);
+	pthread_cond_destroy(&ctx->cond);
+	pthread_mutex_destroy(&ctx->mutex);
+	free(ctx);
 }
 
 const char *
-zc_crk_bforce_sanitized_charset(const struct zc_crk_bforce *crk)
+zc_bruteforce_sanitized_charset(const struct zc_bruteforce *ctx)
 {
-	return crk->set;
+	return ctx->set;
 }
 
-void zc_crk_bforce_force_threads(struct zc_crk_bforce *bforce, long w)
+void zc_bruteforce_force_threads(struct zc_bruteforce *ctx, long w)
 {
-	bforce->force_threads = w;
+	ctx->force_threads = w;
 }
 
-int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
+int zc_bruteforce_start(struct zc_bruteforce *ctx, char *pw,
 			size_t len)
 {
 	size_t w;
@@ -1019,30 +1019,30 @@ int zc_crk_bforce_start(struct zc_crk_bforce *crk, char *pw,
 	if (!len)
 		return -1;
 
-	w = threads_to_create(crk->force_threads);
+	w = threads_to_create(ctx->force_threads);
 
-	if (alloc_pwstreams(crk, w)) {
+	if (alloc_pwstreams(ctx, w)) {
 		err("failed to allocate password streams\n");
 		goto err1;
 	}
 
-	if (alloc_workers(crk, w)) {
+	if (alloc_workers(ctx, w)) {
 		err("failed to allocate workers\n");
 		goto err2;
 	}
 
-	crk->found = false;
-	if (create_workers(crk, &w))
+	ctx->found = false;
+	if (create_workers(ctx, &w))
 		err("failed to create workers\n");
 
-	wait_workers(crk, w, pw, len);
+	wait_workers(ctx, w, pw, len);
 
-	dealloc_pwstreams(crk);
+	dealloc_pwstreams(ctx);
 
-	return crk->found ? 0 : 1; /* return -1 on error, 1 if not found else 0. */
+	return ctx->found ? 0 : 1; /* return -1 on error, 1 if not found else 0. */
 
 err2:
-	dealloc_pwstreams(crk);
+	dealloc_pwstreams(ctx);
 err1:
 	return -1;
 }

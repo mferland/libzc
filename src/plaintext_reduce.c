@@ -42,7 +42,7 @@ struct reduce_private {
 	pthread_mutex_t mutex;
 	pthread_barrier_t barrier;
 	size_t nbthreads;
-	const struct zc_crk_ptext *ptext;
+	const struct zc_plaintext *ctx;
 	struct reduc_work_unit *unit;
 };
 
@@ -164,7 +164,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 {
 	struct reduce_private *priv = (struct reduce_private *)in;
 	struct reduc_work_unit *unit = list_entry(list, struct reduc_work_unit, list);
-	size_t start_index = priv->ptext->text_size - 2;
+	size_t start_index = priv->ctx->text_size - 2;
 
 	unit->key2ip1_size =
 		distribute_key2(KEY2_ARRAY_LEN / priv->nbthreads,
@@ -174,14 +174,14 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 				priv->key2);
 
 	for (size_t i = start_index; ; --i) {
-		uint8_t key3i = generate_key3(priv->ptext, i);
-		uint8_t key3im1 = generate_key3(priv->ptext, i - 1);
+		uint8_t key3i = generate_key3(priv->ctx, i);
+		uint8_t key3im1 = generate_key3(priv->ctx, i - 1);
 		key2r_compute_next_array(unit->key2ip1,
 					 unit->key2ip1_size,
 					 unit->key2i,
 					 &unit->key2i_size,
-					 get_bits_15_2(priv->ptext->bits_15_2, key3i),
-					 get_bits_15_2(priv->ptext->bits_15_2, key3im1),
+					 get_bits_15_2(priv->ctx->bits_15_2, key3i),
+					 get_bits_15_2(priv->ctx->bits_15_2, key3im1),
 					 i == start_index ? KEY2_MASK_6BITS : KEY2_MASK_8BITS);
 
 		pthread_mutex_lock(&priv->mutex);
@@ -222,7 +222,7 @@ static int do_work_reduce(void *in, struct list_head *list, int id)
 	return TPEMORE;
 }
 
-static int reduce_private_alloc(const struct zc_crk_ptext *ptext,
+static int reduce_private_alloc(const struct zc_plaintext *ctx,
 				struct reduce_private **priv,
 				size_t nbthreads)
 {
@@ -232,7 +232,7 @@ static int reduce_private_alloc(const struct zc_crk_ptext *ptext,
 	if (!tmp)
 		return -1;
 
-	tmp->ptext = ptext;
+	tmp->ctx = ctx;
 
 	/*
 	 * Allocate enough space for the 1st generation of keys along
@@ -270,7 +270,7 @@ static void reduce_private_dealloc(struct reduce_private *priv)
 	free(priv);
 }
 
-int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
+int zc_plaintext_key2_reduction(struct zc_plaintext *ctx)
 {
 	uint8_t key3i;
 	struct threadpool_ops ops;
@@ -278,18 +278,18 @@ int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 	size_t nbthreads;
 	int err = 0;
 
-	nbthreads = threadpool_get_nbthreads(ptext->pool);
+	nbthreads = threadpool_get_nbthreads(ctx->pool);
 
-	err = reduce_private_alloc(ptext, &priv, nbthreads);
+	err = reduce_private_alloc(ctx, &priv, nbthreads);
 	if (err)
 		return err;
 
 	/* first gen key2 (key2ip1) */
-	key3i = generate_key3(ptext, ptext->text_size - 1);
+	key3i = generate_key3(ctx, ctx->text_size - 1);
 
 	/* store in priv->key2 temporarily */
 	generate_all_key2_bits_31_2(priv->key2,
-				    get_bits_15_2(ptext->bits_15_2, key3i));
+				    get_bits_15_2(ctx->bits_15_2, key3i));
 
 	for (size_t i = 0; i < nbthreads; ++i) {
 		priv->unit[i].key2i = calloc(KEY2_ARRAY_LEN, sizeof(uint32_t));
@@ -298,23 +298,23 @@ int zc_crk_ptext_key2_reduction(struct zc_crk_ptext *ptext)
 
 	ops.in = priv;
 	ops.do_work = do_work_reduce;
-	threadpool_set_ops(ptext->pool, &ops);
+	threadpool_set_ops(ctx->pool, &ops);
 
-	threadpool_submit_start(ptext->pool, false);
+	threadpool_submit_start(ctx->pool, false);
 	for (size_t i = 0; i < nbthreads; ++i)
-		threadpool_submit_work(ptext->pool, &priv->unit[i].list);
-	threadpool_submit_wait(ptext->pool);
+		threadpool_submit_work(ctx->pool, &priv->unit[i].list);
+	threadpool_submit_wait(ctx->pool);
 
 	/*
 	 * from here priv->key2 and priv->key2_size contain the final
 	 * reduced array of key2 keys.
 	 */
 
-	memcpy(&ptext->key2,
+	memcpy(&ctx->key2,
 	       priv->key2,
 	       priv->key2_size * sizeof(uint32_t));
-	ptext->key2_size = priv->key2_size;
-	if (!ptext->key2_size)
+	ctx->key2_size = priv->key2_size;
+	if (!ctx->key2_size)
 		err = -1;
 
 	for (size_t i = 0; i < nbthreads; ++i) {

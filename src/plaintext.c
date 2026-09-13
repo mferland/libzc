@@ -31,7 +31,7 @@
 #include "pool.h"
 #include "zc.h"
 
-static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb_value,
+static inline void lsbk0_set(struct zc_plaintext *ctx, uint8_t msb_value,
 			     uint8_t mul)
 {
 	/*    \  List of multiples (up to 4) that
@@ -48,18 +48,18 @@ static inline void lsbk0_set(struct zc_crk_ptext *p, uint8_t msb_value,
 	 * See Biham & Kocher section 3.3
 	 */
 	uint8_t nextmsb = (msb_value + 1) % 256;
-	p->lsbk0_lookup[msb_value][p->lsbk0_count[msb_value]++] = mul;
-	p->lsbk0_lookup[nextmsb][p->lsbk0_count[nextmsb]++] = mul;
+	ctx->lsbk0_lookup[msb_value][ctx->lsbk0_count[msb_value]++] = mul;
+	ctx->lsbk0_lookup[nextmsb][ctx->lsbk0_count[nextmsb]++] = mul;
 }
 
-static void generate_key0_lsb(struct zc_crk_ptext *ptext)
+static void generate_key0_lsb(struct zc_plaintext *ctx)
 {
 	/* reset lookup and counters to 0 */
-	memset(ptext->lsbk0_count, 0, 256 * sizeof(uint8_t));
-	memset(ptext->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
+	memset(ctx->lsbk0_count, 0, 256 * sizeof(uint8_t));
+	memset(ctx->lsbk0_lookup, 0, 256 * 4 * sizeof(uint8_t));
 
 	for (int i = 0, p = 0; i < 256; ++i, p += MULTINV)
-		lsbk0_set(ptext, msb(p), i);
+		lsbk0_set(ctx, msb(p), i);
 }
 
 static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
@@ -74,7 +74,7 @@ static void bits_15_2_from_key3(uint16_t *value, uint8_t key3)
 	}
 }
 
-static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
+static int generate_key2_bits_15_2(struct zc_plaintext *ctx)
 {
 	uint16_t *tmp = malloc(256 * 64 * sizeof(uint16_t));
 	if (!tmp)
@@ -83,64 +83,62 @@ static int generate_key2_bits_15_2(struct zc_crk_ptext *ptext)
 	for (size_t key3 = 0; key3 < 256; ++key3)
 		bits_15_2_from_key3(&tmp[key3 * 64], key3);
 
-	ptext->bits_15_2 = tmp;
+	ctx->bits_15_2 = tmp;
 
 	return 0;
 }
 
-void zc_crk_ptext_destroy(struct zc_crk_ptext *ptext)
+void zc_plaintext_destroy(struct zc_plaintext *ctx)
 {
-	if (!ptext)
+	if (!ctx)
 		return;
-	dbg("ptext %p released\n", ptext);
-	threadpool_destroy(ptext->pool);
-	free((void *)ptext->bits_15_2);
-	free(ptext);
+	dbg("plaintext context %p released\n", ctx);
+	threadpool_destroy(ctx->pool);
+	free((void *)ctx->bits_15_2);
+	free(ctx);
 }
 
-int zc_crk_ptext_new(struct zc_crk_ptext **ptext, long force_threads)
+int zc_plaintext_new(struct zc_plaintext **ctx, long force_threads)
 {
-	struct zc_crk_ptext *new;
-
-	new = calloc(1, sizeof(struct zc_crk_ptext));
-	if (!new)
+	*ctx = calloc(1, sizeof(struct zc_plaintext));
+	if (!*ctx)
 		return -1;
 
-	if (threadpool_new(&new->pool, force_threads))
+	if (threadpool_new(&(*ctx)->pool, force_threads))
 		goto err1;
 
-	if (generate_key2_bits_15_2(new))
+	if (generate_key2_bits_15_2(*ctx))
 		goto err2;
 
-	generate_key0_lsb(new);
-	*ptext = new;
+	generate_key0_lsb(*ctx);
 
-	dbg("ptext %p created\n", new);
+	dbg("plaintext context %p created\n", *ctx);
 
 	return 0;
 
 err2:
-	threadpool_destroy(new->pool);
+	threadpool_destroy((*ctx)->pool);
 err1:
-	free(new);
+	free(*ctx);
+	*ctx = NULL;
 	return -1;
 }
 
-int zc_crk_ptext_set_text(struct zc_crk_ptext *ptext,
+int zc_plaintext_set_text(struct zc_plaintext *ctx,
 			  const uint8_t *plaintext,
 			  const uint8_t *ciphertext, size_t size)
 {
 	if (size < 13)
 		return -1;
 
-	ptext->plaintext = plaintext;
-	ptext->ciphertext = ciphertext;
-	ptext->text_size = size;
+	ctx->plaintext = plaintext;
+	ctx->ciphertext = ciphertext;
+	ctx->text_size = size;
 
 	return 0;
 }
 
-size_t zc_crk_ptext_key2_count(const struct zc_crk_ptext *ptext)
+size_t zc_plaintext_key2_count(const struct zc_plaintext *ctx)
 {
-	return ptext->key2_size;
+	return ctx->key2_size;
 }

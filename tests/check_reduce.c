@@ -25,23 +25,23 @@
 
 #define KEY3(index) test_plaintext[index] ^ test_ciphertext[index]
 
-struct zc_crk_ptext *ptext;
+struct zc_plaintext *ctx;
 
 void setup_reduce()
 {
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_ptr_nonnull(ptext);
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_ptr_nonnull(ctx);
 }
 
 void teardown_reduce()
 {
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 }
 
 START_TEST(test_can_get_bits_15_2)
 {
 	for (size_t key3 = 0; key3 < 256; ++key3) {
-		const uint16_t *bits = get_bits_15_2(ptext->bits_15_2, key3);
+		const uint16_t *bits = get_bits_15_2(ctx->bits_15_2, key3);
 
 		for (size_t i = 0; i < 64; ++i) {
 			uint32_t value = bits[i];
@@ -61,7 +61,7 @@ START_TEST(test_can_generate_first_gen_key2)
 	uint32_t *key2_first_gen;
 	const uint16_t *bits15_2;
 
-	bits15_2 = get_bits_15_2(ptext->bits_15_2, 0);
+	bits15_2 = get_bits_15_2(ctx->bits_15_2, 0);
 	key2_first_gen = calloc((1 << 22), sizeof(uint32_t));
 	ck_assert_ptr_nonnull(key2_first_gen);
 	generate_all_key2_bits_31_2(key2_first_gen, bits15_2);
@@ -109,15 +109,15 @@ START_TEST(test_can_generate_next_array_from_plaintext)
 	uint8_t key3im2 = KEY3(TEST_PLAINTEXT_SIZE - 3);
 
 	key2_first_gen = calloc((1 << 22), sizeof(uint32_t));
-	generate_all_key2_bits_31_2(key2_first_gen, get_bits_15_2(ptext->bits_15_2, key3i));
+	generate_all_key2_bits_31_2(key2_first_gen, get_bits_15_2(ctx->bits_15_2, key3i));
 	key2_first_gen_size = (1 << 22);
 	key2_next_gen = calloc((1 << 22), sizeof(uint32_t));
 
 	for (size_t i = 0; i < key2_first_gen_size; ++i)
 		total += key2r_compute_single(key2_first_gen[i],
 					      &key2_next_gen[total],
-					      get_bits_15_2(ptext->bits_15_2, key3im1),
-					      get_bits_15_2(ptext->bits_15_2, key3im2),
+					      get_bits_15_2(ctx->bits_15_2, key3im1),
+					      get_bits_15_2(ctx->bits_15_2, key3im2),
 					      KEY2_MASK_6BITS);
 
 	uniq(key2_next_gen, &total);

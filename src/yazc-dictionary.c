@@ -48,26 +48,26 @@ static void print_help(const char *cmdname)
 		cmdname);
 }
 
-static int launch_crack(const char *dict_filename, const char *zip_filename,
+static int launch_crack(const char *dictionary_filename, const char *zip_filename,
 			bool stats)
 {
-	struct zc_crk_dict *crk;
+	struct zc_dictionary *ctx;
 	char pw[LINE_BUF_LEN];
 	struct timeval begin, end;
 	int err = -1;
 
-	if (zc_crk_dict_new(&crk)) {
-		cli_err("zc_crk_dict_new() failed!\n");
+	if (zc_dictionary_new(&ctx)) {
+		cli_err("zc_dictionary_new() failed!\n");
 		return -1;
 	}
 
-	if (zc_crk_dict_init(crk, zip_filename)) {
-		cli_err("zc_crk_dict_init() failed!\n");
+	if (zc_dictionary_init(ctx, zip_filename)) {
+		cli_err("zc_dictionary_init() failed!\n");
 		goto err2;
 	}
 
 	gettimeofday(&begin, NULL);
-	err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
+	err = zc_dictionary_start(ctx, dictionary_filename, pw, sizeof(pw));
 	gettimeofday(&end, NULL);
 
 	if (stats)
@@ -78,17 +78,17 @@ static int launch_crack(const char *dict_filename, const char *zip_filename,
 	else if (err == 0)
 		printf("Password is: %s\n", pw);
 	else
-		cli_err("zc_crk_dict_start failed!\n");
+		cli_err("zc_dictionary_start failed!\n");
 
 err2:
-	zc_crk_dict_destroy(crk);
+	zc_dictionary_destroy(ctx);
 
 	return err;
 }
 
 static int do_dictionary(int argc, char *argv[])
 {
-	const char *dict_filename = NULL;
+	const char *dictionary_filename = NULL;
 	const char *zip_filename = NULL;
 	bool stats = false;
 	int err;
@@ -101,7 +101,7 @@ static int do_dictionary(int argc, char *argv[])
 			break;
 		switch (c) {
 		case 'd':
-			dict_filename = optarg;
+			dictionary_filename = optarg;
 			break;
 		case 'S':
 			stats = true;
@@ -124,11 +124,11 @@ static int do_dictionary(int argc, char *argv[])
 
 	if (stats) {
 		printf("Dictionary: %s\n",
-		       !dict_filename ? "stdin" : dict_filename);
+		       !dictionary_filename ? "stdin" : dictionary_filename);
 		printf("Filename: %s\n", zip_filename);
 	}
 
-	err = launch_crack(dict_filename, zip_filename, stats);
+	err = launch_crack(dictionary_filename, zip_filename, stats);
 
 	return err;
 }

@@ -257,7 +257,7 @@ Another tool you can use is `zipinfo`.
 # TODO
 
 - Use a per-position alphabet table for both charset and mask modes so
-  `candidate_char()` does not need to check `crk->parsed_mask_len` for every
+  `candidate_char()` does not need to check `ctx->parsed_mask_len` for every
   generated character.
 
 # License

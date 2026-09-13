@@ -27,7 +27,7 @@
 #include "zc.h"
 #include "zip.h"
 
-struct zc_crk_dict {
+struct zc_dictionary {
 	char *filename;
 	struct zc_header header[HEADER_MAX];
 	size_t header_size;
@@ -52,105 +52,101 @@ static inline void remove_trailing_newline(char *line)
 	}
 }
 
-void zc_crk_dict_destroy(struct zc_crk_dict *crk)
+void zc_dictionary_destroy(struct zc_dictionary *ctx)
 {
-	if (!crk)
+	if (!ctx)
 		return;
-	free(crk->filename);
-	free(crk->cipher);
-	free(crk->plaintext);
-	free(crk->inflate);
-	if (crk->zlib)
-		inflate_destroy(crk->zlib);
-	free(crk);
+	free(ctx->filename);
+	free(ctx->cipher);
+	free(ctx->plaintext);
+	free(ctx->inflate);
+	if (ctx->zlib)
+		inflate_destroy(ctx->zlib);
+	free(ctx);
 }
 
-int zc_crk_dict_new(struct zc_crk_dict **crk)
+int zc_dictionary_new(struct zc_dictionary **ctx)
 {
-	struct zc_crk_dict *tmp;
-
-	tmp = calloc(1, sizeof(struct zc_crk_dict));
-	if (!tmp)
+	*ctx = calloc(1, sizeof(struct zc_dictionary));
+	if (!*ctx)
 		return -1;
-
-	*crk = tmp;
 
 	return 0;
 }
 
-int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
+int zc_dictionary_init(struct zc_dictionary *ctx, const char *filename)
 {
 	int err;
 
-	crk->inflate = malloc(INFLATE_CHUNK);
-	if (!crk->inflate) {
+	ctx->inflate = malloc(INFLATE_CHUNK);
+	if (!ctx->inflate) {
 		err("malloc() failed: %s\n", strerror(errno));
 		goto err1;
 	}
 
-	err = zc_zip_fill_header(filename, crk->header, HEADER_MAX);
+	err = zc_zip_fill_header(filename, ctx->header, HEADER_MAX);
 	if (err < 1) {
 		err("failed to read validation data\n");
 		goto err2;
 	}
 
-	crk->header_size = err;
+	ctx->header_size = err;
 
-	err = zc_zip_fill_test_cipher(filename, &crk->cipher,
-				      &crk->cipher_size, &crk->original_crc,
-				      &crk->cipher_is_deflated);
+	err = zc_zip_fill_test_cipher(filename, &ctx->cipher,
+				      &ctx->cipher_size, &ctx->original_crc,
+				      &ctx->cipher_is_deflated);
 	if (err) {
 		err("failed to read cipher data\n");
 		goto err2;
 	}
 
-	crk->plaintext = malloc(crk->cipher_size);
-	if (!crk->plaintext)
+	ctx->plaintext = malloc(ctx->cipher_size);
+	if (!ctx->plaintext)
 		goto err3;
 
-	crk->filename = strdup(filename);
+	ctx->filename = strdup(filename);
 
-	if (inflate_new(&crk->zlib) < 0)
+	if (inflate_new(&ctx->zlib) < 0)
 		goto err4;
 
 	return 0;
 err4:
-	free(crk->filename);
-	crk->filename = NULL;
+	free(ctx->filename);
+	ctx->filename = NULL;
 err3:
-	free(crk->cipher);
-	crk->cipher = NULL;
+	free(ctx->cipher);
+	ctx->cipher = NULL;
 err2:
-	free(crk->inflate);
-	crk->inflate = NULL;
+	free(ctx->inflate);
+	ctx->inflate = NULL;
 err1:
 	return -1;
 }
 
-static bool test_password(struct zc_crk_dict *crk, const char *pw)
+static bool test_password(struct zc_dictionary *ctx, const char *pw)
 {
 	struct zc_key base;
 
 	update_default_keys_from_array(&base, (const uint8_t *)pw, strlen(pw));
 
-	if (!decrypt_headers(&base, crk->header, crk->header_size))
+	if (!decrypt_headers(&base, ctx->header, ctx->header_size))
 		return false;
 
-	decrypt(crk->cipher, crk->plaintext, crk->cipher_size, &base);
+	decrypt(ctx->cipher, ctx->plaintext, ctx->cipher_size, &base);
 	int err;
-	if (crk->cipher_is_deflated)
-		err = inflate_buffer(crk->zlib, &crk->plaintext[12],
-				     crk->cipher_size - 12, crk->inflate,
-				     INFLATE_CHUNK, crk->original_crc);
+	if (ctx->cipher_is_deflated)
+		err = inflate_buffer(ctx->zlib, &ctx->plaintext[12],
+				     ctx->cipher_size - 12, ctx->inflate,
+				     INFLATE_CHUNK, ctx->original_crc);
 	else
-		err = test_buffer_crc(&crk->plaintext[12],
-				      crk->cipher_size - 12, crk->original_crc);
+		err = test_buffer_crc(&ctx->plaintext[12],
+				      ctx->cipher_size - 12, ctx->original_crc);
 
 	return err ? false : true;
 }
 
-int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
-		      char *pw, size_t len)
+int zc_dictionary_start(struct zc_dictionary *ctx, const char *dictionary_filename,
+			char *pw, size_t len)
 {
 	FILE *f;
 	int err = 1;
@@ -162,11 +158,11 @@ int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 	 * retained) or after end-of-file. A null character is written
 	 * immediately after the last character read into the
 	 * array. */
-	if (len < 3 || !crk->header_size)
+	if (len < 3 || !ctx->header_size)
 		return -1;
 
-	if (dict) {
-		f = fopen(dict, "r");
+	if (dictionary_filename) {
+		f = fopen(dictionary_filename, "r");
 		if (!f) {
 			err("fopen() failed: %s\n", strerror(errno));
 			return -1;
@@ -194,7 +190,7 @@ int zc_crk_dict_start(struct zc_crk_dict *crk, const char *dict,
 
 		remove_trailing_newline(s);
 
-		if (test_password(crk, s)) {
+		if (test_password(ctx, s)) {
 			err = 0;
 			break;
 		}

@@ -22,7 +22,7 @@
 #include "plaintext.h"
 #include "zc.h"
 
-struct zc_crk_ptext *ptext;
+struct zc_plaintext *ctx;
 
 struct test_pool {
 	struct zc_key k;
@@ -68,18 +68,18 @@ static void zc_passw_to_internal_rep(const uint8_t *pw, size_t len,
 	update_default_keys_from_array(out_key, pw, len);
 }
 
-void setup_ptext()
+void setup_plaintext()
 {
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_ptr_nonnull(ptext);
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_ptr_nonnull(ctx);
 }
 
-void teardown_ptext()
+void teardown_plaintext()
 {
-	zc_crk_ptext_destroy(ptext);
+	zc_plaintext_destroy(ctx);
 }
 
-START_TEST(test_zc_crk_ptext_find_password_0)
+START_TEST(test_zc_plaintext_find_password_0)
 {
 	char pw[14] = "unchanged";
 	struct zc_key internal_rep = { .key0 = 0x12345678, .key1 = 0x23456789, .key2 = 0x34567890 };
@@ -89,140 +89,140 @@ START_TEST(test_zc_crk_ptext_find_password_0)
 	ck_assert_uint_eq(generated.key0, internal_rep.key0);
 	ck_assert_uint_eq(generated.key1, internal_rep.key1);
 	ck_assert_uint_eq(generated.key2, internal_rep.key2);
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 0);
 	ck_assert_str_eq(pw, "unchanged");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_rejects_small_buffer)
+START_TEST(test_zc_plaintext_find_password_rejects_small_buffer)
 {
 	char pw[14] = {0};
 	struct zc_key internal_rep = pool[0].k;
 
 	for (size_t len = 0; len < sizeof(pw) - 1; ++len)
-		ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep,
+		ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep,
 							    pw, len), -1);
 
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw) - 1), 1);
 	ck_assert_str_eq(pw, "a");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_1)
+START_TEST(test_zc_plaintext_find_password_1)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x64799c96, .key1 = 0xb303049c, .key2 = 0xa253270a };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 1);
 	ck_assert_str_eq(pw, "a");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_2)
+START_TEST(test_zc_plaintext_find_password_2)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x23bd1e23, .key1 = 0x2b7993bc, .key2 = 0x4ccb4379 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 2);
 	ck_assert_str_eq(pw, "aa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_3)
+START_TEST(test_zc_plaintext_find_password_3)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x98f19da2, .key1 = 0x1cd05dd7, .key2 = 0x3d945e94 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 3);
 	ck_assert_str_eq(pw, "aaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_4)
+START_TEST(test_zc_plaintext_find_password_4)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x2f56297, .key1 = 0x64329027, .key2 = 0xbd806642 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 4);
 	ck_assert_str_eq(pw, "aaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_5)
+START_TEST(test_zc_plaintext_find_password_5)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x54dca24b, .key1 = 0x1b079a3b, .key2 = 0x120a6936 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 5);
 	ck_assert_str_eq(pw, "aaaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_6)
+START_TEST(test_zc_plaintext_find_password_6)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0xdbef1574, .key1 = 0xc060416c, .key2 = 0x54cc5d40 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 6);
 	ck_assert_str_eq(pw, "aaaaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_7)
+START_TEST(test_zc_plaintext_find_password_7)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x6d060bfe, .key1 = 0xc76ff413, .key2 = 0x7388dade };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 7);
 	ck_assert_str_eq(pw, "aaaaaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_8)
+START_TEST(test_zc_plaintext_find_password_8)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x60dd88de, .key1 = 0xcf040cb6, .key2 = 0x6ac3a828 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 8);
 	ck_assert_str_eq(pw, "aaaaaaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_9)
+START_TEST(test_zc_plaintext_find_password_9)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x5bbe7395, .key1 = 0xe446ee78, .key2 =  0x92b84d33};
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 9);
 	ck_assert_str_eq(pw, "aaaaaaaaa");
 }
 END_TEST
 
 #ifdef EXTRACHECK
-START_TEST(test_zc_crk_ptext_find_password_10)
+START_TEST(test_zc_plaintext_find_password_10)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0xba8b8876, .key1 = 0xf00562a7, .key2 = 0x02ff2b47 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 10);
 	ck_assert_str_eq(pw, "aaaaaaaaaa");
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_find_password_11)
+START_TEST(test_zc_plaintext_find_password_11)
 {
 	char pw[14];
 	struct zc_key internal_rep = { .key0 = 0x83690e4f, .key1 = 0x3ed1c6cf, .key2 = 0x29db36b3 };
-	ck_assert_int_eq(zc_crk_ptext_find_password(ptext, &internal_rep, pw,
+	ck_assert_int_eq(zc_plaintext_find_password(ctx, &internal_rep, pw,
 						    sizeof(pw)), 11);
 	ck_assert_str_eq(pw, "aaaaaaaaaaa");
 }
 END_TEST
 #endif
 
-START_TEST(test_zc_crk_ptext_find_password_pool)
+START_TEST(test_zc_plaintext_find_password_pool)
 {
 	char pw[14];
 	struct zc_key internal_rep;
@@ -237,7 +237,7 @@ START_TEST(test_zc_crk_ptext_find_password_pool)
 		ck_assert_uint_eq(generated.key2, pool[i].k.key2);
 
 		internal_rep = pool[i].k;
-		ck_assert_int_eq(zc_crk_ptext_find_password(ptext,
+		ck_assert_int_eq(zc_plaintext_find_password(ctx,
 							    &internal_rep,
 							    pw, sizeof(pw)),
 				 pool[i].len);
@@ -251,27 +251,27 @@ Suite *plaintext_password_suite()
 	Suite *s = suite_create("plaintext_password");
 
 	TCase *tc_core = tcase_create("Core");
-	tcase_add_checked_fixture(tc_core, setup_ptext, teardown_ptext);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_0);
+	tcase_add_checked_fixture(tc_core, setup_plaintext, teardown_plaintext);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_0);
 	tcase_add_test(tc_core,
-		       test_zc_crk_ptext_find_password_rejects_small_buffer);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_1);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_2);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_3);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_4);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_5);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_6);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_7);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_8);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_9);
+		       test_zc_plaintext_find_password_rejects_small_buffer);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_1);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_2);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_3);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_4);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_5);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_6);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_7);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_8);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_9);
 #ifdef EXTRACHECK
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_10);
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_11);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_10);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_11);
 	tcase_set_timeout(tc_core, 3600);
 #else
 	tcase_set_timeout(tc_core, 60);
 #endif
-	tcase_add_test(tc_core, test_zc_crk_ptext_find_password_pool);
+	tcase_add_test(tc_core, test_zc_plaintext_find_password_pool);
 	suite_add_tcase(s, tc_core);
 
 	return s;

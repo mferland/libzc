@@ -62,12 +62,12 @@ zip_SOURCES = check_zip.c
 zip_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 zip_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
-# zc_crk_bforce related functions
+# zc_bruteforce related functions
 bruteforce_SOURCES = check_bruteforce.c
 bruteforce_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 bruteforce_LDADD = $(TEST_CORE) @CHECK_LIBS@
 
-# zc_crk_dict related functions
+# zc_dictionary related functions
 dictionary_SOURCES = check_dictionary.c
 dictionary_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 dictionary_LDADD = $(TEST_CORE) @CHECK_LIBS@
