@@ -58,6 +58,7 @@ struct zc_bruteforce {
 	/* character set */
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
+	const unsigned char *alphabet[ZC_PW_MAXLEN];
 
 	/* parsed mask */
 	char **parsed_mask;
@@ -107,9 +108,7 @@ struct worker {
 static inline unsigned char candidate_char(const struct zc_bruteforce *ctx,
 					   size_t pos, size_t index)
 {
-	if (ctx->parsed_mask_len)
-		return (unsigned char)ctx->parsed_mask[pos][index];
-	return (unsigned char)ctx->set[index];
+	return ctx->alphabet[pos][index];
 }
 
 static size_t uniq(char *str, size_t len)
@@ -808,6 +807,7 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 	ctx->parsed_mask_len = 0;
 	ctx->mask_minlen = 0;
 	ctx->mask_maxlen = 0;
+	memset(ctx->alphabet, 0, sizeof(ctx->alphabet));
 
 	if (cfg->mask.str) {
 		/* use mask */
@@ -849,6 +849,9 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 		ctx->parsed_mask_len = parsed_len;
 		ctx->mask_minlen = mask_minlen;
 		ctx->mask_maxlen = mask_maxlen;
+		for (size_t i = 0; i < mask_maxlen; ++i)
+			ctx->alphabet[i] =
+				(const unsigned char *)ctx->parsed_mask[i];
 
 		memcpy(ctx->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
 		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
@@ -892,6 +895,8 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 		ctx->maxlen = cfg->maxlen;
 		ctx->setlen = sanitize_set(ctx->set, cfg->setlen);
 		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
+		for (size_t i = 0; i < ctx->maxlen; ++i)
+			ctx->alphabet[i] = (const unsigned char *)ctx->set;
 
 		if (!ctx->ipwlen) {
 			/* no initial password supplied, use first set character */
