@@ -129,7 +129,8 @@ static struct entry *entry_at(struct pwstream *pws, size_t row, size_t col)
 	return &pws->table[pws->active_stream_count * row + col];
 }
 
-static const struct entry *const_entry_at(const struct pwstream *pws, size_t row, size_t col)
+static const struct entry *const_entry_at(const struct pwstream *pws, size_t row,
+					  size_t col)
 {
 	return &pws->table[pws->active_stream_count * row + col];
 }

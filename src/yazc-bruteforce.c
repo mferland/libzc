@@ -248,7 +248,7 @@ static int do_bruteforce(int argc, char *argv[])
 		if (opts.pwcfg.maxlen < ZC_PW_MINLEN ||
 		    opts.pwcfg.maxlen > ZC_PW_MAXLEN) {
 			cli_err("maximum password length must be between %d and %d.\n",
-			    ZC_PW_MINLEN, ZC_PW_MAXLEN);
+				ZC_PW_MINLEN, ZC_PW_MAXLEN);
 			return EXIT_FAILURE;
 		}
 	} else

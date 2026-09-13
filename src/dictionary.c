@@ -97,8 +97,8 @@ int zc_crk_dict_init(struct zc_crk_dict *crk, const char *filename)
 	crk->header_size = err;
 
 	err = zc_zip_fill_test_cipher(filename, &crk->cipher,
-				  &crk->cipher_size, &crk->original_crc,
-				  &crk->cipher_is_deflated);
+				      &crk->cipher_size, &crk->original_crc,
+				      &crk->cipher_is_deflated);
 	if (err) {
 		err("failed to read cipher data\n");
 		goto err2;

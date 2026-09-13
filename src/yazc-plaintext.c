@@ -139,8 +139,8 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 		entry = argv[optind++];
 
 		cli_dbg("%s: %s %s\n",
-		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
-		    entry);
+			src == SRC_PLAIN ? "plaintext" : "ciphertext", filename,
+			entry);
 
 		err = zc_zip_new_from_filename(filename, &zip);
 		if (err)
@@ -173,8 +173,8 @@ static int parse_zip_entry_opts(char *const argv[], struct plaintext_opts *opts)
 			fd->name = filename;
 			matches++;
 			cli_dbg("found match: %s %lld %lld %lld\n", entry,
-			    (long long)fd->txt_begin, (long long)fd->txt_end,
-			    (long long)fd->file_begin);
+				(long long)fd->txt_begin, (long long)fd->txt_end,
+				(long long)fd->file_begin);
 			break;
 next:
 			cli_dbg("skipping %s\n", zc_zip_info_name(info));
@@ -198,7 +198,7 @@ static int parse_file_opts(char *const argv[], struct plaintext_opts *opts)
 		filename = argv[optind++];
 
 		cli_dbg("%s: %s\n",
-		    src == SRC_PLAIN ? "plaintext" : "ciphertext", filename);
+			src == SRC_PLAIN ? "plaintext" : "ciphertext", filename);
 
 		struct filed *fd = src == SRC_PLAIN ? &opts->plain : &opts->cipher;
 		fd->txt_begin = src == SRC_PLAIN ? 0 : 12;
@@ -241,10 +241,10 @@ static int parse_offset_opts(char *const argv[], struct plaintext_opts *opts)
 		return -1;
 
 	cli_dbg("plaintext: %s %lld %lld\n", opts->plain.name,
-	    (long long)opts->plain.txt_begin, (long long)opts->plain.txt_end);
+		(long long)opts->plain.txt_begin, (long long)opts->plain.txt_end);
 	cli_dbg("ciphertext: %s %lld %lld %lld\n", opts->cipher.name,
-	    (long long)opts->cipher.txt_begin, (long long)opts->cipher.txt_end,
-	    (long long)opts->cipher.file_begin);
+		(long long)opts->cipher.txt_begin, (long long)opts->cipher.txt_end,
+		(long long)opts->cipher.file_begin);
 
 	return 0;
 }
@@ -259,7 +259,7 @@ static int parse_internal_rep(char *const argv[], struct zc_key *internal_rep)
 		return -1;
 
 	cli_dbg("internal rep: 0x%x 0x%x 0x%x\n", internal_rep->key0,
-	    internal_rep->key1, internal_rep->key2);
+		internal_rep->key1, internal_rep->key2);
 
 	return 0;
 }
@@ -316,7 +316,7 @@ static int mmap_text_buf(struct filed *file)
 
 	if (file->txt_end >= filestat.st_size) {
 		cli_err("end offset (%lld) goes past the end of the file.\n",
-		    (long long)file->txt_end);
+			(long long)file->txt_end);
 		goto error;
 	}
 
@@ -477,13 +477,13 @@ static int do_plaintext(int argc, char *argv[])
 
 	if (arg_from_internal_rep && (arg_use_offsets || arg_use_file)) {
 		cli_err("the offset and file options are mutually exclusive from"
-		    "the password-from-internal-rep option.\n");
+			"the password-from-internal-rep option.\n");
 		return EXIT_FAILURE;
 	}
 
 	if (arg_internal_rep_from_passw && (arg_use_offsets || arg_use_file)) {
 		cli_err("the offset and file options are mutually exclusive from"
-		    "the internal-rep-from-password option.\n");
+			"the internal-rep-from-password option.\n");
 		return EXIT_FAILURE;
 	}
 
