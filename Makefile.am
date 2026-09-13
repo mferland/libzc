@@ -18,3 +18,9 @@ MAYBE_TESTS = tests
 endif
 SUBDIRS = src $(MAYBE_TESTS)
 ACLOCAL_AMFLAGS = -I m4
+
+EXTRA_DIST = \
+	scripts/benchmark-attacks.sh \
+	data/bruteforce-7char.zip \
+	data/perfdata_ctext.zip \
+	data/perfdata_ptext.zip

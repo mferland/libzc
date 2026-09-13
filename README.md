@@ -254,11 +254,18 @@ Result:
 This subcommand makes it easier to inspect the contents of ZIP archives.
 Another tool you can use is `zipinfo`.
 
-# TODO
+# Performance benchmarks
 
-- Use a per-position alphabet table for both charset and mask modes so
-  `candidate_char()` does not need to check `ctx->parsed_mask_len` for every
-  generated character.
+Run both attack benchmarks with:
+
+    scripts/benchmark-attacks.sh
+
+`data/bruteforce-7char.zip` is the stable brute-force workload.  It contains
+five traditionally encrypted entries and uses the password `zzzzzzz`, so an
+alphabetic search through length seven tests all 8,353,082,582 candidates.
+Use `BRUTEFORCE_THREADS` to select a fixed worker count when comparing builds:
+
+    BRUTEFORCE_THREADS=12 RUNS=3 scripts/benchmark-attacks.sh
 
 # License
 
