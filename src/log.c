@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -17,25 +17,32 @@
  */
 
 #include <ctype.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc.h"
-#include "libzc_private.h"
+#include "log.h"
 
 static int current_log_priority = LOG_ERR;
 static bool log_initialized;
 
-void zc_log(int priority __attribute__((__unused__)),
-	    const char *file __attribute__((__unused__)),
+void zc_log(int priority, const char *file __attribute__((__unused__)),
 	    int line __attribute__((__unused__)), const char *fn,
 	    const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	fprintf(stderr, "yazc: %s: ", fn);
+	if (fn)
+		fprintf(stderr, "yazc: %s: ", fn);
+	else if (priority == LOG_DEBUG)
+		fprintf(stderr, "dbg: ");
+	else if (priority == LOG_ERR)
+		fprintf(stderr, "error: ");
+	else if (priority == LOG_INFO)
+		fprintf(stderr, "info: ");
 	vfprintf(stderr, format, args);
 	va_end(args);
 }
@@ -49,6 +56,17 @@ void zc_trace(const char *file, int line, const char *fn, const char *format,
 	fprintf(stderr, "trace: %s:%d:%s: ", file, line, fn);
 	vfprintf(stderr, format, args);
 	va_end(args);
+}
+
+void fatal(const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vfprintf(stderr, format, args);
+	va_end(args);
+
+	exit(EXIT_FAILURE);
 }
 
 static int log_priority(const char *priority)

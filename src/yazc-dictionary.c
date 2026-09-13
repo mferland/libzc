@@ -1,0 +1,141 @@
+/*
+ *  yazc - Yet Another Zip Cracker
+ *  Copyright (C) 2012-2021 Marc Ferland
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <getopt.h>
+#include <libgen.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+
+#include "dictionary.h"
+#include "log.h"
+#include "yazc.h"
+
+#define LINE_BUF_LEN 256
+
+static const char short_opts[] = "d:hS";
+static const struct option long_opts[] = {
+	{ "dictionary", required_argument, 0, 'd' },
+	{ "stats", no_argument, 0, 'S' },
+	{ "help", no_argument, 0, 'h' },
+	{ NULL, 0, 0, 0 }
+};
+
+static void print_help(const char *cmdname)
+{
+	fprintf(stderr,
+		"Usage:\n"
+		"\t%s [options] filename\n"
+		"Options:\n"
+		"\t-d, --dictionary=FILE   read passwords from FILE\n"
+		"\t-S, --stats             print statistics\n"
+		"\t-h, --help              show this help\n",
+		cmdname);
+}
+
+static int launch_crack(const char *dictionary_filename, const char *zip_filename,
+			bool stats)
+{
+	struct zc_dictionary *ctx;
+	char pw[LINE_BUF_LEN];
+	struct timeval begin, end;
+	int err = -1;
+
+	if (zc_dictionary_new(&ctx)) {
+		cli_err("zc_dictionary_new() failed!\n");
+		return -1;
+	}
+
+	if (zc_dictionary_init(ctx, zip_filename)) {
+		cli_err("zc_dictionary_init() failed!\n");
+		goto err2;
+	}
+
+	gettimeofday(&begin, NULL);
+	err = zc_dictionary_start(ctx, dictionary_filename, pw, sizeof(pw));
+	gettimeofday(&end, NULL);
+
+	if (stats)
+		print_runtime_stats(&begin, &end);
+
+	if (err > 0)
+		printf("Password not found\n");
+	else if (err == 0)
+		printf("Password is: %s\n", pw);
+	else
+		cli_err("zc_dictionary_start failed!\n");
+
+err2:
+	zc_dictionary_destroy(ctx);
+
+	return err;
+}
+
+static int do_dictionary(int argc, char *argv[])
+{
+	const char *dictionary_filename = NULL;
+	const char *zip_filename = NULL;
+	bool stats = false;
+	int err;
+
+	for (;;) {
+		int c;
+		int idx;
+		c = getopt_long(argc, argv, short_opts, long_opts, &idx);
+		if (c == -1)
+			break;
+		switch (c) {
+		case 'd':
+			dictionary_filename = optarg;
+			break;
+		case 'S':
+			stats = true;
+			break;
+		case 'h':
+			print_help(basename(argv[0]));
+			return EXIT_SUCCESS;
+		default:
+			cli_err("unexpected getopt_long() value '%c'.\n", c);
+			return EXIT_FAILURE;
+		}
+	}
+
+	if (optind >= argc) {
+		cli_err("missing filename.\n");
+		return EXIT_FAILURE;
+	}
+
+	zip_filename = argv[optind];
+
+	if (stats) {
+		printf("Dictionary: %s\n",
+		       !dictionary_filename ? "stdin" : dictionary_filename);
+		printf("Filename: %s\n", zip_filename);
+	}
+
+	err = launch_crack(dictionary_filename, zip_filename, stats);
+
+	return err;
+}
+
+const struct yazc_cmd yazc_cmd_dictionary = {
+	.name = "dictionary",
+	.cmd = do_dictionary,
+	.help = "dictionary password cracker",
+};

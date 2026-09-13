@@ -1,4 +1,4 @@
-# libzc clang build environment
+# yazc Clang static-analysis environment
 
 FROM silkeh/clang:19-bookworm
 

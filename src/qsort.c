@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -1243,7 +1243,7 @@ void uint32_qsort_avx2(uint32_t *buf, long long n)
 #else
 
 #include <stddef.h>
-#include "qsort.h"
+#include "qsort_inline.h"
 
 void uint32_qsort_portable(uint32_t *buf, size_t n)
 {

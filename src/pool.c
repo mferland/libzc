@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2019 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -25,8 +25,9 @@
 #include <unistd.h>
 
 #include "list.h"
+#include "log.h"
 #include "pool.h"
-#include "libzc_private.h"
+#include "zc.h"
 
 struct threadpool {
 	/*

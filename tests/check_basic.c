@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -18,52 +18,54 @@
 
 #include <check.h>
 #include <stdlib.h>
-/* libzc */
-#include <libzc.h>
+#include "bruteforce.h"
+#include "dictionary.h"
+#include "plaintext.h"
+#include "zip.h"
 
-START_TEST(test_zc_file_lifecycle)
+START_TEST(test_zc_zip_lifecycle)
 {
-	struct zc_file *file;
+	struct zc_zip *zip;
 
-	ck_assert_int_eq(zc_file_new_from_filename(DATADIR "test.zip", &file), 0);
-	ck_assert_ptr_nonnull(file);
-	ck_assert_int_eq(zc_file_open(file), 0);
-	zc_file_destroy(file);
-	zc_file_destroy(NULL);
+	ck_assert_int_eq(zc_zip_new_from_filename(DATADIR "test.zip", &zip), 0);
+	ck_assert_ptr_nonnull(zip);
+	ck_assert_int_eq(zc_zip_open(zip), 0);
+	zc_zip_destroy(zip);
+	zc_zip_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_dict_lifecycle)
+START_TEST(test_zc_dictionary_lifecycle)
 {
-	struct zc_crk_dict *crk;
+	struct zc_dictionary *ctx;
 
-	ck_assert_int_eq(zc_crk_dict_new(&crk), 0);
-	ck_assert_ptr_nonnull(crk);
-	ck_assert_int_eq(zc_crk_dict_init(crk, DATADIR "noradi.zip"), 0);
-	zc_crk_dict_destroy(crk);
-	zc_crk_dict_destroy(NULL);
+	ck_assert_int_eq(zc_dictionary_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	ck_assert_int_eq(zc_dictionary_init(ctx, DATADIR "noradi.zip"), 0);
+	zc_dictionary_destroy(ctx);
+	zc_dictionary_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_bforce_lifecycle)
+START_TEST(test_zc_bruteforce_lifecycle)
 {
-	struct zc_crk_bforce *crk;
+	struct zc_bruteforce *ctx;
 
-	ck_assert_int_eq(zc_crk_bforce_new(&crk), 0);
-	ck_assert_ptr_nonnull(crk);
-	zc_crk_bforce_destroy(crk);
-	zc_crk_bforce_destroy(NULL);
+	ck_assert_int_eq(zc_bruteforce_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	zc_bruteforce_destroy(ctx);
+	zc_bruteforce_destroy(NULL);
 }
 END_TEST
 
-START_TEST(test_zc_crk_ptext_lifecycle)
+START_TEST(test_zc_plaintext_lifecycle)
 {
-	struct zc_crk_ptext *ptext;
+	struct zc_plaintext *ctx;
 
-	ck_assert_int_eq(zc_crk_ptext_new(&ptext, -1), 0);
-	ck_assert_ptr_nonnull(ptext);
-	zc_crk_ptext_destroy(ptext);
-	zc_crk_ptext_destroy(NULL);
+	ck_assert_int_eq(zc_plaintext_new(&ctx, -1), 0);
+	ck_assert_ptr_nonnull(ctx);
+	zc_plaintext_destroy(ctx);
+	zc_plaintext_destroy(NULL);
 }
 END_TEST
 
@@ -76,10 +78,10 @@ Suite *basic_suite(void)
 
 	tc_core = tcase_create("Core");
 
-	tcase_add_test(tc_core, test_zc_file_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_dict_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_bforce_lifecycle);
-	tcase_add_test(tc_core, test_zc_crk_ptext_lifecycle);
+	tcase_add_test(tc_core, test_zc_zip_lifecycle);
+	tcase_add_test(tc_core, test_zc_dictionary_lifecycle);
+	tcase_add_test(tc_core, test_zc_bruteforce_lifecycle);
+	tcase_add_test(tc_core, test_zc_plaintext_lifecycle);
 	suite_add_tcase(s, tc_core);
 
 	return s;

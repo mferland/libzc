@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -20,26 +20,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "libzc.h"
+#include "bruteforce.h"
 #include "mask_parser.h"
 
-struct zc_crk_bforce *crk;
+struct zc_bruteforce *ctx;
 
 static void setup()
 {
-	ck_assert_int_eq(zc_crk_bforce_new(&crk), 0);
-	ck_assert_ptr_nonnull(crk);
-	zc_crk_bforce_force_threads(crk, 1);
+	ck_assert_int_eq(zc_bruteforce_new(&ctx), 0);
+	ck_assert_ptr_nonnull(ctx);
+	zc_bruteforce_force_threads(ctx, 1);
 }
 
 static void teardown()
 {
-	zc_crk_bforce_destroy(crk);
+	zc_bruteforce_destroy(ctx);
 }
 
 START_TEST(test_parameter_set)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	/* empty set */
 	memset(cfg.set, 0, ZC_CHARSET_MAXLEN + 1);
@@ -47,13 +47,13 @@ START_TEST(test_parameter_set)
 	cfg.maxlen = 5;
 	memcpy(cfg.initial, "test", 5);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), -1);
 }
 END_TEST
 
 START_TEST(test_parameter_setlen)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	/* wrong setlen */
 	strcpy(cfg.set, "aaaaabcd");
@@ -62,67 +62,67 @@ START_TEST(test_parameter_setlen)
 
 	/* sanitze will correct the setlen */
 	cfg.setlen = 8;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
-	ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_str_eq(zc_bruteforce_sanitized_charset(ctx), "abcd");
 
 	cfg.setlen = 0;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), -1);
 
 	cfg.setlen = ZC_CHARSET_MAXLEN;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), -1);
 
 	cfg.setlen = ZC_CHARSET_MAXLEN + 1;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), -1);
 
 }
 END_TEST
 
 START_TEST(test_reject_invalid_length_bounds)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	strcpy(cfg.set, "ab");
 	cfg.setlen = 2;
 
 	cfg.maxlen = 0;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.maxlen = ZC_PW_MAXLEN + 1;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.maxlen = ZC_PW_MAXLEN;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.mask.str = "abcd";
 	cfg.mask.minlen = 5;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.mask.minlen = 0;
 	cfg.mask.maxlen = 3;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.mask.maxlen = ZC_PW_MAXLEN + 1;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.mask.str = "abcdefghijklmnopq";
 	cfg.mask.maxlen = 0;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	cfg.mask.str = "abcd";
 	cfg.mask.minlen = 2;
 	cfg.mask.maxlen = 6;
 	strcpy(cfg.initial, "a");
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	strcpy(cfg.initial, "ab");
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 }
 END_TEST
 
 START_TEST(test_parameter_init_leak)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	strcpy(cfg.set, "abcd");
 	cfg.maxlen = 5;
@@ -130,56 +130,56 @@ START_TEST(test_parameter_init_leak)
 	strcpy(cfg.initial, "a");
 
 	/* first call */
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
-	ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_str_eq(zc_bruteforce_sanitized_charset(ctx), "abcd");
 
 	/* second call, should not leak */
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
-	ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_str_eq(zc_bruteforce_sanitized_charset(ctx), "abcd");
 
 	/* third call, should not leak */
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
-	ck_assert_str_eq(zc_crk_bforce_sanitized_charset(crk), "abcd");
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_str_eq(zc_bruteforce_sanitized_charset(ctx), "abcd");
 }
 END_TEST
 
 START_TEST(test_parameter_mask_init_leak)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	cfg.mask.str = "p[ba][xs][xs]";
 
 	/* Reinitializing replaces the owned parsed mask each time. */
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 }
 END_TEST
 
 START_TEST(test_reinitialize_mask_as_charset)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* Establish mask mode with a search space that cannot find "pass". */
 	cfg.mask.str = "xxxx";
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 
 	/* Reinitialize the same cracker in charset mode.  A stale parsed-mask
-	 * length would incorrectly make zc_crk_bforce_start() reuse "xxxx". */
+	 * length would incorrectly make zc_bruteforce_start() reuse "xxxx". */
 	memset(&cfg, 0, sizeof(cfg));
 	strcpy(cfg.set, "pas");
 	cfg.setlen = 3;
 	cfg.maxlen = 4;
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
 }
 END_TEST
 
 START_TEST(test_reject_initial_password_outside_set)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	strcpy(cfg.set, "abc");
 	cfg.setlen = 3;
@@ -187,36 +187,36 @@ START_TEST(test_reject_initial_password_outside_set)
 	/* 'd' cannot be converted to an index in the configured set. */
 	strcpy(cfg.initial, "abd");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 }
 END_TEST
 
 START_TEST(test_reject_initial_password_outside_mask)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	cfg.mask.str = "[ab][cd]";
 	/* 'e' cannot be converted to an index in the second mask alphabet. */
 	strcpy(cfg.initial, "ae");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 }
 END_TEST
 
 START_TEST(test_mask_parser_recovers_after_invalid_range)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* The leading 'a' is accumulated before the descending range fails. */
 	cfg.mask.str = "[az-a]";
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 
 	/* A stale partial range would turn [b] into [ab] and incorrectly make
 	 * the archive password "pass" part of this search space. */
 	cfg.mask.str = "p[b][s][s]";
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 
@@ -255,18 +255,18 @@ END_TEST
 
 START_TEST(test_mask_parser_rejects_nul)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	/* Masks are represented as NUL-terminated strings throughout the
 	 * password-stream implementation, so an embedded NUL cannot be valid. */
 	cfg.mask.str = "\\x00";
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
 }
 END_TEST
 
 START_TEST(test_bruteforce_password_found)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -274,16 +274,16 @@ START_TEST(test_bruteforce_password_found)
 	cfg.setlen = 12;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "noradi");
 }
 END_TEST
 
 START_TEST(test_bruteforce_password_found_multicall)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -291,20 +291,20 @@ START_TEST(test_bruteforce_password_found_multicall)
 	cfg.setlen = 12;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "noradi");
 
 	memset(out, 0, sizeof(out));
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "noradi");
 }
 END_TEST
 
 START_TEST(test_bruteforce_password_not_found)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -312,15 +312,15 @@ START_TEST(test_bruteforce_password_not_found)
 	cfg.setlen = 12;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 
 START_TEST(test_bruteforce_password_not_found_multicall)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -328,16 +328,16 @@ START_TEST(test_bruteforce_password_not_found_multicall)
 	cfg.setlen = 12;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 
 START_TEST(test_bruteforce_stored)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	strcpy(cfg.set, "password");
@@ -345,16 +345,16 @@ START_TEST(test_bruteforce_stored)
 	cfg.setlen = 8;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
 }
 END_TEST
 
 START_TEST(test_bruteforce_stored_multicall)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	strcpy(cfg.set, "password");
@@ -362,18 +362,18 @@ START_TEST(test_bruteforce_stored_multicall)
 	cfg.setlen = 8;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
 }
 END_TEST
 
 START_TEST(test_bruteforce_mask)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* The first candidate is "pbxx"; "pass" requires selecting the second
@@ -381,9 +381,9 @@ START_TEST(test_bruteforce_mask)
 	 * the complete parser -> pwstream -> candidate lookup path. */
 	cfg.mask.str = "p[ba][xs][xs]";
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
 }
 END_TEST
@@ -394,17 +394,17 @@ static void assert_mask_config_finds_options_password(const char *mask,
 						      size_t minlen,
 						      size_t maxlen)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[sizeof(mask_options_password)];
 
 	cfg.mask.str = mask;
 	cfg.mask.minlen = minlen;
 	cfg.mask.maxlen = maxlen;
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "mask_options.zip",
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "mask_options.zip",
 					    &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_mem_eq(out, mask_options_password,
 			 sizeof(mask_options_password));
 }
@@ -471,7 +471,7 @@ END_TEST
 
 START_TEST(test_bruteforce_initial_password_boundary)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* Pool order is p < a < s.  The archive password is exactly the
@@ -481,16 +481,16 @@ START_TEST(test_bruteforce_initial_password_boundary)
 	cfg.setlen = 3;
 	strcpy(cfg.initial, "pass");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "pass");
 }
 END_TEST
 
 START_TEST(test_bruteforce_skips_password_before_initial)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* With pool order p < a < s, "saaa" is after "pass" because its
@@ -500,15 +500,15 @@ START_TEST(test_bruteforce_skips_password_before_initial)
 	cfg.setlen = 3;
 	strcpy(cfg.initial, "saaa");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 
 START_TEST(test_bruteforce_mask_skips_password_before_initial)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[5];
 
 	/* "pass" precedes "saaa" in this mask's mixed-radix order.  Starting
@@ -517,15 +517,15 @@ START_TEST(test_bruteforce_mask_skips_password_before_initial)
 	cfg.mask.str = "[ps][ab][as][as]";
 	strcpy(cfg.initial, "saaa");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "stored.zip", &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 
 START_TEST(test_bruteforce_one_character_password)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[2];
 
 	/* Exercise the shortest password stream and a search space containing
@@ -534,52 +534,52 @@ START_TEST(test_bruteforce_one_character_password)
 	cfg.setlen = 1;
 	cfg.maxlen = 1;
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk,
+	ck_assert_int_eq(zc_bruteforce_init(ctx,
 					    DATADIR "bruteforce_one_char.zip",
 					    &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "a");
 }
 END_TEST
 
 START_TEST(test_bruteforce_maximum_length_password)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[ZC_PW_MAXLEN + 1];
 
 	/* A literal mask gives one candidate exactly at the supported password
 	 * length boundary. */
 	cfg.mask.str = "abcdefghijklmnop";
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk,
+	ck_assert_int_eq(zc_bruteforce_init(ctx,
 					    DATADIR "bruteforce_max_length.zip",
 					    &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "abcdefghijklmnop");
 }
 END_TEST
 
 START_TEST(test_bruteforce_punctuation_password)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[3];
 
 	/* '?' is mask syntax unless escaped; verify that a punctuation-only
 	 * password can still be represented and recovered. */
 	cfg.mask.str = "!\\?";
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk,
+	ck_assert_int_eq(zc_bruteforce_init(ctx,
 					    DATADIR "bruteforce_special_chars.zip",
 					    &cfg), 0);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "!?");
 }
 END_TEST
 
 START_TEST(test_bruteforce_mixed_compression_methods)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[4];
 
 	/* The archive contains both stored and deflated encrypted entries.  The
@@ -589,18 +589,18 @@ START_TEST(test_bruteforce_mixed_compression_methods)
 	cfg.setlen = 3;
 	cfg.maxlen = 3;
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk,
+	ck_assert_int_eq(zc_bruteforce_init(ctx,
 					    DATADIR "bruteforce_mixed_methods.zip",
 					    &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "mix");
 }
 END_TEST
 
 START_TEST(test_bruteforce_rejects_unsupported_compression)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 
 	/* Traditional encryption alone is not enough: payload validation only
 	 * supports stored and deflated entries. */
@@ -608,8 +608,8 @@ START_TEST(test_bruteforce_rejects_unsupported_compression)
 	cfg.setlen = 2;
 	cfg.maxlen = 2;
 
-	ck_assert_int_eq(zc_crk_bforce_init(
-				 crk, DATADIR "bruteforce_unsupported_method.zip", &cfg), -1);
+	ck_assert_int_eq(zc_bruteforce_init(
+				 ctx, DATADIR "bruteforce_unsupported_method.zip", &cfg), -1);
 }
 END_TEST
 
@@ -617,7 +617,7 @@ END_TEST
 
 static void test_cancel(size_t threads)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradi");
@@ -625,11 +625,11 @@ static void test_cancel(size_t threads)
 	cfg.setlen = 6;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
 	for (int i = 0; i < CANCEL_TESTS; ++i) {
-		zc_crk_bforce_force_threads(crk, threads);
-		ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+		zc_bruteforce_force_threads(ctx, threads);
+		ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 		ck_assert_str_eq(out, "noradi");
 	}
 }
@@ -647,7 +647,7 @@ END_TEST
 
 START_TEST(test_bruteforce_pay)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[10];
 
 	strcpy(cfg.set, "amorpheus!");
@@ -655,9 +655,9 @@ START_TEST(test_bruteforce_pay)
 	cfg.setlen = 10;
 	strcpy(cfg.initial, "moaaaaaaa");
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "pay.zip", &cfg), 0);
-	zc_crk_bforce_force_threads(crk, 8);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "pay.zip", &cfg), 0);
+	zc_bruteforce_force_threads(ctx, 8);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
 	ck_assert_str_eq(out, "morpheus!");
 }
 END_TEST
@@ -665,7 +665,7 @@ END_TEST
 #ifdef EXTRACHECK
 START_TEST(test_bruteforce_pthread_create_fail)
 {
-	struct zc_crk_pwcfg cfg = {0};
+	struct zc_bruteforce_config cfg = {0};
 	char out[7];
 
 	strcpy(cfg.set, "noradiqwerty");
@@ -673,17 +673,17 @@ START_TEST(test_bruteforce_pthread_create_fail)
 	cfg.setlen = 12;
 	memset(cfg.initial, 0, ZC_PW_MAXLEN + 1);
 
-	ck_assert_int_eq(zc_crk_bforce_init(crk, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 
 	/* create an insane amount of threads, should return an error (not
 	 * crash ...) */
-	zc_crk_bforce_force_threads(crk, 95884);
-	ck_assert_int_eq(zc_crk_bforce_start(crk, out, sizeof(out)), 1);
+	zc_bruteforce_force_threads(ctx, 95884);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
 }
 END_TEST
 #endif
 
-Suite *bforce_suite(void)
+Suite *bruteforce_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
@@ -747,7 +747,7 @@ int main(void)
 	Suite *s;
 	SRunner *sr;
 
-	s = bforce_suite();
+	s = bruteforce_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_NORMAL);

@@ -30,42 +30,46 @@ AM_CFLAGS = \
 
 noinst_LIBRARIES = libyazc-core.a
 libyazc_core_a_SOURCES = \
-	common.c \
 	compat.c \
 	compat.h \
 	crc32.h \
 	decrypt_byte.h \
 	find_password.c \
 	inflate.c \
-	libzc.c \
-	libzc.h \
-	libzc_private.h \
+	inflate.h \
+	log.c \
+	log.h \
 	list.h \
 	mask_scanner.l \
 	mask_parser.y \
-	ptext_attack.c \
-	ptext_private.h \
-	ptext_reduce.c \
+	plaintext_attack.c \
+	plaintext.h \
+	plaintext_reduce.c \
 	pwstream.c \
 	pwstream.h \
 	pool.c \
 	pool.h \
-	bforce.c \
-	dict.c \
-	ptext.c \
-	file.c \
-	sys.c \
+	bruteforce.c \
+	bruteforce.h \
+	dictionary.c \
+	dictionary.h \
+	plaintext.c \
+	zip.c \
+	zip.h \
 	qsort.h \
+	qsort_inline.h \
 	qsort.c \
-	uniq.c
+	uniq.c \
+	zc.c \
+	zc.h
 
 bin_PROGRAMS = yazc
 yazc_SOURCES = \
 	yazc.c \
-	bruteforce.c \
-	dictionary.c \
-	plaintext.c \
-	info.c \
+	yazc-bruteforce.c \
+	yazc-dictionary.c \
+	yazc-plaintext.c \
+	yazc-info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS)
 yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS)

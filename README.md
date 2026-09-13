@@ -13,6 +13,10 @@
 `yazc` (Yet Another Zip Cracker) is a simple command-line application for
 recovering passwords and encryption keys from legacy ZIP archives.
 
+The project builds and installs a single executable, `yazc`. Its attack modes
+and archive-inspection support are available as subcommands; there is no
+separate library or collection of helper executables to install.
+
 # Dependencies
 
 On Ubuntu, install the required packages with:
@@ -32,6 +36,9 @@ Clone, configure, compile, and install the project:
     ./configure CFLAGS='-O3 -ffast-math -march=native -mtune=native'
     make
     sudo make install
+
+This installs `yazc`, its manual page, and this README. Run `yazc --help` to
+list the available subcommands.
 
 # Usage
 
@@ -250,7 +257,7 @@ Another tool you can use is `zipinfo`.
 # TODO
 
 - Use a per-position alphabet table for both charset and mask modes so
-  `candidate_char()` does not need to check `crk->parsed_mask_len` for every
+  `candidate_char()` does not need to check `ctx->parsed_mask_len` for every
   generated character.
 
 # License

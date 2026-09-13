@@ -1,5 +1,5 @@
 /*
- *  yazc - Yet Another Zip Cracker
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -16,124 +16,186 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <getopt.h>
-#include <libgen.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
+#include <string.h>
 
-#include "libzc.h"
-#include "yazc.h"
+#include "dictionary.h"
+#include "inflate.h"
+#include "log.h"
+#include "zc.h"
+#include "zip.h"
 
-#define LINE_BUF_LEN 256
-
-static const char short_opts[] = "d:hS";
-static const struct option long_opts[] = {
-	{ "dictionary", required_argument, 0, 'd' },
-	{ "stats", no_argument, 0, 'S' },
-	{ "help", no_argument, 0, 'h' },
-	{ NULL, 0, 0, 0 }
+struct zc_dictionary {
+	char *filename;
+	struct zc_header header[HEADER_MAX];
+	size_t header_size;
+	unsigned char *cipher;
+	unsigned char *plaintext;
+	unsigned char *inflate;
+	struct zlib_state *zlib;
+	size_t cipher_size;
+	bool cipher_is_deflated;
+	uint32_t original_crc;
+	FILE *fd;
 };
 
-static void print_help(const char *cmdname)
+static inline void remove_trailing_newline(char *line)
 {
-	fprintf(stderr,
-		"Usage:\n"
-		"\t%s [options] filename\n"
-		"Options:\n"
-		"\t-d, --dictionary=FILE   read passwords from FILE\n"
-		"\t-S, --stats             print statistics\n"
-		"\t-h, --help              show this help\n",
-		cmdname);
+	while (*line) {
+		if (*line == '\n' || *line == '\r') {
+			*line = '\0';
+			return;
+		}
+		++line;
+	}
 }
 
-static int launch_crack(const char *dict_filename, const char *zip_filename,
-			bool stats)
+void zc_dictionary_destroy(struct zc_dictionary *ctx)
 {
-	struct zc_crk_dict *crk;
-	char pw[LINE_BUF_LEN];
-	struct timeval begin, end;
-	int err = -1;
+	if (!ctx)
+		return;
+	free(ctx->filename);
+	free(ctx->cipher);
+	free(ctx->plaintext);
+	free(ctx->inflate);
+	if (ctx->zlib)
+		inflate_destroy(ctx->zlib);
+	free(ctx);
+}
 
-	if (zc_crk_dict_new(&crk)) {
-		err("zc_crk_dict_new() failed!\n");
+int zc_dictionary_new(struct zc_dictionary **ctx)
+{
+	*ctx = calloc(1, sizeof(struct zc_dictionary));
+	if (!*ctx)
 		return -1;
+
+	return 0;
+}
+
+int zc_dictionary_init(struct zc_dictionary *ctx, const char *filename)
+{
+	int err;
+
+	ctx->inflate = malloc(INFLATE_CHUNK);
+	if (!ctx->inflate) {
+		err("malloc() failed: %s\n", strerror(errno));
+		goto err1;
 	}
 
-	if (zc_crk_dict_init(crk, zip_filename)) {
-		err("zc_crk_dict_init() failed!\n");
+	err = zc_zip_fill_header(filename, ctx->header, HEADER_MAX);
+	if (err < 1) {
+		err("failed to read validation data\n");
 		goto err2;
 	}
 
-	gettimeofday(&begin, NULL);
-	err = zc_crk_dict_start(crk, dict_filename, pw, sizeof(pw));
-	gettimeofday(&end, NULL);
+	ctx->header_size = err;
 
-	if (stats)
-		print_runtime_stats(&begin, &end);
+	err = zc_zip_fill_test_cipher(filename, &ctx->cipher,
+				      &ctx->cipher_size, &ctx->original_crc,
+				      &ctx->cipher_is_deflated);
+	if (err) {
+		err("failed to read cipher data\n");
+		goto err2;
+	}
 
-	if (err > 0)
-		printf("Password not found\n");
-	else if (err == 0)
-		printf("Password is: %s\n", pw);
-	else
-		err("zc_crk_dict_start failed!\n");
+	ctx->plaintext = malloc(ctx->cipher_size);
+	if (!ctx->plaintext)
+		goto err3;
 
+	ctx->filename = strdup(filename);
+
+	if (inflate_new(&ctx->zlib) < 0)
+		goto err4;
+
+	return 0;
+err4:
+	free(ctx->filename);
+	ctx->filename = NULL;
+err3:
+	free(ctx->cipher);
+	ctx->cipher = NULL;
 err2:
-	zc_crk_dict_destroy(crk);
-
-	return err;
+	free(ctx->inflate);
+	ctx->inflate = NULL;
+err1:
+	return -1;
 }
 
-static int do_dictionary(int argc, char *argv[])
+static bool test_password(struct zc_dictionary *ctx, const char *pw)
 {
-	const char *dict_filename = NULL;
-	const char *zip_filename = NULL;
-	bool stats = false;
-	int err;
+	struct zc_key base;
 
-	for (;;) {
-		int c;
-		int idx;
-		c = getopt_long(argc, argv, short_opts, long_opts, &idx);
-		if (c == -1)
+	update_default_keys_from_array(&base, (const uint8_t *)pw, strlen(pw));
+
+	if (!decrypt_headers(&base, ctx->header, ctx->header_size))
+		return false;
+
+	decrypt(ctx->cipher, ctx->plaintext, ctx->cipher_size, &base);
+	int err;
+	if (ctx->cipher_is_deflated)
+		err = inflate_buffer(ctx->zlib, &ctx->plaintext[12],
+				     ctx->cipher_size - 12, ctx->inflate,
+				     INFLATE_CHUNK, ctx->original_crc);
+	else
+		err = test_buffer_crc(&ctx->plaintext[12],
+				      ctx->cipher_size - 12, ctx->original_crc);
+
+	return err ? false : true;
+}
+
+int zc_dictionary_start(struct zc_dictionary *ctx, const char *dictionary_filename,
+			char *pw, size_t len)
+{
+	FILE *f;
+	int err = 1;
+
+	/* The fgets function reads at most one less than the number
+	 * of characters specified by n from the stream pointed to by
+	 * stream into the array pointed to by s. No additional
+	 * characters are read after a new-line character (which is
+	 * retained) or after end-of-file. A null character is written
+	 * immediately after the last character read into the
+	 * array. */
+	if (len < 3 || !ctx->header_size)
+		return -1;
+
+	if (dictionary_filename) {
+		f = fopen(dictionary_filename, "r");
+		if (!f) {
+			err("fopen() failed: %s\n", strerror(errno));
+			return -1;
+		}
+	} else
+		f = stdin;
+
+	while (1) {
+		char *s = fgets(pw, len, f);
+		if (!s) {
+			int tmp = errno;
+			if (feof(f))
+				err = 1;
+			else if (ferror(f)) {
+				err("fgets() failed: %s\n",
+				    strerror(tmp));
+				err = -1;
+			} else {
+				err("unknown failure, errno: %d\n",
+				    tmp);
+				err = -1;
+			}
 			break;
-		switch (c) {
-		case 'd':
-			dict_filename = optarg;
+		}
+
+		remove_trailing_newline(s);
+
+		if (test_password(ctx, s)) {
+			err = 0;
 			break;
-		case 'S':
-			stats = true;
-			break;
-		case 'h':
-			print_help(basename(argv[0]));
-			return EXIT_SUCCESS;
-		default:
-			err("unexpected getopt_long() value '%c'.\n", c);
-			return EXIT_FAILURE;
 		}
 	}
 
-	if (optind >= argc) {
-		err("missing filename.\n");
-		return EXIT_FAILURE;
-	}
-
-	zip_filename = argv[optind];
-
-	if (stats) {
-		printf("Dictionary: %s\n",
-		       !dict_filename ? "stdin" : dict_filename);
-		printf("Filename: %s\n", zip_filename);
-	}
-
-	err = launch_crack(dict_filename, zip_filename, stats);
-
+	fclose(f);
 	return err;
 }
-
-const struct yazc_cmd yazc_cmd_dictionary = {
-	.name = "dictionary",
-	.cmd = do_dictionary,
-	.help = "dictionary password cracker",
-};

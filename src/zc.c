@@ -1,6 +1,6 @@
 /*
- *  zc - zip crack library
- *  Copyright (C) 2012-2021 Marc Ferland
+ *  yazc - ZIP password recovery application
+ *  Copyright (C) 2012-2020 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,61 +16,9 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <unistd.h>
-
+#include <stddef.h>
 #include "decrypt_byte.h"
-#include "libzc_private.h"
-
-int fill_header(const char *filename, struct zc_header *h,
-		size_t len)
-{
-	struct zc_file *file;
-	int err;
-
-	err = zc_file_new_from_filename(filename, &file);
-	if (err)
-		return -1;
-
-	err = zc_file_open(file);
-	if (err) {
-		zc_file_destroy(file);
-		return -1;
-	}
-
-	int size = read_zc_header(file, h, len);
-
-	zc_file_close(file);
-	zc_file_destroy(file);
-
-	return size;
-}
-
-int fill_test_cipher(const char *filename,
-		     unsigned char **buf, size_t *len, uint32_t *original_crc,
-		     bool *is_deflated)
-{
-	struct zc_file *file;
-	int err;
-
-	err = zc_file_new_from_filename(filename, &file);
-	if (err)
-		goto err1;
-
-	err = zc_file_open(file);
-	if (err)
-		goto err2;
-
-	err = read_crypt_data(file, buf, len, original_crc, is_deflated);
-	zc_file_close(file);
-	zc_file_destroy(file);
-
-	return err ? -1 : 0;
-
-err2:
-	zc_file_destroy(file);
-err1:
-	return -1;
-}
+#include "zc.h"
 
 void decrypt(const unsigned char *in, unsigned char *out, size_t len,
 	     const struct zc_key *key)
@@ -96,6 +44,12 @@ uint8_t decrypt_header(const uint8_t *buf, struct zc_key *k, uint8_t magic)
 	return buf[ENC_HEADER_LEN - 1] ^ decrypt_byte_lookup(k->key2) ^ magic;
 }
 
+static inline void reset_encryption_keys(const struct zc_key *base,
+					 struct zc_key *k)
+{
+	*k = *base;
+}
+
 bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 		     size_t len)
 {
@@ -110,8 +64,27 @@ bool decrypt_headers(const struct zc_key *k, const struct zc_header *h,
 	return true;
 }
 
-void zc_passw_to_internal_rep(const uint8_t *pw, size_t len,
-			      struct zc_key *out_key)
+#ifdef WIN32
+
+size_t threads_to_create(long forced)
 {
-	update_default_keys_from_array(out_key, pw, len);
+	if (forced > 0)
+		return forced;
+	return 1; /* best effort on windows */
 }
+
+#else
+
+#include <unistd.h>
+
+size_t threads_to_create(long forced)
+{
+	if (forced > 0)
+		return forced;
+	long n = sysconf(_SC_NPROCESSORS_ONLN);
+	if (n < 1)
+		return 1;
+	return n;
+}
+
+#endif

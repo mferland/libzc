@@ -1,4 +1,4 @@
-# libzc debian pacakge build environment
+# yazc Debian package build environment
 
 FROM debian:unstable-slim
 

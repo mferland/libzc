@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "libzc_private.h"
 #include "pwstream.h"
 
 static const struct entry null_entry = { SIZE_MAX, SIZE_MAX, SIZE_MAX };
@@ -130,7 +129,8 @@ static struct entry *entry_at(struct pwstream *pws, size_t row, size_t col)
 	return &pws->table[pws->active_stream_count * row + col];
 }
 
-static const struct entry *const_entry_at(const struct pwstream *pws, size_t row, size_t col)
+static const struct entry *const_entry_at(const struct pwstream *pws, size_t row,
+					  size_t col)
 {
 	return &pws->table[pws->active_stream_count * row + col];
 }

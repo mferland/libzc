@@ -16,20 +16,18 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <errno.h>
-#include <stdint.h>
-#include <stdlib.h>
+#ifndef DICTIONARY_H
+#define DICTIONARY_H
 
-#include "compat.h"
+#include <stddef.h>
 
-#ifndef HAVE_REALLOCARRAY
-void *reallocarray(void *ptr, size_t nmemb, size_t size)
-{
-	if (size && nmemb > SIZE_MAX / size) {
-		errno = ENOMEM;
-		return NULL;
-	}
+struct zc_dictionary;
 
-	return realloc(ptr, nmemb * size);
-}
-#endif
+void zc_dictionary_destroy(struct zc_dictionary *ctx);
+int zc_dictionary_new(struct zc_dictionary **ctx);
+int zc_dictionary_init(struct zc_dictionary *ctx, const char *filename);
+int zc_dictionary_start(struct zc_dictionary *ctx, const char *dictionary_filename,
+			char *pw,
+			size_t len);
+
+#endif /* DICTIONARY_H */

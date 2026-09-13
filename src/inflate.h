@@ -1,6 +1,6 @@
 /*
- *  zc - zip crack library
- *  Copyright (C) 2012-2020 Marc Ferland
+ *  yazc - ZIP password recovery application
+ *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,29 +16,23 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef _INFLATE_H_
+#define _INFLATE_H_
+
 #include <stddef.h>
+#include <stdint.h>
 
-#ifdef WIN32
+struct zlib_state;
 
-size_t threads_to_create(long forced)
-{
-	if (forced > 0)
-		return forced;
-	return 1; /* best effort on windows */
-}
+int inflate_new(struct zlib_state **zlib);
 
-#else
+void inflate_destroy(struct zlib_state *zlib);
 
-#include <unistd.h>
+int inflate_buffer(struct zlib_state *zlib, const unsigned char *in,
+		   size_t inlen, unsigned char *out, size_t outlen,
+		   uint32_t original_crc);
 
-size_t threads_to_create(long forced)
-{
-	if (forced > 0)
-		return forced;
-	long n = sysconf(_SC_NPROCESSORS_ONLN);
-	if (n < 1)
-		return 1;
-	return n;
-}
+int test_buffer_crc(const unsigned char *in, size_t inlen,
+		    uint32_t original_crc);
 
-#endif
+#endif /* _INFLATE_H_ */

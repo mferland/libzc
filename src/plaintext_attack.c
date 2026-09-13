@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -23,18 +23,19 @@
 #include <string.h>
 
 #include "crc32.h"
-#include "libzc_private.h"
 #include "list.h"
-#include "ptext_private.h"
+#include "log.h"
+#include "plaintext.h"
 #include "pool.h"
+#include "zc.h"
 
 #define k2(index) priv->key2_final[index]
 #define k1(index) priv->key1_final[index]
 #define k0(index) priv->key0_final[index]
-#define plaintext(index) priv->ptext->plaintext[index]
-#define cipher(index) priv->ptext->ciphertext[index]
-#define lsbk0_lookup(index) priv->ptext->lsbk0_lookup[index]
-#define lsbk0_count(index) priv->ptext->lsbk0_count[index]
+#define plaintext(index) priv->ctx->plaintext[index]
+#define cipher(index) priv->ctx->ciphertext[index]
+#define lsbk0_lookup(index) priv->ctx->lsbk0_lookup[index]
+#define lsbk0_count(index) priv->ctx->lsbk0_count[index]
 
 #define KEY2_GEN_MAX 64		/* The maximum number of keys we could
 				 * generate from a single key2 */
@@ -45,7 +46,7 @@ struct attack_private {
 	uint32_t key0_final[13];
 	uint32_t key2[12][KEY2_GEN_MAX];
 	size_t key2_size[12];
-	const struct zc_crk_ptext *ptext;
+	const struct zc_plaintext *ctx;
 	bool found;
 	pthread_t found_by;
 	struct zc_key *inter_rep;
@@ -247,16 +248,16 @@ static void recurse_key2(struct attack_private *priv, uint32_t current_idx)
 		return;
 	}
 
-	key3im1 = generate_key3(priv->ptext, current_idx - 1);
-	key3im2 = generate_key3(priv->ptext, current_idx - 2);
+	key3im1 = generate_key3(priv->ctx, current_idx - 1);
+	key3im2 = generate_key3(priv->ctx, current_idx - 2);
 
 	/* empty array before appending new keys */
 	key2_reset(priv, current_idx - 1);
 
 	size_t s = key2r_compute_single(k2(current_idx),
 					key2_get_arr(priv, current_idx - 1),
-					get_bits_15_2(priv->ptext->bits_15_2, key3im1),
-					get_bits_15_2(priv->ptext->bits_15_2, key3im2),
+					get_bits_15_2(priv->ctx->bits_15_2, key3im1),
+					get_bits_15_2(priv->ctx->bits_15_2, key3im2),
 					KEY2_MASK_8BITS);
 	key2_set_size(priv, current_idx - 1, s);
 
@@ -271,13 +272,13 @@ static void recurse_key2(struct attack_private *priv, uint32_t current_idx)
 	}
 }
 
-static int do_work_attack(void *in, struct list_head *list, int id)
+static int do_work_attack(void *ctx, struct list_head *list, int id)
 {
 	struct attack_work_unit *unit = list_entry(list, struct attack_work_unit, list);
 	struct attack_private priv;
 	(void)id;
 
-	priv.ptext = in;
+	priv.ctx = ctx;
 	priv.inter_rep = &unit->inter_rep;
 	priv.found = false;
 
@@ -295,19 +296,19 @@ static int do_work_attack(void *in, struct list_head *list, int id)
 	return TPEEXIT;
 }
 
-int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
+int zc_plaintext_attack(struct zc_plaintext *ctx,
 			struct zc_key *out_key)
 {
-	size_t nbthreads = threadpool_get_nbthreads(ptext->pool);
-	size_t nbunits = ptext->key2_size < nbthreads ? ptext->key2_size : nbthreads;
-	size_t nbkeys_per_thread = ptext->key2_size / nbunits;
-	size_t rem = ptext->key2_size % nbunits;
+	size_t nbthreads = threadpool_get_nbthreads(ctx->pool);
+	size_t nbunits = ctx->key2_size < nbthreads ? ctx->key2_size : nbthreads;
+	size_t nbkeys_per_thread = ctx->key2_size / nbunits;
+	size_t rem = ctx->key2_size % nbunits;
 	struct threadpool_ops ops;
 	int err = -1;
 
-	ops.in = ptext;
+	ops.in = ctx;
 	ops.do_work = do_work_attack;
-	threadpool_set_ops(ptext->pool, &ops);
+	threadpool_set_ops(ctx->pool, &ops);
 
 	struct attack_work_unit *u = calloc(nbunits, sizeof(struct attack_work_unit));
 	if (!u) {
@@ -317,13 +318,13 @@ int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 
 	if (!rem) {
 		for (size_t i = 0; i < nbunits; ++i) {
-			u[i].key2_final = &ptext->key2[i * nbkeys_per_thread];
+			u[i].key2_final = &ctx->key2[i * nbkeys_per_thread];
 			u[i].key2_final_size = nbkeys_per_thread;
 		}
 	} else {
 		size_t total = 0;
 		for (size_t i = 0; i < nbunits; ++i) {
-			u[i].key2_final = &ptext->key2[total];
+			u[i].key2_final = &ctx->key2[total];
 			u[i].key2_final_size = nbkeys_per_thread;
 			total += nbkeys_per_thread;
 			if (rem) {
@@ -334,10 +335,10 @@ int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 		}
 	}
 
-	threadpool_submit_start(ptext->pool, true);
+	threadpool_submit_start(ctx->pool, true);
 	for (size_t i = 0; i < nbunits; ++i)
-		threadpool_submit_work(ptext->pool, &u[i].list);
-	threadpool_submit_wait(ptext->pool);
+		threadpool_submit_work(ctx->pool, &u[i].list);
+	threadpool_submit_wait(ctx->pool);
 
 	for (size_t i = 0; i < nbunits; ++i) {
 		if (u[i].found) {
@@ -352,7 +353,7 @@ int zc_crk_ptext_attack(struct zc_crk_ptext *ptext,
 	return err;
 }
 
-int zc_crk_ptext_find_internal_rep(const struct zc_key *start_key,
+int zc_plaintext_find_internal_rep(const struct zc_key *start_key,
 				   const uint8_t *ciphertext,
 				   size_t size,
 				   struct zc_key *internal_rep)

@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2023 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,9 @@
  * https://github.com/lemire/Code-used-on-Daniel-Lemire-s-blog/blob/master/2017/04/10/removeduplicates.cpp
  */
 
+#include <stddef.h>
 #include <stdint.h>
-#include "libzc_private.h"
+#include "qsort.h"
 
 #if defined(__AVX2__)
 

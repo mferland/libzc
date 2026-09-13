@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -19,70 +19,70 @@
 #include <check.h>
 #include <stdlib.h>
 
-/* libzc */
-#include <libzc.h>
+/* ZIP engine */
+#include "zip.h"
 
-struct zc_file *file;
+struct zc_zip *zip;
 
 void setup(void)
 {
-	file = NULL;
+	zip = NULL;
 }
 
 void teardown(void)
 {
-	zc_file_destroy(file);
+	zc_zip_destroy(zip);
 }
 
-START_TEST(test_zc_file_new)
+START_TEST(test_zc_zip_new)
 {
-	zc_file_new_from_filename(DATADIR "test.zip", &file);
-	ck_assert_msg(strcmp(zc_file_get_filename(file), DATADIR "test.zip") == 0,
+	zc_zip_new_from_filename(DATADIR "test.zip", &zip);
+	ck_assert_msg(strcmp(zc_zip_get_filename(zip), DATADIR "test.zip") == 0,
 		      "Filename does not match.");
-	ck_assert(zc_file_isopened(file) == false);
+	ck_assert(zc_zip_isopened(zip) == false);
 }
 END_TEST
 
-START_TEST(test_zc_file_open_existant)
+START_TEST(test_zc_zip_open_existant)
 {
-	zc_file_new_from_filename(DATADIR "test.zip", &file);
-	ck_assert(zc_file_isopened(file) == false);
-	ck_assert_msg(zc_file_open(file) == 0,
-		      "File could not be opened.");
-	ck_assert(zc_file_isopened(file) == true);
-	ck_assert_int_eq(zc_file_open(file), -1);
-	ck_assert(zc_file_isopened(file) == true);
-	ck_assert_int_eq(zc_file_close(file), 0);
-	ck_assert(zc_file_isopened(file) == false);
-	ck_assert_int_eq(zc_file_close(file), -1);
+	zc_zip_new_from_filename(DATADIR "test.zip", &zip);
+	ck_assert(zc_zip_isopened(zip) == false);
+	ck_assert_msg(zc_zip_open(zip) == 0,
+		      "ZIP could not be opened.");
+	ck_assert(zc_zip_isopened(zip) == true);
+	ck_assert_int_eq(zc_zip_open(zip), -1);
+	ck_assert(zc_zip_isopened(zip) == true);
+	ck_assert_int_eq(zc_zip_close(zip), 0);
+	ck_assert(zc_zip_isopened(zip) == false);
+	ck_assert_int_eq(zc_zip_close(zip), -1);
 }
 END_TEST
 
-START_TEST(test_zc_file_open_nonexistant)
+START_TEST(test_zc_zip_open_nonexistant)
 {
-	zc_file_new_from_filename("doesnotexists.zip", &file);
-	ck_assert(zc_file_isopened(file) == false);
-	ck_assert_msg(zc_file_open(file) != 0,
-		      "Non-existant file reported having been opened.");
-	ck_assert(zc_file_isopened(file) == false);
+	zc_zip_new_from_filename("doesnotexists.zip", &zip);
+	ck_assert(zc_zip_isopened(zip) == false);
+	ck_assert_msg(zc_zip_open(zip) != 0,
+		      "Non-existent ZIP reported having been opened.");
+	ck_assert(zc_zip_isopened(zip) == false);
 }
 END_TEST
 
-START_TEST(test_zc_file_open_non_zip)
+START_TEST(test_zc_zip_open_non_zip)
 {
-	ck_assert_int_eq(zc_file_new_from_filename(DATADIR "dict.txt",
-						   &file), 0);
-	ck_assert_int_eq(zc_file_open(file), -1);
-	ck_assert(zc_file_isopened(file) == false);
+	ck_assert_int_eq(zc_zip_new_from_filename(DATADIR "dict.txt",
+						  &zip), 0);
+	ck_assert_int_eq(zc_zip_open(zip), -1);
+	ck_assert(zc_zip_isopened(zip) == false);
 }
 END_TEST
 
-START_TEST(test_zc_file_close_opened)
+START_TEST(test_zc_zip_close_opened)
 {
-	zc_file_new_from_filename(DATADIR "test.zip", &file);
-	zc_file_open(file);
-	ck_assert_msg(zc_file_close(file) == 0,
-		      "Closing existant file failed.");
+	zc_zip_new_from_filename(DATADIR "test.zip", &zip);
+	zc_zip_open(zip);
+	ck_assert_msg(zc_zip_close(zip) == 0,
+		      "Closing existing ZIP failed.");
 }
 END_TEST
 
@@ -94,7 +94,7 @@ END_TEST
  *     2 lib/test_pwgen.c  2686 2698 4072 6879 1386  dbe99c24b7b0836471782106
  *     3 lib/test_pwdict.c 4163 4175 5192 3165 1029  616f68a1e82c05651dc989e8
  */
-START_TEST(test_zc_file_info_encrypted)
+START_TEST(test_zc_zip_info_encrypted)
 {
 	const uint8_t header[4][12] = {
 		{0xf0, 0x0e, 0x35, 0x67, 0x0c, 0xf8, 0x8a, 0xa5, 0xe9, 0x8a, 0xe4, 0x77},
@@ -112,32 +112,32 @@ START_TEST(test_zc_file_info_encrypted)
 					"lib/test_pwgen.c",
 					"lib/test_pwdict.c"
 				       };
-	const struct zc_info *info;
+	const struct zc_zip_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(DATADIR "test.zip", &file);
-	zc_file_open(file);
+	zc_zip_new_from_filename(DATADIR "test.zip", &zip);
+	zc_zip_open(zip);
 
 	int i = 0;
-	info = zc_file_info_next(file, NULL);
+	info = zc_zip_info_next(zip, NULL);
 	do {
-		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
-		ck_assert(zc_file_info_size(info) == info_size[i]);
-		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
-		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
-		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
-		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
-		ck_assert(zc_file_info_idx(info) == i);
-		buf = zc_file_info_enc_header(info);
+		ck_assert_str_eq(zc_zip_info_name(info), info_filename[i]);
+		ck_assert(zc_zip_info_size(info) == info_size[i]);
+		ck_assert(zc_zip_info_compressed_size(info) == info_csize[i]);
+		ck_assert(zc_zip_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_zip_info_offset_end(info) == info_end[i]);
+		ck_assert(zc_zip_info_crypt_header_offset(info) == info_crypt[i]);
+		ck_assert(zc_zip_info_idx(info) == i);
+		buf = zc_zip_info_enc_header(info);
 		for (int j = 0; j < 12; ++j)
 			ck_assert(buf[j] == header[i][j]);
-		info = zc_file_info_next(file, info);
+		info = zc_zip_info_next(zip, info);
 		++i;
 	} while (info);
 
 	ck_assert_int_eq(i, 4);
 
-	zc_file_close(file);
+	zc_zip_close(zip);
 }
 END_TEST
 
@@ -153,7 +153,7 @@ INDEX NAME          OFFSETS              SIZE   CSIZE  ENCRYPTED HEADER
     6 configure     53072  53084  154479 453798 101407 b253554f291f7bf4fb40ea58
     7 configure.ac  154565 154577 155414 2034   849    28869d160f08532eed9648f7
  */
-START_TEST(test_zc_file_info_encrypted_2)
+START_TEST(test_zc_zip_info_encrypted_2)
 {
 	const uint8_t header[8][12] = {
 		{0x99, 0xb2, 0x2b, 0x7d, 0xef, 0x61, 0x13, 0x84, 0xfb, 0x0f, 0x77, 0x7d},
@@ -181,33 +181,33 @@ START_TEST(test_zc_file_info_encrypted_2)
 					"configure",
 					"configure.ac"
 				       };
-	const struct zc_info *info;
+	const struct zc_zip_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(DATADIR "test_zyx.zip", &file);
-	ck_assert_msg(zc_file_open(file) == 0,
-		      "zc_file_open() failed");
+	zc_zip_new_from_filename(DATADIR "test_zyx.zip", &zip);
+	ck_assert_msg(zc_zip_open(zip) == 0,
+		      "zc_zip_open() failed");
 
 	int i = 0;
-	info = zc_file_info_next(file, NULL);
+	info = zc_zip_info_next(zip, NULL);
 	do {
-		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
-		ck_assert(zc_file_info_size(info) == info_size[i]);
-		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
-		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
-		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
-		ck_assert(zc_file_info_crypt_header_offset(info) == info_crypt[i]);
-		ck_assert(zc_file_info_idx(info) == i);
-		buf = zc_file_info_enc_header(info);
+		ck_assert_str_eq(zc_zip_info_name(info), info_filename[i]);
+		ck_assert(zc_zip_info_size(info) == info_size[i]);
+		ck_assert(zc_zip_info_compressed_size(info) == info_csize[i]);
+		ck_assert(zc_zip_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_zip_info_offset_end(info) == info_end[i]);
+		ck_assert(zc_zip_info_crypt_header_offset(info) == info_crypt[i]);
+		ck_assert(zc_zip_info_idx(info) == i);
+		buf = zc_zip_info_enc_header(info);
 		for (int j = 0; j < 12; ++j)
 			ck_assert(buf[j] == header[i][j]);
-		info = zc_file_info_next(file, info);
+		info = zc_zip_info_next(zip, info);
 		++i;
 	} while (info);
 
 	ck_assert_int_eq(i, 8);
 
-	zc_file_close(file);
+	zc_zip_close(zip);
 }
 END_TEST
 
@@ -218,7 +218,7 @@ END_TEST
  *     1 config.h.in -1 1075 1929  2647  854   000000000000000000000000
  *     2 config.log  -1 1997 10537 31002 8540  000000000000000000000000
  */
-START_TEST(test_zc_file_info_non_encrypted)
+START_TEST(test_zc_zip_info_non_encrypted)
 {
 	const uint32_t info_size[3] = {2898, 2647, 31002};
 	const uint32_t info_csize[3] = {940, 854, 8540};
@@ -228,53 +228,53 @@ START_TEST(test_zc_file_info_non_encrypted)
 					"config.h.in",
 					"config.log"
 				       };
-	const struct zc_info *info;
+	const struct zc_zip_info *info;
 	const uint8_t *buf;
 
-	zc_file_new_from_filename(DATADIR "test_non_encrypted.zip", &file);
-	zc_file_open(file);
+	zc_zip_new_from_filename(DATADIR "test_non_encrypted.zip", &zip);
+	zc_zip_open(zip);
 
 	int i = 0;
-	info = zc_file_info_next(file, NULL);
+	info = zc_zip_info_next(zip, NULL);
 	do {
-		ck_assert_str_eq(zc_file_info_name(info), info_filename[i]);
-		ck_assert(zc_file_info_size(info) == info_size[i]);
-		ck_assert(zc_file_info_compressed_size(info) == info_csize[i]);
-		ck_assert(zc_file_info_offset_begin(info) == info_offset[i]);
-		ck_assert(zc_file_info_offset_end(info) == info_end[i]);
-		ck_assert(zc_file_info_crypt_header_offset(info) == -1);
-		ck_assert(zc_file_info_idx(info) == i);
-		buf = zc_file_info_enc_header(info);
+		ck_assert_str_eq(zc_zip_info_name(info), info_filename[i]);
+		ck_assert(zc_zip_info_size(info) == info_size[i]);
+		ck_assert(zc_zip_info_compressed_size(info) == info_csize[i]);
+		ck_assert(zc_zip_info_offset_begin(info) == info_offset[i]);
+		ck_assert(zc_zip_info_offset_end(info) == info_end[i]);
+		ck_assert(zc_zip_info_crypt_header_offset(info) == -1);
+		ck_assert(zc_zip_info_idx(info) == i);
+		buf = zc_zip_info_enc_header(info);
 		for (int j = 0; j < 12; ++j)
 			ck_assert(buf[j] == 0);
-		info = zc_file_info_next(file, info);
+		info = zc_zip_info_next(zip, info);
 		++i;
 	} while (info);
 
 	ck_assert_int_eq(i, 3);
 
-	zc_file_close(file);
+	zc_zip_close(zip);
 }
 END_TEST
 
-Suite *file_suite(void)
+Suite *zip_suite(void)
 {
 	Suite *s;
 	TCase *tc_core;
 
-	s = suite_create("File");
+	s = suite_create("ZIP");
 
 	tc_core = tcase_create("Core");
 
 	tcase_add_checked_fixture(tc_core, setup, teardown);
-	tcase_add_test(tc_core, test_zc_file_new);
-	tcase_add_test(tc_core, test_zc_file_open_existant);
-	tcase_add_test(tc_core, test_zc_file_open_nonexistant);
-	tcase_add_test(tc_core, test_zc_file_open_non_zip);
-	tcase_add_test(tc_core, test_zc_file_close_opened);
-	tcase_add_test(tc_core, test_zc_file_info_encrypted);
-	tcase_add_test(tc_core, test_zc_file_info_encrypted_2);
-	tcase_add_test(tc_core, test_zc_file_info_non_encrypted);
+	tcase_add_test(tc_core, test_zc_zip_new);
+	tcase_add_test(tc_core, test_zc_zip_open_existant);
+	tcase_add_test(tc_core, test_zc_zip_open_nonexistant);
+	tcase_add_test(tc_core, test_zc_zip_open_non_zip);
+	tcase_add_test(tc_core, test_zc_zip_close_opened);
+	tcase_add_test(tc_core, test_zc_zip_info_encrypted);
+	tcase_add_test(tc_core, test_zc_zip_info_encrypted_2);
+	tcase_add_test(tc_core, test_zc_zip_info_non_encrypted);
 	suite_add_tcase(s, tc_core);
 
 	return s;
@@ -286,7 +286,7 @@ int main(void)
 	Suite *s;
 	SRunner *sr;
 
-	s = file_suite();
+	s = zip_suite();
 	sr = srunner_create(s);
 
 	srunner_run_all(sr, CK_NORMAL);

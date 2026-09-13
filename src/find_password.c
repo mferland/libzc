@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -24,8 +24,8 @@
 #include "list.h"
 #include "pool.h"
 #include "crc32.h"
-#include "libzc_private.h"
-#include "ptext_private.h"
+#include "zc.h"
+#include "plaintext.h"
 
 #define PREKEY1 0x57d2770       /* the only key1 value possible before
                                  * 0x12345678, found by exhaustive
@@ -738,7 +738,7 @@ static int try_key_7_13(struct final_private *f)
 	return -1;
 }
 
-int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
+int zc_plaintext_find_password(struct zc_plaintext *ctx,
 			       const struct zc_key *internal_rep,
 			       char *out,
 			       size_t len)
@@ -755,11 +755,11 @@ int zc_crk_ptext_find_password(struct zc_crk_ptext *ptext,
 		return 0;               /* password has 0 bytes */
 
 	/* initialise final structure */
-	f.lsbk0_lookup = ptext->lsbk0_lookup;
-	f.lsbk0_count = ptext->lsbk0_count;
+	f.lsbk0_lookup = ctx->lsbk0_lookup;
+	f.lsbk0_count = ctx->lsbk0_count;
 	f.k[0] = *internal_rep;
 	f.internal_rep = *internal_rep;
-	f.pool = ptext->pool;
+	f.pool = ctx->pool;
 
 	ret = try_key_1_4(&f);
 	if (ret > 0)

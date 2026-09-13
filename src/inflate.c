@@ -1,5 +1,5 @@
 /*
- *  zc - zip crack library
+ *  yazc - ZIP password recovery application
  *  Copyright (C) 2012-2021 Marc Ferland
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -22,16 +22,11 @@
 #define ZLIB_CONST
 #include <zlib.h>
 
+#include "inflate.h"
+
 struct zlib_state {
 	z_stream s;
 };
-
-/* to silence compiler warnings about missing prototypes */
-int inflate_new(struct zlib_state **zlib);
-void inflate_destroy(struct zlib_state *zlib);
-int inflate_buffer(struct zlib_state *zlib, const unsigned char *in, size_t inlen,
-		   unsigned char *out, size_t outlen, uint32_t original_crc);
-int test_buffer_crc(const unsigned char *in, size_t inlen, uint32_t original_crc);
 
 int inflate_new(struct zlib_state **zlib)
 {
