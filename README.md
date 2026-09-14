@@ -267,6 +267,12 @@ Use `BRUTEFORCE_THREADS` to select a fixed worker count when comparing builds:
 
     BRUTEFORCE_THREADS=12 RUNS=3 scripts/benchmark-attacks.sh
 
+The brute-force header-filter batch size defaults to 64 candidates. To compare
+other sizes, define `ZC_BRUTEFORCE_BATCH_SIZE` while configuring the build. The
+supported range is 1 through 1024:
+
+    CPPFLAGS=-DZC_BRUTEFORCE_BATCH_SIZE=32 ./configure
+
 # License
 
 Distributed under the GPLv3+ license. See `COPYING` for more information.
