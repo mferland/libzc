@@ -42,6 +42,20 @@
 #error "ZC_BRUTEFORCE_BATCH_SIZE must be between 1 and 1024"
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define ZC_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define ZC_ALWAYS_INLINE
+#endif
+
+#if (defined(__GNUC__) || defined(__clang__)) && \
+	(defined(__i386__) || defined(__x86_64__))
+#define ZC_HAVE_RUNTIME_AVX2 1
+#define ZC_TARGET_AVX2 __attribute__((target("avx2")))
+#endif
+
+struct hash;
+
 /* bruteforce cracker */
 struct zc_bruteforce {
 	/* validation data */
@@ -52,6 +66,8 @@ struct zc_bruteforce {
 	bool cipher_is_deflated;
 	uint32_t original_crc;
 	uint8_t pre_magic_xor_header;
+	size_t (*try_decrypt_fast)(const struct zc_bruteforce *ctx,
+				   struct hash *h);
 
 	/* zip filename */
 	char *filename;
@@ -88,6 +104,17 @@ struct zc_bruteforce {
 	bool found;
 };
 
+struct hash {
+	uint32_t initk0[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t initk1[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t initk2[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k0[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k1[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k2[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint16_t candidate[ZC_BRUTEFORCE_BATCH_SIZE];
+	size_t candidate_count;
+};
+
 struct worker {
 	struct list_head list;
 	pthread_t thread_id;
@@ -98,16 +125,7 @@ struct worker {
 	unsigned char *plaintext;
 	struct zlib_state *zlib;
 
-	struct hash {
-		uint32_t initk0[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint32_t initk1[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint32_t initk2[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint32_t k0[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint32_t k1[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint32_t k2[ZC_BRUTEFORCE_BATCH_SIZE];
-		uint16_t candidate[ZC_BRUTEFORCE_BATCH_SIZE];
-		size_t candidate_count;
-	} h;
+	struct hash h;
 
 	struct zc_bruteforce *ctx;
 };
@@ -224,8 +242,14 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 	limit[0].initial = limit[0].start;
 }
 
-static size_t try_decrypt_fast(const struct zc_bruteforce *ctx,
-			       struct hash *h)
+/*
+ * Keep one copy of the algorithm in the source, but inline it into each
+ * target wrapper.  This lets the compiler vectorize the same loops for the
+ * portable and AVX2 instruction sets instead of outlining one portable
+ * implementation that both wrappers would call.
+ */
+static inline ZC_ALWAYS_INLINE size_t
+try_decrypt_fast_impl(const struct zc_bruteforce *ctx, struct hash *h)
 {
 	uint8_t check[ZC_BRUTEFORCE_BATCH_SIZE];
 	uint32_t crcindex[ZC_BRUTEFORCE_BATCH_SIZE];
@@ -285,6 +309,20 @@ static size_t try_decrypt_fast(const struct zc_bruteforce *ctx,
 
 	return h->candidate_count;
 }
+
+static size_t try_decrypt_fast_portable(const struct zc_bruteforce *ctx,
+					struct hash *h)
+{
+	return try_decrypt_fast_impl(ctx, h);
+}
+
+#ifdef ZC_HAVE_RUNTIME_AVX2
+static ZC_TARGET_AVX2 size_t
+try_decrypt_fast_avx2(const struct zc_bruteforce *ctx, struct hash *h)
+{
+	return try_decrypt_fast_impl(ctx, h);
+}
+#endif
 
 static int try_decrypt2(const struct zc_bruteforce *ctx, struct worker *w)
 {
@@ -390,7 +428,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								if (++pwi % ZC_BRUTEFORCE_BATCH_SIZE)
 									continue;
 
-								if (try_decrypt_fast(ctx, &w->h) == 0)
+								if (ctx->try_decrypt_fast(ctx, &w->h) == 0)
 									continue;
 
 								ret = try_decrypt2(ctx, w);
@@ -1007,11 +1045,20 @@ int zc_bruteforce_new(struct zc_bruteforce **ctx)
 	}
 
 	(*ctx)->force_threads = -1;
+	(*ctx)->try_decrypt_fast = try_decrypt_fast_portable;
+
+#ifdef ZC_HAVE_RUNTIME_AVX2
+	__builtin_cpu_init();
+	if (__builtin_cpu_supports("avx2"))
+		(*ctx)->try_decrypt_fast = try_decrypt_fast_avx2;
+#endif
 
 	INIT_LIST_HEAD(&(*ctx)->workers_head);
 	INIT_LIST_HEAD(&(*ctx)->cleanup_head);
 
-	dbg("bruteforce context %p created\n", *ctx);
+	dbg("bruteforce context %p created with %s header filter\n", *ctx,
+	    (*ctx)->try_decrypt_fast == try_decrypt_fast_portable ?
+		    "portable" : "AVX2");
 	return 0;
 }
 
