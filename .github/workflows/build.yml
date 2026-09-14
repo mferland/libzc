@@ -31,18 +31,22 @@ jobs:
             image: ubuntu:24.04
             artifact: ubuntu-24.04
             experimental: false
+          - name: Ubuntu 26.04
+            image: ubuntu:26.04
+            artifact: ubuntu-26.04
+            experimental: false
           - name: Fedora 44
             image: fedora:44
             artifact: fedora-44
             experimental: false
-          - name: Clang 15 on Debian 11
-            image: silkeh/clang:15-bullseye
-            artifact: clang-15-debian-11
+          - name: Clang 22 on Debian 13
+            image: silkeh/clang:22-trixie
+            artifact: clang-22-debian-13
             cc: "clang"
             experimental: false
-          - name: GCC 15.2 on Debian 12
-            image: gcc:15.2.0-bookworm
-            artifact: gcc-15.2-debian-12
+          - name: GCC 16.2 on Debian 13
+            image: gcc:16.2.0-trixie
+            artifact: gcc-16.2-debian-13
             experimental: false
           - name: Debian unstable
             image: debian:unstable
