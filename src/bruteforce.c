@@ -579,11 +579,14 @@ err1:
  */
 static int wait_workers_created(struct zc_bruteforce *ctx)
 {
+	int err;
+
 	pthread_mutex_lock(&ctx->mutex);
 	while (!ctx->pthread_create_err)
 		pthread_cond_wait(&ctx->cond, &ctx->mutex);
+	err = ctx->pthread_create_err;
 	pthread_mutex_unlock(&ctx->mutex);
-	return ctx->pthread_create_err;
+	return err;
 }
 
 static void *worker(void *p)

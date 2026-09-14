@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stddef.h>
+#include <limits.h>
 #include <errno.h>
 #include <stdarg.h>
 #include "mask_scanner.h"
@@ -11,11 +12,12 @@
 
 /*
  * Both repeating productions below are left-recursive, so parser stack depth
- * does not grow with mask length.  The initial Bison stack is therefore ample;
- * keeping its maximum at the same size avoids unnecessary dynamic relocation.
+ * does not grow with mask length.  The initial Bison stack is therefore ample.
+ * Permit one bounded growth step so Bison's generated relocation path remains
+ * valid without allowing the large default maximum that confuses analyzers.
  */
 #define YYINITDEPTH 200
-#define YYMAXDEPTH YYINITDEPTH
+#define YYMAXDEPTH (YYINITDEPTH + 1)
 
 int yylex(void);
 void mask_scanner_reset(void);
@@ -221,8 +223,8 @@ int parse_mask(const char *input, char ***output)
 {
 	struct mask_item *item;
 	YY_BUFFER_STATE buffer;
-	int ret;
 	char **tmp;
+	size_t count = 0;
 	size_t copied = 0;
 
 	if (!input || !output)
@@ -240,20 +242,24 @@ int parse_mask(const char *input, char ***output)
 	mask_scanner_reset();
 	buffer = yy_scan_string(input);
 
-	ret = yyparse();
-	if (ret) {
-		ret = -1;
+	if (yyparse())
+		goto err_dealloc_items;
+
+	list_for_each_entry(item, &item_head, list) {
+		if (count == INT_MAX) {
+			yyerror("mask contains too many items");
+			goto err_dealloc_items;
+		}
+		count++;
+	}
+	if (!count) {
+		yyerror("mask contains no items");
 		goto err_dealloc_items;
 	}
 
-	list_for_each_entry(item, &item_head, list)
-		ret++;
-
-	tmp = xcalloc(ret, sizeof(char*));
-	if (!tmp) {
-		ret = -1;
+	tmp = xcalloc(count, sizeof(*tmp));
+	if (!tmp)
 		goto err_dealloc_items;
-	}
 
 	list_for_each_entry(item, &item_head, list) {
 		tmp[copied] = strdup(item->set);
@@ -262,14 +268,24 @@ int parse_mask(const char *input, char ***output)
 			while (copied)
 				free(tmp[--copied]);
 			free(tmp);
-			ret = -1;
 			goto err_dealloc_items;
 		}
 		copied++;
 	}
 
-	ret = (int)copied;
+	/* A complete range is normally removed from current_range by its grammar
+	 * action.  Keep the cleanup symmetric with the failure path. */
+	if (current_range) {
+		dealloc_item(current_range);
+		current_range = NULL;
+	}
+	dealloc_item_list(&item_head);
+	yy_delete_buffer(buffer);
+
+	/* Transfer ownership only after a complete, non-empty result has been
+	 * built and all parser-owned state has been released. */
 	*output = tmp;
+	return (int)count;
 
 err_dealloc_items:
 	/* A failed parse may leave an incomplete range outside item_head. */
@@ -279,7 +295,7 @@ err_dealloc_items:
 	}
 	dealloc_item_list(&item_head);
 	yy_delete_buffer(buffer);
-	return ret;
+	return -1;
 }
 
 }
