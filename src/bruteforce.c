@@ -33,8 +33,28 @@
 #include "mask_parser.h"
 #include "zip.h"
 
-/* The length here refers to the length of the 'candidate' field. */
-#define LEN 64UL
+/* Number of password hashes processed by one encrypted-header filter pass. */
+#ifndef ZC_BRUTEFORCE_BATCH_SIZE
+#define ZC_BRUTEFORCE_BATCH_SIZE 64U
+#endif
+
+#if ZC_BRUTEFORCE_BATCH_SIZE < 1 || ZC_BRUTEFORCE_BATCH_SIZE > 1024
+#error "ZC_BRUTEFORCE_BATCH_SIZE must be between 1 and 1024"
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+#define ZC_ALWAYS_INLINE __attribute__((always_inline))
+#else
+#define ZC_ALWAYS_INLINE
+#endif
+
+#if (defined(__GNUC__) || defined(__clang__)) && \
+	(defined(__i386__) || defined(__x86_64__))
+#define ZC_HAVE_RUNTIME_AVX2 1
+#define ZC_TARGET_AVX2 __attribute__((target("avx2")))
+#endif
+
+struct hash;
 
 /* bruteforce cracker */
 struct zc_bruteforce {
@@ -46,6 +66,8 @@ struct zc_bruteforce {
 	bool cipher_is_deflated;
 	uint32_t original_crc;
 	uint8_t pre_magic_xor_header;
+	size_t (*try_decrypt_fast)(const struct zc_bruteforce *ctx,
+				   struct hash *h);
 
 	/* zip filename */
 	char *filename;
@@ -58,6 +80,7 @@ struct zc_bruteforce {
 	/* character set */
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
+	const unsigned char *alphabet[ZC_PW_MAXLEN];
 
 	/* parsed mask */
 	char **parsed_mask;
@@ -81,6 +104,17 @@ struct zc_bruteforce {
 	bool found;
 };
 
+struct hash {
+	uint32_t initk0[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t initk1[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t initk2[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k0[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k1[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t k2[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint16_t candidate[ZC_BRUTEFORCE_BATCH_SIZE];
+	size_t candidate_count;
+};
+
 struct worker {
 	struct list_head list;
 	pthread_t thread_id;
@@ -91,15 +125,7 @@ struct worker {
 	unsigned char *plaintext;
 	struct zlib_state *zlib;
 
-	struct hash {
-		uint32_t initk0[LEN];
-		uint32_t initk1[LEN];
-		uint32_t initk2[LEN];
-		uint32_t k0[LEN];
-		uint32_t k1[LEN];
-		uint32_t k2[LEN];
-		uint64_t candidate;
-	} h;
+	struct hash h;
 
 	struct zc_bruteforce *ctx;
 };
@@ -107,9 +133,7 @@ struct worker {
 static inline unsigned char candidate_char(const struct zc_bruteforce *ctx,
 					   size_t pos, size_t index)
 {
-	if (ctx->parsed_mask_len)
-		return (unsigned char)ctx->parsed_mask[pos][index];
-	return (unsigned char)ctx->set[index];
+	return ctx->alphabet[pos][index];
 }
 
 static size_t uniq(char *str, size_t len)
@@ -218,17 +242,23 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 	limit[0].initial = limit[0].start;
 }
 
-static uint64_t try_decrypt_fast(const struct zc_bruteforce *ctx,
-				 struct hash *h)
+/*
+ * Keep one copy of the algorithm in the source, but inline it into each
+ * target wrapper.  This lets the compiler vectorize the same loops for the
+ * portable and AVX2 instruction sets instead of outlining one portable
+ * implementation that both wrappers would call.
+ */
+static inline ZC_ALWAYS_INLINE size_t
+try_decrypt_fast_impl(const struct zc_bruteforce *ctx, struct hash *h)
 {
-	uint8_t check[LEN];
-	uint32_t crcindex[LEN];
-	uint32_t crcshr8[LEN];
+	uint8_t check[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t crcindex[ZC_BRUTEFORCE_BATCH_SIZE];
+	uint32_t crcshr8[ZC_BRUTEFORCE_BATCH_SIZE];
 	uint32_t *k0 = h->k0;
 	uint32_t *k1 = h->k1;
 	uint32_t *k2 = h->k2;
 
-	h->candidate = 0;
+	h->candidate_count = 0;
 
 	/* first pass */
 	for (size_t i = 0; i < 11; ++i) {
@@ -237,46 +267,62 @@ static uint64_t try_decrypt_fast(const struct zc_bruteforce *ctx,
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (size_t j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j)
 			check[j] = b ^ decrypt_byte(k2[j]) ^ k0[j];
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
 		/* update key0 */
-		for (size_t j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j)
 			k0[j] = crc_32_tab[check[j]] ^ (k0[j] >> 8);
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
 		/* update key1 */
-		for (size_t j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j)
 			k1[j] = (k1[j] + (k0[j] & 0xff)) * MULT + 1;
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
 		/* update key2 -- loop is in two parts */
-		for (size_t j = 0; j < LEN; ++j) {
+		for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j) {
 			crcindex[j] = (k2[j] ^ (k1[j] >> 24)) & 0xff;
 			crcshr8[j] = k2[j] >> 8;
 		}
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #endif
-		for (size_t j = 0; j < LEN; ++j)
+		for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j)
 			k2[j] = crc_32_tab[crcindex[j]] ^ crcshr8[j];
 	}
 
-	for (size_t j = 0; j < LEN; ++j)
+	for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j)
 		check[j] = ctx->pre_magic_xor_header ^ decrypt_byte(k2[j]);
 
-	for (size_t j = 0; j < LEN; ++j)
-		h->candidate |= (uint64_t)(check[j] == 0) << j;
+	for (size_t j = 0; j < ZC_BRUTEFORCE_BATCH_SIZE; ++j) {
+		if (check[j] == 0)
+			h->candidate[h->candidate_count++] = (uint16_t)j;
+	}
 
-	return h->candidate;
+	return h->candidate_count;
 }
+
+static size_t try_decrypt_fast_portable(const struct zc_bruteforce *ctx,
+					struct hash *h)
+{
+	return try_decrypt_fast_impl(ctx, h);
+}
+
+#ifdef ZC_HAVE_RUNTIME_AVX2
+static ZC_TARGET_AVX2 size_t
+try_decrypt_fast_avx2(const struct zc_bruteforce *ctx, struct hash *h)
+{
+	return try_decrypt_fast_impl(ctx, h);
+}
+#endif
 
 static int try_decrypt2(const struct zc_bruteforce *ctx, struct worker *w)
 {
@@ -285,15 +331,15 @@ static int try_decrypt2(const struct zc_bruteforce *ctx, struct worker *w)
 
 #define RESET()                            \
 	do {                               \
-		key.key0 = h->initk0[ctz]; \
-		key.key1 = h->initk1[ctz]; \
-		key.key2 = h->initk2[ctz]; \
+		key.key0 = h->initk0[lane]; \
+		key.key1 = h->initk1[lane]; \
+		key.key2 = h->initk2[lane]; \
 	} while (0)
 
-	do {
-		int ctz = __builtin_ctzll(h->candidate);
-		h->candidate &= h->candidate - 1;
+	for (size_t candidate = 0; candidate < h->candidate_count; ++candidate) {
+		uint16_t lane = h->candidate[candidate];
 		size_t j = 1;
+
 		for (; j < ctx->header_size; ++j) {
 			RESET();
 			if (decrypt_header(ctx->header[j].buf, &key,
@@ -303,13 +349,22 @@ static int try_decrypt2(const struct zc_bruteforce *ctx, struct worker *w)
 		if (j == ctx->header_size) {
 			RESET();
 			if (test_password(w, &key))
-				return ctz;
+				return lane;
 		}
-	} while (h->candidate);
+	}
 
 #undef RESET
 
 	return -1;
+}
+
+static void select_unfiltered_candidates(struct hash *h, size_t count)
+{
+	assert(count > 0 && count <= ZC_BRUTEFORCE_BATCH_SIZE);
+
+	h->candidate_count = count;
+	for (size_t i = 0; i < count; ++i)
+		h->candidate[i] = (uint16_t)i;
 }
 
 /*
@@ -362,17 +417,18 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 						for (p[4] = first[4]; p[4] < last[4]; ++p[4]) {
 							update_keys(candidate_char(ctx, level_count - 2, p[4]), &cache[4], &cache[5]);
 							for (p[5] = first[5]; p[5] < last[5]; ++p[5]) {
+								size_t lane = pwi % ZC_BRUTEFORCE_BATCH_SIZE;
 								update_keys(candidate_char(ctx, level_count - 1, p[5]), &cache[5], &cache[6]);
 
 								/* save password hashes */
-								w->h.initk0[pwi % LEN] = w->h.k0[pwi % LEN] = cache[6].key0;
-								w->h.initk1[pwi % LEN] = w->h.k1[pwi % LEN] = cache[6].key1;
-								w->h.initk2[pwi % LEN] = w->h.k2[pwi % LEN] = cache[6].key2;
+								w->h.initk0[lane] = w->h.k0[lane] = cache[6].key0;
+								w->h.initk1[lane] = w->h.k1[lane] = cache[6].key1;
+								w->h.initk2[lane] = w->h.k2[lane] = cache[6].key2;
 
-								if (++pwi % LEN)
+								if (++pwi % ZC_BRUTEFORCE_BATCH_SIZE)
 									continue;
 
-								if (try_decrypt_fast(ctx, &w->h) == 0)
+								if (ctx->try_decrypt_fast(ctx, &w->h) == 0)
 									continue;
 
 								ret = try_decrypt2(ctx, w);
@@ -385,7 +441,8 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 
 								/* adjust the counter to the index of
 								 * the correct hash */
-								pwi = pwi - (LEN - 1 - ret) - 1;
+								pwi = pwi -
+								      (ZC_BRUTEFORCE_BATCH_SIZE - 1 - ret) - 1;
 								indexes_from_raw_counter(pwi, in, out);
 								for (int i = 0; i < 6; ++i)
 									pw[i] = candidate_char(ctx, level_count - 6 + i, out[i] + first[i]);
@@ -399,9 +456,13 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 			}
 		}
 
-		/* Test all remaining candidates since none of them
-		   has been filtered by try_decrypt_fast. */
-		w->h.candidate = UINT64_MAX >> (pwi % LEN);
+		/* Test all remaining candidates since none of them has been
+		 * filtered by try_decrypt_fast.  There is nothing left when the
+		 * total candidate count exactly fills the final batch. */
+		size_t remaining = pwi % ZC_BRUTEFORCE_BATCH_SIZE;
+		if (!remaining)
+			return;
+		select_unfiltered_candidates(&w->h, remaining);
 
 		ret = try_decrypt2(ctx, w);
 		if (ret < 0)
@@ -410,7 +471,7 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		for (int i = 0; i < 6; ++i)
 			in[i] = last[i] - first[i];
 
-		pwi = pwi - ((pwi % LEN) - 1 - ret) - 1;
+		pwi = pwi - (remaining - 1 - ret) - 1;
 		indexes_from_raw_counter(pwi, in, out);
 		for (int i = 0; i < 6; ++i)
 			pw[i] = candidate_char(ctx, level_count - 6 + i, out[i] + first[i]);
@@ -808,6 +869,7 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 	ctx->parsed_mask_len = 0;
 	ctx->mask_minlen = 0;
 	ctx->mask_maxlen = 0;
+	memset(ctx->alphabet, 0, sizeof(ctx->alphabet));
 
 	if (cfg->mask.str) {
 		/* use mask */
@@ -849,6 +911,9 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 		ctx->parsed_mask_len = parsed_len;
 		ctx->mask_minlen = mask_minlen;
 		ctx->mask_maxlen = mask_maxlen;
+		for (size_t i = 0; i < mask_maxlen; ++i)
+			ctx->alphabet[i] =
+				(const unsigned char *)ctx->parsed_mask[i];
 
 		memcpy(ctx->ipw, cfg->initial, ZC_PW_MAXLEN + 1);
 		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
@@ -892,6 +957,8 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 		ctx->maxlen = cfg->maxlen;
 		ctx->setlen = sanitize_set(ctx->set, cfg->setlen);
 		ctx->ipwlen = strnlen(ctx->ipw, ZC_PW_MAXLEN);
+		for (size_t i = 0; i < ctx->maxlen; ++i)
+			ctx->alphabet[i] = (const unsigned char *)ctx->set;
 
 		if (!ctx->ipwlen) {
 			/* no initial password supplied, use first set character */
@@ -978,11 +1045,20 @@ int zc_bruteforce_new(struct zc_bruteforce **ctx)
 	}
 
 	(*ctx)->force_threads = -1;
+	(*ctx)->try_decrypt_fast = try_decrypt_fast_portable;
+
+#ifdef ZC_HAVE_RUNTIME_AVX2
+	__builtin_cpu_init();
+	if (__builtin_cpu_supports("avx2"))
+		(*ctx)->try_decrypt_fast = try_decrypt_fast_avx2;
+#endif
 
 	INIT_LIST_HEAD(&(*ctx)->workers_head);
 	INIT_LIST_HEAD(&(*ctx)->cleanup_head);
 
-	dbg("bruteforce context %p created\n", *ctx);
+	dbg("bruteforce context %p created with %s header filter\n", *ctx,
+	    (*ctx)->try_decrypt_fast == try_decrypt_fast_portable ?
+		    "portable" : "AVX2");
 	return 0;
 }
 

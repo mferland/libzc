@@ -543,6 +543,36 @@ START_TEST(test_bruteforce_one_character_password)
 }
 END_TEST
 
+START_TEST(test_bruteforce_partial_batch_last_candidate)
+{
+	struct zc_bruteforce_config cfg = {0};
+	char out[7];
+
+	/* This mask produces 18 candidates and places "noradi" last. It crosses
+	 * batch boundaries for small configurations and leaves a partial batch
+	 * with the default configuration. */
+	cfg.mask.str = "n[abo]r[xya][cd]i";
+
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
+	ck_assert_str_eq(out, "noradi");
+}
+END_TEST
+
+START_TEST(test_bruteforce_exact_batch_not_found)
+{
+	struct zc_bruteforce_config cfg = {0};
+	char out[7];
+
+	/* Six binary positions produce 64 candidates. Finishing exactly at the
+	 * default batch boundary must not reuse entries from the preceding batch. */
+	cfg.mask.str = "[ab][ab][ab][ab][ab][ab]";
+
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
+}
+END_TEST
+
 START_TEST(test_bruteforce_maximum_length_password)
 {
 	struct zc_bruteforce_config cfg = {0};
@@ -725,6 +755,8 @@ Suite *bruteforce_suite(void)
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_mask_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_one_character_password);
+	tcase_add_test(tc_core, test_bruteforce_partial_batch_last_candidate);
+	tcase_add_test(tc_core, test_bruteforce_exact_batch_not_found);
 	tcase_add_test(tc_core, test_bruteforce_maximum_length_password);
 	tcase_add_test(tc_core, test_bruteforce_punctuation_password);
 	tcase_add_test(tc_core, test_bruteforce_mixed_compression_methods);
