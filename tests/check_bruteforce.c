@@ -225,6 +225,11 @@ START_TEST(test_mask_parser_failure_clears_output)
 	char *sentinel = NULL;
 	char **parsed = &sentinel;
 
+	/* A parser result never transfers ownership without at least one item. */
+	ck_assert_int_eq(parse_mask("", &parsed), -1);
+	ck_assert_ptr_null(parsed);
+
+	parsed = &sentinel;
 	/* The literal is already on item_head and the leading range character is
 	 * held by current_range when the descending range aborts the parse. */
 	ck_assert_int_eq(parse_mask("a[az-a]", &parsed), -1);
