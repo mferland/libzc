@@ -110,6 +110,14 @@ instead of at the first generated password.
 .BR \-l ", " \-\-length=\fINUM\fR
 Set the maximum password length in character-set mode. The default is eight.
 .TP
+.BI --min-length= NUM
+Set the minimum password length in character-set mode. The default is one and
+the value must not exceed
+.BR --length .
+When
+.B --initial
+is also provided, its length may be greater than this minimum but not less.
+.TP
 .BR \-a ", " \-\-alpha
 Include lowercase ASCII letters (a-z) in the character set.
 .TP
@@ -241,7 +249,7 @@ takes precedence over them.
 Set the maximum password length. This option is required.
 .TP
 .BI --min-length= NUM
-Set the minimum password length. This option is required and must not exceed
+Set the minimum password length. The default is one. The value must not exceed
 .BR --length .
 .TP
 .BR -d ", " --device=NUM

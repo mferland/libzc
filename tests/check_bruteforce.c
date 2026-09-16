@@ -93,6 +93,17 @@ START_TEST(test_reject_invalid_length_bounds)
 	cfg.maxlen = ZC_PW_MAXLEN;
 	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 
+	cfg.maxlen = 4;
+	cfg.minlen = 5;
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.minlen = ZC_PW_MAXLEN + 1;
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
+
+	cfg.minlen = 2;
+	strcpy(cfg.initial, "a");
+	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), -1);
+
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.mask.str = "abcd";
 	cfg.mask.minlen = 5;
@@ -548,6 +559,25 @@ START_TEST(test_bruteforce_one_character_password)
 }
 END_TEST
 
+START_TEST(test_bruteforce_minimum_length)
+{
+	struct zc_bruteforce_config cfg = {0};
+	char out[3];
+
+	/* The archive password is "a". Starting at length two must skip that
+	 * otherwise valid one-character candidate completely. */
+	strcpy(cfg.set, "a");
+	cfg.setlen = 1;
+	cfg.minlen = 2;
+	cfg.maxlen = 2;
+
+	ck_assert_int_eq(zc_bruteforce_init(ctx,
+					    DATADIR "bruteforce_one_char.zip",
+					    &cfg), 0);
+	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
+}
+END_TEST
+
 START_TEST(test_bruteforce_partial_batch_last_candidate)
 {
 	struct zc_bruteforce_config cfg = {0};
@@ -760,6 +790,7 @@ Suite *bruteforce_suite(void)
 	tcase_add_test(tc_core, test_bruteforce_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_mask_skips_password_before_initial);
 	tcase_add_test(tc_core, test_bruteforce_one_character_password);
+	tcase_add_test(tc_core, test_bruteforce_minimum_length);
 	tcase_add_test(tc_core, test_bruteforce_partial_batch_last_candidate);
 	tcase_add_test(tc_core, test_bruteforce_exact_batch_not_found);
 	tcase_add_test(tc_core, test_bruteforce_maximum_length_password);

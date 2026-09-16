@@ -31,6 +31,9 @@
 #include "yazc.h"
 
 #define PW_LEN_DEFAULT 8
+#define PW_MIN_LEN_DEFAULT ZC_PW_MINLEN
+
+enum { OPT_MIN_LENGTH = 256 };
 
 struct bruteforce_opts {
 	const char *filename;
@@ -44,6 +47,7 @@ static const struct option long_opts[] = {
 	{ "charset", required_argument, 0, 'c' },
 	{ "initial", required_argument, 0, 'i' },
 	{ "length", required_argument, 0, 'l' },
+	{ "min-length", required_argument, 0, OPT_MIN_LENGTH },
 	{ "alpha", no_argument, 0, 'a' },
 	{ "alpha-caps", no_argument, 0, 'A' },
 	{ "numeric", no_argument, 0, 'n' },
@@ -70,6 +74,7 @@ static void print_help(const char *name)
 		"\t-c, --charset=CHARSET   use character set CHARSET\n"
 		"\t-i, --initial=STRING    initial password\n"
 		"\t-l, --length=NUM        maximum password length (default is %d)\n"
+		"\t    --min-length=NUM    minimum password length (default is %d)\n"
 		"\t-a, --alpha             use characters [a-z]\n"
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
@@ -80,7 +85,7 @@ static void print_help(const char *name)
 		"\t-t, --threads=N|auto    number of threads (default: auto)\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name, PW_LEN_DEFAULT);
+		name, name, PW_LEN_DEFAULT, PW_MIN_LEN_DEFAULT);
 }
 
 static int launch_crack(const struct bruteforce_opts *opts)
@@ -107,6 +112,7 @@ static int launch_crack(const struct bruteforce_opts *opts)
 			puts("Worker threads: auto");
 		else
 			printf("Worker threads: %ld\n", opts->thread_count);
+		printf("Minimum length: %zu\n", opts->config.minlen);
 		printf("Maximum length: %zu\n", opts->config.maxlen);
 		printf("Character set: %s\n",
 		       zc_bruteforce_sanitized_charset(ctx));
@@ -139,6 +145,7 @@ static int do_bruteforce(int argc, char *argv[])
 	const char *arg_set = NULL;
 	const char *arg_initial = NULL;
 	const char *arg_threads = NULL;
+	const char *arg_minlen = NULL;
 	const char *arg_maxlen = NULL;
 	const char *arg_mask = NULL;
 	const char *arg_mask_minlen = NULL;
@@ -160,6 +167,9 @@ static int do_bruteforce(int argc, char *argv[])
 			break;
 		case 'l':
 			arg_maxlen = optarg;
+			break;
+		case OPT_MIN_LENGTH:
+			arg_minlen = optarg;
 			break;
 		case 'a':
 			arg_charset_flag |= YAZC_CHARSET_LOWER;
@@ -215,6 +225,23 @@ static int do_bruteforce(int argc, char *argv[])
 		}
 	} else
 		opts.config.maxlen = PW_LEN_DEFAULT;
+
+	/* password start length in character-set mode */
+	if (arg_minlen) {
+		opts.config.minlen = atoi(arg_minlen);
+		if (opts.config.minlen < ZC_PW_MINLEN ||
+		    opts.config.minlen > ZC_PW_MAXLEN) {
+			cli_err("minimum password length must be between %d and %d.\n",
+				ZC_PW_MINLEN, ZC_PW_MAXLEN);
+			return EXIT_FAILURE;
+		}
+	} else
+		opts.config.minlen = PW_MIN_LEN_DEFAULT;
+
+	if (!arg_mask && opts.config.minlen > opts.config.maxlen) {
+		cli_err("minimum length must not exceed maximum length.\n");
+		return EXIT_FAILURE;
+	}
 
 	/* number of threads */
 	if (arg_threads) {

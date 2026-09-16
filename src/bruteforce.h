@@ -34,6 +34,7 @@ struct zc_mask {
 struct zc_bruteforce_config {
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
+	size_t minlen;		/* 0 --> use ZC_PW_MINLEN */
 	size_t maxlen;
 	char initial[ZC_PW_MAXLEN + 1];
 	struct zc_mask mask;

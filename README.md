@@ -67,7 +67,12 @@ example, with the character set `abc`, the search begins with `a`, then
 the password search space.
 
 `-l, --length` specifies the maximum password length. The program stops
-after testing every password whose length is between one and `length`.
+after testing every password through `length`.
+
+`--min-length` specifies the minimum password length in character-set mode.
+It defaults to one and must not exceed `--length`. When `--initial` is also
+provided, the initial password may start later than this minimum but not
+earlier.
 
 `-a, --alpha` uses lowercase ASCII letters (`a-z`).
 
@@ -172,7 +177,7 @@ explicit `--charset` takes precedence over them.
 `-l, --length` specifies the maximum password length.
 
 `--min-length` specifies the minimum password length and must not exceed
-`--length`.
+`--length`. It is optional and defaults to one.
 
 `-d, --device` selects an indexed compute device. Device zero is the default.
 Use `--list-devices` to print the available indices.

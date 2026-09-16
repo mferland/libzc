@@ -55,9 +55,19 @@ grep -q "^INDEX NAME" "$tmpdir/info.out"
 	>"$tmpdir/dictionary.out" 2>"$tmpdir/dictionary.err"
 grep -q "Password is: noradi" "$tmpdir/dictionary.out"
 
-"$YAZC" bruteforce -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
+"$YAZC" bruteforce -S -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
+grep -q '^Minimum length: 1$' "$tmpdir/bruteforce.out"
 grep -q "Password is: a" "$tmpdir/bruteforce.out"
+
+if "$YAZC" bruteforce -S -c a --min-length 2 -l 2 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/bruteforce-min.out" 2>"$tmpdir/bruteforce-min.err"; then
+	echo "bruteforce searched below its minimum length" >&2
+	exit 1
+fi
+grep -q '^Minimum length: 2$' "$tmpdir/bruteforce-min.out"
+grep -q '^Password not found$' "$tmpdir/bruteforce-min.out"
 
 "$YAZC" bruteforce -S -a -A -n -s -l 1 \
 	"$test_srcdir/bruteforce_one_char.zip" \
@@ -77,13 +87,13 @@ grep -q -- "--alpha-caps" "$tmpdir/vulkan-help.err"
 grep -q -- "--numeric" "$tmpdir/vulkan-help.err"
 grep -q -- "--special" "$tmpdir/vulkan-help.err"
 
-if "$YAZC" vulkan -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
+if "$YAZC" vulkan -c a --min-length 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/vulkan-length.out" 2>"$tmpdir/vulkan-length.err"; then
-	echo "vulkan accepted a missing --min-length" >&2
+	echo "vulkan accepted a missing --length" >&2
 	exit 1
 fi
-grep -q -- "--length and --min-length are both required" \
-	"$tmpdir/vulkan-length.err"
+grep -q -- "--length is required" "$tmpdir/vulkan-length.err"
 
 if "$YAZC" vulkan -c a -l 1 --min-length 2 \
 	"$test_srcdir/bruteforce_one_char.zip" \

@@ -946,10 +946,13 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 			return -1;
 	} else {
 		/* use character set */
+		size_t minlen = cfg->minlen ? cfg->minlen : ZC_PW_MINLEN;
 
 		/* basic sanity checks */
 		if (cfg->setlen == 0 || cfg->setlen > ZC_CHARSET_MAXLEN ||
-		    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN)
+		    minlen < ZC_PW_MINLEN || minlen > ZC_PW_MAXLEN ||
+		    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN ||
+		    minlen > cfg->maxlen)
 			return -1;
 
 		if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
@@ -964,14 +967,15 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 			ctx->alphabet[i] = (const unsigned char *)ctx->set;
 
 		if (!ctx->ipwlen) {
-			/* no initial password supplied, use first set character */
-			ctx->ipw[0] = ctx->set[0];
-			ctx->ipw[1] = '\0';
-			ctx->ipwlen = 1;
+			/* No initial password supplied: start at the first candidate
+			 * having the requested minimum length. */
+			memset(ctx->ipw, ctx->set[0], minlen);
+			ctx->ipw[minlen] = '\0';
+			ctx->ipwlen = minlen;
 			return 0;
 		}
 
-		if (ctx->ipwlen > ctx->maxlen)
+		if (ctx->ipwlen < minlen || ctx->ipwlen > ctx->maxlen)
 			return -1;
 
 		if (!pw_in_set(ctx->ipw, ctx->set, ctx->setlen))
