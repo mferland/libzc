@@ -59,9 +59,23 @@ grep -q "Password is: noradi" "$tmpdir/dictionary.out"
 	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
 grep -q "Password is: a" "$tmpdir/bruteforce.out"
 
+"$YAZC" bruteforce -S -a -A -n -s -l 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/bruteforce-classes.out" 2>"$tmpdir/bruteforce-classes.err"
+charset=$(sed -n 's/^Character set: //p' "$tmpdir/bruteforce-classes.out")
+test "${#charset}" -eq 95
+printf '%s\n' "$charset" | grep -Fq '0123456789'
+printf '%s\n' "$charset" | grep -Fq 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+printf '%s\n' "$charset" | grep -Fq 'abcdefghijklmnopqrstuvwxyz'
+grep -q '^Password is: a$' "$tmpdir/bruteforce-classes.out"
+
 "$YAZC" vulkan --help >"$tmpdir/vulkan-help.out" \
 	2>"$tmpdir/vulkan-help.err"
 grep -q -- "--list-devices" "$tmpdir/vulkan-help.err"
+grep -q -- "--alpha" "$tmpdir/vulkan-help.err"
+grep -q -- "--alpha-caps" "$tmpdir/vulkan-help.err"
+grep -q -- "--numeric" "$tmpdir/vulkan-help.err"
+grep -q -- "--special" "$tmpdir/vulkan-help.err"
 
 if "$YAZC" vulkan -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/vulkan-length.out" 2>"$tmpdir/vulkan-length.err"; then

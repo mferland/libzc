@@ -222,6 +222,21 @@ Use the characters in
 .I CHARSET
 to generate password candidates.
 .TP
+.BR -a ", " --alpha
+Include lowercase ASCII letters (a-z) in the character set.
+.TP
+.BR -A ", " --alpha-caps
+Include uppercase ASCII letters (A-Z) in the character set.
+.TP
+.BR -n ", " --numeric
+Include decimal digits (0-9) in the character set.
+.TP
+.BR -s ", " --special
+Include printable special ASCII characters, including space, in the character
+set. Character-class options can be combined. An explicit
+.B --charset
+takes precedence over them.
+.TP
 .BR -l ", " --length=NUM
 Set the maximum password length. This option is required.
 .TP
@@ -375,7 +390,7 @@ device zero:
 .PP
 .nf
 .RS
-yazc vulkan -c abcdefghijklmnopqrstuvwxyz --min-length=6 --length=8 --device=0 archive.zip
+yazc vulkan -a --min-length=6 --length=8 --device=0 archive.zip
 .RE
 .fi
 .PP

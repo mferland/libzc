@@ -84,6 +84,38 @@ int print_runtime_stats(const struct timeval *begin, const struct timeval *end)
 		      (double)(end->tv_sec - begin->tv_sec));
 }
 
+char *yazc_make_charset(unsigned int flags, char *out, size_t outlen)
+{
+	static const char lowercase[] = "abcdefghijklmnopqrstuvwxyz";
+	static const char uppercase[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	static const char numeric[] = "0123456789";
+	static const char special[] = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\";
+	size_t len = 0;
+
+	if (flags & YAZC_CHARSET_LOWER)
+		len += sizeof(lowercase) - 1;
+	if (flags & YAZC_CHARSET_UPPER)
+		len += sizeof(uppercase) - 1;
+	if (flags & YAZC_CHARSET_NUMERIC)
+		len += sizeof(numeric) - 1;
+	if (flags & YAZC_CHARSET_SPECIAL)
+		len += sizeof(special) - 1;
+	if (!out || len >= outlen)
+		return NULL;
+
+	out[0] = '\0';
+	if (flags & YAZC_CHARSET_LOWER)
+		strcat(out, lowercase);
+	if (flags & YAZC_CHARSET_UPPER)
+		strcat(out, uppercase);
+	if (flags & YAZC_CHARSET_NUMERIC)
+		strcat(out, numeric);
+	if (flags & YAZC_CHARSET_SPECIAL)
+		strcat(out, special);
+
+	return out;
+}
+
 static const struct yazc_cmd yazc_cmd_help = {
 	.name = "help",
 	.cmd = help,

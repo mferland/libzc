@@ -163,6 +163,12 @@ subspace is exhausted before the next length begins.
 
 `-c, --charset` specifies the character set.
 
+The predefined character classes are the same as for the CPU brute-force
+command: `-a, --alpha` adds lowercase ASCII letters, `-A, --alpha-caps` adds
+uppercase ASCII letters, `-n, --numeric` adds digits, and `-s, --special` adds
+printable special ASCII characters. The class options can be combined. An
+explicit `--charset` takes precedence over them.
+
 `-l, --length` specifies the maximum password length.
 
 `--min-length` specifies the minimum password length and must not exceed
@@ -177,8 +183,7 @@ For example, list devices and search every lowercase password from six through
 eight characters on device zero:
 
     yazc vulkan --list-devices
-    yazc vulkan -c abcdefghijklmnopqrstuvwxyz \
-        --min-length=6 --length=8 --device=0 archive.zip
+    yazc vulkan -a --min-length=6 --length=8 --device=0 archive.zip
 
 The command reports an error instead of silently falling back to the CPU when
 Vulkan support or the selected device is unavailable.

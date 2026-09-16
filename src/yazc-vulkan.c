@@ -28,19 +28,24 @@ enum { OPT_MIN_LENGTH = 256, OPT_LIST_DEVICES };
 struct vulkan_opts {
 	const char *filename;
 	const char *charset;
+	char generated_charset[ZC_CHARSET_MAXLEN + 1];
 	size_t min_length;
 	size_t max_length;
 	uint32_t device_index;
 	bool stats;
 };
 
-static const char short_opts[] = "c:l:d:Sh";
+static const char short_opts[] = "c:l:d:aAnsSh";
 static const struct option long_opts[] = {
 	{ "charset", required_argument, NULL, 'c' },
 	{ "length", required_argument, NULL, 'l' },
 	{ "min-length", required_argument, NULL, OPT_MIN_LENGTH },
 	{ "device", required_argument, NULL, 'd' },
 	{ "list-devices", no_argument, NULL, OPT_LIST_DEVICES },
+	{ "alpha", no_argument, NULL, 'a' },
+	{ "alpha-caps", no_argument, NULL, 'A' },
+	{ "numeric", no_argument, NULL, 'n' },
+	{ "special", no_argument, NULL, 's' },
 	{ "stats", no_argument, NULL, 'S' },
 	{ "help", no_argument, NULL, 'h' },
 	{ NULL, 0, NULL, 0 },
@@ -58,6 +63,10 @@ static void print_help(const char *name)
 		"\n"
 		"Options:\n"
 		"\t-c, --charset=CHARSET   use character set CHARSET\n"
+		"\t-a, --alpha             use characters [a-z]\n"
+		"\t-A, --alpha-caps        use characters [A-Z]\n"
+		"\t-n, --numeric           use characters [0-9]\n"
+		"\t-s, --special           use special characters\n"
 		"\t-l, --length=N          maximum password length\n"
 		"\t    --min-length=N      minimum password length\n"
 		"\t-d, --device=N          use compute device N (default: 0)\n"
@@ -148,6 +157,7 @@ static int do_vulkan(int argc, char *argv[])
 	bool list_devices = false;
 	bool have_min_length = false;
 	bool have_max_length = false;
+	unsigned int charset_flags = 0;
 
 	for (;;) {
 		int option = getopt_long(argc, argv, short_opts, long_opts, NULL);
@@ -166,6 +176,18 @@ static int do_vulkan(int argc, char *argv[])
 				return EXIT_FAILURE;
 			}
 			have_max_length = true;
+			break;
+		case 'a':
+			charset_flags |= YAZC_CHARSET_LOWER;
+			break;
+		case 'A':
+			charset_flags |= YAZC_CHARSET_UPPER;
+			break;
+		case 'n':
+			charset_flags |= YAZC_CHARSET_NUMERIC;
+			break;
+		case 's':
+			charset_flags |= YAZC_CHARSET_SPECIAL;
 			break;
 		case OPT_MIN_LENGTH:
 			if (parse_size(optarg, ZC_PW_MINLEN, ZC_PW_MAXLEN,
@@ -206,8 +228,16 @@ static int do_vulkan(int argc, char *argv[])
 		return result < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 	if (!opts.charset) {
-		cli_err("no character set provided.\n");
-		return EXIT_FAILURE;
+		if (!charset_flags) {
+			cli_err("no character set provided or specified.\n");
+			return EXIT_FAILURE;
+		}
+		if (!yazc_make_charset(charset_flags, opts.generated_charset,
+					 sizeof(opts.generated_charset))) {
+			cli_err("generating character set failed.\n");
+			return EXIT_FAILURE;
+		}
+		opts.charset = opts.generated_charset;
 	}
 	if (!have_max_length || !have_min_length) {
 		cli_err("--length and --min-length are both required.\n");

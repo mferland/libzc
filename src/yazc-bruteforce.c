@@ -32,11 +32,6 @@
 
 #define PW_LEN_DEFAULT 8
 
-#define PWSET_LOWER 1
-#define PWSET_UPPER (1 << 1)
-#define PWSET_NUMB  (1 << 2)
-#define PWSET_SPEC  (1 << 3)
-
 struct bruteforce_opts {
 	const char *filename;
 	struct zc_bruteforce_config config;
@@ -86,40 +81,6 @@ static void print_help(const char *name)
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
 		name, name, PW_LEN_DEFAULT);
-}
-
-static char *make_charset(int flags, char *out, size_t outlen)
-{
-	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
-	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	const char *number_set = "0123456789";
-	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\";
-	size_t len = 0;
-
-	if (flags & PWSET_LOWER)
-		len += strlen(lowercase_set);
-	if (flags & PWSET_UPPER)
-		len += strlen(uppercase_set);
-	if (flags & PWSET_NUMB)
-		len += strlen(number_set);
-	if (flags & PWSET_SPEC)
-		len += strlen(special_set);
-
-	if (len > outlen)
-		return NULL;
-
-	memset(out, 0, outlen);
-
-	if (flags & PWSET_LOWER)
-		strcat(out, lowercase_set);
-	if (flags & PWSET_UPPER)
-		strcat(out, uppercase_set);
-	if (flags & PWSET_NUMB)
-		strcat(out, number_set);
-	if (flags & PWSET_SPEC)
-		strcat(out, special_set);
-
-	return out;
 }
 
 static int launch_crack(const struct bruteforce_opts *opts)
@@ -201,16 +162,16 @@ static int do_bruteforce(int argc, char *argv[])
 			arg_maxlen = optarg;
 			break;
 		case 'a':
-			arg_charset_flag |= PWSET_LOWER;
+			arg_charset_flag |= YAZC_CHARSET_LOWER;
 			break;
 		case 'A':
-			arg_charset_flag |= PWSET_UPPER;
+			arg_charset_flag |= YAZC_CHARSET_UPPER;
 			break;
 		case 'n':
-			arg_charset_flag |= PWSET_NUMB;
+			arg_charset_flag |= YAZC_CHARSET_NUMERIC;
 			break;
 		case 's':
-			arg_charset_flag |= PWSET_SPEC;
+			arg_charset_flag |= YAZC_CHARSET_SPECIAL;
 			break;
 		case 'm':
 			arg_mask = optarg;
@@ -295,8 +256,9 @@ static int do_bruteforce(int argc, char *argv[])
 			cli_err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		const char *tmp = make_charset(arg_charset_flag, opts.config.set,
-					       ZC_CHARSET_MAXLEN);
+		const char *tmp = yazc_make_charset(arg_charset_flag,
+						    opts.config.set,
+						    sizeof(opts.config.set));
 		if (!tmp) {
 			cli_err("generating character set failed.\n");
 			return EXIT_FAILURE;

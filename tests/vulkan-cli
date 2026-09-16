@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -eu
+
+test_srcdir=$(dirname "$0")
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/yazc-vulkan-cli.XXXXXX")
+trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+
+if ! "$YAZC" vulkan --list-devices >"$tmpdir/devices.out" \
+	2>"$tmpdir/devices.err"; then
+	exit 77
+fi
+if ! grep -q '^0:' "$tmpdir/devices.out"; then
+	exit 77
+fi
+
+"$YAZC" vulkan -c a -l 1 --min-length 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/crack.out" 2>"$tmpdir/crack.err"
+grep -q '^Password is: a$' "$tmpdir/crack.out"
+
+"$YAZC" vulkan -S -a -A -n -s -l 1 --min-length 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/classes.out" 2>"$tmpdir/classes.err"
+charset=$(sed -n 's/^Character set: //p' "$tmpdir/classes.out")
+test "${#charset}" -eq 95
+printf '%s\n' "$charset" | grep -Fq '0123456789'
+printf '%s\n' "$charset" | grep -Fq 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+printf '%s\n' "$charset" | grep -Fq 'abcdefghijklmnopqrstuvwxyz'
+grep -q '^Password is: a$' "$tmpdir/classes.out"
+
+check_range() {
+	name=$1
+	min_length=$2
+	max_length=$3
+
+	"$YAZC" vulkan -S -c adinor \
+		-l "$max_length" --min-length "$min_length" \
+		"$test_srcdir/noradi.zip" \
+		>"$tmpdir/$name.out" 2>"$tmpdir/$name.err"
+	grep -q '^Vulkan device:' "$tmpdir/$name.out"
+	grep -q "^Minimum length: $min_length$" "$tmpdir/$name.out"
+	grep -q "^Maximum length: $max_length$" "$tmpdir/$name.out"
+	grep -q '^Runtime:' "$tmpdir/$name.out"
+	grep -q '^Password is: noradi$' "$tmpdir/$name.out"
+}
+
+# Exercise a match at the first, an intermediate, and the final length in a
+# range. The search spaces are deliberately small enough for routine CI use.
+check_range range-minimum 6 7
+check_range range-middle 5 7
+check_range range-maximum 4 6
+
+if "$YAZC" vulkan -c b -l 3 --min-length 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/not-found.out" 2>"$tmpdir/not-found.err"; then
+	echo "vulkan found a password outside its search space" >&2
+	exit 1
+fi
+grep -q '^Password not found$' "$tmpdir/not-found.out"
