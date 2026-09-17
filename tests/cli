@@ -87,14 +87,6 @@ grep -q -- "--alpha-caps" "$tmpdir/vulkan-help.err"
 grep -q -- "--numeric" "$tmpdir/vulkan-help.err"
 grep -q -- "--special" "$tmpdir/vulkan-help.err"
 
-if "$YAZC" vulkan -c a --min-length 1 \
-	"$test_srcdir/bruteforce_one_char.zip" \
-	>"$tmpdir/vulkan-length.out" 2>"$tmpdir/vulkan-length.err"; then
-	echo "vulkan accepted a missing --length" >&2
-	exit 1
-fi
-grep -q -- "--length is required" "$tmpdir/vulkan-length.err"
-
 if "$YAZC" vulkan -c a -l 1 --min-length 2 \
 	"$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/vulkan-range.out" 2>"$tmpdir/vulkan-range.err"; then

@@ -67,13 +67,13 @@ static void print_help(const char *name)
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
 		"\t-s, --special           use special characters\n"
-		"\t-l, --length=N          maximum password length\n"
+		"\t-l, --length=N          maximum password length (default: %d)\n"
 		"\t    --min-length=N      minimum password length (default: 1)\n"
 		"\t-d, --device=N          use compute device N (default: 0)\n"
 		"\t    --list-devices      list compute-capable Vulkan devices\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name, name);
+		name, name, name, ZC_PW_DEFAULT_MAXLEN);
 }
 
 static int parse_size(const char *value, size_t min, size_t max, size_t *out)
@@ -153,9 +153,11 @@ static int launch_crack(const struct vulkan_opts *opts)
 
 static int do_vulkan(int argc, char *argv[])
 {
-	struct vulkan_opts opts = { .min_length = ZC_PW_MINLEN };
+	struct vulkan_opts opts = {
+		.min_length = ZC_PW_MINLEN,
+		.max_length = ZC_PW_DEFAULT_MAXLEN,
+	};
 	bool list_devices = false;
-	bool have_max_length = false;
 	unsigned int charset_flags = 0;
 
 	for (;;) {
@@ -174,7 +176,6 @@ static int do_vulkan(int argc, char *argv[])
 					ZC_PW_MINLEN, ZC_PW_MAXLEN);
 				return EXIT_FAILURE;
 			}
-			have_max_length = true;
 			break;
 		case 'a':
 			charset_flags |= YAZC_CHARSET_LOWER;
@@ -236,10 +237,6 @@ static int do_vulkan(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 		opts.charset = opts.generated_charset;
-	}
-	if (!have_max_length) {
-		cli_err("--length is required.\n");
-		return EXIT_FAILURE;
 	}
 	if (opts.min_length > opts.max_length) {
 		cli_err("minimum length must not exceed maximum length.\n");

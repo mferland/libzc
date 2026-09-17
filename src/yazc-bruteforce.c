@@ -30,7 +30,6 @@
 #include "log.h"
 #include "yazc.h"
 
-#define PW_LEN_DEFAULT 8
 #define PW_MIN_LEN_DEFAULT ZC_PW_MINLEN
 
 enum { OPT_MIN_LENGTH = 256 };
@@ -85,7 +84,7 @@ static void print_help(const char *name)
 		"\t-t, --threads=N|auto    number of threads (default: auto)\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name, PW_LEN_DEFAULT, PW_MIN_LEN_DEFAULT);
+		name, name, ZC_PW_DEFAULT_MAXLEN, PW_MIN_LEN_DEFAULT);
 }
 
 static int launch_crack(const struct bruteforce_opts *opts)
@@ -224,7 +223,7 @@ static int do_bruteforce(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	} else
-		opts.config.maxlen = PW_LEN_DEFAULT;
+		opts.config.maxlen = ZC_PW_DEFAULT_MAXLEN;
 
 	/* password start length in character-set mode */
 	if (arg_minlen) {

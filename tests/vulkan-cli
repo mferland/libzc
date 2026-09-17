@@ -14,10 +14,11 @@ if ! grep -q '^0:' "$tmpdir/devices.out"; then
 	exit 77
 fi
 
-"$YAZC" vulkan -S -c a -l 1 \
+"$YAZC" vulkan -S -c a \
 	"$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/crack.out" 2>"$tmpdir/crack.err"
 grep -q '^Minimum length: 1$' "$tmpdir/crack.out"
+grep -q '^Maximum length: 8$' "$tmpdir/crack.out"
 grep -q '^Password is: a$' "$tmpdir/crack.out"
 
 "$YAZC" vulkan -S -a -A -n -s -l 1 --min-length 1 \

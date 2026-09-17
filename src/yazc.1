@@ -246,7 +246,9 @@ set. Character-class options can be combined. An explicit
 takes precedence over them.
 .TP
 .BR -l ", " --length=NUM
-Set the maximum password length. This option is required.
+Set the maximum password length. The default is eight, matching the
+.B bruteforce
+command.
 .TP
 .BI --min-length= NUM
 Set the minimum password length. The default is one. The value must not exceed

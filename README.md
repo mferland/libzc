@@ -163,8 +163,8 @@ maximum of ten characters, using the default number of worker threads:
 
 This experimental mode generates and filters password candidates using a
 Vulkan compute device. It supports a custom character set and an inclusive
-password-length range. Both length options are required. Each fixed-length
-subspace is exhausted before the next length begins.
+password-length range. Each fixed-length subspace is exhausted before the
+next length begins.
 
 `-c, --charset` specifies the character set.
 
@@ -174,7 +174,8 @@ uppercase ASCII letters, `-n, --numeric` adds digits, and `-s, --special` adds
 printable special ASCII characters. The class options can be combined. An
 explicit `--charset` takes precedence over them.
 
-`-l, --length` specifies the maximum password length.
+`-l, --length` specifies the maximum password length. It is optional and
+defaults to eight, matching the CPU brute-force command.
 
 `--min-length` specifies the minimum password length and must not exceed
 `--length`. It is optional and defaults to one.

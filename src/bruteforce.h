@@ -23,6 +23,7 @@
 
 #define ZC_PW_MINLEN	  1
 #define ZC_PW_MAXLEN	  16
+#define ZC_PW_DEFAULT_MAXLEN 8
 #define ZC_CHARSET_MAXLEN 96
 
 struct zc_mask {
