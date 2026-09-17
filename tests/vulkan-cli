@@ -19,6 +19,9 @@ fi
 	>"$tmpdir/crack.out" 2>"$tmpdir/crack.err"
 grep -q '^Minimum length: 1$' "$tmpdir/crack.out"
 grep -q '^Maximum length: 8$' "$tmpdir/crack.out"
+grep -q '^Estimated passwords tested: 1$' "$tmpdir/crack.out"
+grep -Eq '^Estimated rate: [0-9]+\.[0-9]+ passwords/second$' \
+	"$tmpdir/crack.out"
 grep -q '^Password is: a$' "$tmpdir/crack.out"
 
 "$YAZC" vulkan -S -a -A -n -s -l 1 --min-length 1 \

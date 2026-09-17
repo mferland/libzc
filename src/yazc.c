@@ -17,6 +17,7 @@
  */
 
 #include <getopt.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -77,11 +78,27 @@ static void print_version()
 		"Report bugs to: "PACKAGE_BUGREPORT"\n");
 }
 
+static double elapsed_seconds(const struct timeval *begin,
+			      const struct timeval *end)
+{
+	return (double)(end->tv_usec - begin->tv_usec) / 1000000 +
+	       (double)(end->tv_sec - begin->tv_sec);
+}
+
 int print_runtime_stats(const struct timeval *begin, const struct timeval *end)
 {
-	return printf("Runtime: %f secs.\n",
-		      (double)(end->tv_usec - begin->tv_usec) / 1000000 +
-		      (double)(end->tv_sec - begin->tv_sec));
+	return printf("Runtime: %f secs.\n", elapsed_seconds(begin, end));
+}
+
+int print_password_rate(const struct timeval *begin, const struct timeval *end,
+			uint64_t passwords)
+{
+	double elapsed = elapsed_seconds(begin, end);
+	double rate = elapsed > 0.0 ? (double)passwords / elapsed : 0.0;
+
+	return printf("Estimated passwords tested: %" PRIu64 "\n"
+		      "Estimated rate: %.3f passwords/second\n",
+		      passwords, rate);
 }
 
 char *yazc_make_charset(unsigned int flags, char *out, size_t outlen)

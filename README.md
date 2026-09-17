@@ -86,7 +86,10 @@ earlier.
 `--threads=auto` to select the number of online CPUs reported by
 `sysconf(_SC_NPROCESSORS_ONLN)`. This is the default.
 
-`-S, --stats` prints runtime statistics.
+`-S, --stats` prints runtime statistics, the estimated number of password
+candidates tested, and the estimated password rate. Candidate accounting is
+performed once per assigned worker search range to avoid synchronization or
+per-password timing overhead in the cracking loops.
 
 ### Mask options
 
@@ -183,7 +186,9 @@ defaults to eight, matching the CPU brute-force command.
 `-d, --device` selects an indexed compute device. Device zero is the default.
 Use `--list-devices` to print the available indices.
 
-`-S, --stats` prints the selected device, search configuration, and runtime.
+`-S, --stats` prints the selected device, search configuration, runtime,
+estimated number of password candidates tested, and estimated password rate.
+Candidate accounting is performed once per GPU dispatch.
 
 For example, list devices and search every lowercase password from six through
 eight characters on device zero:

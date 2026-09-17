@@ -96,6 +96,7 @@ struct zc_bruteforce {
 	int pthread_create_err;
 
 	long force_threads;
+	uint64_t passwords_tested;
 
 	struct list_head workers_head;
 	struct list_head cleanup_head;
@@ -121,6 +122,7 @@ struct worker {
 	size_t id;
 	char pw[ZC_PW_MAXLEN + 1];
 	bool found;
+	uint64_t passwords_tested;
 	unsigned char *inflate;
 	unsigned char *plaintext;
 	struct zlib_state *zlib;
@@ -499,6 +501,44 @@ static void fill_limits(const struct pwstream *pws, struct entry *limit, size_t 
 		limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
+static uint64_t saturating_add(uint64_t first, uint64_t second)
+{
+	return UINT64_MAX - first < second ? UINT64_MAX : first + second;
+}
+
+static uint64_t saturating_multiply(uint64_t first, uint64_t second)
+{
+	return first && second > UINT64_MAX / first ?
+		       UINT64_MAX : first * second;
+}
+
+static uint64_t estimate_candidate_count(const struct entry *limit,
+					 size_t count)
+{
+	uint64_t initial_candidates = 1;
+	uint64_t full_candidates = 1;
+
+	/* Inner initial indexes reset to their starts after the first outer
+	 * candidate.  Account for that triangular first traversal rather than
+	 * treating every dimension as one Cartesian product. */
+	for (size_t i = count; i > 0; --i) {
+		const struct entry *entry = &limit[i - 1];
+		uint64_t initial_span;
+		uint64_t full_span;
+
+		if (entry->initial > entry->stop)
+			return 0;
+		initial_span = entry->stop - entry->initial + 1;
+		full_span = entry->stop - entry->start + 1;
+		initial_candidates = saturating_add(
+			initial_candidates,
+			saturating_multiply(initial_span - 1, full_candidates));
+		full_candidates = saturating_multiply(full_span,
+						       full_candidates);
+	}
+	return initial_candidates;
+}
+
 static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 		    char *pw)
 {
@@ -507,6 +547,11 @@ static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 	struct entry limit[level];
 
 	fill_limits(pws, limit, level, stream);
+	/* Estimate the complete range assigned to this worker once, before the
+	 * hot cracking loops.  Cancellation can stop inside that range, which is
+	 * why the resulting CLI value is explicitly described as an estimate. */
+	w->passwords_tested = saturating_add(
+		w->passwords_tested, estimate_candidate_count(limit, level));
 	memset(cache, 0, sizeof(struct zc_key) * (level + 1));
 	set_default_encryption_keys(cache);
 
@@ -672,6 +717,8 @@ static void wait_workers(struct zc_bruteforce *ctx, size_t workers, char *pw,
 		list_for_each_entry_safe(w, tmp, &ctx->cleanup_head, list) {
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
+			ctx->passwords_tested = saturating_add(
+				ctx->passwords_tested, w->passwords_tested);
 			if (w->found) {
 				memset(pw, 0, len);
 				strncpy(pw, w->pw, len);
@@ -1089,6 +1136,11 @@ zc_bruteforce_sanitized_charset(const struct zc_bruteforce *ctx)
 	return ctx->set;
 }
 
+uint64_t zc_bruteforce_passwords_tested(const struct zc_bruteforce *ctx)
+{
+	return ctx ? ctx->passwords_tested : 0;
+}
+
 void zc_bruteforce_force_threads(struct zc_bruteforce *ctx, long w)
 {
 	ctx->force_threads = w;
@@ -1102,6 +1154,7 @@ int zc_bruteforce_start(struct zc_bruteforce *ctx, char *pw,
 	if (!len)
 		return -1;
 
+	ctx->passwords_tested = 0;
 	w = threads_to_create(ctx->force_threads);
 
 	if (alloc_pwstreams(ctx, w)) {

@@ -122,8 +122,11 @@ static int launch_crack(const struct bruteforce_opts *opts)
 	err = zc_bruteforce_start(ctx, pw, sizeof(pw));
 	gettimeofday(&end, NULL);
 
-	if (opts->stats)
+	if (opts->stats) {
 		print_runtime_stats(&begin, &end);
+		print_password_rate(&begin, &end,
+				    zc_bruteforce_passwords_tested(ctx));
+	}
 
 	if (err > 0)
 		printf("Password not found\n");

@@ -50,5 +50,6 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 
 const char *zc_vulkan_device_name(const struct zc_vulkan *ctx);
 const char *zc_vulkan_charset(const struct zc_vulkan *ctx);
+uint64_t zc_vulkan_passwords_tested(const struct zc_vulkan *ctx);
 
 #endif /* VULKAN_H */

@@ -127,6 +127,7 @@ struct zc_vulkan {
 	/* Device-limit-clamped number of candidates in one dispatch. */
 	uint32_t max_chunk;
 	uint64_t dispatch_count;
+	uint64_t passwords_tested;
 };
 
 /* -------------------------------------------------------------------------
@@ -965,6 +966,7 @@ static int run_dispatch(struct zc_vulkan *ctx, uint32_t count,
 	result = submit_dispatch(ctx);
 	if (result != VK_SUCCESS)
 		goto fail;
+	ctx->passwords_tested += count;
 
 	phase = "result download";
 	result = download_dispatch_results(ctx, result_words);
@@ -1159,6 +1161,7 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 	 * for the next length in the inclusive range.
 	 */
 	ctx->dispatch_count = 0;
+	ctx->passwords_tested = 0;
 	dbg("starting Vulkan search: lengths=%u..%u radix=%u max-chunk=%u\n",
 	    ctx->min_length, ctx->max_length, ctx->search.radix,
 	    ctx->max_chunk);
@@ -1210,6 +1213,11 @@ const char *zc_vulkan_device_name(const struct zc_vulkan *ctx)
 const char *zc_vulkan_charset(const struct zc_vulkan *ctx)
 {
 	return ctx ? ctx->charset : NULL;
+}
+
+uint64_t zc_vulkan_passwords_tested(const struct zc_vulkan *ctx)
+{
+	return ctx ? ctx->passwords_tested : 0;
 }
 
 #else /* !HAVE_VULKAN */
@@ -1274,6 +1282,13 @@ const char *zc_vulkan_charset(const struct zc_vulkan *ctx)
 	(void)ctx;
 
 	return NULL;
+}
+
+uint64_t zc_vulkan_passwords_tested(const struct zc_vulkan *ctx)
+{
+	(void)ctx;
+
+	return 0;
 }
 
 #endif /* HAVE_VULKAN */

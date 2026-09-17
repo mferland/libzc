@@ -555,6 +555,7 @@ START_TEST(test_bruteforce_one_character_password)
 					    &cfg), 0);
 	zc_bruteforce_force_threads(ctx, 8);
 	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
+	ck_assert_uint_eq(zc_bruteforce_passwords_tested(ctx), 1);
 	ck_assert_str_eq(out, "a");
 }
 END_TEST
@@ -575,6 +576,7 @@ START_TEST(test_bruteforce_minimum_length)
 					    DATADIR "bruteforce_one_char.zip",
 					    &cfg), 0);
 	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
+	ck_assert_uint_eq(zc_bruteforce_passwords_tested(ctx), 1);
 }
 END_TEST
 

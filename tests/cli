@@ -58,6 +58,9 @@ grep -q "Password is: noradi" "$tmpdir/dictionary.out"
 "$YAZC" bruteforce -S -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
 grep -q '^Minimum length: 1$' "$tmpdir/bruteforce.out"
+grep -q '^Estimated passwords tested: 1$' "$tmpdir/bruteforce.out"
+grep -Eq '^Estimated rate: [0-9]+\.[0-9]+ passwords/second$' \
+	"$tmpdir/bruteforce.out"
 grep -q "Password is: a" "$tmpdir/bruteforce.out"
 
 if "$YAZC" bruteforce -S -c a --min-length 2 -l 2 \

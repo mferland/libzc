@@ -137,8 +137,11 @@ static int launch_crack(const struct vulkan_opts *opts)
 	gettimeofday(&begin, NULL);
 	result = zc_vulkan_start(ctx, password, sizeof(password));
 	gettimeofday(&end, NULL);
-	if (opts->stats)
+	if (opts->stats) {
 		print_runtime_stats(&begin, &end);
+		print_password_rate(&begin, &end,
+				    zc_vulkan_passwords_tested(ctx));
+	}
 
 	if (result > 0)
 		printf("Password not found\n");
