@@ -213,6 +213,11 @@ static bool try_decrypt(const struct zc_bruteforce *ctx,
 	return decrypt_headers(base, ctx->header, ctx->header_size);
 }
 
+static uint64_t saturating_add(uint64_t first, uint64_t second)
+{
+	return UINT64_MAX - first < second ? UINT64_MAX : first + second;
+}
+
 static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 			    char *pw, struct zc_key *cache, struct entry *limit)
 {
@@ -226,12 +231,18 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 				    &cache[level_count]);
 			if (try_decrypt(ctx, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
+					w->passwords_tested = saturating_add(
+						w->passwords_tested, p - first + 1);
 					pw[level_count - 1] = candidate_char(ctx, level_count - 1, p);
 					w->found = true;
 					pthread_exit(w);
 				}
 			}
 		}
+		/* Publish once per completed leaf range.  If another worker cancels
+		 * this one inside the loop, fewer than one alphabet span is omitted. */
+		w->passwords_tested = saturating_add(w->passwords_tested,
+						       last - first);
 	} else {
 		size_t i = level_count - level;
 		for (size_t p = first; p < last; ++p) {
@@ -430,7 +441,15 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								if (++pwi % ZC_BRUTEFORCE_BATCH_SIZE)
 									continue;
 
-								if (ctx->try_decrypt_fast(ctx, &w->h) == 0)
+								size_t candidates = ctx->try_decrypt_fast(ctx, &w->h);
+
+								/* The vectorized header check has completed for every
+								 * lane in this batch.  Publish only at this existing
+								 * batch boundary, outside the inner candidate loop. */
+								w->passwords_tested = saturating_add(
+									w->passwords_tested,
+									ZC_BRUTEFORCE_BATCH_SIZE);
+								if (candidates == 0)
 									continue;
 
 								ret = try_decrypt2(ctx, w);
@@ -467,8 +486,13 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		select_unfiltered_candidates(&w->h, remaining);
 
 		ret = try_decrypt2(ctx, w);
-		if (ret < 0)
+		if (ret < 0) {
+			w->passwords_tested = saturating_add(
+				w->passwords_tested, remaining);
 			return;
+		}
+		w->passwords_tested = saturating_add(w->passwords_tested,
+						       (size_t)ret + 1);
 
 		for (int i = 0; i < 6; ++i)
 			in[i] = last[i] - first[i];
@@ -501,44 +525,6 @@ static void fill_limits(const struct pwstream *pws, struct entry *limit, size_t 
 		limit[i] = *pwstream_get_entry(pws, stream, j);
 }
 
-static uint64_t saturating_add(uint64_t first, uint64_t second)
-{
-	return UINT64_MAX - first < second ? UINT64_MAX : first + second;
-}
-
-static uint64_t saturating_multiply(uint64_t first, uint64_t second)
-{
-	return first && second > UINT64_MAX / first ?
-		       UINT64_MAX : first * second;
-}
-
-static uint64_t estimate_candidate_count(const struct entry *limit,
-					 size_t count)
-{
-	uint64_t initial_candidates = 1;
-	uint64_t full_candidates = 1;
-
-	/* Inner initial indexes reset to their starts after the first outer
-	 * candidate.  Account for that triangular first traversal rather than
-	 * treating every dimension as one Cartesian product. */
-	for (size_t i = count; i > 0; --i) {
-		const struct entry *entry = &limit[i - 1];
-		uint64_t initial_span;
-		uint64_t full_span;
-
-		if (entry->initial > entry->stop)
-			return 0;
-		initial_span = entry->stop - entry->initial + 1;
-		full_span = entry->stop - entry->start + 1;
-		initial_candidates = saturating_add(
-			initial_candidates,
-			saturating_multiply(initial_span - 1, full_candidates));
-		full_candidates = saturating_multiply(full_span,
-						       full_candidates);
-	}
-	return initial_candidates;
-}
-
 static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 		    char *pw)
 {
@@ -547,11 +533,6 @@ static void do_work(struct worker *w, const struct pwstream *pws, size_t stream,
 	struct entry limit[level];
 
 	fill_limits(pws, limit, level, stream);
-	/* Estimate the complete range assigned to this worker once, before the
-	 * hot cracking loops.  Cancellation can stop inside that range, which is
-	 * why the resulting CLI value is explicitly described as an estimate. */
-	w->passwords_tested = saturating_add(
-		w->passwords_tested, estimate_candidate_count(limit, level));
 	memset(cache, 0, sizeof(struct zc_key) * (level + 1));
 	set_default_encryption_keys(cache);
 

@@ -88,8 +88,8 @@ earlier.
 
 `-S, --stats` prints runtime statistics, the estimated number of password
 candidates tested, and the estimated password rate. Candidate accounting is
-performed once per assigned worker search range to avoid synchronization or
-per-password timing overhead in the cracking loops.
+performed at completed worker leaf and vector-batch boundaries to avoid
+synchronization or per-password timing overhead in the cracking loops.
 
 ### Mask options
 

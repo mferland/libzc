@@ -592,6 +592,7 @@ START_TEST(test_bruteforce_partial_batch_last_candidate)
 
 	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "noradi.zip", &cfg), 0);
 	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 0);
+	ck_assert_uint_eq(zc_bruteforce_passwords_tested(ctx), 18);
 	ck_assert_str_eq(out, "noradi");
 }
 END_TEST
@@ -607,6 +608,7 @@ START_TEST(test_bruteforce_exact_batch_not_found)
 
 	ck_assert_int_eq(zc_bruteforce_init(ctx, DATADIR "stored.zip", &cfg), 0);
 	ck_assert_int_eq(zc_bruteforce_start(ctx, out, sizeof(out)), 1);
+	ck_assert_uint_eq(zc_bruteforce_passwords_tested(ctx), 64);
 }
 END_TEST
 

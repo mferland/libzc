@@ -156,8 +156,8 @@ selects the number of online processors and is the default.
 .BR \-S ", " \-\-stats
 Print search configuration, runtime statistics, the estimated number of
 password candidates tested, and the estimated password rate. Accounting occurs
-once per assigned worker search range without per-password timing or
-synchronization in the cracking loops.
+at completed worker leaf and vector-batch boundaries without per-password
+timing or synchronization in the cracking loops.
 .TP
 .BR \-h ", " \-\-help
 Display help for the
