@@ -190,6 +190,10 @@ Use `--list-devices` to print the available indices.
 estimated number of password candidates tested, and estimated password rate.
 Candidate accounting is performed once per GPU dispatch.
 
+GPU searches process up to 64 million candidates per dispatch, clamped to the
+selected device's compute workgroup limit. This amortizes command submission,
+fence waits, and result readback without changing search order.
+
 For example, list devices and search every lowercase password from six through
 eight characters on device zero:
 

@@ -27,12 +27,12 @@
 #include <vulkan/vulkan.h>
 
 /*
- * Keep each dispatch reasonably small.  Smaller dispatches bound the time
- * spent in one command buffer and let the host advance through search spaces
- * that are much larger than a uint32_t.
+ * Keep each dispatch large enough to amortize command submission, fence waits,
+ * and result readback while still bounding the time spent in one command
+ * buffer.  Searches larger than this continue in later dispatches.
  */
 #define WORKGROUP_SIZE 64u
-#define CHUNK_LIMIT (1u << 20)
+#define CHUNK_LIMIT (1u << 26)
 
 /*
  * A wrong password passes one encrypted-header check with probability 1/256.
@@ -585,6 +585,8 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 	};
 	VkPhysicalDeviceProperties properties;
+	uint64_t device_chunk_limit;
+	uint64_t selected_chunk_limit;
 	VkResult result;
 	VkDeviceSize staging_size = RESULT_WORDS * sizeof(uint32_t);
 
@@ -665,12 +667,18 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		goto fail;
 
 	/* A dispatch must obey both yazc's latency bound and the device's X-axis
-	 * workgroup-count limit. */
-	ctx->max_chunk = CHUNK_LIMIT;
-	if (properties.limits.maxComputeWorkGroupCount[0] <
-	    ctx->max_chunk / WORKGROUP_SIZE)
-		ctx->max_chunk = properties.limits.maxComputeWorkGroupCount[0] *
-				 WORKGROUP_SIZE;
+	 * workgroup-count limit.  Calculate in 64 bits because Vulkan exposes the
+	 * latter as uint32_t and multiplying it by the workgroup size can overflow
+	 * before the result is clamped to the uint32_t candidate counter. */
+	device_chunk_limit =
+		(uint64_t)properties.limits.maxComputeWorkGroupCount[0] *
+		WORKGROUP_SIZE;
+	selected_chunk_limit = CHUNK_LIMIT;
+	if (selected_chunk_limit > device_chunk_limit)
+		selected_chunk_limit = device_chunk_limit;
+	if (selected_chunk_limit > UINT32_MAX)
+		selected_chunk_limit = UINT32_MAX;
+	ctx->max_chunk = (uint32_t)selected_chunk_limit;
 	if (!ctx->max_chunk) {
 		result = VK_ERROR_INITIALIZATION_FAILED;
 		goto fail;
@@ -878,7 +886,8 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 				ctx->pipeline_layout, 0, 1,
 				&ctx->descriptor_set, 0, NULL);
 	vkCmdDispatch(ctx->command_buffer,
-		      (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE, 1, 1);
+		      (uint32_t)(((uint64_t)count + WORKGROUP_SIZE - 1) /
+				 WORKGROUP_SIZE), 1, 1);
 
 	/* Make shader-written survivor offsets visible to the result copy. */
 	vkCmdPipelineBarrier(ctx->command_buffer,
@@ -946,7 +955,9 @@ static int run_dispatch(struct zc_vulkan *ctx, uint32_t count,
 {
 	const char *phase = "input upload";
 	VkResult result;
-	uint32_t workgroups = (count + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+	uint32_t workgroups = (uint32_t)(((uint64_t)count +
+					    WORKGROUP_SIZE - 1) /
+					   WORKGROUP_SIZE);
 
 	++ctx->dispatch_count;
 	dbg("Vulkan dispatch %" PRIu64 ": length=%u candidates=%u "
