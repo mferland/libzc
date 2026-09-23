@@ -1,7 +1,8 @@
 #version 450
 
-/* One invocation evaluates one password.  The host dispatches enough groups
- * to cover the current chunk and the bounds check below ignores padding. */
+/* One invocation evaluates every final-character variant of one password
+ * prefix.  The host dispatches enough groups to cover the current chunk and
+ * the bounds check below ignores padding. */
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 /*
@@ -83,17 +84,18 @@ bool header_matches(uint header_index, uint base0, uint base1, uint base2)
 
 void main()
 {
-	uint candidate = gl_GlobalInvocationID.x;
+	uint prefix = gl_GlobalInvocationID.x;
 	uint count = input_data.words[INPUT_CANDIDATE_COUNT];
 	uint length = input_data.words[INPUT_LENGTH];
 	uint radix = input_data.words[INPUT_CHARSET_LENGTH];
+	uint first = prefix * radix;
 	uint digits[16];
 	uint carry;
-	uint key0 = 0x12345678u;
-	uint key1 = 0x23456789u;
-	uint key2 = 0x34567890u;
+	uint prefix_key0 = 0x12345678u;
+	uint prefix_key1 = 0x23456789u;
+	uint prefix_key2 = 0x34567890u;
 
-	if (candidate >= count)
+	if (first >= count)
 		return;
 
 	/* Begin at the host-provided mixed-radix counter.  For example, with
@@ -103,7 +105,7 @@ void main()
 
 	/* Add this invocation's offset from right to left.  The host chooses the
 	 * chunk size so this addition cannot overflow past the first digit. */
-	carry = candidate;
+	carry = first;
 	for (uint pos = length; pos > 0 && carry != 0; --pos) {
 		uint value = digits[pos - 1] + carry;
 
@@ -111,24 +113,40 @@ void main()
 		carry = value / radix;
 	}
 
-	/* Derive the three classic ZipCrypto keys from the candidate password. */
-	for (uint i = 0; i < length; ++i) {
+	/* Derive the keys shared by every candidate with this prefix.  The host
+	 * aligns dispatch bases to the radix, so the final digit starts at zero. */
+	for (uint i = 0; i + 1 < length; ++i) {
 		uint value = input_data.words[INPUT_CHARSET + digits[i]];
 
-		update_keys(value, key0, key1, key2);
+		update_keys(value, prefix_key0, prefix_key1, prefix_key2);
 	}
 
-	/* Reject on the first header mismatch.  A survivor must pass every usable
-	 * encrypted entry collected by the host. */
-	for (uint i = 0; i < input_data.words[INPUT_HEADER_COUNT]; ++i) {
-		if (!header_matches(i, key0, key1, key2))
-			return;
+	uint suffix_count = min(radix, count - first);
+	for (uint suffix = 0; suffix < suffix_count; ++suffix) {
+		uint key0 = prefix_key0;
+		uint key1 = prefix_key1;
+		uint key2 = prefix_key2;
+		bool matches = true;
+
+		update_keys(input_data.words[INPUT_CHARSET + suffix],
+			    key0, key1, key2);
+
+		/* Reject this suffix on the first header mismatch.  A survivor must
+		 * pass every usable encrypted entry collected by the host. */
+		for (uint i = 0; i < input_data.words[INPUT_HEADER_COUNT]; ++i) {
+			if (!header_matches(i, key0, key1, key2)) {
+				matches = false;
+				break;
+			}
+		}
+		if (!matches)
+			continue;
+
+		/* Always increment the total, even when the offset array is full.
+		 * Seeing a count above capacity tells the host to split and retry. */
+		uint slot = atomicAdd(result_data.words[0], 1u);
+
+		if (slot < input_data.words[INPUT_RESULT_CAPACITY])
+			result_data.words[slot + 1] = first + suffix;
 	}
-
-	/* Always increment the total, even when the offset array is full.  Seeing
-	 * a count above capacity tells the host to split and retry the range. */
-	uint slot = atomicAdd(result_data.words[0], 1u);
-
-	if (slot < input_data.words[INPUT_RESULT_CAPACITY])
-		result_data.words[slot + 1] = candidate;
 }

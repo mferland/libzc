@@ -193,6 +193,8 @@ Candidate accounting is performed once per GPU dispatch.
 GPU searches process up to 64 million candidates per dispatch, clamped to the
 selected device's compute workgroup limit. This amortizes command submission,
 fence waits, and result readback without changing search order.
+Within a dispatch, each shader invocation derives the keys for one password
+prefix and reuses them across every final-character candidate.
 
 For example, list devices and search every lowercase password from six through
 eight characters on device zero:

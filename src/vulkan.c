@@ -668,17 +668,20 @@ static VkResult init_device(struct zc_vulkan *ctx)
 
 	/* A dispatch must obey both yazc's latency bound and the device's X-axis
 	 * workgroup-count limit.  Calculate in 64 bits because Vulkan exposes the
-	 * latter as uint32_t and multiplying it by the workgroup size can overflow
-	 * before the result is clamped to the uint32_t candidate counter. */
+	 * latter as uint32_t and converting groups to prefix-batched candidates
+	 * can overflow before the result is clamped to the uint32_t counter. */
 	device_chunk_limit =
 		(uint64_t)properties.limits.maxComputeWorkGroupCount[0] *
-		WORKGROUP_SIZE;
+		WORKGROUP_SIZE * ctx->search.radix;
 	selected_chunk_limit = CHUNK_LIMIT;
 	if (selected_chunk_limit > device_chunk_limit)
 		selected_chunk_limit = device_chunk_limit;
 	if (selected_chunk_limit > UINT32_MAX)
 		selected_chunk_limit = UINT32_MAX;
 	ctx->max_chunk = (uint32_t)selected_chunk_limit;
+	/* Prefix sharing requires every non-final dispatch to end at a radix
+	 * boundary, leaving the next dispatch's final digit at zero. */
+	ctx->max_chunk -= ctx->max_chunk % ctx->search.radix;
 	if (!ctx->max_chunk) {
 		result = VK_ERROR_INITIALIZATION_FAILED;
 		goto fail;
@@ -810,6 +813,22 @@ static int compare_index(const void *a, const void *b)
 	return (av > bv) - (av < bv);
 }
 
+static uint32_t dispatch_invocation_count(const struct zc_vulkan *ctx,
+					  uint32_t candidates)
+{
+	return (uint32_t)(((uint64_t)candidates + ctx->search.radix - 1) /
+			  ctx->search.radix);
+}
+
+static uint32_t dispatch_workgroup_count(const struct zc_vulkan *ctx,
+					 uint32_t candidates)
+{
+	uint32_t invocations = dispatch_invocation_count(ctx, candidates);
+
+	return (uint32_t)(((uint64_t)invocations + WORKGROUP_SIZE - 1) /
+			  WORKGROUP_SIZE);
+}
+
 /* -------------------------------------------------------------------------
  * One GPU dispatch: upload -> compute -> download
  * ------------------------------------------------------------------------- */
@@ -886,8 +905,7 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 				ctx->pipeline_layout, 0, 1,
 				&ctx->descriptor_set, 0, NULL);
 	vkCmdDispatch(ctx->command_buffer,
-		      (uint32_t)(((uint64_t)count + WORKGROUP_SIZE - 1) /
-				 WORKGROUP_SIZE), 1, 1);
+		      dispatch_workgroup_count(ctx, count), 1, 1);
 
 	/* Make shader-written survivor offsets visible to the result copy. */
 	vkCmdPipelineBarrier(ctx->command_buffer,
@@ -955,14 +973,14 @@ static int run_dispatch(struct zc_vulkan *ctx, uint32_t count,
 {
 	const char *phase = "input upload";
 	VkResult result;
-	uint32_t workgroups = (uint32_t)(((uint64_t)count +
-					    WORKGROUP_SIZE - 1) /
-					   WORKGROUP_SIZE);
+	uint32_t invocations = dispatch_invocation_count(ctx, count);
+	uint32_t workgroups = dispatch_workgroup_count(ctx, count);
 
 	++ctx->dispatch_count;
 	dbg("Vulkan dispatch %" PRIu64 ": length=%u candidates=%u "
-	    "workgroups=%u\n",
-	    ctx->dispatch_count, ctx->search.length, count, workgroups);
+	    "invocations=%u workgroups=%u\n",
+	    ctx->dispatch_count, ctx->search.length, count, invocations,
+	    workgroups);
 
 	result = upload_dispatch_input(ctx, count);
 	if (result != VK_SUCCESS)
@@ -1016,6 +1034,11 @@ static int search_range(struct zc_vulkan *ctx, uint32_t count,
 	if (survivors > RESULT_CAPACITY) {
 		struct zc_vulkan_search original = ctx->search;
 		uint32_t first = count / 2;
+
+		/* Keep the second half's base aligned for prefix sharing.  Overflow
+		 * requires more survivors than RESULT_CAPACITY, so count is always
+		 * large enough to leave a nonzero radix-aligned first half. */
+		first -= first % ctx->search.radix;
 
 		/*
 		 * Re-run two halves instead of accepting a truncated result list.
