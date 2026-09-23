@@ -22,6 +22,13 @@ grep -q '^Maximum length: 8$' "$tmpdir/crack.out"
 grep -q '^Estimated passwords tested: 1$' "$tmpdir/crack.out"
 grep -Eq '^Estimated rate: [0-9]+\.[0-9]+ passwords/second$' \
 	"$tmpdir/crack.out"
+# Timestamp support is optional.  When available, both GPU-only statistics
+# must be emitted together and use the same stable numeric format.
+gpu_runtime=$(grep -Ec '^GPU compute runtime: [0-9]+\.[0-9]+ secs\.$' \
+	"$tmpdir/crack.out" || true)
+gpu_rate=$(grep -Ec '^GPU compute rate: [0-9]+\.[0-9]+ passwords/second$' \
+	"$tmpdir/crack.out" || true)
+test "$gpu_runtime" -eq "$gpu_rate"
 grep -q '^Password is: a$' "$tmpdir/crack.out"
 
 "$YAZC" vulkan -S -a -A -n -s -l 1 --min-length 1 \

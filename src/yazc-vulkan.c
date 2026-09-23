@@ -138,9 +138,17 @@ static int launch_crack(const struct vulkan_opts *opts)
 	result = zc_vulkan_start(ctx, password, sizeof(password));
 	gettimeofday(&end, NULL);
 	if (opts->stats) {
+		double gpu_seconds;
+		uint64_t passwords_tested = zc_vulkan_passwords_tested(ctx);
+
 		print_runtime_stats(&begin, &end);
-		print_password_rate(&begin, &end,
-				    zc_vulkan_passwords_tested(ctx));
+		print_password_rate(&begin, &end, passwords_tested);
+		if (!zc_vulkan_gpu_runtime(ctx, &gpu_seconds)) {
+			printf("GPU compute runtime: %.6f secs.\n", gpu_seconds);
+			printf("GPU compute rate: %.3f passwords/second\n",
+			       gpu_seconds > 0.0 ?
+			       passwords_tested / gpu_seconds : 0.0);
+		}
 	}
 
 	if (result > 0)

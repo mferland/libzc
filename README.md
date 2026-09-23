@@ -188,7 +188,14 @@ Use `--list-devices` to print the available indices.
 
 `-S, --stats` prints the selected device, search configuration, runtime,
 estimated number of password candidates tested, and estimated password rate.
-Candidate accounting is performed once per GPU dispatch.
+When supported by the selected compute queue, it also reports GPU-only compute
+runtime and throughput using Vulkan timestamp queries. Candidate accounting is
+performed once per GPU dispatch.
+
+Debug builds started with `ZC_LOG=debug` also report implementation-provided
+pipeline executable statistics when the Vulkan driver supports them. These can
+include compiled instruction, register, scratch-memory, and subgroup details;
+the exact fields are driver-specific.
 
 GPU searches process up to 64 million candidates per dispatch, clamped to the
 selected device's compute workgroup limit. This amortizes command submission,
