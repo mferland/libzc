@@ -71,7 +71,7 @@
 
 static const uint32_t vulkan_shader[] =
 #include "vulkan_shader.inc"
-;
+	;
 
 struct zc_vk_buffer {
 	VkBuffer buffer;
@@ -176,7 +176,7 @@ static uint32_t supported_instance_version(void)
 	uint32_t requested;
 
 	enumerate_version = (PFN_vkEnumerateInstanceVersion)
-		vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion");
+			    vkGetInstanceProcAddr(VK_NULL_HANDLE, "vkEnumerateInstanceVersion");
 	if (enumerate_version && enumerate_version(&supported) != VK_SUCCESS)
 		supported = VK_API_VERSION_1_0;
 
@@ -351,7 +351,7 @@ static bool device_extension_supported(VkPhysicalDevice device,
 	if (!extensions)
 		return false;
 	result = vkEnumerateDeviceExtensionProperties(device, NULL, &count,
-						 extensions);
+						      extensions);
 	if (result != VK_SUCCESS)
 		goto out;
 
@@ -670,7 +670,7 @@ static void log_pipeline_statistics(struct zc_vulkan *ctx)
 		dbg("Vulkan pipeline executable %u: %s, subgroup-size=%u\n",
 		    i, executables[i].name, executables[i].subgroupSize);
 		result = ctx->get_executable_statistics(
-			ctx->device, &executable_info, &statistic_count, NULL);
+				 ctx->device, &executable_info, &statistic_count, NULL);
 		if (result != VK_SUCCESS || !statistic_count)
 			continue;
 
@@ -681,8 +681,8 @@ static void log_pipeline_statistics(struct zc_vulkan *ctx)
 			statistics[j].sType =
 				VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR;
 		result = ctx->get_executable_statistics(
-			ctx->device, &executable_info, &statistic_count,
-			statistics);
+				 ctx->device, &executable_info, &statistic_count,
+				 statistics);
 		if (result == VK_SUCCESS) {
 			for (uint32_t j = 0; j < statistic_count; ++j)
 				log_pipeline_statistic(&statistics[j]);
@@ -850,14 +850,14 @@ static VkResult init_device(struct zc_vulkan *ctx)
 	 * Vulkan 1.1 is sufficient for the core feature-query entry point. */
 	if (ctx->instance_api_version >= VK_API_VERSION_1_1)
 		get_features2 = (PFN_vkGetPhysicalDeviceFeatures2)
-			vkGetInstanceProcAddr(ctx->instance,
-					      "vkGetPhysicalDeviceFeatures2");
+				vkGetInstanceProcAddr(ctx->instance,
+						      "vkGetPhysicalDeviceFeatures2");
 	if (pipeline_statistics_requested() &&
 	    get_features2 &&
 	    properties.apiVersion >= VK_API_VERSION_1_1 &&
 	    device_extension_supported(
-		ctx->physical_device,
-		VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME)) {
+		    ctx->physical_device,
+		    VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME)) {
 		get_features2(ctx->physical_device, &supported_features);
 		if (pipeline_features.pipelineExecutableInfo) {
 			device_extensions[device.enabledExtensionCount++] =
@@ -881,11 +881,11 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		ctx->get_executable_properties =
 			(PFN_vkGetPipelineExecutablePropertiesKHR)
 			vkGetDeviceProcAddr(ctx->device,
-				"vkGetPipelineExecutablePropertiesKHR");
+					    "vkGetPipelineExecutablePropertiesKHR");
 		ctx->get_executable_statistics =
 			(PFN_vkGetPipelineExecutableStatisticsKHR)
 			vkGetDeviceProcAddr(ctx->device,
-				"vkGetPipelineExecutableStatisticsKHR");
+					    "vkGetPipelineExecutableStatisticsKHR");
 		if (!ctx->get_executable_properties ||
 		    !ctx->get_executable_statistics) {
 			dbg("Vulkan pipeline executable entry points unavailable\n");
@@ -1163,7 +1163,7 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
 		.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
 		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
-				 VK_ACCESS_SHADER_WRITE_BIT,
+		VK_ACCESS_SHADER_WRITE_BIT,
 	};
 	VkMemoryBarrier compute_to_transfer = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -1553,8 +1553,8 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 
 		for (;;) {
 			uint32_t count = zc_vulkan_search_chunk_count(
-				ctx->search.digits, ctx->search.length,
-				ctx->search.radix, ctx->max_chunk);
+						 ctx->search.digits, ctx->search.length,
+						 ctx->search.radix, ctx->max_chunk);
 			int result;
 
 			if (!count)

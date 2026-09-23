@@ -77,7 +77,7 @@ START_TEST(test_search_set_length_resets_counter)
 	ck_assert_int_eq(zc_vulkan_search_set_length(NULL, 1), -1);
 	ck_assert_int_eq(zc_vulkan_search_set_length(&search, 0), -1);
 	ck_assert_int_eq(zc_vulkan_search_set_length(
-				&search, ZC_PW_MAXLEN + 1), -1);
+				 &search, ZC_PW_MAXLEN + 1), -1);
 }
 END_TEST
 

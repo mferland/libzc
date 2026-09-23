@@ -232,7 +232,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 			if (try_decrypt(ctx, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
 					w->passwords_tested = saturating_add(
-						w->passwords_tested, p - first + 1);
+								      w->passwords_tested, p - first + 1);
 					pw[level_count - 1] = candidate_char(ctx, level_count - 1, p);
 					w->found = true;
 					pthread_exit(w);
@@ -242,7 +242,7 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 		/* Publish once per completed leaf range.  If another worker cancels
 		 * this one inside the loop, fewer than one alphabet span is omitted. */
 		w->passwords_tested = saturating_add(w->passwords_tested,
-						       last - first);
+						     last - first);
 	} else {
 		size_t i = level_count - level;
 		for (size_t p = first; p < last; ++p) {
@@ -447,8 +447,8 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								 * lane in this batch.  Publish only at this existing
 								 * batch boundary, outside the inner candidate loop. */
 								w->passwords_tested = saturating_add(
-									w->passwords_tested,
-									ZC_BRUTEFORCE_BATCH_SIZE);
+											      w->passwords_tested,
+											      ZC_BRUTEFORCE_BATCH_SIZE);
 								if (candidates == 0)
 									continue;
 
@@ -488,11 +488,11 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		ret = try_decrypt2(ctx, w);
 		if (ret < 0) {
 			w->passwords_tested = saturating_add(
-				w->passwords_tested, remaining);
+						      w->passwords_tested, remaining);
 			return;
 		}
 		w->passwords_tested = saturating_add(w->passwords_tested,
-						       (size_t)ret + 1);
+						     (size_t)ret + 1);
 
 		for (int i = 0; i < 6; ++i)
 			in[i] = last[i] - first[i];
@@ -699,7 +699,7 @@ static void wait_workers(struct zc_bruteforce *ctx, size_t workers, char *pw,
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
 			ctx->passwords_tested = saturating_add(
-				ctx->passwords_tested, w->passwords_tested);
+							ctx->passwords_tested, w->passwords_tested);
 			if (w->found) {
 				memset(pw, 0, len);
 				strncpy(pw, w->pw, len);
@@ -1093,7 +1093,7 @@ int zc_bruteforce_new(struct zc_bruteforce **ctx)
 
 	dbg("bruteforce context %p created with %s header filter\n", *ctx,
 	    (*ctx)->try_decrypt_fast == try_decrypt_fast_portable ?
-		    "portable" : "AVX2");
+	    "portable" : "AVX2");
 	return 0;
 }
 

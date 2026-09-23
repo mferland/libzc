@@ -44,7 +44,7 @@ int zc_vulkan_search_init(struct zc_vulkan_search *search,
 	memset(search, 0, sizeof(*search));
 	for (size_t i = 0; i < inlen; ++i) {
 		if (outlen && (unsigned char)set[i] ==
-			      search->alphabet[outlen - 1])
+		    search->alphabet[outlen - 1])
 			continue;
 		search->alphabet[outlen++] = (unsigned char)set[i];
 	}
