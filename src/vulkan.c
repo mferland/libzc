@@ -9,6 +9,7 @@
  */
 
 #include <inttypes.h>
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -69,6 +70,11 @@
 /* results[0] is an atomic survivor count; the remaining words are offsets. */
 #define RESULT_WORDS (RESULT_CAPACITY + 1u)
 
+/* Specialization-constant IDs declared in vulkan-bruteforce.comp. */
+#define SPEC_LENGTH_ID 0u
+#define SPEC_RADIX_ID 1u
+#define SPEC_HEADER_COUNT_ID 2u
+
 static const uint32_t vulkan_shader[] =
 #include "vulkan_shader.inc"
 	;
@@ -118,7 +124,10 @@ struct zc_vulkan {
 	VkDescriptorPool descriptor_pool;
 	VkDescriptorSet descriptor_set;
 	VkPipelineLayout pipeline_layout;
-	VkPipeline pipeline;
+	VkShaderModule shader_module;
+	VkPipeline generic_pipeline;
+	VkPipeline specialized_pipelines[ZC_PW_MAXLEN + 1];
+	VkPipeline active_pipeline;
 	bool pipeline_executable_info;
 #ifdef VK_KHR_pipeline_executable_properties
 	PFN_vkGetPipelineExecutablePropertiesKHR get_executable_properties;
@@ -522,7 +531,32 @@ static VkResult invalidate_memory(struct zc_vulkan *ctx,
  * Descriptor and compute-pipeline construction
  * ------------------------------------------------------------------------- */
 
-static VkResult create_pipeline(struct zc_vulkan *ctx)
+static VkResult create_compute_pipeline(
+	struct zc_vulkan *ctx, const VkSpecializationInfo *specialization,
+	VkPipeline *out)
+{
+	VkPipelineShaderStageCreateInfo stage = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+		.stage = VK_SHADER_STAGE_COMPUTE_BIT,
+		.module = ctx->shader_module,
+		.pName = "main",
+		.pSpecializationInfo = specialization,
+	};
+	VkComputePipelineCreateInfo pipeline = {
+		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+		.stage = stage,
+		.layout = ctx->pipeline_layout,
+	};
+
+#ifdef VK_KHR_pipeline_executable_properties
+	if (ctx->pipeline_executable_info)
+		pipeline.flags |= VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
+#endif
+	return vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1,
+					&pipeline, NULL, out);
+}
+
+static VkResult create_pipeline_resources(struct zc_vulkan *ctx)
 {
 	VkDescriptorSetLayoutBinding bindings[2] = {
 		{
@@ -551,18 +585,9 @@ static VkResult create_pipeline(struct zc_vulkan *ctx)
 		.codeSize = sizeof(vulkan_shader),
 		.pCode = vulkan_shader,
 	};
-	VkPipelineShaderStageCreateInfo stage = {
-		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-		.stage = VK_SHADER_STAGE_COMPUTE_BIT,
-		.pName = "main",
-	};
-	VkComputePipelineCreateInfo pipeline = {
-		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-	};
-	VkShaderModule module = VK_NULL_HANDLE;
 	VkResult result;
 
-	dbg("creating Vulkan compute pipeline from %zu-byte embedded shader\n",
+	dbg("creating generic Vulkan compute pipeline from %zu-byte embedded shader\n",
 	    sizeof(vulkan_shader));
 
 	/* Bindings 0 and 1 are the input and result storage buffers. */
@@ -579,22 +604,15 @@ static VkResult create_pipeline(struct zc_vulkan *ctx)
 		return result;
 
 	/* The generated SPIR-V is embedded so installed builds need no compiler. */
-	result = vkCreateShaderModule(ctx->device, &shader, NULL, &module);
+	result = vkCreateShaderModule(ctx->device, &shader, NULL,
+				      &ctx->shader_module);
 	if (result != VK_SUCCESS)
 		return result;
 
-	stage.module = module;
-	pipeline.stage = stage;
-	pipeline.layout = ctx->pipeline_layout;
-#ifdef VK_KHR_pipeline_executable_properties
-	if (ctx->pipeline_executable_info)
-		pipeline.flags |= VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;
-#endif
-	result = vkCreateComputePipelines(ctx->device, VK_NULL_HANDLE, 1,
-					  &pipeline, NULL, &ctx->pipeline);
-	vkDestroyShaderModule(ctx->device, module, NULL);
+	/* No specialization data selects the shader's metadata-driven fallback. */
+	result = create_compute_pipeline(ctx, NULL, &ctx->generic_pipeline);
 	if (result == VK_SUCCESS)
-		dbg("Vulkan compute pipeline created\n");
+		ctx->active_pipeline = ctx->generic_pipeline;
 	return result;
 }
 
@@ -626,11 +644,12 @@ static void log_pipeline_statistic(
 	}
 }
 
-static void log_pipeline_statistics(struct zc_vulkan *ctx)
+static void log_pipeline_statistics(struct zc_vulkan *ctx,
+				    VkPipeline pipeline, const char *description)
 {
 	VkPipelineInfoKHR pipeline_info = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_INFO_KHR,
-		.pipeline = ctx->pipeline,
+		.pipeline = pipeline,
 	};
 	VkPipelineExecutablePropertiesKHR *executables = NULL;
 	VkResult result;
@@ -638,6 +657,7 @@ static void log_pipeline_statistics(struct zc_vulkan *ctx)
 
 	if (!ctx->pipeline_executable_info)
 		return;
+	dbg("Vulkan %s pipeline compiler statistics:\n", description);
 
 	result = ctx->get_executable_properties(ctx->device, &pipeline_info,
 						&executable_count, NULL);
@@ -661,7 +681,7 @@ static void log_pipeline_statistics(struct zc_vulkan *ctx)
 	for (uint32_t i = 0; i < executable_count; ++i) {
 		VkPipelineExecutableInfoKHR executable_info = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
-			.pipeline = ctx->pipeline,
+			.pipeline = pipeline,
 			.executableIndex = i,
 		};
 		VkPipelineExecutableStatisticKHR *statistics;
@@ -696,11 +716,71 @@ out:
 	free(executables);
 }
 #else
-static void log_pipeline_statistics(struct zc_vulkan *ctx)
+static void log_pipeline_statistics(struct zc_vulkan *ctx,
+				    VkPipeline pipeline, const char *description)
 {
 	(void)ctx;
+	(void)pipeline;
+	(void)description;
 }
 #endif
+
+static void select_specialized_pipeline(struct zc_vulkan *ctx,
+					uint32_t length)
+{
+	struct specialization_data {
+		uint32_t length;
+		uint32_t radix;
+		uint32_t header_count;
+	} data = {
+		.length = length,
+		.radix = ctx->search.radix,
+		.header_count = (uint32_t)ctx->header_count,
+	};
+	VkSpecializationMapEntry entries[] = {
+		{
+			.constantID = SPEC_LENGTH_ID,
+			.offset = offsetof(struct specialization_data, length),
+			.size = sizeof(data.length),
+		},
+		{
+			.constantID = SPEC_RADIX_ID,
+			.offset = offsetof(struct specialization_data, radix),
+			.size = sizeof(data.radix),
+		},
+		{
+			.constantID = SPEC_HEADER_COUNT_ID,
+			.offset = offsetof(struct specialization_data, header_count),
+			.size = sizeof(data.header_count),
+		},
+	};
+	VkSpecializationInfo specialization = {
+		.mapEntryCount = sizeof(entries) / sizeof(entries[0]),
+		.pMapEntries = entries,
+		.dataSize = sizeof(data),
+		.pData = &data,
+	};
+	VkPipeline *pipeline = &ctx->specialized_pipelines[length];
+	VkResult result;
+
+	if (!*pipeline) {
+		result = create_compute_pipeline(ctx, &specialization, pipeline);
+		if (result != VK_SUCCESS) {
+			dbg("Vulkan pipeline specialization failed for length %u: "
+			    "%s (%d); using generic pipeline\n",
+			    length, vk_result_name(result), result);
+			ctx->active_pipeline = ctx->generic_pipeline;
+			return;
+		}
+
+		dbg("created specialized Vulkan pipeline: length=%u radix=%u "
+		    "headers=%u\n", data.length, data.radix,
+		    data.header_count);
+		log_pipeline_statistics(ctx, *pipeline, "specialized");
+	}
+
+	ctx->active_pipeline = *pipeline;
+}
 
 static VkResult create_descriptors(struct zc_vulkan *ctx)
 {
@@ -952,10 +1032,10 @@ static VkResult init_device(struct zc_vulkan *ctx)
 			       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &ctx->staging);
 	if (result != VK_SUCCESS)
 		goto fail;
-	result = create_pipeline(ctx);
+	result = create_pipeline_resources(ctx);
 	if (result != VK_SUCCESS)
 		goto fail;
-	log_pipeline_statistics(ctx);
+	log_pipeline_statistics(ctx, ctx->generic_pipeline, "generic");
 	result = create_descriptors(ctx);
 	if (result != VK_SUCCESS)
 		goto fail;
@@ -1008,8 +1088,15 @@ static void deinit_device(struct zc_vulkan *ctx)
 	 * null-safe only where explicitly guarded here. */
 	if (ctx->descriptor_pool)
 		vkDestroyDescriptorPool(ctx->device, ctx->descriptor_pool, NULL);
-	if (ctx->pipeline)
-		vkDestroyPipeline(ctx->device, ctx->pipeline, NULL);
+	for (size_t i = 0; i <= ZC_PW_MAXLEN; ++i) {
+		if (ctx->specialized_pipelines[i])
+			vkDestroyPipeline(ctx->device,
+					  ctx->specialized_pipelines[i], NULL);
+	}
+	if (ctx->generic_pipeline)
+		vkDestroyPipeline(ctx->device, ctx->generic_pipeline, NULL);
+	if (ctx->shader_module)
+		vkDestroyShaderModule(ctx->device, ctx->shader_module, NULL);
 	if (ctx->pipeline_layout)
 		vkDestroyPipelineLayout(ctx->device, ctx->pipeline_layout, NULL);
 	if (ctx->descriptor_layout)
@@ -1202,7 +1289,7 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 				    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 				    ctx->timestamp_pool, 0);
 	vkCmdBindPipeline(ctx->command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
-			  ctx->pipeline);
+			  ctx->active_pipeline);
 	vkCmdBindDescriptorSets(ctx->command_buffer,
 				VK_PIPELINE_BIND_POINT_COMPUTE,
 				ctx->pipeline_layout, 0, 1,
@@ -1549,6 +1636,7 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 
 		if (zc_vulkan_search_set_length(&ctx->search, length))
 			return -1;
+		select_specialized_pipeline(ctx, length);
 		dbg("searching Vulkan passwords of length %u\n", length);
 
 		for (;;) {

@@ -6,6 +6,19 @@
 layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 /*
+ * Exact-search pipelines override these constants when they are created.
+ * Zero is deliberately the default because password lengths, character-set
+ * sizes, and header counts are all strictly positive.  A pipeline using the
+ * defaults therefore remains a generic fallback that reads its dimensions
+ * from the input buffer.
+ *
+ * The constant IDs must remain synchronized with vulkan.c.
+ */
+layout(constant_id = 0) const uint SPECIALIZED_LENGTH = 0u;
+layout(constant_id = 1) const uint SPECIALIZED_RADIX = 0u;
+layout(constant_id = 2) const uint SPECIALIZED_HEADER_COUNT = 0u;
+
+/*
  * Both buffers contain only uint values.  This intentionally avoids optional
  * 8-bit-storage and 64-bit-integer features from post-1.0 Vulkan versions.
  *
@@ -86,8 +99,12 @@ void main()
 {
 	uint prefix = gl_GlobalInvocationID.x;
 	uint count = input_data.words[INPUT_CANDIDATE_COUNT];
-	uint length = input_data.words[INPUT_LENGTH];
-	uint radix = input_data.words[INPUT_CHARSET_LENGTH];
+	uint length = SPECIALIZED_LENGTH != 0u ? SPECIALIZED_LENGTH :
+		input_data.words[INPUT_LENGTH];
+	uint radix = SPECIALIZED_RADIX != 0u ? SPECIALIZED_RADIX :
+		input_data.words[INPUT_CHARSET_LENGTH];
+	uint header_count = SPECIALIZED_HEADER_COUNT != 0u ?
+		SPECIALIZED_HEADER_COUNT : input_data.words[INPUT_HEADER_COUNT];
 	uint first = prefix * radix;
 	uint digits[16];
 	uint carry;
@@ -133,7 +150,7 @@ void main()
 
 		/* Reject this suffix on the first header mismatch.  A survivor must
 		 * pass every usable encrypted entry collected by the host. */
-		for (uint i = 0; i < input_data.words[INPUT_HEADER_COUNT]; ++i) {
+		for (uint i = 0; i < header_count; ++i) {
 			if (!header_matches(i, key0, key1, key2)) {
 				matches = false;
 				break;

@@ -202,6 +202,10 @@ selected device's compute workgroup limit. This amortizes command submission,
 fence waits, and result readback without changing search order.
 Within a dispatch, each shader invocation derives the keys for one password
 prefix and reuses them across every final-character candidate.
+The backend also creates and caches a compute pipeline specialized for each
+password length it encounters. Password length, character-set size, and ZIP
+header count become compile-time constants for that pipeline; if a driver
+rejects specialization, the search continues with the generic pipeline.
 
 For example, list devices and search every lowercase password from six through
 eight characters on device zero:
