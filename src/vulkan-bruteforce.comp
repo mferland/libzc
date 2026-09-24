@@ -45,6 +45,9 @@ layout(std430, set = 0, binding = 1) buffer ResultBuffer {
 	uint words[];
 } result_data;
 
+/* Each workgroup copies the CRC table here before testing candidates. */
+shared uint workgroup_crc_table[256];
+
 const uint INPUT_CANDIDATE_COUNT = 0;
 const uint INPUT_LENGTH = 1;
 const uint INPUT_CHARSET_LENGTH = 2;
@@ -58,8 +61,9 @@ const uint HEADER_WORDS = 13;
 
 uint crc32_byte(uint crc, uint value)
 {
-	return input_data.words[INPUT_CRC_TABLE + ((crc ^ value) & 0xffu)] ^
-	       (crc >> 8);
+	uint index = (crc ^ value) & 0xffu;
+
+	return workgroup_crc_table[index] ^ (crc >> 8);
 }
 
 uint decrypt_byte(uint key2)
@@ -111,6 +115,13 @@ void main()
 	uint prefix_key0 = 0x12345678u;
 	uint prefix_key1 = 0x23456789u;
 	uint prefix_key2 = 0x34567890u;
+
+	/* Every lane must reach the barrier, including padding invocations beyond
+	 * the candidate count.  Sixty-four lanes load four table entries each. */
+	for (uint i = gl_LocalInvocationID.x; i < 256;
+	     i += gl_WorkGroupSize.x)
+		workgroup_crc_table[i] = input_data.words[INPUT_CRC_TABLE + i];
+	barrier();
 
 	if (first >= count)
 		return;
