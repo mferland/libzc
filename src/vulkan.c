@@ -34,6 +34,13 @@
  */
 #define WORKGROUP_SIZE 64u
 #define CHUNK_LIMIT (1u << 26)
+#define AMD_VENDOR_ID 0x1002u
+
+/* Zero leaves subgroup selection to the driver.  Thirty-two requests wave32
+ * where VK_EXT_subgroup_size_control (or its Vulkan 1.3 core form) permits it. */
+#ifndef ZC_VULKAN_SUBGROUP_SIZE
+#define ZC_VULKAN_SUBGROUP_SIZE 32u
+#endif
 
 /*
  * A wrong password passes one encrypted-header check with probability 1/256.
@@ -115,6 +122,7 @@ struct zc_vulkan {
 	VkQueue queue;
 	uint32_t queue_family;
 	uint32_t timestamp_valid_bits;
+	uint32_t required_subgroup_size;
 	float timestamp_period;
 	VkCommandPool command_pool;
 	VkCommandBuffer command_buffer;
@@ -343,7 +351,8 @@ out:
 	return ret;
 }
 
-#ifdef VK_KHR_pipeline_executable_properties
+#if defined(VK_EXT_subgroup_size_control) || \
+	defined(VK_KHR_pipeline_executable_properties)
 static bool device_extension_supported(VkPhysicalDevice device,
 				       const char *wanted)
 {
@@ -374,7 +383,9 @@ out:
 	free(extensions);
 	return found;
 }
+#endif
 
+#ifdef VK_KHR_pipeline_executable_properties
 static bool pipeline_statistics_requested(void)
 {
 #ifdef ENABLE_DEBUG
@@ -535,6 +546,12 @@ static VkResult create_compute_pipeline(
 	struct zc_vulkan *ctx, const VkSpecializationInfo *specialization,
 	VkPipeline *out)
 {
+#ifdef VK_EXT_subgroup_size_control
+	VkPipelineShaderStageRequiredSubgroupSizeCreateInfoEXT subgroup_size = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT,
+		.requiredSubgroupSize = ctx->required_subgroup_size,
+	};
+#endif
 	VkPipelineShaderStageCreateInfo stage = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 		.stage = VK_SHADER_STAGE_COMPUTE_BIT,
@@ -542,6 +559,11 @@ static VkResult create_compute_pipeline(
 		.pName = "main",
 		.pSpecializationInfo = specialization,
 	};
+
+#ifdef VK_EXT_subgroup_size_control
+	if (ctx->required_subgroup_size)
+		stage.pNext = &subgroup_size;
+#endif
 	VkComputePipelineCreateInfo pipeline = {
 		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 		.stage = stage,
@@ -851,7 +873,7 @@ static VkResult create_descriptors(struct zc_vulkan *ctx)
 
 static VkResult init_device(struct zc_vulkan *ctx)
 {
-	const char *device_extensions[1];
+	const char *device_extensions[2];
 	float priority = 1.0f;
 	VkDeviceQueueCreateInfo queue = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -881,8 +903,29 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		.queryCount = 2,
 	};
 	VkPhysicalDeviceProperties properties;
-#ifdef VK_KHR_pipeline_executable_properties
+#if defined(VK_EXT_subgroup_size_control) || \
+	defined(VK_KHR_pipeline_executable_properties)
 	PFN_vkGetPhysicalDeviceFeatures2 get_features2 = NULL;
+#endif
+#ifdef VK_EXT_subgroup_size_control
+	uint32_t requested_subgroup_size = ZC_VULKAN_SUBGROUP_SIZE;
+	PFN_vkGetPhysicalDeviceProperties2 get_properties2 = NULL;
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
+	};
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroup_properties = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT,
+	};
+	VkPhysicalDeviceFeatures2 subgroup_supported_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &subgroup_features,
+	};
+	VkPhysicalDeviceProperties2 subgroup_supported_properties = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+		.pNext = &subgroup_properties,
+	};
+#endif
+#ifdef VK_KHR_pipeline_executable_properties
 	VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipeline_features = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR,
 	};
@@ -924,14 +967,81 @@ static VkResult init_device(struct zc_vulkan *ctx)
 	    properties.limits.maxComputeWorkGroupInvocations,
 	    properties.limits.maxStorageBufferRange);
 
-#ifdef VK_KHR_pipeline_executable_properties
-	/* Capturing compiler statistics can inhibit pipeline caching, so only
-	 * enable the developer-oriented extension when debug output requested it.
-	 * Vulkan 1.1 is sufficient for the core feature-query entry point. */
+#if defined(VK_EXT_subgroup_size_control) || \
+	defined(VK_KHR_pipeline_executable_properties)
+	/* Core feature/property queries are available from Vulkan 1.1 onward. */
 	if (ctx->instance_api_version >= VK_API_VERSION_1_1)
 		get_features2 = (PFN_vkGetPhysicalDeviceFeatures2)
 				vkGetInstanceProcAddr(ctx->instance,
 						      "vkGetPhysicalDeviceFeatures2");
+#endif
+
+#ifdef VK_EXT_subgroup_size_control
+	if (ctx->instance_api_version >= VK_API_VERSION_1_1)
+		get_properties2 = (PFN_vkGetPhysicalDeviceProperties2)
+				  vkGetInstanceProcAddr(ctx->instance,
+							"vkGetPhysicalDeviceProperties2");
+	if (requested_subgroup_size && properties.vendorID == AMD_VENDOR_ID &&
+	    get_features2 && get_properties2) {
+		bool core_subgroup_size_control = false;
+		bool extension_subgroup_size_control;
+
+#ifdef VK_API_VERSION_1_3
+		core_subgroup_size_control =
+			ctx->instance_api_version >= VK_API_VERSION_1_3 &&
+			properties.apiVersion >= VK_API_VERSION_1_3;
+#endif
+		extension_subgroup_size_control = device_extension_supported(
+							  ctx->physical_device,
+							  VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+		if (core_subgroup_size_control || extension_subgroup_size_control) {
+			get_features2(ctx->physical_device,
+				      &subgroup_supported_features);
+			get_properties2(ctx->physical_device,
+					&subgroup_supported_properties);
+			dbg("Vulkan subgroup-size control: feature=%u range=%u..%u "
+			    "compute-stages=0x%x max-compute-subgroups=%u\n",
+			    subgroup_features.subgroupSizeControl,
+			    subgroup_properties.minSubgroupSize,
+			    subgroup_properties.maxSubgroupSize,
+			    subgroup_properties.requiredSubgroupSizeStages,
+			    subgroup_properties.maxComputeWorkgroupSubgroups);
+
+			if (subgroup_features.subgroupSizeControl &&
+			    (subgroup_properties.requiredSubgroupSizeStages &
+			     VK_SHADER_STAGE_COMPUTE_BIT) &&
+			    requested_subgroup_size >=
+			    subgroup_properties.minSubgroupSize &&
+			    requested_subgroup_size <=
+			    subgroup_properties.maxSubgroupSize &&
+			    WORKGROUP_SIZE % requested_subgroup_size == 0 &&
+			    WORKGROUP_SIZE / requested_subgroup_size <=
+			    subgroup_properties.maxComputeWorkgroupSubgroups) {
+				ctx->required_subgroup_size = requested_subgroup_size;
+				subgroup_features.subgroupSizeControl = VK_TRUE;
+				subgroup_features.computeFullSubgroups = VK_FALSE;
+				subgroup_features.pNext = (void *)device.pNext;
+				device.pNext = &subgroup_features;
+				if (!core_subgroup_size_control) {
+					device_extensions[device.enabledExtensionCount++] =
+						VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
+					device.ppEnabledExtensionNames = device_extensions;
+				}
+				dbg("requesting Vulkan compute subgroup size %u\n",
+				    ctx->required_subgroup_size);
+			} else {
+				dbg("Vulkan compute subgroup size %u is unsupported; "
+				    "using the driver default\n",
+				    requested_subgroup_size);
+			}
+		}
+	}
+#endif
+
+#ifdef VK_KHR_pipeline_executable_properties
+	/* Capturing compiler statistics can inhibit pipeline caching, so only
+	 * enable the developer-oriented extension when debug output requested it.
+	 * Vulkan 1.1 is sufficient for the core feature-query entry point. */
 	if (pipeline_statistics_requested() &&
 	    get_features2 &&
 	    properties.apiVersion >= VK_API_VERSION_1_1 &&
@@ -943,6 +1053,7 @@ static VkResult init_device(struct zc_vulkan *ctx)
 			device_extensions[device.enabledExtensionCount++] =
 				VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME;
 			device.ppEnabledExtensionNames = device_extensions;
+			pipeline_features.pNext = (void *)device.pNext;
 			device.pNext = &pipeline_features;
 			ctx->pipeline_executable_info = true;
 			dbg("enabling Vulkan pipeline executable statistics\n");
