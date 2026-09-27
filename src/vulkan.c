@@ -35,6 +35,7 @@
 #define WORKGROUP_SIZE 64u
 #define CHUNK_LIMIT (1u << 26)
 #define AMD_VENDOR_ID 0x1002u
+#define DEVICE_EXTENSION_CAPACITY 2u
 
 /* Zero leaves subgroup selection to the driver.  Thirty-two requests wave32
  * where VK_EXT_subgroup_size_control (or its Vulkan 1.3 core form) permits it. */
@@ -76,6 +77,9 @@
 
 /* results[0] is an atomic survivor count; the remaining words are offsets. */
 #define RESULT_WORDS (RESULT_CAPACITY + 1u)
+
+_Static_assert(INPUT_WORDS <= RESULT_WORDS,
+	       "the staging buffer must fit serialized dispatch input");
 
 /* Specialization-constant IDs declared in vulkan-bruteforce.comp. */
 #define SPEC_LENGTH_ID 0u
@@ -155,6 +159,24 @@ struct zc_vulkan {
 	uint64_t dispatch_count;
 	uint64_t passwords_tested;
 	double gpu_compute_nanoseconds;
+};
+
+/*
+ * Optional device features must remain alive until vkCreateDevice() returns.
+ * Keeping their storage and pNext chain in one object makes that lifetime
+ * explicit and keeps feature negotiation out of the core initialization path.
+ */
+struct zc_vk_device_config {
+	const char *extensions[DEVICE_EXTENSION_CAPACITY];
+	uint32_t extension_count;
+	void *feature_chain;
+
+#ifdef VK_EXT_subgroup_size_control
+	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_size;
+#endif
+#ifdef VK_KHR_pipeline_executable_properties
+	VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipeline_info;
+#endif
 };
 
 /* -------------------------------------------------------------------------
@@ -578,7 +600,7 @@ static VkResult create_compute_pipeline(
 					&pipeline, NULL, out);
 }
 
-static VkResult create_pipeline_resources(struct zc_vulkan *ctx)
+static VkResult create_descriptor_layout(struct zc_vulkan *ctx)
 {
 	VkDescriptorSetLayoutBinding bindings[2] = {
 		{
@@ -599,35 +621,53 @@ static VkResult create_pipeline_resources(struct zc_vulkan *ctx)
 		.bindingCount = 2,
 		.pBindings = bindings,
 	};
+
+	/* Binding 0 is immutable dispatch input; binding 1 receives survivors. */
+	return vkCreateDescriptorSetLayout(ctx->device, &descriptor_layout,
+					   NULL, &ctx->descriptor_layout);
+}
+
+static VkResult create_pipeline_layout(struct zc_vulkan *ctx)
+{
 	VkPipelineLayoutCreateInfo pipeline_layout = {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.setLayoutCount = 1,
+		.pSetLayouts = &ctx->descriptor_layout,
 	};
+
+	return vkCreatePipelineLayout(ctx->device, &pipeline_layout, NULL,
+				      &ctx->pipeline_layout);
+}
+
+static VkResult create_shader_module(struct zc_vulkan *ctx)
+{
 	VkShaderModuleCreateInfo shader = {
 		.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
 		.codeSize = sizeof(vulkan_shader),
 		.pCode = vulkan_shader,
 	};
+
+	/* SPIR-V is embedded so installed builds do not need a shader compiler. */
+	return vkCreateShaderModule(ctx->device, &shader, NULL,
+				    &ctx->shader_module);
+}
+
+static VkResult create_pipeline_resources(struct zc_vulkan *ctx)
+{
 	VkResult result;
 
 	dbg("creating generic Vulkan compute pipeline from %zu-byte embedded shader\n",
 	    sizeof(vulkan_shader));
 
-	/* Bindings 0 and 1 are the input and result storage buffers. */
-	result = vkCreateDescriptorSetLayout(ctx->device, &descriptor_layout,
-					     NULL, &ctx->descriptor_layout);
+	result = create_descriptor_layout(ctx);
 	if (result != VK_SUCCESS)
 		return result;
 
-	pipeline_layout.setLayoutCount = 1;
-	pipeline_layout.pSetLayouts = &ctx->descriptor_layout;
-	result = vkCreatePipelineLayout(ctx->device, &pipeline_layout, NULL,
-					&ctx->pipeline_layout);
+	result = create_pipeline_layout(ctx);
 	if (result != VK_SUCCESS)
 		return result;
 
-	/* The generated SPIR-V is embedded so installed builds need no compiler. */
-	result = vkCreateShaderModule(ctx->device, &shader, NULL,
-				      &ctx->shader_module);
+	result = create_shader_module(ctx);
 	if (result != VK_SUCCESS)
 		return result;
 
@@ -666,6 +706,42 @@ static void log_pipeline_statistic(
 	}
 }
 
+static void log_executable_statistics(struct zc_vulkan *ctx,
+				      VkPipeline pipeline, uint32_t index)
+{
+	VkPipelineExecutableInfoKHR executable = {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
+		.pipeline = pipeline,
+		.executableIndex = index,
+	};
+	VkPipelineExecutableStatisticKHR *statistics = NULL;
+	VkResult result;
+	uint32_t count = 0;
+
+	result = ctx->get_executable_statistics(ctx->device, &executable,
+						&count, NULL);
+	if (result != VK_SUCCESS || !count)
+		return;
+
+	statistics = calloc(count, sizeof(*statistics));
+	if (!statistics)
+		return;
+
+	for (uint32_t i = 0; i < count; ++i) {
+		statistics[i].sType =
+			VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR;
+	}
+
+	result = ctx->get_executable_statistics(ctx->device, &executable,
+						&count, statistics);
+	if (result == VK_SUCCESS) {
+		for (uint32_t i = 0; i < count; ++i)
+			log_pipeline_statistic(&statistics[i]);
+	}
+
+	free(statistics);
+}
+
 static void log_pipeline_statistics(struct zc_vulkan *ctx,
 				    VkPipeline pipeline, const char *description)
 {
@@ -701,35 +777,9 @@ static void log_pipeline_statistics(struct zc_vulkan *ctx,
 		goto out;
 
 	for (uint32_t i = 0; i < executable_count; ++i) {
-		VkPipelineExecutableInfoKHR executable_info = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_INFO_KHR,
-			.pipeline = pipeline,
-			.executableIndex = i,
-		};
-		VkPipelineExecutableStatisticKHR *statistics;
-		uint32_t statistic_count = 0;
-
 		dbg("Vulkan pipeline executable %u: %s, subgroup-size=%u\n",
 		    i, executables[i].name, executables[i].subgroupSize);
-		result = ctx->get_executable_statistics(
-				 ctx->device, &executable_info, &statistic_count, NULL);
-		if (result != VK_SUCCESS || !statistic_count)
-			continue;
-
-		statistics = calloc(statistic_count, sizeof(*statistics));
-		if (!statistics)
-			continue;
-		for (uint32_t j = 0; j < statistic_count; ++j)
-			statistics[j].sType =
-				VK_STRUCTURE_TYPE_PIPELINE_EXECUTABLE_STATISTIC_KHR;
-		result = ctx->get_executable_statistics(
-				 ctx->device, &executable_info, &statistic_count,
-				 statistics);
-		if (result == VK_SUCCESS) {
-			for (uint32_t j = 0; j < statistic_count; ++j)
-				log_pipeline_statistic(&statistics[j]);
-		}
-		free(statistics);
+		log_executable_statistics(ctx, pipeline, i);
 	}
 out:
 	if (result != VK_SUCCESS)
@@ -783,9 +833,10 @@ static void select_specialized_pipeline(struct zc_vulkan *ctx,
 		.pData = &data,
 	};
 	VkPipeline *pipeline = &ctx->specialized_pipelines[length];
-	VkResult result;
 
 	if (!*pipeline) {
+		VkResult result;
+
 		result = create_compute_pipeline(ctx, &specialization, pipeline);
 		if (result != VK_SUCCESS) {
 			dbg("Vulkan pipeline specialization failed for length %u: "
@@ -804,7 +855,7 @@ static void select_specialized_pipeline(struct zc_vulkan *ctx,
 	ctx->active_pipeline = *pipeline;
 }
 
-static VkResult create_descriptors(struct zc_vulkan *ctx)
+static VkResult allocate_descriptor_set(struct zc_vulkan *ctx)
 {
 	VkDescriptorPoolSize pool_size = {
 		.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -821,6 +872,20 @@ static VkResult create_descriptors(struct zc_vulkan *ctx)
 		.descriptorSetCount = 1,
 		.pSetLayouts = &ctx->descriptor_layout,
 	};
+	VkResult result;
+
+	result = vkCreateDescriptorPool(ctx->device, &pool, NULL,
+					&ctx->descriptor_pool);
+	if (result != VK_SUCCESS)
+		return result;
+
+	allocate.descriptorPool = ctx->descriptor_pool;
+	return vkAllocateDescriptorSets(ctx->device, &allocate,
+					&ctx->descriptor_set);
+}
+
+static void update_descriptor_set(struct zc_vulkan *ctx)
+{
 	VkDescriptorBufferInfo buffers[2] = {
 		{
 			.buffer = ctx->input.buffer,
@@ -834,6 +899,7 @@ static VkResult create_descriptors(struct zc_vulkan *ctx)
 	VkWriteDescriptorSet writes[2] = {
 		{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = ctx->descriptor_set,
 			.dstBinding = 0,
 			.descriptorCount = 1,
 			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
@@ -841,28 +907,25 @@ static VkResult create_descriptors(struct zc_vulkan *ctx)
 		},
 		{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = ctx->descriptor_set,
 			.dstBinding = 1,
 			.descriptorCount = 1,
 			.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
 			.pBufferInfo = &buffers[1],
 		},
 	};
-	VkResult result;
-
-	result = vkCreateDescriptorPool(ctx->device, &pool, NULL,
-					&ctx->descriptor_pool);
-	if (result != VK_SUCCESS)
-		return result;
-	allocate.descriptorPool = ctx->descriptor_pool;
-	result = vkAllocateDescriptorSets(ctx->device, &allocate,
-					  &ctx->descriptor_set);
-	if (result != VK_SUCCESS)
-		return result;
-
-	for (size_t i = 0; i < 2; ++i)
-		writes[i].dstSet = ctx->descriptor_set;
 
 	vkUpdateDescriptorSets(ctx->device, 2, writes, 0, NULL);
+}
+
+static VkResult create_descriptors(struct zc_vulkan *ctx)
+{
+	VkResult result = allocate_descriptor_set(ctx);
+
+	if (result != VK_SUCCESS)
+		return result;
+
+	update_descriptor_set(ctx);
 	dbg("bound Vulkan input and result storage buffers\n");
 	return VK_SUCCESS;
 }
@@ -871,12 +934,231 @@ static VkResult create_descriptors(struct zc_vulkan *ctx)
  * Device lifetime
  * ------------------------------------------------------------------------- */
 
-static VkResult init_device(struct zc_vulkan *ctx)
+#if defined(VK_EXT_subgroup_size_control) || \
+	defined(VK_KHR_pipeline_executable_properties)
+static bool add_device_extension(struct zc_vk_device_config *config,
+				 const char *extension)
 {
-	const char *device_extensions[2];
+	if (config->extension_count >= DEVICE_EXTENSION_CAPACITY)
+		return false;
+
+	config->extensions[config->extension_count++] = extension;
+	return true;
+}
+
+static PFN_vkGetPhysicalDeviceFeatures2
+get_physical_device_features2(const struct zc_vulkan *ctx)
+{
+	if (ctx->instance_api_version < VK_API_VERSION_1_1)
+		return NULL;
+
+	return (PFN_vkGetPhysicalDeviceFeatures2)vkGetInstanceProcAddr(
+		       ctx->instance, "vkGetPhysicalDeviceFeatures2");
+}
+#endif
+
+#ifdef VK_EXT_subgroup_size_control
+static void configure_subgroup_size(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties,
+	PFN_vkGetPhysicalDeviceFeatures2 get_features2,
+	struct zc_vk_device_config *config)
+{
+	const uint32_t requested = ZC_VULKAN_SUBGROUP_SIZE;
+	PFN_vkGetPhysicalDeviceProperties2 get_properties2;
+	VkPhysicalDeviceFeatures2 supported_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &config->subgroup_size,
+	};
+	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroup_properties = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT,
+	};
+	VkPhysicalDeviceProperties2 supported_properties = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+		.pNext = &subgroup_properties,
+	};
+	bool core_feature = false;
+	bool extension_feature;
+
+	if (!requested || properties->vendorID != AMD_VENDOR_ID || !get_features2)
+		return;
+
+	get_properties2 = (PFN_vkGetPhysicalDeviceProperties2)
+			  vkGetInstanceProcAddr(ctx->instance,
+						"vkGetPhysicalDeviceProperties2");
+	if (!get_properties2)
+		return;
+
+#ifdef VK_API_VERSION_1_3
+	core_feature = ctx->instance_api_version >= VK_API_VERSION_1_3 &&
+		       properties->apiVersion >= VK_API_VERSION_1_3;
+#endif
+	extension_feature = device_extension_supported(
+				    ctx->physical_device, VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
+	if (!core_feature && !extension_feature)
+		return;
+
+	config->subgroup_size.sType =
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT;
+	get_features2(ctx->physical_device, &supported_features);
+	get_properties2(ctx->physical_device, &supported_properties);
+
+	dbg("Vulkan subgroup-size control: feature=%u range=%u..%u "
+	    "compute-stages=0x%x max-compute-subgroups=%u\n",
+	    config->subgroup_size.subgroupSizeControl,
+	    subgroup_properties.minSubgroupSize,
+	    subgroup_properties.maxSubgroupSize,
+	    subgroup_properties.requiredSubgroupSizeStages,
+	    subgroup_properties.maxComputeWorkgroupSubgroups);
+
+	if (!config->subgroup_size.subgroupSizeControl ||
+	    !(subgroup_properties.requiredSubgroupSizeStages &
+	      VK_SHADER_STAGE_COMPUTE_BIT) ||
+	    requested < subgroup_properties.minSubgroupSize ||
+	    requested > subgroup_properties.maxSubgroupSize ||
+	    WORKGROUP_SIZE % requested != 0 ||
+	    WORKGROUP_SIZE / requested >
+	    subgroup_properties.maxComputeWorkgroupSubgroups) {
+		dbg("Vulkan compute subgroup size %u is unsupported; "
+		    "using the driver default\n", requested);
+		return;
+	}
+
+	if (!core_feature &&
+	    !add_device_extension(config,
+				  VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME))
+		return;
+
+	ctx->required_subgroup_size = requested;
+	config->subgroup_size.subgroupSizeControl = VK_TRUE;
+	config->subgroup_size.computeFullSubgroups = VK_FALSE;
+	config->subgroup_size.pNext = config->feature_chain;
+	config->feature_chain = &config->subgroup_size;
+	dbg("requesting Vulkan compute subgroup size %u\n", requested);
+}
+#endif
+
+#ifdef VK_KHR_pipeline_executable_properties
+static void configure_pipeline_statistics(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties,
+	PFN_vkGetPhysicalDeviceFeatures2 get_features2,
+	struct zc_vk_device_config *config)
+{
+	VkPhysicalDeviceFeatures2 supported_features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &config->pipeline_info,
+	};
+
+	/* Capturing compiler statistics can inhibit pipeline caching, so only
+	 * enable the developer-oriented extension when debug output requested it.
+	 * Vulkan 1.1 is sufficient for the core feature-query entry point. */
+	if (!pipeline_statistics_requested() || !get_features2 ||
+	    properties->apiVersion < VK_API_VERSION_1_1 ||
+	    !device_extension_supported(
+		    ctx->physical_device,
+		    VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))
+		return;
+
+	config->pipeline_info.sType =
+		VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR;
+	get_features2(ctx->physical_device, &supported_features);
+	if (!config->pipeline_info.pipelineExecutableInfo ||
+	    !add_device_extension(
+		    config,
+		    VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME))
+		return;
+
+	config->pipeline_info.pNext = config->feature_chain;
+	config->feature_chain = &config->pipeline_info;
+	ctx->pipeline_executable_info = true;
+	dbg("enabling Vulkan pipeline executable statistics\n");
+}
+#endif
+
+static void configure_device_features(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties,
+	struct zc_vk_device_config *config)
+{
+#if defined(VK_EXT_subgroup_size_control) || \
+	defined(VK_KHR_pipeline_executable_properties)
+	PFN_vkGetPhysicalDeviceFeatures2 get_features2 =
+		get_physical_device_features2(ctx);
+
+#ifdef VK_EXT_subgroup_size_control
+	configure_subgroup_size(ctx, properties, get_features2, config);
+#endif
+#ifdef VK_KHR_pipeline_executable_properties
+	configure_pipeline_statistics(ctx, properties, get_features2, config);
+#endif
+#else
+	(void)ctx;
+	(void)properties;
+	(void)config;
+#endif
+}
+
+static VkResult select_physical_device(
+	struct zc_vulkan *ctx, VkPhysicalDeviceProperties *properties)
+{
+	VkResult result;
+
+	/* No presentation surface is needed, only a compute-capable queue. */
+	result = create_instance(&ctx->instance, &ctx->instance_api_version);
+	if (result != VK_SUCCESS)
+		return result;
+
+	if (enumerate_devices(NULL, ctx->device_index, ctx->instance,
+			      &ctx->physical_device, &ctx->queue_family,
+			      &ctx->timestamp_valid_bits, ctx->device_name)) {
+		err("Vulkan device %u is unavailable or has no compute queue\n",
+		    ctx->device_index);
+		return VK_ERROR_INITIALIZATION_FAILED;
+	}
+
+	vkGetPhysicalDeviceProperties(ctx->physical_device, properties);
+	ctx->timestamp_period = properties->limits.timestampPeriod;
+	dbg("Vulkan device limits: workgroups-x=%u workgroup-size-x=%u "
+	    "invocations=%u storage-buffer-range=%u\n",
+	    properties->limits.maxComputeWorkGroupCount[0],
+	    properties->limits.maxComputeWorkGroupSize[0],
+	    properties->limits.maxComputeWorkGroupInvocations,
+	    properties->limits.maxStorageBufferRange);
+
+	return VK_SUCCESS;
+}
+
+#ifdef VK_KHR_pipeline_executable_properties
+static void load_pipeline_statistics_functions(struct zc_vulkan *ctx)
+{
+	if (!ctx->pipeline_executable_info)
+		return;
+
+	ctx->get_executable_properties =
+		(PFN_vkGetPipelineExecutablePropertiesKHR)vkGetDeviceProcAddr(
+			ctx->device, "vkGetPipelineExecutablePropertiesKHR");
+	ctx->get_executable_statistics =
+		(PFN_vkGetPipelineExecutableStatisticsKHR)vkGetDeviceProcAddr(
+			ctx->device, "vkGetPipelineExecutableStatisticsKHR");
+	if (!ctx->get_executable_properties ||
+	    !ctx->get_executable_statistics) {
+		dbg("Vulkan pipeline executable entry points unavailable\n");
+		ctx->pipeline_executable_info = false;
+	}
+}
+#else
+static void load_pipeline_statistics_functions(struct zc_vulkan *ctx)
+{
+	(void)ctx;
+}
+#endif
+
+static VkResult create_logical_device(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties)
+{
+	struct zc_vk_device_config config = { 0 };
 	float priority = 1.0f;
 	VkDeviceQueueCreateInfo queue = {
 		.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+		.queueFamilyIndex = ctx->queue_family,
 		.queueCount = 1,
 		.pQueuePriorities = &priority,
 	};
@@ -885,9 +1167,30 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		.queueCreateInfoCount = 1,
 		.pQueueCreateInfos = &queue,
 	};
+	VkResult result;
+
+	configure_device_features(ctx, properties, &config);
+	device.pNext = config.feature_chain;
+	device.enabledExtensionCount = config.extension_count;
+	device.ppEnabledExtensionNames = config.extension_count ?
+					 config.extensions : NULL;
+
+	result = vkCreateDevice(ctx->physical_device, &device, NULL, &ctx->device);
+	if (result != VK_SUCCESS)
+		return result;
+
+	load_pipeline_statistics_functions(ctx);
+	vkGetDeviceQueue(ctx->device, ctx->queue_family, 0, &ctx->queue);
+	return VK_SUCCESS;
+}
+
+static VkResult create_command_resources(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties)
+{
 	VkCommandPoolCreateInfo pool = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+		.queueFamilyIndex = ctx->queue_family,
 	};
 	VkCommandBufferAllocateInfo command = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -902,288 +1205,205 @@ static VkResult init_device(struct zc_vulkan *ctx)
 		.queryType = VK_QUERY_TYPE_TIMESTAMP,
 		.queryCount = 2,
 	};
-	VkPhysicalDeviceProperties properties;
-#if defined(VK_EXT_subgroup_size_control) || \
-	defined(VK_KHR_pipeline_executable_properties)
-	PFN_vkGetPhysicalDeviceFeatures2 get_features2 = NULL;
-#endif
-#ifdef VK_EXT_subgroup_size_control
-	uint32_t requested_subgroup_size = ZC_VULKAN_SUBGROUP_SIZE;
-	PFN_vkGetPhysicalDeviceProperties2 get_properties2 = NULL;
-	VkPhysicalDeviceSubgroupSizeControlFeaturesEXT subgroup_features = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT,
-	};
-	VkPhysicalDeviceSubgroupSizeControlPropertiesEXT subgroup_properties = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT,
-	};
-	VkPhysicalDeviceFeatures2 subgroup_supported_features = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-		.pNext = &subgroup_features,
-	};
-	VkPhysicalDeviceProperties2 subgroup_supported_properties = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-		.pNext = &subgroup_properties,
-	};
-#endif
-#ifdef VK_KHR_pipeline_executable_properties
-	VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pipeline_features = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR,
-	};
-	VkPhysicalDeviceFeatures2 supported_features = {
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-		.pNext = &pipeline_features,
-	};
-#endif
-	uint64_t device_chunk_limit;
-	uint64_t selected_chunk_limit;
 	VkResult result;
-	VkDeviceSize staging_size = RESULT_WORDS * sizeof(uint32_t);
 
-	/* Instance and physical-device selection do not require a presentation
-	 * surface; only a queue family with compute support is needed. */
-	result = create_instance(&ctx->instance, &ctx->instance_api_version);
+	result = vkCreateCommandPool(ctx->device, &pool, NULL,
+				     &ctx->command_pool);
 	if (result != VK_SUCCESS)
-		goto fail;
+		return result;
 
-	if (enumerate_devices(NULL, ctx->device_index, ctx->instance,
-			      &ctx->physical_device, &ctx->queue_family,
-			      &ctx->timestamp_valid_bits,
-			      ctx->device_name)) {
-		err("Vulkan device %u is unavailable or has no compute queue\n",
-		    ctx->device_index);
-		result = VK_ERROR_INITIALIZATION_FAILED;
-		goto fail;
-	}
-
-	/* Create one logical queue and one reusable command buffer.  Dispatches
-	 * are intentionally serialized through a fence, so no queue fan-out is
-	 * needed for this first implementation. */
-	vkGetPhysicalDeviceProperties(ctx->physical_device, &properties);
-	ctx->timestamp_period = properties.limits.timestampPeriod;
-	dbg("Vulkan device limits: workgroups-x=%u workgroup-size-x=%u "
-	    "invocations=%u storage-buffer-range=%u\n",
-	    properties.limits.maxComputeWorkGroupCount[0],
-	    properties.limits.maxComputeWorkGroupSize[0],
-	    properties.limits.maxComputeWorkGroupInvocations,
-	    properties.limits.maxStorageBufferRange);
-
-#if defined(VK_EXT_subgroup_size_control) || \
-	defined(VK_KHR_pipeline_executable_properties)
-	/* Core feature/property queries are available from Vulkan 1.1 onward. */
-	if (ctx->instance_api_version >= VK_API_VERSION_1_1)
-		get_features2 = (PFN_vkGetPhysicalDeviceFeatures2)
-				vkGetInstanceProcAddr(ctx->instance,
-						      "vkGetPhysicalDeviceFeatures2");
-#endif
-
-#ifdef VK_EXT_subgroup_size_control
-	if (ctx->instance_api_version >= VK_API_VERSION_1_1)
-		get_properties2 = (PFN_vkGetPhysicalDeviceProperties2)
-				  vkGetInstanceProcAddr(ctx->instance,
-							"vkGetPhysicalDeviceProperties2");
-	if (requested_subgroup_size && properties.vendorID == AMD_VENDOR_ID &&
-	    get_features2 && get_properties2) {
-		bool core_subgroup_size_control = false;
-		bool extension_subgroup_size_control;
-
-#ifdef VK_API_VERSION_1_3
-		core_subgroup_size_control =
-			ctx->instance_api_version >= VK_API_VERSION_1_3 &&
-			properties.apiVersion >= VK_API_VERSION_1_3;
-#endif
-		extension_subgroup_size_control = device_extension_supported(
-							  ctx->physical_device,
-							  VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME);
-		if (core_subgroup_size_control || extension_subgroup_size_control) {
-			get_features2(ctx->physical_device,
-				      &subgroup_supported_features);
-			get_properties2(ctx->physical_device,
-					&subgroup_supported_properties);
-			dbg("Vulkan subgroup-size control: feature=%u range=%u..%u "
-			    "compute-stages=0x%x max-compute-subgroups=%u\n",
-			    subgroup_features.subgroupSizeControl,
-			    subgroup_properties.minSubgroupSize,
-			    subgroup_properties.maxSubgroupSize,
-			    subgroup_properties.requiredSubgroupSizeStages,
-			    subgroup_properties.maxComputeWorkgroupSubgroups);
-
-			if (subgroup_features.subgroupSizeControl &&
-			    (subgroup_properties.requiredSubgroupSizeStages &
-			     VK_SHADER_STAGE_COMPUTE_BIT) &&
-			    requested_subgroup_size >=
-			    subgroup_properties.minSubgroupSize &&
-			    requested_subgroup_size <=
-			    subgroup_properties.maxSubgroupSize &&
-			    WORKGROUP_SIZE % requested_subgroup_size == 0 &&
-			    WORKGROUP_SIZE / requested_subgroup_size <=
-			    subgroup_properties.maxComputeWorkgroupSubgroups) {
-				ctx->required_subgroup_size = requested_subgroup_size;
-				subgroup_features.subgroupSizeControl = VK_TRUE;
-				subgroup_features.computeFullSubgroups = VK_FALSE;
-				subgroup_features.pNext = (void *)device.pNext;
-				device.pNext = &subgroup_features;
-				if (!core_subgroup_size_control) {
-					device_extensions[device.enabledExtensionCount++] =
-						VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME;
-					device.ppEnabledExtensionNames = device_extensions;
-				}
-				dbg("requesting Vulkan compute subgroup size %u\n",
-				    ctx->required_subgroup_size);
-			} else {
-				dbg("Vulkan compute subgroup size %u is unsupported; "
-				    "using the driver default\n",
-				    requested_subgroup_size);
-			}
-		}
-	}
-#endif
-
-#ifdef VK_KHR_pipeline_executable_properties
-	/* Capturing compiler statistics can inhibit pipeline caching, so only
-	 * enable the developer-oriented extension when debug output requested it.
-	 * Vulkan 1.1 is sufficient for the core feature-query entry point. */
-	if (pipeline_statistics_requested() &&
-	    get_features2 &&
-	    properties.apiVersion >= VK_API_VERSION_1_1 &&
-	    device_extension_supported(
-		    ctx->physical_device,
-		    VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME)) {
-		get_features2(ctx->physical_device, &supported_features);
-		if (pipeline_features.pipelineExecutableInfo) {
-			device_extensions[device.enabledExtensionCount++] =
-				VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME;
-			device.ppEnabledExtensionNames = device_extensions;
-			pipeline_features.pNext = (void *)device.pNext;
-			device.pNext = &pipeline_features;
-			ctx->pipeline_executable_info = true;
-			dbg("enabling Vulkan pipeline executable statistics\n");
-		}
-	}
-#else
-	(void)device_extensions;
-#endif
-
-	queue.queueFamilyIndex = ctx->queue_family;
-	result = vkCreateDevice(ctx->physical_device, &device, NULL, &ctx->device);
-	if (result != VK_SUCCESS)
-		goto fail;
-#ifdef VK_KHR_pipeline_executable_properties
-	if (ctx->pipeline_executable_info) {
-		ctx->get_executable_properties =
-			(PFN_vkGetPipelineExecutablePropertiesKHR)
-			vkGetDeviceProcAddr(ctx->device,
-					    "vkGetPipelineExecutablePropertiesKHR");
-		ctx->get_executable_statistics =
-			(PFN_vkGetPipelineExecutableStatisticsKHR)
-			vkGetDeviceProcAddr(ctx->device,
-					    "vkGetPipelineExecutableStatisticsKHR");
-		if (!ctx->get_executable_properties ||
-		    !ctx->get_executable_statistics) {
-			dbg("Vulkan pipeline executable entry points unavailable\n");
-			ctx->pipeline_executable_info = false;
-		}
-	}
-#endif
-	vkGetDeviceQueue(ctx->device, ctx->queue_family, 0, &ctx->queue);
-	pool.queueFamilyIndex = ctx->queue_family;
-	result = vkCreateCommandPool(ctx->device, &pool, NULL, &ctx->command_pool);
-	if (result != VK_SUCCESS)
-		goto fail;
 	command.commandPool = ctx->command_pool;
 	result = vkAllocateCommandBuffers(ctx->device, &command,
 					  &ctx->command_buffer);
 	if (result != VK_SUCCESS)
-		goto fail;
+		return result;
+
 	result = vkCreateFence(ctx->device, &fence, NULL, &ctx->fence);
 	if (result != VK_SUCCESS)
-		goto fail;
+		return result;
 
-	/* Timestamp queries are optional instrumentation.  A device or queue that
-	 * cannot timestamp compute work still runs the attack normally. */
-	if (properties.limits.timestampComputeAndGraphics &&
-	    ctx->timestamp_valid_bits) {
-		result = vkCreateQueryPool(ctx->device, &timestamp_pool, NULL,
-					   &ctx->timestamp_pool);
-		if (result != VK_SUCCESS) {
-			dbg("disabling Vulkan timestamps: %s (%d)\n",
-			    vk_result_name(result), result);
-			ctx->timestamp_pool = VK_NULL_HANDLE;
-			result = VK_SUCCESS;
-		} else {
-			dbg("enabled Vulkan timestamps: valid-bits=%u period=%.3f ns\n",
-			    ctx->timestamp_valid_bits, ctx->timestamp_period);
-		}
-	} else {
+	/* Timestamp queries are optional instrumentation. */
+	if (!properties->limits.timestampComputeAndGraphics ||
+	    !ctx->timestamp_valid_bits) {
 		dbg("Vulkan compute timestamps are unavailable on this queue\n");
+		return VK_SUCCESS;
 	}
 
-	/*
-	 * Keep the large, frequently accessed buffers in device-local memory.
-	 * The staging allocation is sized for the larger of an input upload or a
-	 * result download, allowing both transfers to reuse one mapping target.
-	 */
-	result = create_buffer(ctx, INPUT_WORDS * sizeof(uint32_t),
+	result = vkCreateQueryPool(ctx->device, &timestamp_pool, NULL,
+				   &ctx->timestamp_pool);
+	if (result != VK_SUCCESS) {
+		dbg("disabling Vulkan timestamps: %s (%d)\n",
+		    vk_result_name(result), result);
+		ctx->timestamp_pool = VK_NULL_HANDLE;
+		return VK_SUCCESS;
+	}
+
+	dbg("enabled Vulkan timestamps: valid-bits=%u period=%.3f ns\n",
+	    ctx->timestamp_valid_bits, ctx->timestamp_period);
+	return VK_SUCCESS;
+}
+
+static bool set_max_chunk(struct zc_vulkan *ctx,
+			  const VkPhysicalDeviceProperties *properties)
+{
+	uint64_t device_limit;
+	uint64_t selected_limit = CHUNK_LIMIT;
+
+	/* Convert the X-axis workgroup limit into prefix-batched candidates in
+	 * 64 bits, then clamp it to the shader's uint32_t candidate counter. */
+	device_limit =
+		(uint64_t)properties->limits.maxComputeWorkGroupCount[0] *
+		WORKGROUP_SIZE * ctx->search.radix;
+	if (selected_limit > device_limit)
+		selected_limit = device_limit;
+	if (selected_limit > UINT32_MAX)
+		selected_limit = UINT32_MAX;
+
+	ctx->max_chunk = (uint32_t)selected_limit;
+
+	/* Prefix sharing requires non-final dispatches to end at a radix
+	 * boundary, leaving the next dispatch's final digit at zero. */
+	ctx->max_chunk -= ctx->max_chunk % ctx->search.radix;
+	return ctx->max_chunk != 0;
+}
+
+static bool device_limits_support_shader(
+	const VkPhysicalDeviceProperties *properties, VkDeviceSize input_size,
+	VkDeviceSize result_size)
+{
+	const VkPhysicalDeviceLimits *limits = &properties->limits;
+
+	if (limits->maxComputeWorkGroupInvocations < WORKGROUP_SIZE ||
+	    limits->maxComputeWorkGroupSize[0] < WORKGROUP_SIZE) {
+		err("Vulkan device cannot run %u-invocation compute workgroups\n",
+		    WORKGROUP_SIZE);
+		return false;
+	}
+
+	if (limits->maxComputeSharedMemorySize < 256u * sizeof(uint32_t)) {
+		err("Vulkan device lacks space for the shader CRC lookup table\n");
+		return false;
+	}
+
+	if (input_size > limits->maxStorageBufferRange ||
+	    result_size > limits->maxStorageBufferRange) {
+		err("Vulkan device storage-buffer range is too small\n");
+		return false;
+	}
+
+	return true;
+}
+
+static VkResult create_data_resources(
+	struct zc_vulkan *ctx, const VkPhysicalDeviceProperties *properties)
+{
+	const VkDeviceSize input_size = INPUT_WORDS * sizeof(uint32_t);
+	const VkDeviceSize result_size = RESULT_WORDS * sizeof(uint32_t);
+	const VkDeviceSize staging_size = result_size;
+	VkResult result;
+
+	if (!device_limits_support_shader(properties, input_size, result_size))
+		return VK_ERROR_FEATURE_NOT_PRESENT;
+
+	/* The frequently accessed buffers stay device-local.  One host-visible
+	 * staging allocation is large enough for either transfer direction. */
+	result = create_buffer(ctx, input_size,
 			       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
 			       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &ctx->input);
 	if (result != VK_SUCCESS)
-		goto fail;
-	result = create_buffer(ctx, RESULT_WORDS * sizeof(uint32_t),
+		return result;
+
+	result = create_buffer(ctx, result_size,
 			       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
 			       VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
 			       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &ctx->result);
 	if (result != VK_SUCCESS)
-		goto fail;
-	if (INPUT_WORDS * sizeof(uint32_t) > staging_size)
-		staging_size = INPUT_WORDS * sizeof(uint32_t);
+		return result;
+
 	result = create_buffer(ctx, staging_size,
 			       VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
 			       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &ctx->staging);
 	if (result != VK_SUCCESS)
-		goto fail;
+		return result;
+
 	result = create_pipeline_resources(ctx);
 	if (result != VK_SUCCESS)
-		goto fail;
+		return result;
 	log_pipeline_statistics(ctx, ctx->generic_pipeline, "generic");
+
 	result = create_descriptors(ctx);
+	if (result != VK_SUCCESS)
+		return result;
+
+	if (!set_max_chunk(ctx, properties))
+		return VK_ERROR_INITIALIZATION_FAILED;
+
+	dbg("Vulkan resources ready: input=%" PRIu64
+	    " bytes result=%" PRIu64 " bytes staging=%" PRIu64
+	    " bytes max-chunk=%u workgroup-size=%u\n",
+	    (uint64_t)input_size, (uint64_t)result_size,
+	    (uint64_t)staging_size, ctx->max_chunk, WORKGROUP_SIZE);
+	return VK_SUCCESS;
+}
+
+static VkResult init_device(struct zc_vulkan *ctx)
+{
+	VkPhysicalDeviceProperties properties;
+	VkResult result;
+
+	result = select_physical_device(ctx, &properties);
 	if (result != VK_SUCCESS)
 		goto fail;
 
-	/* A dispatch must obey both yazc's latency bound and the device's X-axis
-	 * workgroup-count limit.  Calculate in 64 bits because Vulkan exposes the
-	 * latter as uint32_t and converting groups to prefix-batched candidates
-	 * can overflow before the result is clamped to the uint32_t counter. */
-	device_chunk_limit =
-		(uint64_t)properties.limits.maxComputeWorkGroupCount[0] *
-		WORKGROUP_SIZE * ctx->search.radix;
-	selected_chunk_limit = CHUNK_LIMIT;
-	if (selected_chunk_limit > device_chunk_limit)
-		selected_chunk_limit = device_chunk_limit;
-	if (selected_chunk_limit > UINT32_MAX)
-		selected_chunk_limit = UINT32_MAX;
-	ctx->max_chunk = (uint32_t)selected_chunk_limit;
-	/* Prefix sharing requires every non-final dispatch to end at a radix
-	 * boundary, leaving the next dispatch's final digit at zero. */
-	ctx->max_chunk -= ctx->max_chunk % ctx->search.radix;
-	if (!ctx->max_chunk) {
-		result = VK_ERROR_INITIALIZATION_FAILED;
+	result = create_logical_device(ctx, &properties);
+	if (result != VK_SUCCESS)
 		goto fail;
-	}
-	dbg("Vulkan resources ready: input=%zu bytes result=%zu bytes "
-	    "staging=%" PRIu64 " bytes max-chunk=%u workgroup-size=%u\n",
-	    INPUT_WORDS * sizeof(uint32_t),
-	    RESULT_WORDS * sizeof(uint32_t), (uint64_t)staging_size,
-	    ctx->max_chunk, WORKGROUP_SIZE);
+
+	/* Dispatches are serialized through one reusable command buffer and
+	 * fence, so a single compute queue is sufficient. */
+	result = create_command_resources(ctx, &properties);
+	if (result != VK_SUCCESS)
+		goto fail;
+
+	result = create_data_resources(ctx, &properties);
+	if (result != VK_SUCCESS)
+		goto fail;
 
 	info("Using Vulkan device %u: %s\n", ctx->device_index,
 	     ctx->device_name);
 	return VK_SUCCESS;
+
 fail:
 	err("Vulkan initialization failed: %s (%d)\n",
 	    vk_result_name(result), result);
 	return result;
+}
+
+static void destroy_pipeline_resources(struct zc_vulkan *ctx)
+{
+	if (ctx->descriptor_pool)
+		vkDestroyDescriptorPool(ctx->device, ctx->descriptor_pool, NULL);
+
+	for (size_t i = 0; i <= ZC_PW_MAXLEN; ++i) {
+		if (ctx->specialized_pipelines[i]) {
+			vkDestroyPipeline(ctx->device,
+					  ctx->specialized_pipelines[i], NULL);
+		}
+	}
+
+	if (ctx->generic_pipeline)
+		vkDestroyPipeline(ctx->device, ctx->generic_pipeline, NULL);
+	if (ctx->shader_module)
+		vkDestroyShaderModule(ctx->device, ctx->shader_module, NULL);
+	if (ctx->pipeline_layout)
+		vkDestroyPipelineLayout(ctx->device, ctx->pipeline_layout, NULL);
+	if (ctx->descriptor_layout) {
+		vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptor_layout,
+					     NULL);
+	}
 }
 
 static void deinit_device(struct zc_vulkan *ctx)
@@ -1197,22 +1417,8 @@ static void deinit_device(struct zc_vulkan *ctx)
 
 	/* Destroy objects in reverse dependency order.  Vulkan destroy calls are
 	 * null-safe only where explicitly guarded here. */
-	if (ctx->descriptor_pool)
-		vkDestroyDescriptorPool(ctx->device, ctx->descriptor_pool, NULL);
-	for (size_t i = 0; i <= ZC_PW_MAXLEN; ++i) {
-		if (ctx->specialized_pipelines[i])
-			vkDestroyPipeline(ctx->device,
-					  ctx->specialized_pipelines[i], NULL);
-	}
-	if (ctx->generic_pipeline)
-		vkDestroyPipeline(ctx->device, ctx->generic_pipeline, NULL);
-	if (ctx->shader_module)
-		vkDestroyShaderModule(ctx->device, ctx->shader_module, NULL);
-	if (ctx->pipeline_layout)
-		vkDestroyPipelineLayout(ctx->device, ctx->pipeline_layout, NULL);
-	if (ctx->descriptor_layout)
-		vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptor_layout,
-					     NULL);
+	destroy_pipeline_resources(ctx);
+
 	if (ctx->timestamp_pool)
 		vkDestroyQueryPool(ctx->device, ctx->timestamp_pool, NULL);
 
@@ -1344,18 +1550,10 @@ static VkResult upload_dispatch_input(struct zc_vulkan *ctx, uint32_t count)
 	return result;
 }
 
-static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
-					 uint32_t count)
+static void record_dispatch_upload(struct zc_vulkan *ctx)
 {
-	VkCommandBufferBeginInfo begin = {
-		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-	};
 	VkBufferCopy input_copy = {
 		.size = INPUT_WORDS * sizeof(uint32_t),
-	};
-	VkBufferCopy result_copy = {
-		.size = RESULT_WORDS * sizeof(uint32_t),
 	};
 	VkMemoryBarrier transfer_to_compute = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -1363,23 +1561,6 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT |
 		VK_ACCESS_SHADER_WRITE_BIT,
 	};
-	VkMemoryBarrier compute_to_transfer = {
-		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-		.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-		.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-	};
-	VkResult result;
-
-	result = vkResetCommandBuffer(ctx->command_buffer, 0);
-	if (result != VK_SUCCESS)
-		return result;
-
-	result = vkBeginCommandBuffer(ctx->command_buffer, &begin);
-	if (result != VK_SUCCESS)
-		return result;
-	if (ctx->timestamp_pool)
-		vkCmdResetQueryPool(ctx->command_buffer, ctx->timestamp_pool,
-				    0, 2);
 
 	/*
 	 * Transfer the immutable input for this chunk and clear the survivor
@@ -1395,10 +1576,15 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 			     VK_PIPELINE_STAGE_TRANSFER_BIT,
 			     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
 			     1, &transfer_to_compute, 0, NULL, 0, NULL);
+}
+
+static void record_dispatch_compute(struct zc_vulkan *ctx, uint32_t count)
+{
 	if (ctx->timestamp_pool)
 		vkCmdWriteTimestamp(ctx->command_buffer,
 				    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 				    ctx->timestamp_pool, 0);
+
 	vkCmdBindPipeline(ctx->command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE,
 			  ctx->active_pipeline);
 	vkCmdBindDescriptorSets(ctx->command_buffer,
@@ -1407,10 +1593,23 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 				&ctx->descriptor_set, 0, NULL);
 	vkCmdDispatch(ctx->command_buffer,
 		      dispatch_workgroup_count(ctx, count), 1, 1);
+
 	if (ctx->timestamp_pool)
 		vkCmdWriteTimestamp(ctx->command_buffer,
 				    VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 				    ctx->timestamp_pool, 1);
+}
+
+static void record_dispatch_download(struct zc_vulkan *ctx)
+{
+	VkBufferCopy result_copy = {
+		.size = RESULT_WORDS * sizeof(uint32_t),
+	};
+	VkMemoryBarrier compute_to_transfer = {
+		.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+		.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+		.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+	};
 
 	/* Make shader-written survivor offsets visible to the result copy. */
 	vkCmdPipelineBarrier(ctx->command_buffer,
@@ -1419,6 +1618,32 @@ static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
 			     1, &compute_to_transfer, 0, NULL, 0, NULL);
 	vkCmdCopyBuffer(ctx->command_buffer, ctx->result.buffer,
 			ctx->staging.buffer, 1, &result_copy);
+}
+
+static VkResult record_dispatch_commands(struct zc_vulkan *ctx,
+					 uint32_t count)
+{
+	VkCommandBufferBeginInfo begin = {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+	};
+	VkResult result;
+
+	result = vkResetCommandBuffer(ctx->command_buffer, 0);
+	if (result != VK_SUCCESS)
+		return result;
+
+	result = vkBeginCommandBuffer(ctx->command_buffer, &begin);
+	if (result != VK_SUCCESS)
+		return result;
+
+	if (ctx->timestamp_pool)
+		vkCmdResetQueryPool(ctx->command_buffer, ctx->timestamp_pool,
+				    0, 2);
+
+	record_dispatch_upload(ctx);
+	record_dispatch_compute(ctx, count);
+	record_dispatch_download(ctx);
 
 	return vkEndCommandBuffer(ctx->command_buffer);
 }
@@ -1534,8 +1759,8 @@ static int run_dispatch(struct zc_vulkan *ctx, uint32_t count,
 	result = submit_dispatch(ctx);
 	if (result != VK_SUCCESS)
 		goto fail;
+
 	accumulate_dispatch_timestamps(ctx);
-	ctx->passwords_tested += count;
 
 	phase = "result download";
 	result = download_dispatch_results(ctx, result_words);
@@ -1555,14 +1780,79 @@ fail:
  * ------------------------------------------------------------------------- */
 
 static int search_range(struct zc_vulkan *ctx, uint32_t count,
+			char *password);
+
+static int search_split_range(struct zc_vulkan *ctx, uint32_t count,
+			      char *password)
+{
+	struct zc_vulkan_search original = ctx->search;
+	uint32_t first = count / 2;
+	int result;
+
+	/* Keep the second half's base aligned for prefix sharing.  An overflow
+	 * requires more candidates than RESULT_CAPACITY, so an aligned, nonzero
+	 * split should always be available. */
+	first -= first % ctx->search.radix;
+	if (!first) {
+		err("Vulkan survivor buffer overflowed for one candidate\n");
+		return -1;
+	}
+
+	dbg("splitting overflowing %u-candidate Vulkan range into %u and "
+	    "%u candidates\n", count, first, count - first);
+
+	result = search_range(ctx, first, password);
+	if (result > 0) {
+		ctx->search = original;
+		if (zc_vulkan_search_add(ctx->search.digits,
+					 ctx->search.length,
+					 ctx->search.radix, first)) {
+			result = -1;
+		} else {
+			result = search_range(ctx, count - first, password);
+		}
+	}
+
+	/* Keep recursive retries invisible to the caller's search position. */
+	ctx->search = original;
+	return result;
+}
+
+static int verify_survivors(struct zc_vulkan *ctx, uint32_t *offsets,
+			    uint32_t count, char *password)
+{
+	/* Atomic appends are unordered.  Sorting retains the CPU engine's
+	 * lowest-candidate-first behavior. */
+	qsort(offsets, count, sizeof(*offsets), compare_index);
+
+	if (count)
+		dbg("CPU-verifying %u Vulkan header survivors\n", count);
+
+	for (uint32_t i = 0; i < count; ++i) {
+		zc_vulkan_search_password(&ctx->search, offsets[i], password);
+		if (!test_password(ctx, password))
+			continue;
+
+		dbg("Vulkan survivor offset %u passed full CPU validation\n",
+		    offsets[i]);
+		return 0;
+	}
+
+	if (count)
+		dbg("CPU validation rejected all %u Vulkan header survivors\n",
+		    count);
+	return 1;
+}
+
+static int search_range(struct zc_vulkan *ctx, uint32_t count,
 			char *password)
 {
 	uint32_t *results = NULL;
 	uint32_t survivors;
-	int ret;
+	int result;
 
-	ret = run_dispatch(ctx, count, &results);
-	if (ret)
+	result = run_dispatch(ctx, count, &results);
+	if (result)
 		return -1;
 
 	/* results[0] counts every survivor, including offsets that did not fit
@@ -1572,60 +1862,16 @@ static int search_range(struct zc_vulkan *ctx, uint32_t count,
 	    ctx->dispatch_count, survivors);
 
 	if (survivors > RESULT_CAPACITY) {
-		struct zc_vulkan_search original = ctx->search;
-		uint32_t first = count / 2;
-
-		/* Keep the second half's base aligned for prefix sharing.  Overflow
-		 * requires more survivors than RESULT_CAPACITY, so count is always
-		 * large enough to leave a nonzero radix-aligned first half. */
-		first -= first % ctx->search.radix;
-
-		/*
-		 * Re-run two halves instead of accepting a truncated result list.
-		 * Recursion continues until every survivor offset fits.  Restore the
-		 * original digits after each branch because the search object is the
-		 * base value from which shader-local offsets are interpreted.
-		 */
 		free(results);
-		dbg("splitting overflowing %u-candidate Vulkan range into %u and "
-		    "%u candidates\n",
-		    count, first, count - first);
-		if (!first) {
-			err("Vulkan survivor buffer overflowed for one candidate\n");
-			return -1;
-		}
-		ret = search_range(ctx, first, password);
-		if (ret <= 0)
-			return ret;
-		ctx->search = original;
-		if (zc_vulkan_search_add(ctx->search.digits, ctx->search.length,
-					 ctx->search.radix, first))
-			return -1;
-		ret = search_range(ctx, count - first, password);
-		ctx->search = original;
-		return ret;
+		return search_split_range(ctx, count, password);
 	}
 
-	/* Atomic writes arrive in an unspecified order.  Sorting preserves the
-	 * same lowest-candidate-first behavior as the CPU brute-force engine. */
-	qsort(results + 1, survivors, sizeof(results[0]), compare_index);
-	if (survivors)
-		dbg("CPU-verifying %u Vulkan header survivors\n", survivors);
-	for (uint32_t i = 0; i < survivors; ++i) {
-		zc_vulkan_search_password(&ctx->search, results[i + 1], password);
-		if (test_password(ctx, password)) {
-			dbg("Vulkan survivor offset %u passed full CPU validation\n",
-			    results[i + 1]);
-			free(results);
-			return 0;
-		}
-	}
-	if (survivors)
-		dbg("CPU validation rejected all %u Vulkan header survivors\n",
-		    survivors);
-
+	/* Count only leaf ranges.  An overflowing parent is retried in two
+	 * halves and must not be counted a second time. */
+	ctx->passwords_tested += count;
+	result = verify_survivors(ctx, results + 1, survivors, password);
 	free(results);
-	return 1;
+	return result;
 }
 
 int zc_vulkan_new(struct zc_vulkan **out)
@@ -1659,33 +1905,9 @@ void zc_vulkan_destroy(struct zc_vulkan *ctx)
 	free(ctx);
 }
 
-int zc_vulkan_init(struct zc_vulkan *ctx, const char *filename,
-		   const struct zc_vulkan_config *config)
+static int load_validation_data(struct zc_vulkan *ctx, const char *filename)
 {
 	int result;
-
-	if (config)
-		dbg("initializing Vulkan attack: archive=%s charset=%s "
-		    "lengths=%zu..%zu device=%u\n",
-		    filename ? filename : "(null)",
-		    config->charset ? config->charset : "(null)",
-		    config->min_length, config->max_length,
-		    config->device_index);
-
-	if (!ctx || !filename || !config ||
-	    config->min_length > config->max_length ||
-	    config->max_length > ZC_PW_MAXLEN ||
-	    zc_vulkan_search_init(&ctx->search, config->charset,
-				  config->min_length))
-		return -1;
-
-	/* Preserve the normalized alphabet for statistics output. */
-	for (size_t i = 0; i < ctx->search.radix; ++i)
-		ctx->charset[i] = ctx->search.alphabet[i];
-
-	ctx->min_length = config->min_length;
-	ctx->max_length = config->max_length;
-	ctx->device_index = config->device_index;
 
 	/* Multiple headers make the GPU filter selective; one complete encrypted
 	 * entry is retained for authoritative CPU verification. */
@@ -1713,11 +1935,71 @@ int zc_vulkan_init(struct zc_vulkan *ctx, const char *filename,
 	ctx->inflate = malloc(INFLATE_CHUNK);
 	if (!ctx->plaintext || !ctx->inflate || inflate_new(&ctx->zlib))
 		return -1;
+	return 0;
+}
+
+int zc_vulkan_init(struct zc_vulkan *ctx, const char *filename,
+		   const struct zc_vulkan_config *config)
+{
+	if (config)
+		dbg("initializing Vulkan attack: archive=%s charset=%s "
+		    "lengths=%zu..%zu device=%u\n",
+		    filename ? filename : "(null)",
+		    config->charset ? config->charset : "(null)",
+		    config->min_length, config->max_length,
+		    config->device_index);
+
+	if (!ctx || !filename || !config ||
+	    config->min_length > config->max_length ||
+	    config->max_length > ZC_PW_MAXLEN ||
+	    zc_vulkan_search_init(&ctx->search, config->charset,
+				  config->min_length))
+		return -1;
+
+	/* Preserve the normalized alphabet for statistics output. */
+	for (size_t i = 0; i < ctx->search.radix; ++i)
+		ctx->charset[i] = ctx->search.alphabet[i];
+
+	ctx->min_length = config->min_length;
+	ctx->max_length = config->max_length;
+	ctx->device_index = config->device_index;
+
+	if (load_validation_data(ctx, filename))
+		return -1;
 
 	if (init_device(ctx) != VK_SUCCESS)
 		return -1;
 
 	return 0;
+}
+
+static int search_password_length(struct zc_vulkan *ctx, uint32_t length,
+				  char *password)
+{
+	if (zc_vulkan_search_set_length(&ctx->search, length))
+		return -1;
+	select_specialized_pipeline(ctx, length);
+	dbg("searching Vulkan passwords of length %u\n", length);
+
+	for (;;) {
+		uint32_t count = zc_vulkan_search_chunk_count(
+					 ctx->search.digits, ctx->search.length,
+					 ctx->search.radix, ctx->max_chunk);
+		int result;
+
+		if (!count)
+			return 1;
+
+		result = search_range(ctx, count, password);
+		if (result <= 0)
+			return result;
+
+		/* No password survived CPU verification.  Advance to the candidate
+		 * immediately following this dispatch. */
+		if (zc_vulkan_search_add(ctx->search.digits, ctx->search.length,
+					 ctx->search.radix, count))
+			return 1;
+	}
 }
 
 int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
@@ -1728,11 +2010,9 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 		return -1;
 
 	/*
-	 * The complete mixed-radix counter lives on the host.  Each GPU dispatch
-	 * receives a base counter plus a uint32_t local offset, so password spaces
-	 * can exceed both the dispatch-size limit and UINT32_MAX candidates.
-	 * Each password length is exhausted before set_length() resets the counter
-	 * for the next length in the inclusive range.
+	 * The complete mixed-radix counter lives on the host.  Each dispatch gets
+	 * a base counter plus a uint32_t local offset, so the complete search can
+	 * exceed both one dispatch and UINT32_MAX candidates.
 	 */
 	ctx->dispatch_count = 0;
 	ctx->passwords_tested = 0;
@@ -1744,32 +2024,10 @@ int zc_vulkan_start(struct zc_vulkan *ctx, char *password,
 	for (uint32_t length = ctx->min_length;
 	     length <= ctx->max_length; ++length) {
 		uint64_t first_dispatch = ctx->dispatch_count;
+		int result = search_password_length(ctx, length, password);
 
-		if (zc_vulkan_search_set_length(&ctx->search, length))
-			return -1;
-		select_specialized_pipeline(ctx, length);
-		dbg("searching Vulkan passwords of length %u\n", length);
-
-		for (;;) {
-			uint32_t count = zc_vulkan_search_chunk_count(
-						 ctx->search.digits, ctx->search.length,
-						 ctx->search.radix, ctx->max_chunk);
-			int result;
-
-			if (!count)
-				break;
-
-			result = search_range(ctx, count, password);
-			if (result <= 0)
-				return result;
-
-			/* No password survived CPU verification.  Advance to the
-			 * candidate immediately following this dispatch. */
-			if (zc_vulkan_search_add(ctx->search.digits,
-						 ctx->search.length,
-						 ctx->search.radix, count))
-				break;
-		}
+		if (result <= 0)
+			return result;
 
 		dbg("exhausted Vulkan password length %u in %" PRIu64
 		    " dispatches\n",

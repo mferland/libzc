@@ -243,7 +243,7 @@ static int do_vulkan(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 		if (!yazc_make_charset(charset_flags, opts.generated_charset,
-					 sizeof(opts.generated_charset))) {
+				       sizeof(opts.generated_charset))) {
 			cli_err("generating character set failed.\n");
 			return EXIT_FAILURE;
 		}

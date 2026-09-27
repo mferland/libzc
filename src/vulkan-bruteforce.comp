@@ -48,6 +48,10 @@ layout(std430, set = 0, binding = 1) buffer ResultBuffer {
 /* Each workgroup copies the CRC table here before testing candidates. */
 shared uint workgroup_crc_table[256];
 
+const uint PASSWORD_MAX_LENGTH = 16;
+const uint CRC_TABLE_SIZE = 256;
+const uint HEADER_DATA_BYTES = 11;
+
 const uint INPUT_CANDIDATE_COUNT = 0;
 const uint INPUT_LENGTH = 1;
 const uint INPUT_CHARSET_LENGTH = 2;
@@ -88,15 +92,78 @@ bool header_matches(uint header_index, uint base0, uint base1, uint base2)
 	uint key2 = base2;
 
 	/* The first eleven plaintext bytes only advance the cipher state. */
-	for (uint i = 0; i < 11; ++i) {
+	for (uint i = 0; i < HEADER_DATA_BYTES; ++i) {
 		uint plain = input_data.words[offset + i] ^ decrypt_byte(key2);
 
 		update_keys(plain, key0, key1, key2);
 	}
 
 	/* The final byte must decrypt to the entry's expected validation byte. */
-	return (input_data.words[offset + 11] ^ decrypt_byte(key2)) ==
-	       input_data.words[offset + 12];
+	return (input_data.words[offset + HEADER_DATA_BYTES] ^
+		decrypt_byte(key2)) ==
+	       input_data.words[offset + HEADER_DATA_BYTES + 1];
+}
+
+bool all_headers_match(uint header_count, uint key0, uint key1, uint key2)
+{
+	for (uint i = 0; i < header_count; ++i) {
+		if (!header_matches(i, key0, key1, key2))
+			return false;
+	}
+
+	return true;
+}
+
+void load_crc_table()
+{
+	/* With a 64-lane workgroup, every lane loads four table entries. */
+	for (uint i = gl_LocalInvocationID.x; i < CRC_TABLE_SIZE;
+	     i += gl_WorkGroupSize.x) {
+		workgroup_crc_table[i] = input_data.words[INPUT_CRC_TABLE + i];
+	}
+}
+
+void load_base_digits(uint length, out uint digits[PASSWORD_MAX_LENGTH])
+{
+	for (uint i = 0; i < length; ++i)
+		digits[i] = input_data.words[INPUT_BASE_DIGITS + i];
+}
+
+void add_offset_to_digits(uint offset, uint length, uint radix,
+			  inout uint digits[PASSWORD_MAX_LENGTH])
+{
+	/* Add from right to left because the final digit changes fastest. */
+	for (uint pos = length; pos > 0 && offset != 0; --pos) {
+		uint value = digits[pos - 1] + offset;
+
+		digits[pos - 1] = value % radix;
+		offset = value / radix;
+	}
+}
+
+void derive_prefix_keys(uint length, const uint digits[PASSWORD_MAX_LENGTH],
+			out uint key0, out uint key1, out uint key2)
+{
+	key0 = 0x12345678u;
+	key1 = 0x23456789u;
+	key2 = 0x34567890u;
+
+	/* The last character is handled by the suffix loop. */
+	for (uint i = 0; i + 1 < length; ++i) {
+		uint value = input_data.words[INPUT_CHARSET + digits[i]];
+
+		update_keys(value, key0, key1, key2);
+	}
+}
+
+void append_survivor(uint candidate_offset)
+{
+	/* Always increment the total.  A count above capacity tells the host to
+	 * split the range and retry instead of accepting truncated results. */
+	uint slot = atomicAdd(result_data.words[0], 1u);
+
+	if (slot < input_data.words[INPUT_RESULT_CAPACITY])
+		result_data.words[slot + 1] = candidate_offset;
 }
 
 void main()
@@ -110,17 +177,14 @@ void main()
 	uint header_count = SPECIALIZED_HEADER_COUNT != 0u ?
 		SPECIALIZED_HEADER_COUNT : input_data.words[INPUT_HEADER_COUNT];
 	uint first = prefix * radix;
-	uint digits[16];
-	uint carry;
-	uint prefix_key0 = 0x12345678u;
-	uint prefix_key1 = 0x23456789u;
-	uint prefix_key2 = 0x34567890u;
+	uint digits[PASSWORD_MAX_LENGTH];
+	uint prefix_key0;
+	uint prefix_key1;
+	uint prefix_key2;
 
 	/* Every lane must reach the barrier, including padding invocations beyond
-	 * the candidate count.  Sixty-four lanes load four table entries each. */
-	for (uint i = gl_LocalInvocationID.x; i < 256;
-	     i += gl_WorkGroupSize.x)
-		workgroup_crc_table[i] = input_data.words[INPUT_CRC_TABLE + i];
+	 * the candidate count. */
+	load_crc_table();
 	barrier();
 
 	if (first >= count)
@@ -128,53 +192,28 @@ void main()
 
 	/* Begin at the host-provided mixed-radix counter.  For example, with
 	 * alphabet "abc", digits [0, 2] represent "ac". */
-	for (uint i = 0; i < length; ++i)
-		digits[i] = input_data.words[INPUT_BASE_DIGITS + i];
+	load_base_digits(length, digits);
 
-	/* Add this invocation's offset from right to left.  The host chooses the
-	 * chunk size so this addition cannot overflow past the first digit. */
-	carry = first;
-	for (uint pos = length; pos > 0 && carry != 0; --pos) {
-		uint value = digits[pos - 1] + carry;
-
-		digits[pos - 1] = value % radix;
-		carry = value / radix;
-	}
+	/* The host bounds the chunk so the addition cannot overflow the password. */
+	add_offset_to_digits(first, length, radix, digits);
 
 	/* Derive the keys shared by every candidate with this prefix.  The host
 	 * aligns dispatch bases to the radix, so the final digit starts at zero. */
-	for (uint i = 0; i + 1 < length; ++i) {
-		uint value = input_data.words[INPUT_CHARSET + digits[i]];
-
-		update_keys(value, prefix_key0, prefix_key1, prefix_key2);
-	}
+	derive_prefix_keys(length, digits, prefix_key0, prefix_key1,
+			   prefix_key2);
 
 	uint suffix_count = min(radix, count - first);
 	for (uint suffix = 0; suffix < suffix_count; ++suffix) {
 		uint key0 = prefix_key0;
 		uint key1 = prefix_key1;
 		uint key2 = prefix_key2;
-		bool matches = true;
 
 		update_keys(input_data.words[INPUT_CHARSET + suffix],
 			    key0, key1, key2);
 
-		/* Reject this suffix on the first header mismatch.  A survivor must
-		 * pass every usable encrypted entry collected by the host. */
-		for (uint i = 0; i < header_count; ++i) {
-			if (!header_matches(i, key0, key1, key2)) {
-				matches = false;
-				break;
-			}
-		}
-		if (!matches)
+		if (!all_headers_match(header_count, key0, key1, key2))
 			continue;
 
-		/* Always increment the total, even when the offset array is full.
-		 * Seeing a count above capacity tells the host to split and retry. */
-		uint slot = atomicAdd(result_data.words[0], 1u);
-
-		if (slot < input_data.words[INPUT_RESULT_CAPACITY])
-			result_data.words[slot + 1] = first + suffix;
+		append_survivor(first + suffix);
 	}
 }
