@@ -55,6 +55,46 @@ grep -q "^INDEX NAME" "$tmpdir/info.out"
 	>"$tmpdir/dictionary.out" 2>"$tmpdir/dictionary.err"
 grep -q "Password is: noradi" "$tmpdir/dictionary.out"
 
-"$YAZC" bruteforce -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
+"$YAZC" bruteforce -S -c a -l 1 "$test_srcdir/bruteforce_one_char.zip" \
 	>"$tmpdir/bruteforce.out" 2>"$tmpdir/bruteforce.err"
+grep -q '^Minimum length: 1$' "$tmpdir/bruteforce.out"
+grep -q '^Estimated passwords tested: 1$' "$tmpdir/bruteforce.out"
+grep -Eq '^Estimated rate: [0-9]+\.[0-9]+ passwords/second$' \
+	"$tmpdir/bruteforce.out"
 grep -q "Password is: a" "$tmpdir/bruteforce.out"
+
+if "$YAZC" bruteforce -S -c a --min-length 2 -l 2 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/bruteforce-min.out" 2>"$tmpdir/bruteforce-min.err"; then
+	echo "bruteforce searched below its minimum length" >&2
+	exit 1
+fi
+grep -q '^Minimum length: 2$' "$tmpdir/bruteforce-min.out"
+grep -q '^Password not found$' "$tmpdir/bruteforce-min.out"
+
+"$YAZC" bruteforce -S -a -A -n -s -l 1 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/bruteforce-classes.out" 2>"$tmpdir/bruteforce-classes.err"
+charset=$(sed -n 's/^Character set: //p' "$tmpdir/bruteforce-classes.out")
+test "${#charset}" -eq 95
+printf '%s\n' "$charset" | grep -Fq '0123456789'
+printf '%s\n' "$charset" | grep -Fq 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+printf '%s\n' "$charset" | grep -Fq 'abcdefghijklmnopqrstuvwxyz'
+grep -q '^Password is: a$' "$tmpdir/bruteforce-classes.out"
+
+"$YAZC" vulkan --help >"$tmpdir/vulkan-help.out" \
+	2>"$tmpdir/vulkan-help.err"
+grep -q -- "--list-devices" "$tmpdir/vulkan-help.err"
+grep -q -- "--alpha" "$tmpdir/vulkan-help.err"
+grep -q -- "--alpha-caps" "$tmpdir/vulkan-help.err"
+grep -q -- "--numeric" "$tmpdir/vulkan-help.err"
+grep -q -- "--special" "$tmpdir/vulkan-help.err"
+
+if "$YAZC" vulkan -c a -l 1 --min-length 2 \
+	"$test_srcdir/bruteforce_one_char.zip" \
+	>"$tmpdir/vulkan-range.out" 2>"$tmpdir/vulkan-range.err"; then
+	echo "vulkan accepted an inverted length range" >&2
+	exit 1
+fi
+grep -q -- "minimum length must not exceed maximum length" \
+	"$tmpdir/vulkan-range.err"

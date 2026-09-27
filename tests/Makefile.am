@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-TESTS = basic compat zip pwstream pool bruteforce dictionary reduce plaintext_password plaintext cli
+TESTS = basic compat zip pwstream pool bruteforce dictionary reduce plaintext_password plaintext vulkan_search cli vulkan-cli
 TESTS_ENVIRONMENT = YAZC='$(abs_top_builddir)/src/yazc'; export YAZC;
 
 check_PROGRAMS = basic \
@@ -25,7 +25,8 @@ check_PROGRAMS = basic \
 	dictionary \
 	reduce \
 	plaintext_password \
-	plaintext
+	plaintext \
+	vulkan_search
 
 AM_CPPFLAGS = -Wall -Wextra -DDATADIR='"$(srcdir)/"' @CPPFLAGS@
 
@@ -43,7 +44,8 @@ EXTRA_DIST = noradi.zip \
 	test.zip \
 	test_zyx.zip \
 	dict.txt \
-	cli
+	cli \
+	vulkan-cli
 
 TEST_CORE = $(top_builddir)/src/libyazc-core.a -lm $(ZLIB_LIBS)
 
@@ -96,3 +98,8 @@ plaintext_password_LDADD = $(TEST_CORE) @CHECK_LIBS@
 plaintext_SOURCES = check_plaintext.c
 plaintext_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
 plaintext_LDADD = $(TEST_CORE) @CHECK_LIBS@
+
+# Vulkan search-space helpers (does not require a Vulkan device)
+vulkan_search_SOURCES = check_vulkan_search.c
+vulkan_search_CFLAGS = @CHECK_CFLAGS@ -I$(top_srcdir)/src
+vulkan_search_LDADD = $(TEST_CORE) @CHECK_LIBS@

@@ -30,12 +30,9 @@
 #include "log.h"
 #include "yazc.h"
 
-#define PW_LEN_DEFAULT 8
+#define PW_MIN_LEN_DEFAULT ZC_PW_MINLEN
 
-#define PWSET_LOWER 1
-#define PWSET_UPPER (1 << 1)
-#define PWSET_NUMB  (1 << 2)
-#define PWSET_SPEC  (1 << 3)
+enum { OPT_MIN_LENGTH = 256 };
 
 struct bruteforce_opts {
 	const char *filename;
@@ -49,6 +46,7 @@ static const struct option long_opts[] = {
 	{ "charset", required_argument, 0, 'c' },
 	{ "initial", required_argument, 0, 'i' },
 	{ "length", required_argument, 0, 'l' },
+	{ "min-length", required_argument, 0, OPT_MIN_LENGTH },
 	{ "alpha", no_argument, 0, 'a' },
 	{ "alpha-caps", no_argument, 0, 'A' },
 	{ "numeric", no_argument, 0, 'n' },
@@ -75,6 +73,7 @@ static void print_help(const char *name)
 		"\t-c, --charset=CHARSET   use character set CHARSET\n"
 		"\t-i, --initial=STRING    initial password\n"
 		"\t-l, --length=NUM        maximum password length (default is %d)\n"
+		"\t    --min-length=NUM    minimum password length (default is %d)\n"
 		"\t-a, --alpha             use characters [a-z]\n"
 		"\t-A, --alpha-caps        use characters [A-Z]\n"
 		"\t-n, --numeric           use characters [0-9]\n"
@@ -85,41 +84,7 @@ static void print_help(const char *name)
 		"\t-t, --threads=N|auto    number of threads (default: auto)\n"
 		"\t-S, --stats             print statistics\n"
 		"\t-h, --help              show this help\n",
-		name, name, PW_LEN_DEFAULT);
-}
-
-static char *make_charset(int flags, char *out, size_t outlen)
-{
-	const char *lowercase_set = "abcdefghijklmnopqrstuvwxyz";
-	const char *uppercase_set = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	const char *number_set = "0123456789";
-	const char *special_set = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\";
-	size_t len = 0;
-
-	if (flags & PWSET_LOWER)
-		len += strlen(lowercase_set);
-	if (flags & PWSET_UPPER)
-		len += strlen(uppercase_set);
-	if (flags & PWSET_NUMB)
-		len += strlen(number_set);
-	if (flags & PWSET_SPEC)
-		len += strlen(special_set);
-
-	if (len > outlen)
-		return NULL;
-
-	memset(out, 0, outlen);
-
-	if (flags & PWSET_LOWER)
-		strcat(out, lowercase_set);
-	if (flags & PWSET_UPPER)
-		strcat(out, uppercase_set);
-	if (flags & PWSET_NUMB)
-		strcat(out, number_set);
-	if (flags & PWSET_SPEC)
-		strcat(out, special_set);
-
-	return out;
+		name, name, ZC_PW_DEFAULT_MAXLEN, PW_MIN_LEN_DEFAULT);
 }
 
 static int launch_crack(const struct bruteforce_opts *opts)
@@ -146,6 +111,7 @@ static int launch_crack(const struct bruteforce_opts *opts)
 			puts("Worker threads: auto");
 		else
 			printf("Worker threads: %ld\n", opts->thread_count);
+		printf("Minimum length: %zu\n", opts->config.minlen);
 		printf("Maximum length: %zu\n", opts->config.maxlen);
 		printf("Character set: %s\n",
 		       zc_bruteforce_sanitized_charset(ctx));
@@ -156,8 +122,11 @@ static int launch_crack(const struct bruteforce_opts *opts)
 	err = zc_bruteforce_start(ctx, pw, sizeof(pw));
 	gettimeofday(&end, NULL);
 
-	if (opts->stats)
+	if (opts->stats) {
 		print_runtime_stats(&begin, &end);
+		print_password_rate(&begin, &end,
+				    zc_bruteforce_passwords_tested(ctx));
+	}
 
 	if (err > 0)
 		printf("Password not found\n");
@@ -178,6 +147,7 @@ static int do_bruteforce(int argc, char *argv[])
 	const char *arg_set = NULL;
 	const char *arg_initial = NULL;
 	const char *arg_threads = NULL;
+	const char *arg_minlen = NULL;
 	const char *arg_maxlen = NULL;
 	const char *arg_mask = NULL;
 	const char *arg_mask_minlen = NULL;
@@ -200,17 +170,20 @@ static int do_bruteforce(int argc, char *argv[])
 		case 'l':
 			arg_maxlen = optarg;
 			break;
+		case OPT_MIN_LENGTH:
+			arg_minlen = optarg;
+			break;
 		case 'a':
-			arg_charset_flag |= PWSET_LOWER;
+			arg_charset_flag |= YAZC_CHARSET_LOWER;
 			break;
 		case 'A':
-			arg_charset_flag |= PWSET_UPPER;
+			arg_charset_flag |= YAZC_CHARSET_UPPER;
 			break;
 		case 'n':
-			arg_charset_flag |= PWSET_NUMB;
+			arg_charset_flag |= YAZC_CHARSET_NUMERIC;
 			break;
 		case 's':
-			arg_charset_flag |= PWSET_SPEC;
+			arg_charset_flag |= YAZC_CHARSET_SPECIAL;
 			break;
 		case 'm':
 			arg_mask = optarg;
@@ -253,7 +226,24 @@ static int do_bruteforce(int argc, char *argv[])
 			return EXIT_FAILURE;
 		}
 	} else
-		opts.config.maxlen = PW_LEN_DEFAULT;
+		opts.config.maxlen = ZC_PW_DEFAULT_MAXLEN;
+
+	/* password start length in character-set mode */
+	if (arg_minlen) {
+		opts.config.minlen = atoi(arg_minlen);
+		if (opts.config.minlen < ZC_PW_MINLEN ||
+		    opts.config.minlen > ZC_PW_MAXLEN) {
+			cli_err("minimum password length must be between %d and %d.\n",
+				ZC_PW_MINLEN, ZC_PW_MAXLEN);
+			return EXIT_FAILURE;
+		}
+	} else
+		opts.config.minlen = PW_MIN_LEN_DEFAULT;
+
+	if (!arg_mask && opts.config.minlen > opts.config.maxlen) {
+		cli_err("minimum length must not exceed maximum length.\n");
+		return EXIT_FAILURE;
+	}
 
 	/* number of threads */
 	if (arg_threads) {
@@ -295,8 +285,9 @@ static int do_bruteforce(int argc, char *argv[])
 			cli_err("no character set provided or specified.\n");
 			return EXIT_FAILURE;
 		}
-		const char *tmp = make_charset(arg_charset_flag, opts.config.set,
-					       ZC_CHARSET_MAXLEN);
+		const char *tmp = yazc_make_charset(arg_charset_flag,
+						    opts.config.set,
+						    sizeof(opts.config.set));
 		if (!tmp) {
 			cli_err("generating character set failed.\n");
 			return EXIT_FAILURE;

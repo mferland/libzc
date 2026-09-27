@@ -17,6 +17,7 @@
  */
 
 #include <getopt.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -41,7 +42,7 @@ static const struct yazc_cmd yazc_cmd_help;
 
 static const struct yazc_cmd *yazc_cmds[] = {
 	&yazc_cmd_help,	     &yazc_cmd_bruteforce, &yazc_cmd_dictionary,
-	&yazc_cmd_plaintext, &yazc_cmd_info,
+	&yazc_cmd_plaintext, &yazc_cmd_vulkan, &yazc_cmd_info,
 };
 
 static int help(int argc __attribute__((unused)), char *argv[])
@@ -77,11 +78,59 @@ static void print_version()
 		"Report bugs to: "PACKAGE_BUGREPORT"\n");
 }
 
+static double elapsed_seconds(const struct timeval *begin,
+			      const struct timeval *end)
+{
+	return (double)(end->tv_usec - begin->tv_usec) / 1000000 +
+	       (double)(end->tv_sec - begin->tv_sec);
+}
+
 int print_runtime_stats(const struct timeval *begin, const struct timeval *end)
 {
-	return printf("Runtime: %f secs.\n",
-		      (double)(end->tv_usec - begin->tv_usec) / 1000000 +
-		      (double)(end->tv_sec - begin->tv_sec));
+	return printf("Runtime: %f secs.\n", elapsed_seconds(begin, end));
+}
+
+int print_password_rate(const struct timeval *begin, const struct timeval *end,
+			uint64_t passwords)
+{
+	double elapsed = elapsed_seconds(begin, end);
+	double rate = elapsed > 0.0 ? (double)passwords / elapsed : 0.0;
+
+	return printf("Estimated passwords tested: %" PRIu64 "\n"
+		      "Estimated rate: %.3f passwords/second\n",
+		      passwords, rate);
+}
+
+char *yazc_make_charset(unsigned int flags, char *out, size_t outlen)
+{
+	static const char lowercase[] = "abcdefghijklmnopqrstuvwxyz";
+	static const char uppercase[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	static const char numeric[] = "0123456789";
+	static const char special[] = " !\"#$%&'()*+,-./:;<=>?`[~]^_{|}@\\";
+	size_t len = 0;
+
+	if (flags & YAZC_CHARSET_LOWER)
+		len += sizeof(lowercase) - 1;
+	if (flags & YAZC_CHARSET_UPPER)
+		len += sizeof(uppercase) - 1;
+	if (flags & YAZC_CHARSET_NUMERIC)
+		len += sizeof(numeric) - 1;
+	if (flags & YAZC_CHARSET_SPECIAL)
+		len += sizeof(special) - 1;
+	if (!out || len >= outlen)
+		return NULL;
+
+	out[0] = '\0';
+	if (flags & YAZC_CHARSET_LOWER)
+		strcat(out, lowercase);
+	if (flags & YAZC_CHARSET_UPPER)
+		strcat(out, uppercase);
+	if (flags & YAZC_CHARSET_NUMERIC)
+		strcat(out, numeric);
+	if (flags & YAZC_CHARSET_SPECIAL)
+		strcat(out, special);
+
+	return out;
 }
 
 static const struct yazc_cmd yazc_cmd_help = {

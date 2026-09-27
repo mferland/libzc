@@ -20,9 +20,11 @@
 #define BRUTEFORCE_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #define ZC_PW_MINLEN	  1
 #define ZC_PW_MAXLEN	  16
+#define ZC_PW_DEFAULT_MAXLEN 8
 #define ZC_CHARSET_MAXLEN 96
 
 struct zc_mask {
@@ -34,6 +36,7 @@ struct zc_mask {
 struct zc_bruteforce_config {
 	char set[ZC_CHARSET_MAXLEN + 1];
 	size_t setlen;
+	size_t minlen;		/* 0 --> use ZC_PW_MINLEN */
 	size_t maxlen;
 	char initial[ZC_PW_MAXLEN + 1];
 	struct zc_mask mask;
@@ -46,6 +49,7 @@ int zc_bruteforce_new(struct zc_bruteforce **ctx);
 int zc_bruteforce_init(struct zc_bruteforce *ctx, const char *fname,
 		       const struct zc_bruteforce_config *cfg);
 const char *zc_bruteforce_sanitized_charset(const struct zc_bruteforce *ctx);
+uint64_t zc_bruteforce_passwords_tested(const struct zc_bruteforce *ctx);
 void zc_bruteforce_force_threads(struct zc_bruteforce *ctx, long w);
 int zc_bruteforce_start(struct zc_bruteforce *ctx, char *out_pw,
 			size_t out_pw_size);

@@ -38,6 +38,25 @@ AX_PTHREAD([LIBS="$PTHREAD_LIBS $LIBS"
 PKG_PROG_PKG_CONFIG
 
 PKG_CHECK_MODULES(ZLIB, zlib)
+AC_ARG_ENABLE([vulkan],
+        AS_HELP_STRING([--disable-vulkan], [build without Vulkan support @<:@default=auto@:>@]),
+        [], [enable_vulkan=auto])
+AS_IF([test "x$enable_vulkan" = "xno"], [
+        have_vulkan=no
+        VULKAN_CFLAGS=
+        VULKAN_LIBS=
+], [
+        PKG_CHECK_MODULES([VULKAN], [vulkan], [have_vulkan=yes], [have_vulkan=no])
+        AS_IF([test "x$enable_vulkan" = "xyes" && test "x$have_vulkan" != "xyes"], [
+                AC_MSG_ERROR([Vulkan support requested but the vulkan package was not found])
+        ])
+])
+AS_IF([test "x$have_vulkan" = "xyes"], [
+        AC_DEFINE([HAVE_VULKAN], [1], [Vulkan compute support.])
+])
+AM_CONDITIONAL([HAVE_VULKAN], [test "x$have_vulkan" = "xyes"])
+AC_SUBST([VULKAN_CFLAGS])
+AC_SUBST([VULKAN_LIBS])
 PKG_CHECK_MODULES([CHECK], [check >= 0.15.2], [HAVE_CHECK=1], [HAVE_CHECK=0])
 AM_CONDITIONAL([USE_CHECK], [test "$HAVE_CHECK" -eq 1])
 
@@ -77,6 +96,7 @@ AC_MSG_RESULT([
 
         logging:                ${enable_logging}
         debug:                  ${enable_debug}
+        vulkan:                 ${have_vulkan}
         PTHREAD_LIBS:           ${PTHREAD_LIBS}
         PTHREAD_CFLAGS:         ${PTHREAD_CFLAGS}
 ])

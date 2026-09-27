@@ -23,6 +23,11 @@ On Ubuntu, install the required packages with:
 
     sudo apt install -y autoconf automake bison flex zlib1g-dev pkg-config
 
+The Vulkan brute-force backend is built automatically when the Vulkan headers
+and loader development package are available. On Ubuntu, install
+`libvulkan-dev`. Use `./configure --disable-vulkan` to build without it. The
+runtime also needs a Vulkan driver exposing a compute-capable device.
+
 Building the unit tests also requires
 [Check](https://github.com/libcheck/check).
 
@@ -42,7 +47,7 @@ list the available subcommands.
 
 # Usage
 
-There are currently three attack modes available:
+There are currently four attack modes available:
 
 ## Brute force
 
@@ -62,7 +67,12 @@ example, with the character set `abc`, the search begins with `a`, then
 the password search space.
 
 `-l, --length` specifies the maximum password length. The program stops
-after testing every password whose length is between one and `length`.
+after testing every password through `length`.
+
+`--min-length` specifies the minimum password length in character-set mode.
+It defaults to one and must not exceed `--length`. When `--initial` is also
+provided, the initial password may start later than this minimum but not
+earlier.
 
 `-a, --alpha` uses lowercase ASCII letters (`a-z`).
 
@@ -76,7 +86,10 @@ after testing every password whose length is between one and `length`.
 `--threads=auto` to select the number of online CPUs reported by
 `sysconf(_SC_NPROCESSORS_ONLN)`. This is the default.
 
-`-S, --stats` prints runtime statistics.
+`-S, --stats` prints runtime statistics, the estimated number of password
+candidates tested, and the estimated password rate. Candidate accounting is
+performed at completed worker leaf and vector-batch boundaries to avoid
+synchronization or per-password timing overhead in the cracking loops.
 
 ### Mask options
 
@@ -148,6 +161,60 @@ Try all password combinations using the characters `abc123` up to a
 maximum of ten characters, using the default number of worker threads:
 
     yazc bruteforce -c abc123 -l10 archive.zip
+
+## Vulkan brute force
+
+This experimental mode generates and filters password candidates using a
+Vulkan compute device. It supports a custom character set and an inclusive
+password-length range. Each fixed-length subspace is exhausted before the
+next length begins.
+
+`-c, --charset` specifies the character set.
+
+The predefined character classes are the same as for the CPU brute-force
+command: `-a, --alpha` adds lowercase ASCII letters, `-A, --alpha-caps` adds
+uppercase ASCII letters, `-n, --numeric` adds digits, and `-s, --special` adds
+printable special ASCII characters. The class options can be combined. An
+explicit `--charset` takes precedence over them.
+
+`-l, --length` specifies the maximum password length. It is optional and
+defaults to eight, matching the CPU brute-force command.
+
+`--min-length` specifies the minimum password length and must not exceed
+`--length`. It is optional and defaults to one.
+
+`-d, --device` selects an indexed compute device. Device zero is the default.
+Use `--list-devices` to print the available indices.
+
+`-S, --stats` prints the selected device, search configuration, runtime,
+estimated number of password candidates tested, and estimated password rate.
+When supported by the selected compute queue, it also reports GPU-only compute
+runtime and throughput using Vulkan timestamp queries. Candidate accounting is
+performed once per GPU dispatch.
+
+Debug builds started with `ZC_LOG=debug` also report implementation-provided
+pipeline executable statistics when the Vulkan driver supports them. These can
+include compiled instruction, register, scratch-memory, and subgroup details;
+the exact fields are driver-specific.
+
+GPU searches process up to 64 million candidates per dispatch, clamped to the
+selected device's compute workgroup limit. This amortizes command submission,
+fence waits, and result readback without changing search order.
+Within a dispatch, each shader invocation derives the keys for one password
+prefix and reuses them across every final-character candidate.
+The backend also creates and caches a compute pipeline specialized for each
+password length it encounters. Password length, character-set size, and ZIP
+header count become compile-time constants for that pipeline; if a driver
+rejects specialization, the search continues with the generic pipeline.
+
+For example, list devices and search every lowercase password from six through
+eight characters on device zero:
+
+    yazc vulkan --list-devices
+    yazc vulkan -a --min-length=6 --length=8 --device=0 archive.zip
+
+The command reports an error instead of silently falling back to the CPU when
+Vulkan support or the selected device is unavailable.
 
 ## Dictionary
 
@@ -256,9 +323,26 @@ Another tool you can use is `zipinfo`.
 
 # Performance benchmarks
 
-Run both attack benchmarks with:
+Run the CPU attack benchmarks with:
 
     scripts/benchmark-attacks.sh
+
+Set `VULKAN_DEVICE` to append the fixed-length Vulkan workload to the report:
+
+    VULKAN_DEVICE=0 scripts/benchmark-attacks.sh
+
+For dedicated Vulkan compute measurements at password lengths 6, 7, and 8,
+run:
+
+    scripts/benchmark-vulkan.sh
+
+The three workloads exhaust the lowercase search spaces of 308,915,776,
+8,031,810,176, and 208,827,064,576 candidates, respectively. Their passwords
+are all `z` characters, placing the match at the end of each search space.
+The length-eight workload is intentionally long-running. Select a GPU and take
+multiple samples with:
+
+    VULKAN_DEVICE=0 RUNS=3 scripts/benchmark-vulkan.sh
 
 `data/bruteforce-7char.zip` is the stable brute-force workload.  It contains
 five traditionally encrypted entries and uses the password `zzzzzzz`, so an

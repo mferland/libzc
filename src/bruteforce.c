@@ -96,6 +96,7 @@ struct zc_bruteforce {
 	int pthread_create_err;
 
 	long force_threads;
+	uint64_t passwords_tested;
 
 	struct list_head workers_head;
 	struct list_head cleanup_head;
@@ -121,6 +122,7 @@ struct worker {
 	size_t id;
 	char pw[ZC_PW_MAXLEN + 1];
 	bool found;
+	uint64_t passwords_tested;
 	unsigned char *inflate;
 	unsigned char *plaintext;
 	struct zlib_state *zlib;
@@ -211,6 +213,11 @@ static bool try_decrypt(const struct zc_bruteforce *ctx,
 	return decrypt_headers(base, ctx->header, ctx->header_size);
 }
 
+static uint64_t saturating_add(uint64_t first, uint64_t second)
+{
+	return UINT64_MAX - first < second ? UINT64_MAX : first + second;
+}
+
 static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 			    char *pw, struct zc_key *cache, struct entry *limit)
 {
@@ -224,12 +231,18 @@ static void do_work_recurse(struct worker *w, size_t level, size_t level_count,
 				    &cache[level_count]);
 			if (try_decrypt(ctx, &cache[level_count])) {
 				if (test_password(w, &cache[level_count])) {
+					w->passwords_tested = saturating_add(
+								      w->passwords_tested, p - first + 1);
 					pw[level_count - 1] = candidate_char(ctx, level_count - 1, p);
 					w->found = true;
 					pthread_exit(w);
 				}
 			}
 		}
+		/* Publish once per completed leaf range.  If another worker cancels
+		 * this one inside the loop, fewer than one alphabet span is omitted. */
+		w->passwords_tested = saturating_add(w->passwords_tested,
+						     last - first);
 	} else {
 		size_t i = level_count - level;
 		for (size_t p = first; p < last; ++p) {
@@ -428,7 +441,15 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 								if (++pwi % ZC_BRUTEFORCE_BATCH_SIZE)
 									continue;
 
-								if (ctx->try_decrypt_fast(ctx, &w->h) == 0)
+								size_t candidates = ctx->try_decrypt_fast(ctx, &w->h);
+
+								/* The vectorized header check has completed for every
+								 * lane in this batch.  Publish only at this existing
+								 * batch boundary, outside the inner candidate loop. */
+								w->passwords_tested = saturating_add(
+											      w->passwords_tested,
+											      ZC_BRUTEFORCE_BATCH_SIZE);
+								if (candidates == 0)
 									continue;
 
 								ret = try_decrypt2(ctx, w);
@@ -465,8 +486,13 @@ static void do_work_recurse2(struct worker *w, size_t level, size_t level_count,
 		select_unfiltered_candidates(&w->h, remaining);
 
 		ret = try_decrypt2(ctx, w);
-		if (ret < 0)
+		if (ret < 0) {
+			w->passwords_tested = saturating_add(
+						      w->passwords_tested, remaining);
 			return;
+		}
+		w->passwords_tested = saturating_add(w->passwords_tested,
+						     (size_t)ret + 1);
 
 		for (int i = 0; i < 6; ++i)
 			in[i] = last[i] - first[i];
@@ -672,6 +698,8 @@ static void wait_workers(struct zc_bruteforce *ctx, size_t workers, char *pw,
 		list_for_each_entry_safe(w, tmp, &ctx->cleanup_head, list) {
 			list_del(&w->list);
 			pthread_join(w->thread_id, NULL);
+			ctx->passwords_tested = saturating_add(
+							ctx->passwords_tested, w->passwords_tested);
 			if (w->found) {
 				memset(pw, 0, len);
 				strncpy(pw, w->pw, len);
@@ -946,10 +974,13 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 			return -1;
 	} else {
 		/* use character set */
+		size_t minlen = cfg->minlen ? cfg->minlen : ZC_PW_MINLEN;
 
 		/* basic sanity checks */
 		if (cfg->setlen == 0 || cfg->setlen > ZC_CHARSET_MAXLEN ||
-		    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN)
+		    minlen < ZC_PW_MINLEN || minlen > ZC_PW_MAXLEN ||
+		    cfg->maxlen == 0 || cfg->maxlen > ZC_PW_MAXLEN ||
+		    minlen > cfg->maxlen)
 			return -1;
 
 		if (strnlen(cfg->set, ZC_CHARSET_MAXLEN) != cfg->setlen)
@@ -964,14 +995,15 @@ static int set_bruteforce_config(struct zc_bruteforce *ctx,
 			ctx->alphabet[i] = (const unsigned char *)ctx->set;
 
 		if (!ctx->ipwlen) {
-			/* no initial password supplied, use first set character */
-			ctx->ipw[0] = ctx->set[0];
-			ctx->ipw[1] = '\0';
-			ctx->ipwlen = 1;
+			/* No initial password supplied: start at the first candidate
+			 * having the requested minimum length. */
+			memset(ctx->ipw, ctx->set[0], minlen);
+			ctx->ipw[minlen] = '\0';
+			ctx->ipwlen = minlen;
 			return 0;
 		}
 
-		if (ctx->ipwlen > ctx->maxlen)
+		if (ctx->ipwlen < minlen || ctx->ipwlen > ctx->maxlen)
 			return -1;
 
 		if (!pw_in_set(ctx->ipw, ctx->set, ctx->setlen))
@@ -1061,7 +1093,7 @@ int zc_bruteforce_new(struct zc_bruteforce **ctx)
 
 	dbg("bruteforce context %p created with %s header filter\n", *ctx,
 	    (*ctx)->try_decrypt_fast == try_decrypt_fast_portable ?
-		    "portable" : "AVX2");
+	    "portable" : "AVX2");
 	return 0;
 }
 
@@ -1085,6 +1117,11 @@ zc_bruteforce_sanitized_charset(const struct zc_bruteforce *ctx)
 	return ctx->set;
 }
 
+uint64_t zc_bruteforce_passwords_tested(const struct zc_bruteforce *ctx)
+{
+	return ctx ? ctx->passwords_tested : 0;
+}
+
 void zc_bruteforce_force_threads(struct zc_bruteforce *ctx, long w)
 {
 	ctx->force_threads = w;
@@ -1098,6 +1135,7 @@ int zc_bruteforce_start(struct zc_bruteforce *ctx, char *pw,
 	if (!len)
 		return -1;
 
+	ctx->passwords_tested = 0;
 	w = threads_to_create(ctx->force_threads);
 
 	if (alloc_pwstreams(ctx, w)) {

@@ -21,6 +21,9 @@ ACLOCAL_AMFLAGS = -I m4
 
 EXTRA_DIST = \
 	scripts/benchmark-attacks.sh \
+	scripts/benchmark-vulkan.sh \
+	data/bruteforce-6char.zip \
 	data/bruteforce-7char.zip \
+	data/bruteforce-8char.zip \
 	data/perfdata_ctext.zip \
 	data/perfdata_ptext.zip

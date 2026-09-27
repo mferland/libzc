@@ -1,0 +1,219 @@
+#version 450
+
+/* One invocation evaluates every final-character variant of one password
+ * prefix.  The host dispatches enough groups to cover the current chunk and
+ * the bounds check below ignores padding. */
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+/*
+ * Exact-search pipelines override these constants when they are created.
+ * Zero is deliberately the default because password lengths, character-set
+ * sizes, and header counts are all strictly positive.  A pipeline using the
+ * defaults therefore remains a generic fallback that reads its dimensions
+ * from the input buffer.
+ *
+ * The constant IDs must remain synchronized with vulkan.c.
+ */
+layout(constant_id = 0) const uint SPECIALIZED_LENGTH = 0u;
+layout(constant_id = 1) const uint SPECIALIZED_RADIX = 0u;
+layout(constant_id = 2) const uint SPECIALIZED_HEADER_COUNT = 0u;
+
+/*
+ * Both buffers contain only uint values.  This intentionally avoids optional
+ * 8-bit-storage and 64-bit-integer features from post-1.0 Vulkan versions.
+ *
+ * Input-buffer layout, in uint words:
+ *
+ *   0 .. 4       dispatch metadata
+ *   5 .. 20      base password represented as mixed-radix digits
+ *   21 .. 116    character set, one byte in each uint
+ *   117 .. 372   ZipCrypto CRC lookup table
+ *   373 ..       encrypted headers, each followed by its validation byte
+ *
+ * Result-buffer layout:
+ *
+ *   0            atomic count of every header survivor
+ *   1 .. N       candidate offsets, capped at INPUT_RESULT_CAPACITY
+ *
+ * The host definitions in vulkan.c must remain synchronized with this layout.
+ */
+layout(std430, set = 0, binding = 0) readonly buffer InputBuffer {
+	uint words[];
+} input_data;
+
+layout(std430, set = 0, binding = 1) buffer ResultBuffer {
+	uint words[];
+} result_data;
+
+/* Each workgroup copies the CRC table here before testing candidates. */
+shared uint workgroup_crc_table[256];
+
+const uint PASSWORD_MAX_LENGTH = 16;
+const uint CRC_TABLE_SIZE = 256;
+const uint HEADER_DATA_BYTES = 11;
+
+const uint INPUT_CANDIDATE_COUNT = 0;
+const uint INPUT_LENGTH = 1;
+const uint INPUT_CHARSET_LENGTH = 2;
+const uint INPUT_HEADER_COUNT = 3;
+const uint INPUT_RESULT_CAPACITY = 4;
+const uint INPUT_BASE_DIGITS = 5;
+const uint INPUT_CHARSET = INPUT_BASE_DIGITS + 16;
+const uint INPUT_CRC_TABLE = INPUT_CHARSET + 96;
+const uint INPUT_HEADERS = INPUT_CRC_TABLE + 256;
+const uint HEADER_WORDS = 13;
+
+uint crc32_byte(uint crc, uint value)
+{
+	uint index = (crc ^ value) & 0xffu;
+
+	return workgroup_crc_table[index] ^ (crc >> 8);
+}
+
+uint decrypt_byte(uint key2)
+{
+	uint temp = key2 | 2u;
+	return ((temp * (temp ^ 1u)) >> 8) & 0xffu;
+}
+
+void update_keys(uint value, inout uint key0, inout uint key1,
+		 inout uint key2)
+{
+	key0 = crc32_byte(key0, value);
+	key1 = (key1 + (key0 & 0xffu)) * 134775813u + 1u;
+	key2 = crc32_byte(key2, key1 >> 24);
+}
+
+bool header_matches(uint header_index, uint base0, uint base1, uint base2)
+{
+	uint offset = INPUT_HEADERS + header_index * HEADER_WORDS;
+	uint key0 = base0;
+	uint key1 = base1;
+	uint key2 = base2;
+
+	/* The first eleven plaintext bytes only advance the cipher state. */
+	for (uint i = 0; i < HEADER_DATA_BYTES; ++i) {
+		uint plain = input_data.words[offset + i] ^ decrypt_byte(key2);
+
+		update_keys(plain, key0, key1, key2);
+	}
+
+	/* The final byte must decrypt to the entry's expected validation byte. */
+	return (input_data.words[offset + HEADER_DATA_BYTES] ^
+		decrypt_byte(key2)) ==
+	       input_data.words[offset + HEADER_DATA_BYTES + 1];
+}
+
+bool all_headers_match(uint header_count, uint key0, uint key1, uint key2)
+{
+	for (uint i = 0; i < header_count; ++i) {
+		if (!header_matches(i, key0, key1, key2))
+			return false;
+	}
+
+	return true;
+}
+
+void load_crc_table()
+{
+	/* With a 64-lane workgroup, every lane loads four table entries. */
+	for (uint i = gl_LocalInvocationID.x; i < CRC_TABLE_SIZE;
+	     i += gl_WorkGroupSize.x) {
+		workgroup_crc_table[i] = input_data.words[INPUT_CRC_TABLE + i];
+	}
+}
+
+void load_base_digits(uint length, out uint digits[PASSWORD_MAX_LENGTH])
+{
+	for (uint i = 0; i < length; ++i)
+		digits[i] = input_data.words[INPUT_BASE_DIGITS + i];
+}
+
+void add_offset_to_digits(uint offset, uint length, uint radix,
+			  inout uint digits[PASSWORD_MAX_LENGTH])
+{
+	/* Add from right to left because the final digit changes fastest. */
+	for (uint pos = length; pos > 0 && offset != 0; --pos) {
+		uint value = digits[pos - 1] + offset;
+
+		digits[pos - 1] = value % radix;
+		offset = value / radix;
+	}
+}
+
+void derive_prefix_keys(uint length, const uint digits[PASSWORD_MAX_LENGTH],
+			out uint key0, out uint key1, out uint key2)
+{
+	key0 = 0x12345678u;
+	key1 = 0x23456789u;
+	key2 = 0x34567890u;
+
+	/* The last character is handled by the suffix loop. */
+	for (uint i = 0; i + 1 < length; ++i) {
+		uint value = input_data.words[INPUT_CHARSET + digits[i]];
+
+		update_keys(value, key0, key1, key2);
+	}
+}
+
+void append_survivor(uint candidate_offset)
+{
+	/* Always increment the total.  A count above capacity tells the host to
+	 * split the range and retry instead of accepting truncated results. */
+	uint slot = atomicAdd(result_data.words[0], 1u);
+
+	if (slot < input_data.words[INPUT_RESULT_CAPACITY])
+		result_data.words[slot + 1] = candidate_offset;
+}
+
+void main()
+{
+	uint prefix = gl_GlobalInvocationID.x;
+	uint count = input_data.words[INPUT_CANDIDATE_COUNT];
+	uint length = SPECIALIZED_LENGTH != 0u ? SPECIALIZED_LENGTH :
+		input_data.words[INPUT_LENGTH];
+	uint radix = SPECIALIZED_RADIX != 0u ? SPECIALIZED_RADIX :
+		input_data.words[INPUT_CHARSET_LENGTH];
+	uint header_count = SPECIALIZED_HEADER_COUNT != 0u ?
+		SPECIALIZED_HEADER_COUNT : input_data.words[INPUT_HEADER_COUNT];
+	uint first = prefix * radix;
+	uint digits[PASSWORD_MAX_LENGTH];
+	uint prefix_key0;
+	uint prefix_key1;
+	uint prefix_key2;
+
+	/* Every lane must reach the barrier, including padding invocations beyond
+	 * the candidate count. */
+	load_crc_table();
+	barrier();
+
+	if (first >= count)
+		return;
+
+	/* Begin at the host-provided mixed-radix counter.  For example, with
+	 * alphabet "abc", digits [0, 2] represent "ac". */
+	load_base_digits(length, digits);
+
+	/* The host bounds the chunk so the addition cannot overflow the password. */
+	add_offset_to_digits(first, length, radix, digits);
+
+	/* Derive the keys shared by every candidate with this prefix.  The host
+	 * aligns dispatch bases to the radix, so the final digit starts at zero. */
+	derive_prefix_keys(length, digits, prefix_key0, prefix_key1,
+			   prefix_key2);
+
+	uint suffix_count = min(radix, count - first);
+	for (uint suffix = 0; suffix < suffix_count; ++suffix) {
+		uint key0 = prefix_key0;
+		uint key1 = prefix_key1;
+		uint key2 = prefix_key2;
+
+		update_keys(input_data.words[INPUT_CHARSET + suffix],
+			    key0, key1, key2);
+
+		if (!all_headers_match(header_count, key0, key1, key2))
+			continue;
+
+		append_survivor(first + suffix);
+	}
+}

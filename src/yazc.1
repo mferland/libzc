@@ -28,6 +28,13 @@ yazc \- recover passwords and encryption keys from legacy ZIP archives
 .RI [ options ]
 .I archive
 .br
+.B yazc vulkan
+.RI [ options ]
+.I archive
+.br
+.B yazc vulkan
+.B --list-devices
+.br
 .B yazc plaintext
 .RI [ options ]
 .I plain-archive plain-entry cipher-archive cipher-entry
@@ -58,8 +65,8 @@ yazc \- recover passwords and encryption keys from legacy ZIP archives
 .SH DESCRIPTION
 .B yazc
 operates on ZIP archives that use the legacy PKZIP stream cipher, commonly
-known as ZipCrypto. It provides brute-force, dictionary, and known-plaintext
-attacks, as well as a command for inspecting archive metadata. All
+known as ZipCrypto. It provides CPU and Vulkan brute-force, dictionary, and
+known-plaintext attacks, as well as a command for inspecting archive metadata. All
 functionality is provided by this single executable through its subcommands.
 .SH COMMANDS
 .TP
@@ -68,6 +75,9 @@ Generate and test passwords from a character set or a position-specific mask.
 .TP
 .B dictionary
 Test passwords read from a file or standard input.
+.TP
+.B vulkan
+Generate and filter passwords over a length range on a Vulkan compute device.
 .TP
 .B plaintext
 Use known plaintext to recover the internal encryption-key representation,
@@ -99,6 +109,14 @@ instead of at the first generated password.
 .TP
 .BR \-l ", " \-\-length=\fINUM\fR
 Set the maximum password length in character-set mode. The default is eight.
+.TP
+.BI --min-length= NUM
+Set the minimum password length in character-set mode. The default is one and
+the value must not exceed
+.BR --length .
+When
+.B --initial
+is also provided, its length may be greater than this minimum but not less.
 .TP
 .BR \-a ", " \-\-alpha
 Include lowercase ASCII letters (a-z) in the character set.
@@ -136,7 +154,10 @@ worker threads. The value
 selects the number of online processors and is the default.
 .TP
 .BR \-S ", " \-\-stats
-Print search configuration and runtime statistics.
+Print search configuration, runtime statistics, the estimated number of
+password candidates tested, and the estimated password rate. Accounting occurs
+at completed worker leaf and vector-batch boundaries without per-password
+timing or synchronization in the cracking loops.
 .TP
 .BR \-h ", " \-\-help
 Display help for the
@@ -199,6 +220,60 @@ mask. When
 .B \-i
 is used with a mask, the initial password must have the minimum generated
 length and must match every corresponding mask position.
+.SH VULKAN OPTIONS
+The experimental
+.B vulkan
+command generates password candidates and checks the available ZipCrypto
+encryption headers on a Vulkan compute device. The CPU performs final
+decompression and CRC verification. It does not silently fall back to the CPU
+when Vulkan is unavailable.
+.TP
+.BR -c ", " --charset=CHARSET
+Use the characters in
+.I CHARSET
+to generate password candidates.
+.TP
+.BR -a ", " --alpha
+Include lowercase ASCII letters (a-z) in the character set.
+.TP
+.BR -A ", " --alpha-caps
+Include uppercase ASCII letters (A-Z) in the character set.
+.TP
+.BR -n ", " --numeric
+Include decimal digits (0-9) in the character set.
+.TP
+.BR -s ", " --special
+Include printable special ASCII characters, including space, in the character
+set. Character-class options can be combined. An explicit
+.B --charset
+takes precedence over them.
+.TP
+.BR -l ", " --length=NUM
+Set the maximum password length. The default is eight, matching the
+.B bruteforce
+command.
+.TP
+.BI --min-length= NUM
+Set the minimum password length. The default is one. The value must not exceed
+.BR --length .
+.TP
+.BR -d ", " --device=NUM
+Use compute-capable Vulkan device
+.IR NUM .
+The default is device zero.
+.TP
+.B --list-devices
+Print the indexed compute-capable Vulkan devices and exit.
+.TP
+.BR -S ", " --stats
+Print the selected device, search configuration, runtime statistics, estimated
+number of password candidates tested, and estimated password rate. Accounting
+occurs once per GPU dispatch.
+.TP
+.BR -h ", " --help
+Display help for the
+.B vulkan
+command and exit.
 .SH DICTIONARY OPTIONS
 The
 .B dictionary
@@ -322,6 +397,15 @@ Try a literal pass- prefix followed by four decimal digits:
 .nf
 .RS
 yazc bruteforce --mask='pass-?d?d?d?d' archive.zip
+.RE
+.fi
+.PP
+Search every lowercase password from six through eight characters on Vulkan
+device zero:
+.PP
+.nf
+.RS
+yazc vulkan -a --min-length=6 --length=8 --device=0 archive.zip
 .RE
 .fi
 .PP

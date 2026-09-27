@@ -14,6 +14,7 @@ Environment:
   RUNS=N                 repetitions for each workload (default: 1)
   BRUTEFORCE_THREADS=N|auto
                          brute-force worker count (default: auto)
+  VULKAN_DEVICE=N        also run the Vulkan workload on device N
 EOF
 }
 
@@ -123,6 +124,9 @@ echo "yazc attack performance report"
 echo "Executable: $YAZC"
 echo "Runs: $RUNS"
 echo "Brute-force threads: $BRUTEFORCE_THREADS"
+if [ -n "${VULKAN_DEVICE:-}" ]; then
+	echo "Vulkan device: $VULKAN_DEVICE"
+fi
 echo
 
 run_attack bruteforce 8353082582 \
@@ -130,3 +134,12 @@ run_attack bruteforce 8353082582 \
 echo
 run_attack plaintext 0 \
 	"$YAZC" plaintext -S "$plain_archive" file_0 "$encrypted_archive" file_0
+
+if [ -n "${VULKAN_DEVICE:-}" ]; then
+	echo
+	run_attack vulkan 8031810176 \
+		"$YAZC" vulkan -S \
+		-c abcdefghijklmnopqrstuvwxyz \
+		-l 7 --min-length 7 --device "$VULKAN_DEVICE" \
+		"$brute_archive"
+fi

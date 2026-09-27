@@ -13,7 +13,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTRA_DIST = mask_scanner.h
+EXTRA_DIST = \
+	mask_scanner.h \
+	vulkan-bruteforce.comp \
+	vulkan_shader.inc \
+	update-vulkan-shader.sh
 CLEANFILES =
 ACLOCAL_AMFLAGS = -I m4 ${ACLOCAL_FLAGS}
 AM_MAKEFLAGS = --no-print-directory
@@ -21,7 +25,8 @@ AM_MAKEFLAGS = --no-print-directory
 AM_CPPFLAGS = \
 	-include $(top_builddir)/config.h \
 	-DSYSCONFDIR=\""$(sysconfdir)"\" \
-	-DLIBEXECDIR=\""$(libexecdir)"\"
+	-DLIBEXECDIR=\""$(libexecdir)"\" \
+	$(VULKAN_CFLAGS)
 
 AM_CFLAGS = \
 	-Wall -Wextra \
@@ -60,6 +65,10 @@ libyazc_core_a_SOURCES = \
 	qsort_inline.h \
 	qsort.c \
 	uniq.c \
+	vulkan.c \
+	vulkan.h \
+	vulkan_search.c \
+	vulkan_search.h \
 	zc.c \
 	zc.h
 
@@ -69,14 +78,19 @@ yazc_SOURCES = \
 	yazc-bruteforce.c \
 	yazc-dictionary.c \
 	yazc-plaintext.c \
+	yazc-vulkan.c \
 	yazc-info.c \
 	yazc.h
 yazc_CFLAGS = $(AM_CFLAGS)
-yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS)
+yazc_LDADD = libyazc-core.a -lm $(ZLIB_LIBS) $(VULKAN_LIBS)
 
 dist_man_MANS = yazc.1
 docdir = $(datadir)/doc/yazc
 dist_doc_DATA = $(top_srcdir)/README.md
+
+update-vulkan-shader:
+	$(SHELL) $(srcdir)/update-vulkan-shader.sh $(srcdir)
+.PHONY: update-vulkan-shader
 
 BUILT_SOURCES = mask_parser.c mask_parser.h mask_scanner.c
 

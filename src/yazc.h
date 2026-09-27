@@ -19,7 +19,16 @@
 #ifndef _YAZC_H_
 #define _YAZC_H_
 
+#include <stddef.h>
+#include <stdint.h>
 #include <sys/time.h>
+
+enum yazc_charset_flags {
+	YAZC_CHARSET_LOWER = 1 << 0,
+	YAZC_CHARSET_UPPER = 1 << 1,
+	YAZC_CHARSET_NUMERIC = 1 << 2,
+	YAZC_CHARSET_SPECIAL = 1 << 3,
+};
 
 struct yazc_cmd {
 	const char *name;
@@ -28,10 +37,14 @@ struct yazc_cmd {
 };
 
 int print_runtime_stats(const struct timeval *begin, const struct timeval *end);
+int print_password_rate(const struct timeval *begin, const struct timeval *end,
+			uint64_t passwords);
+char *yazc_make_charset(unsigned int flags, char *out, size_t outlen);
 
 extern const struct yazc_cmd yazc_cmd_bruteforce;
 extern const struct yazc_cmd yazc_cmd_dictionary;
 extern const struct yazc_cmd yazc_cmd_plaintext;
+extern const struct yazc_cmd yazc_cmd_vulkan;
 extern const struct yazc_cmd yazc_cmd_info;
 
 #endif /* _YAZC_H_ */
